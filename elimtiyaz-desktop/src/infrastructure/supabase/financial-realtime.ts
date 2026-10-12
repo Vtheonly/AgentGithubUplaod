@@ -41,7 +41,12 @@ import type { DebtAgingAnalysis, DebtAgingThresholds } from "../../domain/calc/l
 import { agingBucketFromDays } from "../../domain/calc/payment/queries";
 import { SubjectBehavior } from "../mock/subject-behavior";
 import { getSupabaseRepositories } from "./supabase-repositories";
-import { callCollectionRpc, getTenantId } from "./repositories/supabase-shared-repositories";
+import {
+  callCollectionRpc,
+  errorMessage,
+  getTenantId,
+  readWithSeedRetry,
+} from "./repositories/supabase-shared-repositories";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
@@ -251,18 +256,28 @@ export class RealtimeFinancialDebtRepository implements DebtRepository {
       return;
     }
 
-    try {
+    // T-504 (PERF-510, the 2026-10-12 recurrence): the WHOLE refresh is now
+    // ONE retry unit. The owner's console showed the exact prior failure
+    // shape: a transient 500 on `read_ledger_entries_collection` (inside the
+    // Promise.all below) propagated straight to this method's catch — ONE
+    // degraded boot round lost the WHOLE canonical debt refresh, parents and
+    // students included, with no retry until the next bridge trigger. The
+    // readWithSeedRetry ladder (the same one the finance seeds climb — the
+    // callCollectionRpc contract "the seed's retry ladder handles transient
+    // failures" finally true HERE too) retries the whole unit with the
+    // documented backoff; a FINAL failure keeps the last known summary
+    // (the seedAging convention) and logs the readable cause (the previous
+    // `(e as Error).message` printed "[object Object]" for PostgREST
+    // errors, hiding the 500).
+    const outcome = await readWithSeedRetry(async () => {
       // PERF-508 (T-430, issues #24/#25 Track 3 item 4): the ledger read is
       // RPC FIRST (`read_ledger_entries_collection`, migration 0123 — the
       // SECURITY DEFINER one-round-trip path immune to the per-row RLS
       // policy chain and the 1,000-row cap; the SAME convention the T-423
       // financial seeds use) with the direct KEYSET read as the
-      // version-skew fallback (§15.62c). The previous OFFSET `.range()`
-      // walk (page 0..999, 1000..1999, …) re-scanned the unindexed offset
-      // window on every page of the 3,342-row ledger on EVERY realtime
-      // refresh — the audit's Track-3 pagination finding. Parents/students
-      // (no collection RPC exists for them) also walk the primary key
-      // instead of OFFSET windows.
+      // version-skew fallback (§15.62c). Parents/students (no collection
+      // RPC exists for them) walk the primary key instead of OFFSET
+      // windows.
       const [parents, students, ledgerRows] = await Promise.all([
         fetchAllPagesKeyset(async (lastId) => {
           const base = this.client
@@ -304,11 +319,14 @@ export class RealtimeFinancialDebtRepository implements DebtRepository {
       this.summary.set(
         buildCanonicalDebtSummary(parentDirectory, studentDirectory, ledgerEntries),
       );
-    } catch (error) {
-      // Keep the last known truthful summary on a transient refresh failure.
+    });
+    if (!outcome.ok) {
+      // Keep the last known truthful summary on a transient refresh failure
+      // (the seedAging convention — the retry ladder above already exhausted
+      // its attempts).
       console.warn(
         "[FinancialRealtime] canonical debt refresh failed:",
-        error instanceof Error ? error.message : String(error),
+        errorMessage(outcome.error),
       );
     }
   }

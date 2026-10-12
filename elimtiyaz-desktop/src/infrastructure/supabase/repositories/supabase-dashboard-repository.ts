@@ -25,7 +25,11 @@ import type {
 import type { AgingBucket } from "../../../domain/model/payment";
 import { buildWindowAnchoredBuckets, daysBetweenFloor, isStrictlyPast } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays, isInstallmentOverdue } from "../../../domain/calc/payment/queries";
-import { callCollectionRpc, paginateKeyset } from "./supabase-shared-repositories";
+import {
+  callCollectionRpc,
+  paginateKeyset,
+  readWithSeedRetry,
+} from "./supabase-shared-repositories";
 import type { PaymentRow, InstallmentRow } from "../types";
 import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
 
@@ -238,20 +242,33 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   private async readInstallmentsCollection(tenantId: string): Promise<
     Array<Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>
   > {
-    const rpcRows = await callCollectionRpc<
-      Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">
-    >(this.client, "read_installments_collection");
-    if (rpcRows) return rpcRows;
-    return paginateKeyset(async (lastId) => {
-      const base = this.client
-        .from("installments")
-        .select("id, parent_id, amount_due, amount_paid, amount_pending, due_date, status")
-        .eq("tenant_id", tenantId);
-      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
-        .order("id", { ascending: true })
-        .limit(1000);
-      return { data: (data ?? []) as Array<Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>, error: error as { message: string } | null };
+    // T-504 (PERF-510, the 2026-10-12 recurrence): the WHOLE read (the RPC
+    // first, the keyset fallback) is ONE retry unit. The owner's console
+    // showed the exact prior failure shape: a transient 500 on
+    // `read_installments_collection` failed the WHOLE kpisForRange /
+    // debtByAgingForRange honest-Err — the callCollectionRpc contract
+    // ("the seed's retry ladder handles transient failures") finally
+    // true HERE too. A FINAL failure still THROWS (the honest-Err contract
+    // upstream is unchanged — the KPI cards render their "—" placeholders,
+    // never fabricated zeroes).
+    const outcome = await readWithSeedRetry(async () => {
+      const rpcRows = await callCollectionRpc<
+        Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">
+      >(this.client, "read_installments_collection");
+      if (rpcRows) return rpcRows;
+      return paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("installments")
+          .select("id, parent_id, amount_due, amount_paid, amount_pending, due_date, status")
+          .eq("tenant_id", tenantId);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as Array<Pick<InstallmentRow, "id" | "parent_id" | "amount_due" | "amount_paid" | "amount_pending" | "due_date" | "status">>, error: error as { message: string } | null };
+      });
     });
+    if (!outcome.ok) throw outcome.error;
+    return outcome.rows;
   }
 
   /**
@@ -263,23 +280,30 @@ export class SupabaseDashboardRepository implements DashboardRepository {
   private async readPaidPaymentsCollection(tenantId: string): Promise<
     Array<Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">>
   > {
-    const rpcRows = await callCollectionRpc<
-      Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">
-    >(this.client, "read_payments_collection");
-    if (rpcRows) {
-      return rpcRows.filter((p) => p.status === "paid");
-    }
-    return paginateKeyset(async (lastId) => {
-      const base = this.client
-        .from("payments")
-        .select("id, amount, collected_at, status")
-        .eq("tenant_id", tenantId)
-        .eq("status", "paid");
-      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
-        .order("id", { ascending: true })
-        .limit(1000);
-      return { data: (data ?? []) as Array<Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">>, error: error as { message: string } | null };
+    // T-504 (PERF-510): the same retried unit as readInstallmentsCollection
+    // (the revenue reads ride the same ladder; a transient 500 retries the
+    // whole read, a final failure throws → the honest-Err upstream).
+    const outcome = await readWithSeedRetry(async () => {
+      const rpcRows = await callCollectionRpc<
+        Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">
+      >(this.client, "read_payments_collection");
+      if (rpcRows) {
+        return rpcRows.filter((p) => p.status === "paid");
+      }
+      return paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("payments")
+          .select("id, amount, collected_at, status")
+          .eq("tenant_id", tenantId)
+          .eq("status", "paid");
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return { data: (data ?? []) as Array<Pick<PaymentRow, "id" | "amount" | "collected_at" | "status">>, error: error as { message: string } | null };
+      });
     });
+    if (!outcome.ok) throw outcome.error;
+    return outcome.rows;
   }
 
   /**

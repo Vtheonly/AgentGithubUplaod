@@ -19,7 +19,10 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SupabaseDebtRepository } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
+import {
+  SupabaseDebtRepository,
+  __setSeedRetryBackoffForTests,
+} from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 import { MockDebtRepository } from "../../infrastructure/mock/repositories/financial-repository";
 import { store } from "../../infrastructure/mock/repositories/mock-store";
 import type { DebtAgingAnalysis } from "../../domain/calc/ledger/debt-aging";
@@ -228,6 +231,13 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
   });
 
   it("D: an RPC failure AFTER a successful seed keeps the last known rows", async () => {
+    // T-504 (PERF-510): seedAging now climbs the readWithSeedRetry ladder
+    // — the backoff seam runs it at 0 ms (the final-failure semantics are
+    // identical; only the wall-clock between attempts changes), and the
+    // initial wait pins the ROW COUNT (the old `toBeDefined()` wait passed
+    // on the synchronous [] emission — a latent race the retry ladder's
+    // extra promise layers exposed).
+    __setSeedRetryBackoffForTests([0]);
     let fail = false;
     const client = {
       rpc: vi.fn(async (fn: string) => {
@@ -245,7 +255,7 @@ describe("T-405 — SupabaseDebtRepository.observeAging (the 0111 RPC contract)"
       latest = v;
     });
     await vi.waitFor(() => {
-      expect(latest).toBeDefined();
+      expect(latest).toHaveLength(1);
     });
     expect(latest).toHaveLength(1);
 

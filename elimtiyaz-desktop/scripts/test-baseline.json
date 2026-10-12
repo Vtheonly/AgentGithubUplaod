@@ -1,17 +1,17 @@
 {
   "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-472 (the 138th session's TEST-503 systemic hermeticity fix, 2026-10-04 — the Vitest seam disabled the f39eb17 canonical-production fallback in supabase-client.ts: the default test mode is MOCK again [T-314's contract restored], the t-393 diagnostics suite pinned to the vault-suite configured-mode pattern, +5 new t-472 hermeticity/guard tests — 4,680 passed / 0 failed / 5 skipped, 270 files). Prior move: T-470 (the 137th session's TEST-502 repair, 2026-10-03 — the battery FULLY GREEN for the first time since T-419 instituted the baseline: the refund-revert trio re-pinned with EXPLICIT evaluation clocks + both classification branches [future-due 'pending' / past-due 'overdue', the §15.81 wall-clock class], the t-390 import-time cycle broken [the mock composite extracted to infrastructure/mock/mock-composite.ts], the vault-compliance §02.06 pair pinned to mock mode [never touching production storage again], and the t-408 source-scan re-targeted to the composite's new home; net +5 tests [2 companion branch pins + the t-390 suite's 3 tests now actually running] — 4,675 passed / 0 failed / 5 skipped). Same-session prior move: the T-469 live-apply round moved the baseline to the 4,665/5-known-red state (+4 suites: t-466..t-469) — T-470's move supersedes it with the empty failing set. Prior: T-455 (127th session, 2026-10-01).",
-  "_task": "T-503d (the 154th session, 2026-10-11) — the baseline move for the inspection-attachment task (UI-334): +1 file (t-503-inspection-attachment [8] — the strip retirement pins, the 26-metric-key preservation census, the trigger-count invariant, and the CardHeaderActions behavioral pair) + the t-475 census re-pin (the attached pattern) — 293 files (292 passed / 1 skipped), 4,919 tests (4,914 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. Prior: T-503c (UI-335) — +1 file (t-503-indicator-consolidation [12]) — 292 files, 4,911 tests (4,906/0/5).",
+  "_task": "T-504b/c (the 155th session, 2026-10-12) — the intermediate baseline move for the PERF-510 client half: +1 file (t-504-collection-read-resilience [15] — the concurrency-gate family, the gate wiring, the three retry-ladder adoptions, the readable-log primitive, the migration 0151 pins) — 294 files (293 passed / 1 skipped), 4,929 tests (4,924 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY. The t-405 D re-pin is count-neutral. Prior: T-503d (the 154th session, 2026-10-11) — the baseline move for the inspection-attachment task (UI-334): +1 file (t-503-inspection-attachment [8]) + the t-475 census re-pin — 293 files (292 passed / 1 skipped), 4,919 tests (4,914 passed / 0 failed / 5 skipped). The failing-file set stays EMPTY.",
   "testFiles": {
     "failed": 0,
-    "passed": 292,
+    "passed": 293,
     "skipped": 1,
-    "total": 293
+    "total": 294
   },
   "tests": {
     "failed": 0,
-    "passed": 4914,
+    "passed": 4924,
     "skipped": 5,
-    "total": 4919
+    "total": 4929
   },
   "failingFiles": [],
   "equivalence": {

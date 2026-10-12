@@ -426,6 +426,27 @@ function classifySeedError(err: unknown): { code: string; message: string; netwo
   return { code, message, networkClass };
 }
 
+/**
+ * T-504 (PERF-510): a readable one-line message from ANY thrown error
+ * shape. The PostgREST failure path throws the raw error OBJECT (not an
+ * Error instance), so the previous `(e as Error).message` logs printed
+ * "[object Object]" (the owner's 2026-10-12 console: "canonical debt
+ * refresh failed: [object Object]") — hiding the actual 57014/500 cause.
+ */
+export function errorMessage(err: unknown): string {
+  const e = err as { message?: unknown; error?: { message?: unknown } } | null;
+  if (typeof e?.message === "string" && e.message.length > 0) return e.message;
+  const nested = e?.error;
+  if (nested && typeof (nested as { message?: unknown }).message === "string") {
+    return (nested as { message: string }).message;
+  }
+  try {
+    return JSON.stringify(err).slice(0, 300);
+  } catch {
+    return String(err);
+  }
+}
+
 /** Record a seed degradation (OPS-317). Never throws. */
 function recordSeedError(source: string, err: unknown): void {
   try {
@@ -548,6 +569,98 @@ export async function readWithSeedRetry<R>(read: () => Promise<R>): Promise<Seed
         return { ok: false, error: e };
       }
       await new Promise((resolve) => setTimeout(resolve, seedRetryBackoffMs[attempt]));
+    }
+  }
+}
+
+// ============================================================================
+// T-504 (PERF-510) — the SHARED CONCURRENCY GATE on the collection-class reads
+// ============================================================================
+
+/**
+ * T-504 (PERF-510, the 2026-10-12 boot-storm recurrence): the shared
+ * concurrency gate — the lever the T-432 closeout registered for exactly
+ * this recurrence ("a shared concurrency gate in the repository factory",
+ * docs/recovery/t-432-live-verification.md).
+ *
+ * THE RECURRENCE (the owner's 2026-10-12 04:39:51 console log): with 0126
+ * live since 2026-09-28 (the aging summary ~100 ms under impersonation, the
+ * T-433 boot-path health probe ALL 200s), ONE degraded boot round fired
+ * THREE DISTINCT collection RPCs into 500s within the same second —
+ * read_ledger_entries_collection, compute_debt_aging_summary (killed by the
+ * statement timeout) and read_installments_collection. The per-RPC in-flight
+ * dedupe (T-432's client half) cannot help there: these are three DIFFERENT
+ * functions fired by three different surfaces in one boot tick. On the
+ * free-tier compute under CPU-credit exhaustion every statement slows
+ * multiplicatively, and CONCURRENT statements then cross the statement
+ * timeout together (57014 "canceling statement due to statement timeout" —
+ * the statement was RUNNING, not queued).
+ *
+ * THE GATE: a module-level FIFO semaphore bounding how many collection-class
+ * reads may be IN FLIGHT at once. The boot volley (the realtime bridge's
+ * refreshAll — parents/students/payments/installments/ledger/expenses/summary/
+ * aging — plus the dashboard repository's KPI/aging/revenue readers walking
+ * the same collections) now drains through the gate instead of stampeding
+ * the pool in one tick. Every gated read still runs as soon as a slot frees;
+ * NOTHING is dropped, deferred, or cached — only the PARALLELISM is bounded.
+ *
+ * The gate is deliberately NARROW: it wraps the full-collection RPC reads
+ * (the 0123 family through callCollectionRpc + the 0111 aging RPC) — the
+ * exact class the storm hits. It does NOT wrap the keyset fallback paths
+ * (version-skew-only, §15.62c), the per-page walkers, or the light readers
+ * (settings reads — sub-millisecond).
+ *
+ * Implementation notes (the strict-cap discipline): the slot is RESERVED
+ * SYNCHRONOUSLY before any await (a same-tick racer can never overshoot the
+ * cap), and a finishing holder HANDS its slot to the head of the queue (the
+ * baton pass — inFlight is not decremented when a waiter takes over). No
+ * nesting: a gated read never starts another gated read inside itself, so
+ * the gate cannot deadlock against the retry ladder (each retry attempt
+ * acquires and releases its own slot) or the in-flight dedupe (a caller
+ * awaiting a shared request holds no slot of its own).
+ */
+const COLLECTION_READ_CONCURRENCY = 2;
+
+let collectionGateLimit = COLLECTION_READ_CONCURRENCY;
+let collectionGateInFlight = 0;
+const collectionGateWaiters: Array<() => void> = [];
+
+/** Test seam: configure the gate limit (isolation between tests). */
+export function __setCollectionReadGateLimitForTests(limit: number): void {
+  collectionGateLimit = Math.max(1, limit);
+}
+
+/** Test seam: assert the gate's in-flight count (the strict-cap pin). */
+export function __collectionReadGateInFlightForTests(): number {
+  return collectionGateInFlight;
+}
+
+/**
+ * T-504 (PERF-510): run ONE collection-class read under the shared
+ * concurrency gate. FIFO-fair; the cap is enforced strictly (see above).
+ */
+export async function runGatedCollectionRead<R>(read: () => Promise<R>): Promise<R> {
+  if (collectionGateInFlight >= collectionGateLimit) {
+    // The queue branch: our slot will be HANDED to us by a finishing
+    // holder — inFlight stays as-is until we own the slot's execution.
+    let granted!: () => void;
+    const handed = new Promise<void>((resolve) => {
+      granted = resolve;
+    });
+    collectionGateWaiters.push(granted);
+    await handed;
+  } else {
+    collectionGateInFlight += 1;
+  }
+  try {
+    return await read();
+  } finally {
+    const next = collectionGateWaiters.shift();
+    if (next) {
+      // Baton pass: the freed slot goes straight to the head waiter.
+      next();
+    } else {
+      collectionGateInFlight -= 1;
     }
   }
 }
@@ -694,7 +807,12 @@ export async function callCollectionRpc<R>(
   const request = (async () => {
     let res: { data: R[] | null; error: { code?: string; message?: string } | null };
     try {
-      res = await client.rpc(fn);
+      // T-504 (PERF-510): the collection RPC rides the SHARED CONCURRENCY
+      // GATE — the boot volley of distinct collection reads drains through
+      // the bounded gate instead of stampeding the pool in one tick (the
+      // dedupe above still shares this ONE gated request with every
+      // same-tick caller of the same function; a waiter holds no own slot).
+      res = await runGatedCollectionRead(async () => await client.rpc(fn));
     } catch (e) {
       if (isRpcUnavailableError(e as { message?: string })) return null;
       throw e;
@@ -4471,24 +4589,38 @@ export class SupabaseDebtRepository implements DebtRepository {
     // on failure). `refreshAging()` forces past the TTL.
     if (!force && !this.agingFreshness.shouldReseed()) return;
     this.agingFreshness.markSeeded();
-    try {
-      // The canonical server contract (0111): staff-gated + tenant-scoped
-      // server-side; the client never re-computes the factors.
-      const { data, error } = await this.client.rpc("compute_debt_aging_summary");
+    // T-504 (PERF-510, the 2026-10-12 recurrence): the aging read is now a
+    // gated, retried unit. The owner's console showed the exact prior
+    // failure shape: `compute_debt_aging_summary` killed by the statement
+    // timeout (57014) on a degraded boot round, seedAging catching ONCE and
+    // leaving the aging surface empty until the next TTL/force. The read now
+    // (a) rides the SHARED CONCURRENCY GATE (the boot volley drains bounded)
+    // and (b) climbs the readWithSeedRetry ladder (the callCollectionRpc
+    // contract — transient RPC failures retry the RPC, never fabricate).
+    // The T-443 semantics are preserved exactly: markSeeded BEFORE the read
+    // (the TTL is consumed even on failure — no hammering), the subjects are
+    // replaced ONLY on success (keep-last-known on final failure).
+    const outcome = await readWithSeedRetry(async () => {
+      const { data, error } = await runGatedCollectionRead(
+        async () => await this.client.rpc("compute_debt_aging_summary"),
+      );
       if (error) throw error;
-      const rows = (data ?? []) as DebtAgingRpcRow[];
-      this.agingSubject.set(rows.map(mapDebtAgingRow));
+      return (data ?? []) as DebtAgingRpcRow[];
+    });
+    if (outcome.ok) {
+      const rows = outcome.rows.map(mapDebtAgingRow);
+      this.agingSubject.set(rows);
       // T-443: the applied_thresholds that shaped these verdicts are the
       // authoritative thresholds — keep the light-reader subject in sync
       // (both consumers now agree by construction).
-      const applied = rows.find((r) => r.applied_thresholds)?.applied_thresholds;
+      const applied = outcome.rows.find((r) => r.applied_thresholds)?.applied_thresholds;
       if (applied) {
         this.thresholdsSubject.set(normalizeDebtAgingThresholds(applied));
       }
-    } catch (e) {
+    } else {
       // Keep the last known truthful analysis on a transient failure (the
       // realtime facade's convention) — never fabricate rows.
-      console.warn("[SupabaseDebt] seedAging failed:", (e as Error).message);
+      console.warn("[SupabaseDebt] seedAging failed:", errorMessage(outcome.error));
     }
   }
 
