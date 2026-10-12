@@ -1,6 +1,6 @@
 # T-504 — Live Verification Runbook (migration 0151, the read-RPC statement-timeout headroom)
 
-> **Status:** READY — OWNER-GATED (no management token in the 155th session's environment).
+> **Status:** ✅ **APPLIED LIVE 2026-10-12 (156th session — the owner supplied the Management token).** The full ladder ran: PRE-PROBE (the six functions carried only `search_path=public` — NO timeout entry; `chain_rows = 0`) → APPLY (HTTP 200) → POST-PROBE (all six carry `statement_timeout=30s` + the `0151` registration row) → **ALL GREEN — 0151 applied live: the six read RPCs carry statement_timeout=30s.** The remaining owner actions: the desktop rebuild/re-open (the packaged build predates T-504) + the boot-round eyeball; the compute upgrade decision if degraded rounds persist (§5 below).
 > **Scope:** the LIVE application + verification of `0151_read_rpc_statement_timeout_headroom.sql` (PERF-510's server half). The client half (the concurrency gate + the retry ladders + the readable logs) is ALREADY live-DB-agnostic — it works against the current live chain the moment the desktop build ships; NOTHING in this runbook gates the client fixes.
 
 ## 0. Context (why this migration)
