@@ -277,13 +277,13 @@ export function deriveRecoveryFunnel(triage: DebtTriage): FunnelStage[] {
       color: chartPalette.primary,
     },
     {
-      name: "Au-delà du seuil jaune — " + (reminder?.label ?? ""),
+      name: `Au-delà du seuil jaune — ${reminder?.label ?? ""}`,
       count: beyondYellow,
       rateFromPrevious: pct(beyondYellow),
       color: chartPalette.warning,
     },
     {
-      name: "Critique — " + (chronic?.label ?? ""),
+      name: `Critique — ${chronic?.label ?? ""}`,
       count: chronic?.familyCount ?? 0,
       rateFromPrevious: pct(chronic?.familyCount ?? 0),
       color: chartPalette.danger,
