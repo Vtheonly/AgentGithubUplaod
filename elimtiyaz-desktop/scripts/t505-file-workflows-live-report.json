@@ -1,0 +1,66 @@
+{
+  "tag": "t505-live-mv50tf1c",
+  "at": "2026-10-12T08:59:45.235Z",
+  "results": [
+    [
+      "L1 admin sign-in (the app's own client)",
+      true,
+      "admin@elimtiyaz.dz"
+    ],
+    [
+      "L2 buildBackupCheckpoint (live, warmed)",
+      true,
+      "868760 bytes — el-imtiyaz-excel-2026-10-12T08-59-38.zip"
+    ],
+    [
+      "L3 the checkpoint ZIP manifest carries sourceWarmup",
+      true,
+      "sources: parents=warmed, students=warmed, payments=warmed, installments=warmed, ledger=warmed, expenses=warmed, personnel=warmed, classes=warmed, subjects=warmed, pricing=warmed, debtSummaries=warmed, assessments=warmed, attendan"
+    ],
+    [
+      "L3b the warmed sources against the LIVE DB",
+      true,
+      "every source warmed"
+    ],
+    [
+      "L4a runBackup (the real Supabase-mode pipeline)",
+      true,
+      "1042552 bytes — parents=741"
+    ],
+    [
+      "L4b the inspection ladder (entire-archive ZIP)",
+      true,
+      "1 archive(s); the probe's entry integrity=verified"
+    ],
+    [
+      "L4c the per-archive counts from the manifest",
+      true,
+      "parents=741 students=1137 payments=2198"
+    ],
+    [
+      "L5 the TAMPER gate (a flipped ciphertext byte)",
+      true,
+      "Checksum SHA-256 invalide pour l'archive sélectionnée — le fichier a été modifié ou endommagé depuis l'export (bit-rot). Aucune donnée n'a é"
+    ],
+    [
+      "L6a the import (checksum-gated)",
+      true,
+      "backup-2026-10-12-085943-375.db"
+    ],
+    [
+      "L6b the EXISTING restore path (Supabase mode)",
+      true,
+      "83ms — the offline layer rehydrated (the documented boundary: the server data is untouched)"
+    ],
+    [
+      "L6c the restored-from marker",
+      true,
+      "parents=741 payments=2198"
+    ],
+    [
+      "L7 mirror-row cleanup",
+      true,
+      "removed"
+    ]
+  ]
+}
