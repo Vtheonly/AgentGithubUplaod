@@ -2,7 +2,7 @@
  * ============================================================================
  * FILE: elimtiyaz-desktop/src/features/settings/contextual-thresholds-config.tsx
  * ============================================================================
- * T-505 (UI-338) — the CONTEXTUAL debt/tranche configuration: the day-based
+ * T-507 (UI-338) — the CONTEXTUAL debt/tranche configuration: the day-based
  * parameters (the grace/yellow/red days, the active-payer window, the amount
  * bands, the severe-debt edge) editable FROM the gauge/graph/diagram/indicator
  * group that consumes them, through a compact per-scope modal with a LIVE

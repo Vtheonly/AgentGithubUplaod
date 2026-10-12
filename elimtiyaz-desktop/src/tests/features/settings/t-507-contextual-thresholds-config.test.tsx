@@ -1,5 +1,5 @@
 /**
- * T-505 suite (UI-338) — the CONTEXTUAL debt/tranche configuration:
+ * T-507 suite (UI-338) — the CONTEXTUAL debt/tranche configuration:
  *
  * The owner's 2026-10-12 mandate: "the tranche calculations and all
  * indicators, gauges, graphs, and diagrams that depend on the day-based
@@ -187,7 +187,7 @@ afterEach(cleanup);
 // 1. The trigger
 // ---------------------------------------------------------------------------
 
-describe("T-505 (UI-338) — the contextual thresholds configuration", () => {
+describe("T-507 (UI-338) — the contextual thresholds configuration", () => {
   it("1a. the trigger renders NOTHING without the host api (provider-less renders stay byte-identical)", () => {
     const { container } = render(
       <ThresholdsConfigTrigger scope={HARNESS_SCOPE} />,

@@ -108,7 +108,7 @@ export function RecoveryFunnelCard({
 }: {
   stages: FunnelStage[];
   emptyLabel?: string;
-  /** T-505 (UI-338): the contextual thresholds-config trigger rides the
+  /** T-507 (UI-338): the contextual thresholds-config trigger rides the
    *  same CardHeaderActions surface as the inspection controls. */
   headerActions?: ReactNode;
 }) {
@@ -140,7 +140,7 @@ export function RecoveryFunnelCard({
               {criticalRate}% en phase critique
             </span>
           )}
-          {/* T-505 (UI-338): the config trigger lives ON the funnel. */}
+          {/* T-507 (UI-338): the config trigger lives ON the funnel. */}
           <CardHeaderActions>{headerActions}</CardHeaderActions>
         </div>
       </CardHeader>

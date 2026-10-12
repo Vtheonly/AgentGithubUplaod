@@ -29,7 +29,7 @@ import {
   deriveNonWaveSummary,
 } from "../../../domain/calc/payment/tranche-waves";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
-// T-505 (UI-338): the contextual thresholds-config trigger — the small
+// T-507 (UI-338): the contextual thresholds-config trigger — the small
 // attached control that opens the scoped editor (renders NOTHING when the
 // config api is absent — provider-less test renders stay byte-identical).
 import {
@@ -51,7 +51,7 @@ export interface DashboardData {
   topDebtors: DebtSummary[];
 }
 
-/* ── T-505 (UI-338): the per-component config scopes ──
+/* ── T-507 (UI-338): the per-component config scopes ──
  * ONLY the parameters each component's derivations actually consume (the
  * compact-modal requirement): the wave meters' « En retard » verdicts follow
  * the grace period; the funnel's escalation tiers follow the day hierarchy. */
@@ -92,7 +92,7 @@ export function OverviewTab({
    */
   debtThresholds?: DebtAgingThresholds;
   /**
-   * T-505 (UI-338): the contextual-config api (the dashboard page's host —
+   * T-507 (UI-338): the contextual-config api (the dashboard page's host —
    * the live-preview triggers ride the wave/funnel headers). Absent → no
    * trigger renders (the pure-prop contract).
    */

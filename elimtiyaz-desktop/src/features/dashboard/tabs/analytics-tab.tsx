@@ -21,7 +21,7 @@ import type {
 } from "../../../domain/model/payment";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../domain/model/payment";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
-// T-505 (UI-338): the contextual thresholds-config trigger — the small
+// T-507 (UI-338): the contextual thresholds-config trigger — the small
 // attached control that opens the scoped editor (renders NOTHING when the
 // config api is absent — provider-less test renders stay byte-identical).
 import {
@@ -119,14 +119,14 @@ export interface AnalyticsTabProps {
    */
   debtThresholds?: DebtAgingThresholds;
   /**
-   * T-505 (UI-338): the contextual-config api (the dashboard page's host —
+   * T-507 (UI-338): the contextual-config api (the dashboard page's host —
    * the live-preview triggers ride the wave/triage/console headers).
    * Absent → no trigger renders (the pure-prop contract).
    */
   thresholdsConfig?: ThresholdsConfigApi | null;
 }
 
-/* ── T-505 (UI-338): the per-component config scopes ──
+/* ── T-507 (UI-338): the per-component config scopes ──
  * ONLY the parameters each component's derivations actually consume (the
  * compact-modal requirement): the wave meters → the grace period; the
  * triage → the day hierarchy; the console's quick query → the severe edge. */
@@ -465,7 +465,7 @@ export function AnalyticsTab({
             <>
               <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
               <InspectTrigger request={inspection({ domain: "tranche", title: `Vague 1 — reste dû ${academicYear}`, metric: "tranche_1_remaining", sourceValue: trancheOneRemaining, filters: { trancheNumber: 1, mode: "remaining", scope: "academic-year" } })} />
-              {/* T-505 (UI-338): the config trigger ON the wave meters. */}
+              {/* T-507 (UI-338): the config trigger ON the wave meters. */}
               <ThresholdsConfigTrigger scope={WAVE_METER_SCOPE} config={thresholdsConfig} />
             </>
           }
@@ -490,7 +490,7 @@ export function AnalyticsTab({
           headerActions={
             <>
               <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />
-              {/* T-505 (UI-338): the config trigger ON the triage. */}
+              {/* T-507 (UI-338): the config trigger ON the triage. */}
               <ThresholdsConfigTrigger scope={DEBT_TRIAGE_SCOPE} config={thresholdsConfig} />
             </>
           }
@@ -620,7 +620,7 @@ export function AnalyticsTab({
           selectedCategory={consoleCategory}
           onSelectedCategoryChange={setConsoleCategory}
           // T-503 (UI-334): the roster inspection lives ON the console (the
-          // console IS the student roster) — and T-505 (UI-338): the config
+          // console IS the student roster) — and T-507 (UI-338): the config
           // trigger for the severe-debt quick query rides the same surface.
           headerActions={
             <>

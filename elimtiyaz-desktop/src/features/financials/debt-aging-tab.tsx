@@ -61,7 +61,7 @@ import { KpiCard } from "../../shared/ui/kpi-card";
 import { Card, CardContent } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
-// T-505 (UI-338): the CONTEXTUAL thresholds configuration — the host (the
+// T-507 (UI-338): the CONTEXTUAL thresholds configuration — the host (the
 // draft/hold preview + the ONE modal), the trigger (the legend's in-place
 // affordance), and the shared preview derivation (the canonical TS engine
 // re-applied over the server rows' factors while a draft is live).
@@ -164,7 +164,7 @@ interface DebtAgingRow extends DebtAgingAnalysis {
 
 const STATUS_ORDER: readonly DebtAgingStatusLevel[] = ["red", "orange", "yellow", "green"];
 
-/* T-505 (UI-338): this surface's config scope — the FULL set: the tab's
+/* T-507 (UI-338): this surface's config scope — the FULL set: the tab's
  * legend, KPI tooltips, status chips, amount bands, and level messages all
  * derive from the seven configurable parameters. */
 const DEBT_AGING_TAB_SCOPE: ThresholdsConfigScope = {
@@ -191,7 +191,7 @@ export function DebtAgingTab() {
   // applied to the statuses), never from hardcoded strings. The subject's
   // synchronous seed value is the documented DEFAULTS.
   const thresholds = useObservable(() => repos.debt.observeThresholds(), []);
-  // T-505 (UI-338): the contextual-config host — `effective` is what every
+  // T-507 (UI-338): the contextual-config host — `effective` is what every
   // display derivation below consumes (active + the live draft/hold
   // overrides), `previewActive` gates the status re-derivation (the
   // canonical TS engine re-applied over the server rows' factors while a
@@ -222,7 +222,7 @@ export function DebtAgingTab() {
   const canCollect = !!session && session.permissions.has(Permission.CollectPayment);
 
   // Resolve the family directory (names + affected student names) — display
-  // joins only; the aging facts are untouched. T-505 (UI-338): the memo
+  // joins only; the aging facts are untouched. T-507 (UI-338): the memo
   // consumes the PREVIEW rows (displayAging) — the server rows' facts with
   // the draft re-derived statuses while a config preview is live.
   const { rows, availableYears, rowById } = useMemo(() => {
@@ -419,7 +419,7 @@ export function DebtAgingTab() {
         {/* T-443 (DEBT-101): the tooltips derive from the ACTIVE thresholds
             (the same values the server applied) — the pre-T-429 texts ("> 180 j",
             "> 90 j et paiements interrompus", "paiements poursuivis (actif)") described
-            the RETIRED semantics and are purged. T-505 (UI-338): they now
+            the RETIRED semantics and are purged. T-507 (UI-338): they now
             derive from the EFFECTIVE thresholds (the live preview included). */}
         <button
           type="button"
@@ -452,7 +452,7 @@ export function DebtAgingTab() {
       </div>
 
       {/* ── T-443 (DEBT-101): the ACTIVE-thresholds legend — the configuration
-          VISIBLE where it applies (INV-16f). T-505 (UI-338): the legend is
+          VISIBLE where it applies (INV-16f). T-507 (UI-338): the legend is
           now the IN-PLACE affordance — the config trigger opens the scoped
           editor right here (no Settings navigation), the preview badge marks
           a live draft, and the values shown are the EFFECTIVE ones. ── */}
@@ -600,7 +600,7 @@ export function DebtAgingTab() {
         />
       )}
 
-      {/* T-505 (UI-338): the ONE contextual thresholds editor for this tab. */}
+      {/* T-507 (UI-338): the ONE contextual thresholds editor for this tab. */}
       {thresholdsCfg.modal}
     </div>
   );
