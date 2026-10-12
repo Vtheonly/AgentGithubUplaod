@@ -15,6 +15,7 @@ import {
   DEMO_RECOVERY_HOUSEHOLDS,
   DEFAULT_RECOVERY_MESSAGE_TEMPLATES,
   RecoveryFunnelCard,
+  type DemoRecoveryHousehold,
   createDemoRecoveryHouseholds,
   demoRecoveryHouseholdsForStage,
   deriveDemoRecoveryFunnel,
@@ -84,6 +85,39 @@ describe("UI-339 — synthetic recovery funnel calculations", () => {
     expect(stages[2].count).toBeLessThanOrEqual(stages[1].count);
     expect(stages[3].count).toBeLessThanOrEqual(stages[2].count);
     expect(demoRecoveryHouseholdsForStage(3, thresholds)).toHaveLength(stages[3].count);
+  });
+
+  it("classifies yellow and red amount bands independently from debt age", () => {
+    const households: DemoRecoveryHousehold[] = [
+      { id: "amount-green", name: "Foyer Montant Vert", studentName: "Lina", outstandingAmount: 15000, daysOverdue: 0 },
+      { id: "amount-yellow", name: "Foyer Montant Jaune", studentName: "Adam", outstandingAmount: 25000, daysOverdue: 0 },
+      { id: "amount-red", name: "Foyer Montant Rouge", studentName: "Aya", outstandingAmount: 80000, daysOverdue: 0 },
+      { id: "age-grace", name: "Foyer Retard Grâce", studentName: "Yanis", outstandingAmount: 15000, daysOverdue: 30 },
+      { id: "age-yellow", name: "Foyer Retard Jaune", studentName: "Maya", outstandingAmount: 15000, daysOverdue: 100 },
+      { id: "age-red", name: "Foyer Retard Rouge", studentName: "Amir", outstandingAmount: 15000, daysOverdue: 160 },
+    ];
+    const config = {
+      ...DEFAULT_RECOVERY_DEMO_CONFIG,
+      graceDays: 0,
+      yellowDays: 90,
+      redDays: 150,
+      amountYellowDzd: 20000,
+      amountRedDzd: 60000,
+    };
+    const stages = deriveDemoRecoveryFunnel(config, households);
+
+    // Amount and aging are separate axes: a high balance can be yellow/red
+    // even while no days are overdue. The funnel still remains cumulative.
+    expect(stages.map((stage) => stage.count)).toEqual([6, 5, 4, 2]);
+    expect(demoRecoveryHouseholdsForStage(1, config, households).map((h) => h.id)).toEqual([
+      "amount-yellow", "amount-red", "age-grace", "age-yellow", "age-red",
+    ]);
+    expect(demoRecoveryHouseholdsForStage(2, config, households).map((h) => h.id)).toEqual([
+      "amount-yellow", "amount-red", "age-yellow", "age-red",
+    ]);
+    expect(demoRecoveryHouseholdsForStage(3, config, households).map((h) => h.id)).toEqual([
+      "amount-red", "age-red",
+    ]);
   });
 
   it("uses stable, clearly fictional household identities", () => {
@@ -173,6 +207,39 @@ describe("UI-339 — local funnel interactions", () => {
     expect(screen.getByTestId("route-location")).toHaveTextContent(
       "/financials?familyId=demo-family-0001",
     );
+  });
+
+  it("previews and applies the yellow/red amount thresholds without touching Settings", () => {
+    renderPrototype();
+    fireEvent.click(screen.getByRole("button", { name: /aperçu local/i }));
+    fireEvent.click(screen.getByRole("button", { name: /réglages de la démo/i }));
+
+    const config = {
+      ...DEFAULT_RECOVERY_DEMO_CONFIG,
+      amountYellowDzd: 20000,
+      amountRedDzd: 60000,
+    };
+    const expected = deriveDemoRecoveryFunnel(config);
+
+    fireEvent.change(screen.getByLabelText("Seuil montant jaune (DZD)"), {
+      target: { value: "20000" },
+    });
+    fireEvent.change(screen.getByLabelText("Seuil montant rouge (DZD)"), {
+      target: { value: "60000" },
+    });
+
+    expect(
+      screen.getByTestId("demo-preview-count-3").textContent?.replace(/\\D/g, ""),
+    ).toBe(String(expected[2].count));
+    expect(
+      screen.getByTestId("demo-preview-count-4").textContent?.replace(/\\D/g, ""),
+    ).toBe(String(expected[3].count));
+
+    fireEvent.click(screen.getByRole("button", { name: "Appliquer localement" }));
+    fireEvent.click(screen.getByRole("button", { name: /ouvrir la liste de l’étape 3/i }));
+    expect(
+      screen.getByTestId("demo-stage-household-count").textContent?.replace(/\\D/g, ""),
+    ).toBe(String(expected[2].count));
   });
 
   it("shows a live preview of threshold edits before the operator applies them locally", () => {
