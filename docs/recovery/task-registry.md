@@ -5928,3 +5928,19 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left (the VERIFIED gate):** the owner's eyeball pass — the full family names readable at real window sizes (the angled axis at −30°/68px), the bar click opening the family's dossier drawer, and the hover tooltip still showing the full name + amount. The fleet continues: issue 3 (the staff working-days calendar, T-515/WORKFORCE-516).
 
 **Next:** T-515 — the staff working-days calendar replacing the working-hours configuration (the fleet's issue 3, WORKFORCE-516).
+
+## T-515 — The [Staff] working-DAYS calendar replacing the working-hours configuration (the owner's three-issue mandate, issue 3 / WORKFORCE-516): the onboarding wizard's step 7 loses the start/end hour inputs and gains a per-day-of-the-month calendar of toggles with the auto-computed working-days total — the 161st session
+
+**Status:** IN_PROGRESS (161st session, 2026-10-13 — registration; the implementation + suites + docs closeout follow in the same session).
+
+**The mandate (the owner's issue 3, verbatim intent):** "In the staff Remove the working-hours configuration and keep only the working days of the month. Make the working days configurable through toggles for each day of the month. Instead of configuring working hours, provide a calendar-based interface where users can select or deselect working days. Based on the selected days, automatically calculate and display the total number of working days for the selected month."
+
+**The defect (what was wrong):** the onboarding wizard's step 7 (`working-hours-step.tsx`) configures START/END CLOCK HOURS plus a 7-weekday checkbox row — the owner wants neither: the hours inputs are removed and the weekday abstraction is replaced by the CONCRETE days of a selected month (a calendar grid of per-day toggles), with the month's working-days total auto-displayed.
+
+**The backward-compatibility constraint (live-evidenced):** the LIVE onboarding singleton row (`onboarding_states`, personnel_id NULL, the 0142 tenant gate) carries the legacy `data_json.workingHours = {start, end, weekdays}` — read back via the read-only census this session (scripts/t515-onboarding-census.json; the Management REST read, zero writes). The fix must therefore (a) replace the domain shape with `workingDays: {year, month, days}` AND (b) normalize legacy rows on read so the completed wizard never crashes on the new shape (a defensive `normalizeOnboardingData` at the repository mapping seam — the mock and the Supabase repo share it, one implementation per §6/§9).
+
+**The scope:** (a) `domain/model/workforce.ts`: `OnboardingData.workingHours` → `workingDays` + the shared normalizer + the calendar helpers (the month grid geometry, the default school-week selection Dim–Jeu per the T-243 convention, the days count); (b) the step component rewritten as the calendar (`working-days-step.tsx`, the file renamed to match its content; the STEP ID `working_hours` KEPT — the persisted `current_step`/`completed_steps` are INDEXES into ONBOARDING_STEPS, renaming the enum value would corrupt the stored progress); (c) the review step displays the working-days total for the selected month; (d) both repository `emptyData()` defaults updated; (e) the regression suite (the normalizer's legacy/back-compat paths, the calendar interaction, the count, the review row).
+
+**Left:** the whole implementation (registered first per §13).
+
+**Next:** the T-515 implementation commit (the domain shape + the normalizer + the step + the suite).
