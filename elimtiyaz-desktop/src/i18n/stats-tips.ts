@@ -452,6 +452,12 @@ const FR = {
       calc: "Séries du référentiel (revenueForRange) alignées par étiquette de mois ; l'année précédente est chargée pour la même fenêtre décalée d'un an.",
       status: "Δ% = round((actuel − précédent) ÷ précédent × 100) ; nul quand le précédent vaut 0 (pas de tendance sans base).",
     },
+    mock: {
+      title: "Démo N−1 (simulé)",
+      measures: "Un aperçu de la comparaison quand aucune donnée réelle N−1 n'existe : la série précédente est SIMULÉE, clairement identifiée.",
+      calc: "Chaque mois simulé = le montant réel du mois × un multiplicateur déterministe ∈ [0,80 ; 1,20] (hachage stable de l'étiquette), arrondi à 500 DZD ; un mois réel à 0 reste 0.",
+      status: "Mode démonstration uniquement — n'écrit jamais aucune donnée, jamais proposé quand la vraie année précédente existe.",
+    },
     delta: {
       title: "Δ% mensuel",
       measures: "L'écart relatif du mois entre les deux années.",
@@ -1050,6 +1056,12 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       calc: "The repository's series (revenueForRange) aligned by month label; the previous year is loaded for the same window shifted back one year.",
       status: "Δ% = round((current − previous) ÷ previous × 100); null when the previous is 0 (no trend without a base).",
     },
+    mock: {
+      title: "N−1 demo (simulated)",
+      measures: "A preview of the comparison when no real N−1 data exists: the previous series is SIMULATED and clearly identified.",
+      calc: "Each simulated month = the month's real amount × a deterministic multiplier ∈ [0.80; 1.20] (a stable label hash), rounded to 500 DZD; a real zero month stays 0.",
+      status: "Demo mode only — never writes any data, never offered when the real previous year exists.",
+    },
     delta: {
       title: "Monthly Δ%",
       measures: "The month's relative gap between the two years.",
@@ -1628,6 +1640,12 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       measures: "تطور التحصيلات هذه السنة مقابل السابقة، شهرًا بشهر.",
       calc: "سلاسل المستودع (revenueForRange) محاذاةً بتسمية الشهر؛ السنة السابقة محمَّلة لنفس النافذة مزاحة سنة.",
       status: "Δ% = round((الحالي − السابق) ÷ السابق × 100)؛ فارغ عند صفر السابق (لا اتجاه بلا أساس).",
+    },
+    mock: {
+      title: "عرض تجريبي N−1 (محاكاة)",
+      measures: "معاينة للمقارنة عند غياب بيانات N−1 الحقيقية: السلسلة السابقة محاكاة ومحددة بوضوح.",
+      calc: "كل شهر محاكى = المبلغ الحقيقي للشهر × مضاعف حتمي ∈ [0.80؛ 1.20] (تجزئة ثابتة للتسمية)، مقربًا إلى 500 دينار؛ الشهر الصفري يبقى صفرًا.",
+      status: "وضع العرض فقط — لا يكتب أي بيانات أبدًا، ولا يُعرض عند وجود السنة السابقة الحقيقية.",
     },
     delta: {
       title: "Δ% الشهري",
