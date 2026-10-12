@@ -103,6 +103,10 @@ import {
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
 import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
+// T-510 (DEBT-105, GitHub issue #31): the per-tranche amount editor — the
+// thin form over `InstallmentRepository.adjustAmountDue` (the canonical
+// `adjust_installment_amount` RPC client).
+import { TrancheAmountEditModal } from "./tranche-amount-edit-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
 
@@ -447,6 +451,8 @@ export function InstallmentScheduleTab({
   const [familyFilter, setFamilyFilter] = useState<string>(initialFamilyId ?? "all");
   const [collectFor, setCollectFor] = useState<Row | null>(null);
   const [editDueDateFor, setEditDueDateFor] = useState<Row | null>(null);
+  // T-510 (DEBT-105, issue #31): the per-tranche amount-edit target.
+  const [editAmountFor, setEditAmountFor] = useState<Row | null>(null);
   const [regenerateFor, setRegenerateFor] = useState<{ parentId: string; parentName: string } | null>(null);
   const [scanningOverdue, setScanningOverdue] = useState(false);
   // VAULT §10.08 — manual triggers require a confirmation dialog (two clicks).
@@ -675,6 +681,17 @@ export function InstallmentScheduleTab({
       disabled: (i) => i.status === "paid",
       onClick: (i) => setEditDueDateFor(i),
     },
+    // T-510 (DEBT-105, issue #31): the per-tranche amount edit — available
+    // on EVERY tranche row (paid rows included: an increase re-opens the
+    // tranche, a below-coverage reduction is the explicit over-covered
+    // case — both are the issue's mandated behaviors). The action label
+    // carries a data-testid for the regression suite.
+    {
+      label: "Montant",
+      variant: "ghost",
+      icon: <Wallet className="size-3.5" />,
+      onClick: (i) => setEditAmountFor(i),
+    },
   ];
 
   // Build the PaymentNavigationContext when collectFor is set
@@ -890,6 +907,15 @@ export function InstallmentScheduleTab({
         } : undefined}
         onSubmit={handleDueDateSubmit}
         submitLabel="Enregistrer l'échéance"
+      />
+
+      {/* T-510 (DEBT-105, issue #31) — the per-tranche amount editor: the
+          owner's "set the amount due for each tranche individually". */}
+      <TrancheAmountEditModal
+        open={editAmountFor !== null}
+        onOpenChange={(o) => !o && setEditAmountFor(null)}
+        installment={editAmountFor}
+        parentName={editAmountFor?.parentName}
       />
 
       <AutoFormModal

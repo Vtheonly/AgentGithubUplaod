@@ -689,6 +689,58 @@ export interface InstallmentRepository {
    * fabricating a row (§15.15).
    */
   createManualDebt?(input: CreateManualDebtInput): Promise<Result<Installment>>;
+  /**
+   * T-510 (DEBT-105, GitHub issue #31): edit ONE tranche's amount due —
+   * the canonical per-tranche amount write path.
+   *
+   * CANONICAL ARCHITECTURE (the issue's required behavior): the input's
+   * `newAmountDue` is the tranche's NEW TOTAL due — an ABSOLUTE amount,
+   * never a delta (the issue's "make clear whether the input represents
+   * the tranche's new total due or an adjustment to its existing
+   * amount"). The repository performs the three atomic writes:
+   *
+   *   1. the installments row UPDATE — `amountDue := newAmountDue`, the
+   *      status re-derived (the 0115 waterfall predicates + ADR-033),
+   *      `paidDate` stamped only when becoming paid. ONLY the intended
+   *      tranche's row changes — never a sibling.
+   *   2. the LEDGER adjustment entry — the signed DELTA
+   *      (`newAmountDue − previousAmountDue`) on the tranche's OWN
+   *      account, preserving the T-103 invariant
+   *      (Σ installments due == Σ charges + Σ adjustments per family) —
+   *      the account-level and tranche-level balances stay consistent BY
+   *      CONSTRUCTION.
+   *   3. the AUDIT row — previous/new amounts, reason, actor, timestamp,
+   *      the resulting balances.
+   *
+   * GUARDS (fail-closed, no partial updates): `newAmountDue >= 0` ·
+   * `reason >= 3 chars` · the delta MUST be non-zero (a repeated save of
+   * the same value is rejected — the issue's "repeated saves without
+   * duplicate adjustments or double application") · the row must exist.
+   *
+   * PRESERVED (never touched): every payment row, every payment
+   * allocation, pending payments, credits, discounts, and the historical
+   * ledger entries (charges, payments, refunds, reversals) — the issue's
+   * "do not silently move payments between tranches or rewrite payment
+   * history to force totals to match".
+   *
+   * THE OVER-COVERED CASE: when `newAmountDue < amountPaid +
+   * amountPending` (an already-paid or allocated tranche reduced below
+   * its coverage), the change is ALLOWED but never silent — the result
+   * carries `overcovered: true` + the `excess` amount; the status becomes
+   * `paid` (the INV-4 cleared-funds predicate), the canonical remaining
+   * clamps to 0, and the excess is NOT moved anywhere (the account replay
+   * shows it, exactly like the reconciled historical corpus class).
+   *
+   * Supabase: the `adjust_installment_amount` RPC (migration 0152). Mock:
+   * the same semantics over the store (the createAdjustmentEntry /
+   * appendAudit factories — the §6 reuse rule).
+   *
+   * OPTIONAL (the `createManualDebt` convention): the mock and the
+   * Supabase repositories implement it; older fakes degrade honestly —
+   * callers MUST surface the unavailability instead of fabricating a row
+   * (§15.15).
+   */
+  adjustAmountDue?(input: AdjustInstallmentAmountInput): Promise<Result<AdjustInstallmentAmountResult>>;
 }
 
 /**
@@ -764,6 +816,55 @@ export interface CreateManualDebtInput {
   readonly reference?: string | null;
   readonly actorId?: string;
   readonly actorName?: string;
+}
+
+/**
+ * Input for `InstallmentRepository.adjustAmountDue` — T-510 (DEBT-105,
+ * GitHub issue #31): the per-tranche amount edit.
+ *
+ * The `newAmountDue` is the tranche's NEW TOTAL due — an ABSOLUTE amount,
+ * never a delta (the issue's explicit-meaning mandate). The repository
+ * derives the delta, writes the ledger adjustment, and re-derives the
+ * status; payments, allocations, and history are never touched.
+ */
+export interface AdjustInstallmentAmountInput {
+  /** The tranche to adjust — its OWN row only (never a sibling). */
+  readonly installmentId: string;
+  /** The NEW TOTAL amount due (>= 0; 0 = the full-waiver edge). MUST differ
+   *  from the current amount (a no-op save is rejected — the
+   *  double-application guard). */
+  readonly newAmountDue: number;
+  /** The mandatory reason (>= 3 chars — the audit mandate). */
+  readonly reason: string;
+  readonly actorId?: string;
+  readonly actorName?: string;
+}
+
+/**
+ * Result of `InstallmentRepository.adjustAmountDue` — the updated row plus
+ * the audit context the UI displays (the previous/new amounts, the signed
+ * delta, the over-coverage flag, and the resulting family-level balances).
+ */
+export interface AdjustInstallmentAmountResult {
+  /** The updated tranche row (post-adjustment state). */
+  readonly installment: Installment;
+  /** The tranche's amount due BEFORE the adjustment. */
+  readonly previousAmountDue: number;
+  /** The signed delta (newAmountDue − previousAmountDue) — the ledger
+   *  adjustment entry's amount. */
+  readonly delta: number;
+  /** The status BEFORE the adjustment (the audit pair's left side). */
+  readonly previousStatus: string;
+  /** True when newAmountDue < amountPaid + amountPending — the tranche is
+   *  over-covered (already-paid or allocated funds exceed the new due).
+   *  The change is allowed but never silent: the excess is reported, NOT
+   *  moved (the issue's "do not silently move payments between tranches"). */
+  readonly overcovered: boolean;
+  /** The over-covered excess (0 when not overcovered). */
+  readonly excess: number;
+  /** The resulting Σ installments amount_due across the FAMILY (every
+   *  category) — the account-level/tranche-level consistency witness. */
+  readonly installmentsDueAfter: number;
 }
 
 export interface DebtRepository {

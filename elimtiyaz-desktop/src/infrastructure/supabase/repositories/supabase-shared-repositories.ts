@@ -33,6 +33,8 @@ import type {
   Observable,
   ImportInstallmentInput,
   CreateManualDebtInput,
+  AdjustInstallmentAmountInput,
+  AdjustInstallmentAmountResult,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
@@ -4291,6 +4293,82 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
       const installment = mapInstallmentRow(fullRow as InstallmentRow);
       this.cache.update((list) => [installment, ...list.filter((i) => i.id !== installment.id)]);
       return Ok(installment);
+    } catch (e) {
+      return Err(Errors.unknown(e as Error));
+    }
+  }
+
+  /**
+   * T-510 (DEBT-105, GitHub issue #31) — the per-tranche amount edit, the
+   * Supabase twin. A THIN client over the canonical `adjust_installment_amount`
+   * RPC (migration 0152 — the 0137 conventions): the RPC owns the three
+   * atomic writes (the installments row UPDATE with the re-derived status,
+   * the signed-delta ledger adjustment on the tranche's own account, the
+   * audit row with the before/after balances) and ALL the guards (staff
+   * roles, tenant scope, the FOR UPDATE row lock, new >= 0, reason >= 3
+   * chars, the no-op-delta double-application rejection). This client
+   * computes NOTHING financial (§15.5 — the server-side canonical rule):
+   * it sends the payload, maps the read-back row, and patches the cache.
+   *
+   * The returned `installmentsDueAfter` (the family-level Σ witness) comes
+   * from the RPC's own post-write computation — never a client-side
+   * re-derivation.
+   */
+  async adjustAmountDue(
+    input: AdjustInstallmentAmountInput,
+  ): Promise<Result<AdjustInstallmentAmountResult>> {
+    try {
+      const { data, error } = await this.client.rpc("adjust_installment_amount", {
+        p_installment_id: input.installmentId,
+        p_new_amount_due: input.newAmountDue,
+        p_reason: input.reason,
+        p_actor_id: input.actorId ?? null,
+        p_actor_name: input.actorName ?? null,
+      });
+      if (error) throw error;
+      const res = (Array.isArray(data) ? data[0] : data) as
+        | {
+            installment_id: string;
+            parent_id: string;
+            previous_amount_due: number | string;
+            new_amount_due: number | string;
+            delta: number | string;
+            previous_status: string;
+            new_status: string;
+            overcovered: boolean;
+            excess: number | string;
+            ledger_entry_id: string;
+            account_balance_after: number | string;
+            installments_due_after: number | string;
+          }
+        | null;
+      if (!res?.installment_id) {
+        throw new Error("adjust_installment_amount returned no installment id");
+      }
+      // Read the full row back through the canonical mapper (the
+      // createManualDebt convention — the row, not the projection, is the
+      // contract; the re-read guarantees the cache reflects the RPC's
+      // post-write state including the re-derived status/paid_date).
+      const { data: fullRow, error: fetchErr } = await this.client
+        .from("installments")
+        .select("*")
+        .eq("id", res.installment_id)
+        .maybeSingle();
+      if (fetchErr) throw fetchErr;
+      const installment = mapInstallmentRow(fullRow as InstallmentRow);
+      this.cache.update((list) => [
+        installment,
+        ...list.filter((i) => i.id !== installment.id),
+      ]);
+      return Ok({
+        installment,
+        previousAmountDue: Number(res.previous_amount_due),
+        delta: Number(res.delta),
+        previousStatus: res.previous_status,
+        overcovered: Boolean(res.overcovered),
+        excess: Number(res.excess),
+        installmentsDueAfter: Number(res.installments_due_after),
+      });
     } catch (e) {
       return Err(Errors.unknown(e as Error));
     }

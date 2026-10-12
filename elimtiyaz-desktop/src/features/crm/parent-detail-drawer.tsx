@@ -1591,6 +1591,29 @@ function AdjustAccountModal({
             {formatDzd(outstanding)}
           </p>
         </div>
+        {/* T-510 (DEBT-105, GitHub issue #31): the EXPLICIT account-vs-
+            tranche relationship — the issue's "show clearly how it affects
+            tranche amounts; do not silently redistribute it". The
+            account-level adjustment is a LEDGER correction: it moves the
+            account balance and never changes any tranche's amount due
+            (no redistribution, silent or otherwise). The per-tranche
+            amounts are edited tranche by tranche on the échéancier. */}
+        <div
+          className="rounded-md border border-border p-2.5 text-[11px] text-muted-foreground space-y-1"
+          data-testid="account-adjust-tranche-notice"
+        >
+          <p>
+            <b>Portée :</b> cet ajustement agit sur le <b>registre du compte</b> (le solde
+            affiché ci-dessus) — il ne modifie <b>aucun montant de tranche</b> et n'est
+            jamais réparti entre les tranches.
+          </p>
+          <p>
+            Pour définir le montant dû d'une tranche précise (T1/T2/T3, inscription,
+            transport…), utilisez l'action « Montant » sur la ligne correspondante de
+            l'échéancier — chaque tranche se règle individuellement, avec son propre
+            motif et sa propre écriture d'audit.
+          </p>
+        </div>
         <FormField
           label="Montant (DZD)"
           required

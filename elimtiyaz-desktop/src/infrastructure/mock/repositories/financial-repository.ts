@@ -25,6 +25,8 @@ import type {
   Observable,
   ImportInstallmentInput,
   CreateManualDebtInput,
+  AdjustInstallmentAmountInput,
+  AdjustInstallmentAmountResult,
 } from "../../../domain/repository/repository";
 import type { Result } from "../../../core/result";
 import { Ok, Err } from "../../../core/result";
@@ -57,7 +59,7 @@ import type { LedgerEntry } from "../../../domain/model/ledger";
 // T-466 (DEBT-102): the canonical charge-entry factory — the manual debt's
 // ledger twin is built through the SAME invariant-enforcing factory every
 // other charge entry uses (never a hand-rolled object).
-import { createChargeEntry } from "../../../domain/calc/ledger/entries";
+import { createChargeEntry, createAdjustmentEntry } from "../../../domain/calc/ledger/entries";
 import {
   store, TENANT_ID, appendAudit, nowIso, delay,
 } from "./mock-store";
@@ -569,6 +571,160 @@ export class MockInstallmentRepository implements InstallmentRepository {
     });
 
     return Ok(installment);
+  }
+
+  /**
+   * T-510 (DEBT-105, GitHub issue #31) — the per-tranche amount edit, the
+   * MOCK twin. Mirrors the `adjust_installment_amount` RPC (migration
+   * 0152) EXACTLY: the guards (new >= 0, reason >= 3 chars, the row
+   * exists, the NO-OP-delta double-application rejection), the
+   * installments row update (amountDue := the NEW TOTAL + the status
+   * re-derivation per the 0115 waterfall predicates + ADR-033, paidDate
+   * stamped only when becoming paid), the signed DELTA ledger adjustment
+   * entry on the tranche's OWN account (the `createAdjustmentEntry`
+   * factory — the §6 reuse rule, never a hand-rolled object; the T-103
+   * invariant Σ installments due == Σ charges + Σ adjustments preserved
+   * by construction), the audit row (before/after, reason, actor,
+   * resulting balances), and the reactive notifies. Payments, payment
+   * allocations, pending payments, credits, discounts, and the historical
+   * ledger entries are NEVER touched.
+   */
+  async adjustAmountDue(
+    input: AdjustInstallmentAmountInput,
+  ): Promise<Result<AdjustInstallmentAmountResult>> {
+    await delay(120);
+    const reason = (input.reason ?? "").trim();
+    const idx = store.installments.findIndex((i) => i.id === input.installmentId);
+    if (idx < 0) {
+      return Err(Errors.notFound("Installment", input.installmentId));
+    }
+    if (!(input.newAmountDue >= 0)) {
+      return Err(Errors.validation("Le nouveau montant dû doit être supérieur ou égal à 0."));
+    }
+    if (reason.length < 3) {
+      return Err(Errors.validation("Le motif est obligatoire (≥ 3 caractères)."));
+    }
+    const existing = store.installments[idx];
+    const delta = input.newAmountDue - existing.amountDue;
+    if (delta === 0) {
+      // The NO-OP guard — the RPC's Gate 4: a repeated save of the SAME
+      // value is rejected (no duplicate adjustments, no double application).
+      return Err(Errors.validation(
+        `Le nouveau montant dû est identique au montant actuel (${existing.amountDue}) — rien à ajuster.`,
+      ));
+    }
+
+    // The OVER-COVERED classification (explicit, never silent) — the exact
+    // RPC predicate: the new due sits below the funds already paid or
+    // allocated on this tranche.
+    const covered = existing.amountPaid + (existing.amountPending ?? 0);
+    const overcovered = input.newAmountDue < covered;
+    const excess = overcovered ? covered - input.newAmountDue : 0;
+
+    // The STATUS re-derivation — the 0115 waterfall predicates + ADR-033.
+    // Priority: paid (cleared funds cover the new due — INV-4) >
+    // pending_clearance (uncleared funds in flight) > partial (cleared
+    // funds present) > the ADR-033 date branch — the SQL twin's exact order.
+    const dueDateMs = new Date(existing.dueDate).getTime();
+    let newStatus: Installment["status"];
+    if (existing.amountPaid >= input.newAmountDue) {
+      newStatus = "paid"; // INV-4: cleared funds cover the (new) due
+    } else if ((existing.amountPending ?? 0) > 0) {
+      newStatus = "pending_clearance"; // uncleared funds keep their state
+    } else if (existing.amountPaid > 0) {
+      newStatus = "partial";
+    } else if (Number.isFinite(dueDateMs) && dueDateMs < Date.now()) {
+      newStatus = "overdue"; // ADR-033: past due + no payment activity
+    } else {
+      newStatus = "unpaid"; // ADR-033: the no-payment-activity state
+    }
+
+    const at = nowIso();
+    const previousAmountDue = existing.amountDue;
+    const previousStatus = existing.status;
+    const updated: Installment = {
+      ...existing,
+      amountDue: input.newAmountDue,
+      status: newStatus,
+      // The 0115 convention: a newly-settled tranche stamps its settlement
+      // date ONCE; a re-opened one keeps its historical date.
+      paidDate: newStatus === "paid" ? (existing.paidDate ?? at) : existing.paidDate,
+    };
+    store.installments[idx] = updated;
+    store.notifyInstallments();
+
+    // The signed DELTA ledger adjustment — the tranche's OWN account (the
+    // same account the charge lives on), through the SAME invariant-
+    // enforcing factory every other adjustment entry uses.
+    const adjustment = createAdjustmentEntry({
+      tenantId: TENANT_ID,
+      parentId: existing.parentId,
+      studentId: existing.studentId,
+      category: existing.category,
+      amount: delta, // signed: + increase (majoration), − decrease (remise)
+      reason: `Ajustement tranche — ${existing.label} · ${input.newAmountDue} DZD (ancien ${previousAmountDue}) · ${reason}`,
+      sourceType: "manual_entry",
+      sourceId: `adj-${existing.id}`,
+      actorId: input.actorId ?? "tranche-adjust",
+      actorName: input.actorName ?? "Ajustement de tranche",
+      at,
+      metadata: {
+        installmentId: existing.id,
+        previousAmountDue,
+        newAmountDue: input.newAmountDue,
+        delta,
+        reason,
+        overcovered,
+        excess,
+        source: "mock.adjustAmountDue",
+      },
+    });
+    store.ledger.push(adjustment);
+    store.notifyLedger();
+
+    // The resulting family-level Σ (the account/tranche consistency
+    // witness the UI displays — the SAME computation the RPC performs
+    // post-write).
+    const installmentsDueAfter = store.installments
+      .filter((i) => i.parentId === existing.parentId)
+      .reduce((sum, i) => sum + i.amountDue, 0);
+
+    appendAudit({
+      action: "installment.amount_adjusted",
+      entityType: "installment",
+      entityId: existing.id,
+      actorId: input.actorId ?? "tranche-adjust",
+      actorName: input.actorName ?? "Ajustement de tranche",
+      diff: {
+        before: {
+          amountDue: previousAmountDue,
+          status: previousStatus,
+          amountPaid: existing.amountPaid,
+          amountPending: existing.amountPending ?? 0,
+        },
+        after: {
+          amountDue: input.newAmountDue,
+          status: newStatus,
+          amountPaid: existing.amountPaid,
+          amountPending: existing.amountPending ?? 0,
+          ledgerEntryId: adjustment.id,
+          installmentsDueAfter,
+          overcovered,
+          excess,
+        },
+      },
+      note: `Tranche ajustée — ${existing.label} · ${reason}`,
+    });
+
+    return Ok({
+      installment: updated,
+      previousAmountDue,
+      delta,
+      previousStatus,
+      overcovered,
+      excess,
+      installmentsDueAfter,
+    });
   }
 
   /**
