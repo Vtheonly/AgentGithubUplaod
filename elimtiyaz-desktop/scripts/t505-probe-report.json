@@ -1,0 +1,71 @@
+{
+  "tag": "t505-mv4x2dui",
+  "at": "2026-10-12T07:14:36.029Z",
+  "results": [
+    [
+      "A1 admin sign-in (the app's own client)",
+      true,
+      "admin@elimtiyaz.dz"
+    ],
+    [
+      "B1 supabase repositories wired",
+      true,
+      "55 slots"
+    ],
+    [
+      "B2 runBackup (warmed)",
+      true,
+      "950036 bytes in 5483ms — counts: parents=741 payments=2198"
+    ],
+    [
+      "B3 mirror row",
+      true,
+      "status=encrypted"
+    ],
+    [
+      "C1 IMMEDIATE restore (owner's Oct-4 timing)",
+      true,
+      "145ms"
+    ],
+    [
+      "C2 restored-from marker",
+      true,
+      ""
+    ],
+    [
+      "D1 second restore (the Oct-4 retry pattern)",
+      true,
+      "69ms"
+    ],
+    [
+      "E1 buildExcelOnlyExport (dialog pattern)",
+      true,
+      "765235 bytes — el-imtiyaz-excel-2026-10-12T07-14-34.zip"
+    ],
+    [
+      "E2 ZIP signature",
+      true,
+      "PK=true"
+    ],
+    [
+      "F1 buildEntireArchiveExport",
+      true,
+      "951809 bytes — el-imtiyaz-archive-complete-2026-10-12T07-14-35.zip"
+    ],
+    [
+      "G1 syncNow (empty queue honest no-op)",
+      true,
+      "pushed=0 failed=0 skippedMock=0"
+    ],
+    [
+      "G2 sync queue census",
+      true,
+      "0 entries"
+    ],
+    [
+      "H1 mirror row cleanup",
+      true,
+      "removed"
+    ]
+  ]
+}
