@@ -5903,7 +5903,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 ## T-513 — The Statistics year-over-year MOCK MODE (the owner's three-issue mandate, issue 1 / STATS-405): the YoY comparison card renders an explicitly-labeled simulated N−1 series derived deterministically from the REAL current-year series when (and only when) no historical revenue exists — the 161st session
 
-**Status:** IN_PROGRESS (161st session, 2026-10-13 — registration; the implementation + suites + docs closeout follow in the same session).
+**Status:** TESTED (161st session, 2026-10-13 — implementation + the 13-test suite + the full battery complete; the VERIFIED gate is the owner's eyeball of the demo toggle on the real dashboard).
 
 **The mandate (the owner's issue 1, verbatim intent):** "I want to add a mock mode to the year-over-year comparison feature so I can test and preview comparisons between the current year (N) and the previous year (N-1). Currently, I only have data for a single year, which prevents me from properly testing these comparisons. Implement a mock mode that provides realistic sample data for another year, allowing the comparison charts, graphs, and indicators to function as expected. The mock mode must be clearly identified and must not modify, overwrite, or interfere with real data."
 
@@ -5911,6 +5911,6 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **The scope:** (a) a new pure module `yoy-mock.ts` beside the card (NOT inside analytics-derivations.ts — that file's charter is "NOTHING is synthesized" and stays true); (b) the YoYComparisonCard gains the demo toggle (offered only in the "previous year unavailable" state with a non-empty current series), the simulated rendering (badge, legend, delta chip), and the honest return path (toggle off → the unavailable state); (c) the regression suite (determinism, purity, no-offer-when-real-data, badge/label contract, delta honesty); (d) the docs closeout (problem-registry STATS-405, change-log, next-task).
 
-**Left:** the whole implementation (registered first per §13 — the fix follows in this session's commits).
+**Left (the VERIFIED gate):** the owner's eyeball pass — open Statistiques → the charts view with a single configured year: the 'Démo N−1 (simulé)' toggle on the YoY card, the amber badge/legend/'(simulé)' labels while active, and the honest return on toggle-off. The standing fleet: issues 2 (the Pareto full names + clickability, T-514/UI-342) and 3 (the staff working-days calendar, T-515/WORKFORCE-516) — this session continues with them.
 
-**Next:** the T-513 implementation commit (the module + the card + the suite).
+**Next:** T-514 — the Pareto chart's full family names + clickable bars (the fleet's issue 2, UI-342).
