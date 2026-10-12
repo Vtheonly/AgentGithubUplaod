@@ -247,7 +247,23 @@ const PAGE_SIZE = 10;
  * T-469 (DEBT-103): production funnel over the CANONICAL triage and the
  * CONFIGURED threshold edges. Do not substitute the demo derivation here.
  */
+/**
+ * T-469 (DEBT-103): the funnel over the CANONICAL triage — the staged
+ * escalation of debtor families through the CONFIGURED threshold edges:
+ *
+ *   1. « Débiteurs »              — every family with outstanding > 0
+ *   2. « En retard (échus) »      — worst tranche past due (days > 0)
+ *   3. « Au-delà du seuil jaune » — worst tranche beyond yellowDays
+ *   4. « Critique (> seuil rouge) » — worst tranche beyond redDays
+ *
+ * The stage NAMES carry the configured numbers (the §15.66b
+ * cause-on-the-card rule — the operator sees WHICH edges produced the
+ * split). PURE: same triage + same thresholds → same stages.
+ */
 export function deriveRecoveryFunnel(triage: DebtTriage): FunnelStage[] {
+  // The triage's OWN labels carry the configured edges (debtTriageLabels
+  // bakes yellowDays/redDays into them at derivation time) — the funnel
+  // NEVER relabels under different edges (that would lie about the split).
   const byBucket = new Map(triage.buckets.map((b) => [b.bucket, b]));
   const notDue = byBucket.get("not_due");
   const current = byBucket.get("current");
