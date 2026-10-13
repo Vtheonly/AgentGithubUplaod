@@ -4868,3 +4868,26 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **THE VERIFICATION INVENTORY:** the apply ladder ALL GREEN (0153 live: the columns/constraints/policies/chain row) · the E2E 36 PASS / 0 FAIL (the cross-surface visibility, the RLS-shaped attachment workflow, the full lifecycle through the Android push shapes, the zero-residue cleanup) · the desktop NEW suites 21/21 + the pre-existing expense suites 20/20 + the full Layer-1 5,166 passed/1 failed→fixed-and-reverified (the T-361 guard's comment catch — the §15.101 lesson) · tsc 0 · eslint 0 · the Android recompile + 779/779 + the NEW 4/4 · the evidence doc `docs/recovery/t-521-live-verification.md` · ADR-035 the canonical model.
 
 **THE CONCURRENT-SESSION COORDINATION:** the T-527 accounts/permissions session ran in parallel; the identical UPLOAD-102 fix collided on the same two lines and was resolved theirs-first at the rebase (35fcbfe9) — the per-commit push/merge discipline held through three remote advances.
+
+---
+
+## 2026-10-13 — T-527 (the 171st session) — the owner's accounts/permissions/messaging mandate: the three staff accounts, the expense-approval backend hardening, and the shared staff channel — all verified live
+
+**What/Why:** the owner mandated (a) the administrator account configured with full permissions (owner-pinned credentials, unchanged), (b) individual restricted accounts for Adam Cherif / Mohamed Haddad / Samir Khelifi linked to their existing employee records, (c) role-based permissions enforced ON THE BACKEND, (d) the expense submit→pending→approve/reject workflow with staff unable to approve/reject through UI OR direct API, (e) the shared "Staff General" internal messaging channel with persistent history and access control, and (f) end-to-end verification. The pre-implementation audit found the backend did NOT enforce (c)/(d): three bypass layers (SEC-118) and a fourth chat gap (CHAT-307, discovered during the E2E).
+
+**Changes:**
+1. The three staff accounts through the canonical `create-user-account` EF (personnel_id + the restricted `worker` role — exactly {view_tasks, view_notifications, submit_expense}) — `scripts/t527-staff-accounts.py`.
+2. **Migration 0155** (SEC-118): `approve_expense`/`settle_expense` recreated with the 0055 caller verification + actor binding + the anon,public revoke; the 0064 trigger recreated with the reviewer gate on approval-authority transitions + the anti-forgery clause (approved_by = the acting user). Applied live with the T-091 atomic registration — `scripts/apply_0155_live.sh` + `scripts/verify_t-527.sql`.
+3. The **Staff General** channel (deterministic code STAFF-GENERAL, 4 members, scope 'internal' derived by the 0135 trigger, canonical sendMessage welcome) — `scripts/t527-staff-channel.py`.
+4. **Migration 0156** (CHAT-307, found during the E2E): `chat_messages_insert`'s staff branch widened from the 0067 five-role list to the 0105 nine-role employee set — workers could be members of every internal channel but could never post in a group one — `scripts/apply_0156_live.sh`.
+5. The end-to-end acceptance round (the owner's 22 conditions as live REST probes through the exact repository request shapes) — `scripts/t527-e2e.py`.
+
+**Verified (all live, 2026-10-13):** the provisioning 22/22 + the idempotency re-run (3× 409 personnel_already_linked) · the channel 22/22 (per-member RLS reads + the parent denial) · migration 0155 census {registered, trigger_gate, rpc_gate, anon_revoked} all true + the EXECUTE-mode matrix **ALL 24 CHECKS GREEN** (re-run post-0156: still 24/24) · migration 0156 census {widened, author_binding_preserved} true · the E2E round **40/40 GREEN** · the personnel/salary census unchanged before/after · desktop ladder: tsc EXIT 0, eslint 0 errors, check:migrations OK, the full battery recorded in the closeout commit. Evidence doc: `docs/recovery/t-527-live-verification.md`.
+
+**Affected:** live auth/users + user_profiles + role_assignments + personnel.user_id (×3), chat_channels (+1 group, +1 DM), chat_messages (the welcome + the E2E history), expense_tickets (+3 clearly-marked evidence rows), the expense-approval trigger + the two RPCs + the chat INSERT policy (migrations 0155/0156 — every platform).
+
+**Preserved:** every personnel/salary/payment field (the October statuses verbatim: Adam paid 10 000 DA cash, the other two pending) · the owner-pinned admin credential (never rotated) · the 0064 state machine + the 0008 invariants + the T-521 submitter-proof-settle flow · every sibling chat policy · the existing channels/messages · the DM idempotency.
+
+**Commits:** 4ccbb6a5 (registration) · 7a4d43ed (accounts) · 15701299 (channel) · dc9e402d (0155) · 3092cea0 (E2E + 0156) · the closeout commit (this doc set).
+
+**Problems:** SEC-118 RESOLVED-TESTED-VERIFIED-LIVE · WORKFORCE-521 RESOLVED-TESTED-VERIFIED-LIVE · CHAT-306 RESOLVED-TESTED-VERIFIED-LIVE · CHAT-307 RESOLVED-TESTED-VERIFIED-LIVE (registered + fixed in-session) · SEC-119 registered OPEN (the same-class audit follow-up: batch_register_family + purge_expired_backups).

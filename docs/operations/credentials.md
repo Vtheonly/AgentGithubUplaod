@@ -266,3 +266,15 @@ Live-probed facts (2026-10-13): the new key's Identity Toolkit `authorizedDomain
 | Client secret | `GOCSPX-…****Ma3E` (masked in console; the owner holds the full value) | OWNER-ONLY — never in any repo; if lost, "Add new secret" on the client's page (rotation is downtime-free) |
 | Authorized redirect URIs | `https://elimtiyaz-production.firebaseapp.com/__/auth/handler` + `https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/callback` | live-probed ACCEPTED (runbook §5) — the Supabase callback is REGISTERED on this client |
 | Authorized JavaScript origins | `http://localhost`, `http://localhost:5000`, `https://elimtiyaz-production.firebaseapp.com` | hygiene TODO: add `https://elimtiyaz-website.vercel.app` (not blocking for the redirect flow) |
+
+### 9.7 The staff accounts (T-527 / WORKFORCE-521, 2026-10-13 — the owner's accounts mandate)
+
+Provisioned through the canonical `create-user-account` EF (super_admin caller, `personnel_id` binding) with the restricted **worker** role ({view_tasks, view_notifications, submit_expense} only — verified live via `current_user_permissions()`):
+
+| Employee | Personnel code | Account (email = username) | Profile id |
+|---|---|---|---|
+| Adam Cherif | PER-2026-82FB27 | `adam.cherif@elimtiyaz.dz` | `0bd51bf0-b8b4-4324-93b8-1b198bfc887e` |
+| Mohamed Haddad | PER-2026-C74E11 | `mohamed.haddad@elimtiyaz.dz` | `5c8f4267-24e4-44d5-8b66-011d698b957b` |
+| Samir Khelifi | PER-2026-0EE9BF | `samir.khelifi@elimtiyaz.dz` | `2212cacc-7995-4b84-adf7-4ea62683895a` |
+
+**Password policy (SEC-100 — no plaintext staff passwords in any repo file, log, or doc):** the initial passwords were generated at creation (16-char, four classes) and returned ONCE by the EF; every account's password was then rotated through the user's OWN JWT (the exact desktop changePassword path, `PUT /auth/v1/user`) with the new credential sign-in-verified per account. The **final working credentials were delivered to the owner out-of-band** (the 171st session's report — 2026-10-13) and are NOT recorded here. Each employee changes their password at first sign-in (Profile → Changer le mot de passe — the T-003 path, live-proven per account in the T-527 E2E D-section). A lost staff password is re-set through the GoTrue admin API (never the owner-pinned admin credential — §15.23) or by deleting + re-provisioning through the EF (the 409 idempotency guards make re-runs safe).
