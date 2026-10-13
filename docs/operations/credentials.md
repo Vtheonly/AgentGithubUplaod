@@ -240,7 +240,7 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 
 ### 9.6 The owner's NEW Firebase project — `elimtiyaz-production` (T-519 / CONFIG-501, 2026-10-13 — the FCM web-push project for the parent portal)
 
-The owner created this project to replace `elimtiyaz-android` as the website's Firebase backend and supplied its full public web config ("make sure the website reflects these settings correctly"). The website's committed defaults (`src/lib/public-config.ts`) and `.env.example` were cut over in the same session (website commit `4deb9dd`). **Firebase is FCM-ONLY in the portal** — the auth chain is Supabase-side end-to-end; this project's config affects push notifications, never sign-in.
+The owner created this project to replace `elimtiyaz-android` as the website's Firebase backend and supplied its full public web config ("make sure the website reflects these settings correctly"). The website's committed defaults (`src/lib/public-config.ts`) and `.env.example` were cut over in the same session (website commit `4deb9dd`); the Web Push certificate's public key arrived the next session and was committed with it (T-520 / CONFIG-502, website commit `ac1e273`). **Firebase is FCM-ONLY in the portal** — the auth chain is Supabase-side end-to-end; this project's config affects push notifications, never sign-in.
 
 | Value | Value | Classification / where it lives |
 |---|---|---|
@@ -251,7 +251,7 @@ The owner created this project to replace `elimtiyaz-android` as the website's F
 | Messaging sender id | `944201689219` | public — committed |
 | WEB app id | `1:944201689219:web:b5fbe39a56e09c7629d3b6` | public — committed (the first-ever REAL web app id in the system; the OLD project had none — that was why `NEXT_PUBLIC_FIREBASE_APP_ID` was empty since T-096) |
 | measurementId | `G-G3YGN1WZF3` | public — **intentionally NOT wired** (Analytics-only; the portal imports no `firebase/analytics` — recorded here so it is not lost) |
-| VAPID key (web push) | **NOT ISSUED YET** | the SOLE remaining gap: owner generates a Web Push certificate (Firebase console → Project settings → Cloud Messaging → Web Push Certificates) and sets `NEXT_PUBLIC_FIREBASE_VAPID_KEY` on Vercel → `isFcmConfigured` flips to true and the live warning silences |
+| VAPID key (web push) | `BK08KLwqnYj-d6jPE3laBEHvBoR89iqE7i3u-Jssn1NhaiGnniNnUI3Ty_k4Sgqd0QEfWixfNSV4PoynuwWoEo8` | public — **ISSUED + COMMITTED** (T-520 / CONFIG-502, 2026-10-13): the owner generated the Web Push certificate key pair in the new Firebase console and supplied the PUBLIC half (87-char base64url P-256 application-server key; public by Web-Push protocol design — the browser hands it to the push service). Committed in `public-config.ts` + `.env.example`; live-verified in the production bundle (deployment `ac1e273`, chunk `2o6jzy4d89erf.js`). No Vercel env var needed. The PRIVATE half never leaves Google's console. `isFcmConfigured` is now TRUE on a fresh clone — web push enabled out of the box; the T-121 warning silenced |
 
 Live-probed facts (2026-10-13): the new key's Identity Toolkit `authorizedDomains` = `localhost`, `elimtiyaz-production.firebaseapp.com`, `elimtiyaz-production.web.app` (the production domain is NOT listed — matters only if Firebase Auth is ever wired directly); the OLD project's key answers `CONFIGURATION_NOT_FOUND` (dead — the cutover was necessary). The OLD project's values are now a whole-tree regression guard (`t-519-firebase-project-cutover.test.ts` scans for the old API key / authDomain / storage bucket / sender id).
 
