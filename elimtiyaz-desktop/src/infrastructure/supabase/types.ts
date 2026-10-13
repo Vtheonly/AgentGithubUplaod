@@ -501,6 +501,30 @@ export interface ExpenseTicketRow {
   anomaly_flags_json: unknown[];
   created_at: string;
   updated_at: string;
+  /** T-521 (WORKFORCE-520): the accountable staff member — DISTINCT from
+   *  submitted_by (requester) and approved_by (decider). Nullable: historical
+   *  rows keep NULL and are flagged for review in the UI, never back-filled. */
+  responsible_profile_id: string | null;
+}
+
+/**
+ * T-521 (WORKFORCE-518): the canonical expense-attachment metadata row
+ * (migration 0153) — one expense, many supporting images; the bytes live in
+ * the 0018 `expense-receipts` bucket at `storage_path`.
+ */
+export interface ExpenseAttachmentRow {
+  id: string;
+  tenant_id: string;
+  expense_id: string;
+  storage_bucket: "expense-receipts" | "payment-proofs";
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  uploaded_by: string | null;
+  uploaded_at: string;
+  source: "desktop" | "mobile_camera" | "mobile_gallery";
+  created_at: string;
 }
 
 export interface PersonnelRow {
@@ -663,6 +687,7 @@ export interface Database {
       installments: { Row: InstallmentRow; Insert: Partial<InstallmentRow>; Update: Partial<InstallmentRow> };
       ledger_entries: { Row: LedgerEntryRow; Insert: Partial<LedgerEntryRow>; Update: Partial<LedgerEntryRow> };
       expense_tickets: { Row: ExpenseTicketRow; Insert: Partial<ExpenseTicketRow>; Update: Partial<ExpenseTicketRow> };
+      expense_attachments: { Row: ExpenseAttachmentRow; Insert: Partial<ExpenseAttachmentRow>; Update: Partial<ExpenseAttachmentRow> };
       personnel: { Row: PersonnelRow; Insert: Partial<PersonnelRow>; Update: Partial<PersonnelRow> };
       audit_logs: { Row: AuditLogRow; Insert: Partial<AuditLogRow>; Update: Partial<AuditLogRow> };
       notifications: { Row: NotificationRow; Insert: Partial<NotificationRow>; Update: Partial<NotificationRow> };
