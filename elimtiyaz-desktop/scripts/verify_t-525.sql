@@ -17,6 +17,15 @@
 --           (profile admin@elimtiyaz.dz, role super_admin — the T-510 actor)
 --
 -- The matrix (post-0154 expected):
+--   E2E acceptance extension (T-525 phases 3-5, the owner's criteria):
+--   V9  STAFF schedules an exam through the DESKTOP's exact insert shape,
+--       then RESCHEDULES it (update on the SAME row) — the parent then
+--       sees exactly ONE exam row at the NEW date (edit without duplicate)
+--   V10 the parent's read through the WEBSITE's exact useEventsInRange
+--       query shape (is_deleted=false + start_at range, ascending)
+--   V11 the parent's homework read through the WEBSITE's exact
+--       useHomeworkForClasses shape (class_id IN the children's classes)
+--
 --   V1  parent sees the exam event for the CHILD'S class            = 1
 --   V2  parent does NOT see another class's exam event              = 0
 --   V3  parent does NOT see a staff event (follow_up_call)          = 0
@@ -168,6 +177,93 @@ BEGIN
            ELSE 'staff insert REJECTED (the desktop write path would be BROKEN!)' END);
 
   SET LOCAL ROLE postgres;
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- T-525 E2E acceptance (the owner's criteria 1-4) — all inside the SAME
+-- transaction: staff schedules → parent sees → staff reschedules (SAME row)
+-- → parent sees the new date, exactly one row, no duplicate.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_created_at timestamptz;
+  v_parent_range_rows int;
+  v_parent_range_newdate int;
+  v_exam_total int;
+  v_hw_rows int;
+BEGIN
+  SET LOCAL ROLE postgres;
+
+  -- (a) STAFF schedules an exam — the DESKTOP repository's exact insert
+  -- shape (insertRowOf: kind='custom' + target_entity_type='exam' +
+  -- target_entity_id=class + location=room + target_name=invigilator).
+  INSERT INTO public.calendar_events (id, tenant_id, kind, title, description,
+      start_at, all_day, location, target_entity_type, target_entity_id,
+      target_name, created_by)
+  VALUES ('77777777-1111-2222-3333-444444444411'::uuid,
+      '00000000-0000-0000-0000-000000000001'::uuid,
+      'custom', 'T-525 FAKE E2E examen Mathematiques T1',
+      'T-525 E2E seed — rolled back',
+      '2026-10-20T08:30:00+00:00', false, 'Salle 12',
+      'exam', '3db1e709-940e-422f-a574-a49548df0b50'::uuid,
+      'M. Benali', NULL);
+
+  -- (b) the PARENT reads through the WEBSITE's exact useEventsInRange shape.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', 'ae39dade-91d1-48a5-a3d0-4d2872e8e156',
+                      'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO v_parent_range_rows FROM public.calendar_events
+   WHERE is_deleted = false
+     AND start_at >= '2026-09-28T00:00:00.000Z'
+     AND start_at <= '2026-10-31T23:59:59.999Z'
+     AND target_entity_type = 'exam'
+     AND target_entity_id = '3db1e709-940e-422f-a574-a49548df0b50'::uuid;
+
+  -- (c) the PARENT's homework read — the useHomeworkForClasses shape
+  -- (class_id IN the children's classes; the parent's child YAHIA is in
+  -- 3db1e709 = 5AP Section A).
+  SELECT count(*) INTO v_hw_rows FROM public.homework
+   WHERE class_id IN ('3db1e709-940e-422f-a574-a49548df0b50'::uuid)
+     AND due_date IS NOT NULL;
+
+  SET LOCAL ROLE postgres;
+
+  -- (d) STAFF RESCHEDULES the exam — the repository update() shape: the
+  -- SAME row patched (start_at moved), never an insert.
+  UPDATE public.calendar_events
+     SET start_at = '2026-10-22T10:00:00+00:00', updated_at = now()
+   WHERE id = '77777777-1111-2222-3333-444444444411'::uuid
+     AND is_deleted = false;
+
+  -- (e) the PARENT re-reads: exactly ONE exam row, at the NEW date.
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', 'ae39dade-91d1-48a5-a3d0-4d2872e8e156',
+                      'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO v_parent_range_newdate FROM public.calendar_events
+   WHERE is_deleted = false
+     AND start_at >= '2026-10-22T00:00:00.000Z'
+     AND start_at <  '2026-10-23T00:00:00.000Z'
+     AND target_entity_type = 'exam'
+     AND target_entity_id = '3db1e709-940e-422f-a574-a49548df0b50'::uuid;
+  SELECT count(*) INTO v_exam_total FROM public.calendar_events
+   WHERE is_deleted = false
+     AND target_entity_type = 'exam'
+     AND target_entity_id = '3db1e709-940e-422f-a574-a49548df0b50'::uuid
+     AND title like 'T-525 FAKE E2E%';
+
+  SET LOCAL ROLE postgres;
+
+  INSERT INTO t525_results VALUES
+    ('V9_parent_sees_created_exam', v_parent_range_rows >= 1,
+      'parent range-query rows for the created exam = ' || v_parent_range_rows),
+    ('V10_reschedule_no_duplicate', v_parent_range_newdate = 1 AND v_exam_total = 1,
+      'rows at the NEW date = ' || v_parent_range_newdate ||
+      ', total exam rows for the class = ' || v_exam_total ||
+      ' (1+1 = rescheduled in place, no duplicate)'),
+    ('V11_parent_homework_children_classes', v_hw_rows >= 1,
+      'homework rows via the children-classes IN query = ' || v_hw_rows);
 END $$;
 
 SELECT * FROM t525_results ORDER BY check_id;

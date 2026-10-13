@@ -44,9 +44,9 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 
 | ID | Sev | Status | Task | Title |
 |---|---|---|---|---|
-| UI-343 | High | OPEN (T-525) | T-525 | NEW (169th session): the website calendar's month grid keys every day cell with toISOString() (UTC) on local-midnight Dates — UTC+ viewers see events one day late, the due-date cell shows nothing |
-| CROSS-201 | High | OPEN (T-525) | T-525 | NEW (169th session): the exam data path Pedagogy → calendar_events → portal does not exist — no scheduling surface, no writer, 0 rows live; the portal's exam section is structurally empty |
-| SEC-117 | High | OPEN (T-525, live-proven) | T-525 | NEW (169th session): calendar_events_admin FOR ALL policy has no role check — parents can write staff calendar events (live P5 probe); fix = staff role list + the exam-scoped parent read branch (0154) |
+| UI-343 | High | RESOLVED-TESTED (T-525, 169th session — website `0b959c2`: local date keys + range retrieval + all-children homework; 58/700 green, strict build green) | T-525 | NEW (169th session): the website calendar's month grid keys every day cell with toISOString() (UTC) on local-midnight Dates — UTC+ viewers see events one day late, the due-date cell shows nothing |
+| CROSS-201 | High | RESOLVED-TESTED + backend VERIFIED-LIVE (T-525, 169th session — migration 0154 + hub `1d3aff72` + website `0b959c2`; 11/11 live matrix) | T-525 | NEW (169th session): the exam data path Pedagogy → calendar_events → portal does not exist — no scheduling surface, no writer, 0 rows live; the portal's exam section is structurally empty |
+| SEC-117 | High | RESOLVED-TESTED + VERIFIED-LIVE (T-525, 169th session — migration 0154 applied live; parent write pre-proven SUCCEEDING then REJECTED; staff path preserved) | T-525 | NEW (169th session): calendar_events_admin FOR ALL policy has no role check — parents can write staff calendar events (live P5 probe); fix = staff role list + the exam-scoped parent read branch (0154) |
 | DATA-063 | Medium | OPEN (owner action) | T-525 | NEW (169th session): students.class_id NULL for 988+/1137 active students — class-scoped homework is invisible to most parents until placements are run (data state, not code) |
 | RBAC-302 | Critical | VERIFIED (2026-09-07, T-236+T-241 — 0083 applied live atomically; probes: students/parents/payments SELECT 0, students UPDATE 0 rows, admin control succeeds) | T-236 | NEW (35th session): 0019 RLS grants teachers students UPDATE + tenant-wide directory/parents SELECT — the client gates were cosmetic |
 | RBAC-300 | Critical | VERIFIED (2026-09-07, T-234/T-235/T-237/T-241 — desktop matrix + route guards + overlays, Android mirror + Mon espace, live 14/14) | T-234 | NEW (35th session, owner mandate): Personnel/Workforce RBAC boundary enforced nowhere strictly — teacher module-entry permissions on both clients, unguarded /crm//academics//financials routes, dashboard leaks into admin pages, clerk lockout |
@@ -8188,7 +8188,7 @@ The inspection confirms the gap with THREE structural facts:
 ### UI-343 — The website calendar's month grid derives EVERY day-cell date key with toISOString() (UTC) on LOCAL-midnight Dates: in UTC+ timezones (Algeria UTC+1) every cell is keyed to the PREVIOUS day — a homework due 13/10 shows its dot on the 14/10 cell, clicking the 13/10 cell shows nothing, and the "today" ring + "Aujourd'hui" button highlight tomorrow (the calendar-display half of the exam/homework-visibility mandate)
 
 - **Category:** UI / date handling (the portal calendar) | **Severity:** High (every calendar consumer in every UTC+ timezone — the school is in Boumerdès, UTC+1 — sees events on the wrong day; the owner's own test: homework "dddddd" due 2026-10-13 pushed from Pedagogy does not appear on the 13th)
-- **Status:** OPEN (registered 2026-10-13 BEFORE the fix per §13, T-525)
+- **Status:** RESOLVED-TESTED (169th session, 2026-10-13 — T-525: website commit `0b959c2`; the local-key helpers + the month-range retrieval + the all-children homework merge + the 10-test regression suite; lint 0 · 58 files/700 tests green · strict build green)
 - **Repositories:** elimtiyaz-website (src/features/calendar/calendar-view.tsx)
 - **Platforms affected:** Website (parent portal) — calendar view only
 - **Task:** T-525 (docs/recovery/task-registry.md)
@@ -8202,7 +8202,7 @@ The inspection confirms the gap with THREE structural facts:
 ### CROSS-201 — The exam data path from Pedagogy to the website calendar does not exist end-to-end: NO surface anywhere schedules exams (the desktop event creator offers only follow_up_call/reminder/meeting/custom and never sets target_entity_type='exam'; Pedagogy has no exam scheduler; the legacy assessments.scheduled_at column has NO writer), calendar_events is EMPTY live (0 rows), and the portal's "Prochains examens" section + exam filter are structurally permanently empty (the data-path half of the exam/homework-visibility mandate)
 
 - **Category:** CROSS / missing data path (desktop → backend → portal) | **Severity:** High (the portal plan's "Exam Timetable — Dates, Rooms, Invigilators" section can never display anything; the owner schedules exams in Pedagogy and they never appear)
-- **Status:** OPEN (registered 2026-10-13 BEFORE the fix per §13, T-525)
+- **Status:** RESOLVED-TESTED + the backend/RLS half VERIFIED-LIVE (169th session, 2026-10-13 — T-525: hub `83e3f0d7` migration 0154 applied live + the desktop producer `1d3aff72` + the portal read fixes `0b959c2`; the 11/11 EXECUTE-mode matrix in docs/recovery/t-525-live-verification.md — staff schedules through the desktop's exact insert shape → the parent sees it through the website's exact query shape; reschedule = the SAME row, no duplicate)
 - **Repositories:** AgentGithubUplaod (desktop Pedagogy + the calendar repository contract), elimtiyaz-website (the read contract already exists)
 - **Platforms affected:** Desktop (missing write surface) + Website (read surface waiting for data) + backend (the parent read window, see SEC-117's companion change)
 - **Task:** T-525 (docs/recovery/task-registry.md)
@@ -8216,7 +8216,7 @@ The inspection confirms the gap with THREE structural facts:
 ### SEC-117 — calendar_events_admin (0019) is a FOR ALL policy with NO role check — every authenticated tenant member INCLUDING PARENTS can INSERT/UPDATE/soft-DELETE staff calendar events (live-proven: a parent-JWT impersonation insert SUCCEEDED); every sibling _admin policy in 0019 carries a role check, so this is an oversight, and fixing it requires the companion parent read window (CROSS-201) or exams die with the tightening
 
 - **Category:** SEC / RLS over-grant | **Severity:** High (a parent can forge staff events — fake payment_received/audit_log/expense milestones, follow-up calls with arbitrary phone numbers — and tamper with or soft-delete real staff events; the desktop's daily-activity calendar is a staff operational surface)
-- **Status:** OPEN (registered 2026-10-13 BEFORE the fix per §13, T-525 — live-proven the same day)
+- **Status:** RESOLVED-TESTED + VERIFIED-LIVE (169th session, 2026-10-13 — T-525: migration 0154 applied live; the pre-apply probe proved the parent INSERT SUCCEEDED (P5) and the post-apply matrix proves it REJECTED (V4/V5) while the staff write path is preserved (V8) — docs/recovery/t-525-live-verification.md)
 - **Repositories:** AgentGithubUplaod (backend migration chain; the desktop is the only writer)
 - **Platforms affected:** Backend (all platforms' RLS posture)
 - **Task:** T-525 (docs/recovery/task-registry.md)
