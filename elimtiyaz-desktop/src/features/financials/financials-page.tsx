@@ -387,6 +387,7 @@ export function FinancialsPage() {
               value={paymentsKnown ? formatDzd(totalToday, { compact: true }) : "—"}
               icon={<Wallet className="h-5 w-5" />}
               tone="success"
+              hint="Total registre toutes dates — distinct du Payé à ce jour"
             />
           </button>
           <button

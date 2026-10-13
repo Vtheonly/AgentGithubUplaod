@@ -30,7 +30,8 @@ import {
   // T-103: `installmentRemaining` — INV-4-family per-tranche remaining
   // (due − paid − pending); the inline `Math.max(0, amountDue - amountPaid)`
   // diverged from the canonical rule (DATA-008).
-  sumPaidPayments,
+  sumPaidPaymentsAsOf,
+  sumFutureRecordedPaidPayments,
   installmentRemaining,
   isInstallmentOverdue,
   totalOutstanding,
@@ -63,12 +64,17 @@ export function PaymentsTab({
 
   // TIER 4 FIX (bypass #1) — delegate to canonical helpers from
   // `domain/calc/payment` instead of inline `filter + reduce` over raw
-  // payment / installment rows. The canonical `sumPaidPayments` filters
-  // by `status === "paid"` (the canonical "cleared revenue" rule) and
-  // `totalOutstanding` returns `clampNonNegative(sumDue - sumPaid)` so
-  // reversed originals / adjustments / credits are correctly accounted
-  // for via the ledger (where they live) rather than re-derived here.
-  const individualPaid = sumPaidPayments(payments);
+  // payment / installment rows. The canonical `sumPaidPaymentsAsOf` filters
+  // by `status === "paid"` AND applies the canonical ledger replay's OWN
+  // date cutoff (T-517/BUSINESS-111, T-523): the dossier displays this
+  // figure BESIDE the family's as-of outstanding (familyProfile), so both
+  // must read the SAME payment population — the all-dates sum counted the
+  // T-502 future-anchored import payments while the as-of replay did not
+  // (the same contradiction class as the Family Account modal).
+  // `individualFutureRecorded` carries the future-period split — surfaced
+  // as its own labelled note, never counted as collected-to-date (§15.95a).
+  const individualPaid = sumPaidPaymentsAsOf(payments);
+  const individualFutureRecorded = sumFutureRecordedPaidPayments(payments);
   // `individualPending` is a UI-only metric: the sum of uncleared
   // checks / transfers awaiting compensation. There is no canonical
   // helper for it because the canonical rule only defines
@@ -124,7 +130,16 @@ export function PaymentsTab({
           <CardContent className="p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Part individuelle</p>
             <p className="text-xl font-mono font-bold text-status-success mt-1">{formatDzdPlain(individualPaid)}</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Encaissé (payé)</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Encaissé à ce jour (payé)</p>
+            {individualFutureRecorded > 0 && (
+              <p
+                className="text-[10px] text-primary mt-1"
+                title="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."
+                data-testid="individual-future-recorded-note"
+              >
+                + {formatDzdPlain(individualFutureRecorded)} enregistrés à échéance future (non encaissés à ce jour)
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
