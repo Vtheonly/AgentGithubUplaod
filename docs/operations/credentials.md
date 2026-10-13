@@ -33,12 +33,13 @@
 The Supabase JWT verification key set lives at:
 
 ```
-https://hkvkefubghbbotgnteir.supabase.co/auth/v1/.well-known/jwks.json
+https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/.well-known/jwks.json
 ```
 
 - **Android** needs this URL explicitly because it verifies JWTs locally (Ktor client auth) — see `SUPABASE_JWKS_URL` in the Android `.env.example`.
 - **Website + Desktop** do NOT need an explicit JWKS URL — the Supabase JS SDK handles JWKS fetching internally; they only need the project URL + anon key.
 - The JWKS URL is constructed deterministically from the project URL, so when the project URL changes, the JWKS URL changes too (update Android `.env.example` accordingly).
+- **T-516 / CONFIG-500 (2026-10-13):** this URL was STALE — it pointed at the OLD `hkvkefubghbbotgnteir` project even though the live backend cut over to `vebfehrpzajhstyhinnw` on 2026-09-17. The website repo's `public-config.ts` was the most damaging victim (a fresh clone hit the dead backend), but this sheet's JWKS URL had the same staleness; corrected in the same T-516 pass.
 
 ## 2.2. Production deployment (portal — Vercel, 2026-09-02 / T-119)
 
@@ -126,7 +127,7 @@ allow-lists for the ANDROID app, use the `com.aistudio.elimtiyazstaff.bxmzlx` id
 
 ```bash
 # 1. Auth health
-curl -s https://hkvkefubghbbotgnteir.supabase.co/auth/v1/health -H "apikey: $ANON"
+curl -s https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/health -H "apikey: $ANON"
 # 2. RLS: anon must see ZERO rows on core tables
 curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
 # 3. Token RPC hardening: cross-user registration must be denied (42501)
@@ -225,7 +226,7 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 | Platform | How to point at `vebfehrpzajhstyhinnw` | Notes |
 |---|---|---|
 | **Desktop** | Settings → Configuration (the runtime dialog, §2): Supabase URL `https://vebfehrpzajhstyhinnw.supabase.co` + key `sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg` (or the legacy anon JWT — dual-accepted) | Per-install `userData/config.json`; no code change needed; sign in with the §9.2 admin |
-| **Website** | `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the publishable value); the committed `public-config.ts` default flips ONLY at the owner's explicit cutover decision (§6 convention: update this sheet first, then `.env.example`, then the committed defaults) | The Google-OAuth residuals below must be cleared before enabling portal Google sign-in on this backend |
+| **Website** | `.env.local`: `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the publishable value); the committed `public-config.ts` default flips ONLY at the owner's explicit cutover decision (§6 convention: update this sheet first, then `.env.example`, then the committed defaults). **DONE 2026-10-13 (T-516 / CONFIG-500):** the owner's cutover decision was executed — `public-config.ts` + `.env.example` now ship the `vebfehrpzajhstyhinnw` URL + publishable key (commit `f07c9fb` on the website repo, 4-test regression suite `t-516-website-supabase-cutover.test.ts`, live-proven against `/auth/v1/health` 200 + RLS-protected reads on parents/students; the OLD project's legacy anon JWT rollback comment was REMOVED — it was project-scoped and not a valid rollback against the new project) | The Google-OAuth residuals below must be cleared before enabling portal Google sign-in on this backend |
 | **Android** | Root `.env` (§11 Android note — NOT `app/.env`): `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`), `SUPABASE_JWKS_URL` (§9.1) | Non-empty values only (the secrets-plugin blank-literal quirk) |
 
 **Residual steps that stay OWNER-gated after the switch decision (P1):**
