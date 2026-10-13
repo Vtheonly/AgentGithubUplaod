@@ -1,8 +1,10 @@
-# Runbook — Enable Google OAuth on the live Supabase project (AUTH-200 + AUTH-400)
+# Runbook — Enable Google OAuth on the live Supabase project (AUTH-200 + AUTH-400 + AUTH-401)
 
-> **Status (2026-10-13, 164th session — T-518): the chain is THREE-QUARTERS GREEN; the sole remaining blocker is AUTH-400 (the Google-console redirect URI).**
-> The live backend is now `vebfehrpzajhstyhinnw` (the T-516 cutover — the OLD `hkvkefubghbbotgnteir` project is INACTIVE with dead DNS). The owner has executed the provider-side steps: `external_google_enabled=true`, client id `259221439109-hp67cbdhj2kaa4i03okpjdpa5uqen7c0.apps.googleusercontent.com` SET, client secret SET (masked, 64 chars) — live-verified via the Management API + the authorize endpoint's 302 → accounts.google.com. **What still kills the portal sign-in: the Google Cloud Console client's authorized-redirect-URI list still contains ONLY the OLD project's callback (`https://hkvkefubghbbotgnteir.supabase.co/auth/v1/callback` — registered 2026-09-03 at T-141, when the old project was the backend). The NEW callback `https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/callback` was NEVER added, so Google rejects the authorization request with `redirect_uri_mismatch` (probe-verified + reproduced with a real browser click on the production portal — see §5 and `docs/recovery/t-518-live-verification.md`).**
-> **THE OWNER ACTION (2 minutes, §1.4):** console.cloud.google.com → project `elimtiyaz-android` (nr. 259221439109) → APIs & Services → Credentials → the `259221439109-hp67…` Web-application client → Authorized redirect URIs → ADD `https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/callback` → Save. Then re-run the §5 probe (expect ACCEPTED) and perform the first real browser sign-in on https://elimtiyaz-website.vercel.app (which flips AUTH-200 + AUTH-400 to VERIFIED together).
+> **Status (2026-10-13, 167th session — T-522): the chain's links 1–4 are ALL GREEN; the sole remaining blocker is AUTH-401 (the token-exchange rejection — the Supabase Google provider's stored client SECRET is invalid).**
+> The live backend is `vebfehrpzajhstyhinnw`; the provider is enabled with a client id + secret SET (Management API, re-verified this session); the authorize endpoint 302s to Google; **the redirect URIs are registered on BOTH Google-console clients (§5 probes — AUTH-400 RESOLVED-LIVE: the owner REPLACED the stale old-callback entry on the OLD client and created the NEW `elimtiyaz-production` client `944201689219-j18a…` with the Supabase callback pre-registered, 2026-10-13 09:51). The owner's browser round-trip now passes the account chooser and the callback — and dies at the token exchange: the stored secret is a 64-char lowercase-hex string (NOT a Google `GOCSPX-…` secret), so Google answers `401 invalid_client` to Supabase's server-side code exchange (§6 probe), and GoTrue redirects the failure to the portal as `?error=server_error&error_code=unexpected_failure&error_description=Unable+to+exchange+external+code%3A+4%2F0A…` (the portal now SURFACES it — T-522, commit `efc391f`).**
+> **THE OWNER ACTION (~2 minutes, §6.3):** Supabase Dashboard → `vebfehrpzajhstyhinnw` → Authentication → Providers → Google → paste the NEW client id `944201689219-j18ab6oevrt699j5dukb6smg5lg98iv8.apps.googleusercontent.com` + its FULL `GOCSPX-…Ma3E` secret (if the full value from creation 09:51:58 was not saved: the client's Google-console page → "Add new secret" → paste the fresh one — rotation is downtime-free). Then re-run the §6 probe with the new pair (expect `400 invalid_grant` — the GREEN shape) and perform the first real sign-in (closes AUTH-200 + AUTH-400 + AUTH-401 together).
+>
+> **Historical (2026-10-13, 164th session — T-518):** AUTH-400 registered + live-diagnosed (the redirect-URI mismatch era — §5's probe method was invented here); resolved by the owner's console change before the 167th session.
 >
 > **Historical (2026-09-03, 23rd session — T-141): AUTH-200 closed agent-side on the then-live OLD project** — the owner supplied the client (id 72 chars + secret 64 chars), the agent ran the enable PATCH, the authorize endpoint 302'd. Evidence: `docs/recovery/t-141-live-verification.md`.
 >
@@ -18,18 +20,25 @@ registration (step 1.4) is the one part that lives ONLY in the Google Cloud Cons
 the owner's token sheet can touch it (the Firebase API key is not a console credential — verified
 at T-119; the Supabase/Vercel/GitHub tokens have no Google-console scope).**
 
-## The FOUR-LINK chain (§15.98 — probe each link separately)
+## The FIVE-LINK chain (§15.98/§15.101 — probe each link separately)
 
 ```
 [1] the deployed bundle carries the NEW project URL + key       → probe: grep the live JS chunks
 [2] the Supabase provider is ENABLED with id + secret SET       → probe: Management API GET config/auth
 [3] the authorize endpoint redirects to Google (302)            → probe: GET /auth/v1/authorize?provider=google
 [4] the Google console ACCEPTS the new project's callback       → probe: §5 below (the redirect-URI probe)
+[5] Google ACCEPTS the token-exchange (id+secret pair valid)    → probe: §6 below (the token-endpoint probe)
 ```
 
-A 302 at link 3 proves links 1–3 AND NOTHING about link 4: Google validates the redirect_uri
+A 302 at link 3 proves links 1–3 AND NOTHING about links 4–5: Google validates the redirect_uri
 AFTER the redirect lands, at its own door, and the parent's browser shows Google's raw error
-page (the portal cannot catch it — the browser has already left).
+page; and even a fully-registered callback (link 4 green) says nothing about the client
+credentials — the exchange (link 5) is a server-to-server call Supabase makes with the STORED
+id+secret pair, and its failure reaches the portal only as GoTrue's error redirect
+(`?error=server_error&error_code=unexpected_failure&error_description=Unable+to+exchange+external+code…`).
+The 167th session's live proof of both blind spots: the owner's sign-in passed the account
+chooser and the callback, then died at the exchange — an invalid STORED secret that the
+link-4 mismatch era had masked all along.
 
 ## Steps
 
@@ -127,13 +136,62 @@ probe "https%3A%2F%2Fvebfehrpzajhstyhinnw.supabase.co%2Fauth%2Fv1%2Fcallback"   
 probe falsely answers "registered" (this exact bug was caught and fixed during T-518's own
 probe-script development; a browser User-Agent is also required — Google answers bots differently).
 
-**2026-10-13 live result:** the NEW callback → NOT REGISTERED (the AUTH-400 blocker); the OLD
-callback → REGISTERED (the stale entry); `http://localhost:3000/auth/v1/callback` → NOT REGISTERED.
-Run this probe after the owner adds the URI — expect REGISTERED — then the first real browser
-sign-in closes AUTH-200 + AUTH-400 to VERIFIED together.
+**2026-10-13 live result (re-probed at the 167th session — T-522): the NEW callback → ACCEPTED on the OLD client (the owner REPLACED the stale old-callback entry) AND on the NEW client `944201689219-j18a…`; the OLD callback → MISMATCH (the stale entry is GONE). AUTH-400 RESOLVED-LIVE.** The original T-518-era result (NEW → NOT REGISTERED; OLD → REGISTERED) is preserved above as the method's worked example. The next sign-in blocker is the token exchange — §6.
 
-Then update this runbook's status line and flip AUTH-200/AUTH-400 in the problem
-registry, recording the evidence.
+### 6. Verify link 5 — the token-exchange probe (T-522, NEW — isolates the STORED client secret WITHOUT ever holding a real code)
+
+A registered callback says nothing about the client CREDENTIALS: the exchange is a server-to-server
+POST Supabase (GoTrue) makes to `https://oauth2.googleapis.com/token` with the STORED client id +
+secret. **Google validates the client pair BEFORE the code** — so a probe with a DUMMY code
+discriminates a bad secret from a bad code with zero side effects:
+
+```bash
+# 1) Read the pair Supabase actually stores (the Management API returns the real values):
+SBT="<sbp_…>"; REF="vebfehrpzajhstyhinnw"
+CFG=$(curl -s -H "Authorization: Bearer $SBT" "https://api.supabase.com/v1/projects/$REF/config/auth")
+CID=$(echo "$CFG" | jq -r .external_google_client_id)
+SECRET=$(echo "$CFG" | jq -r .external_google_secret)
+
+# 2) The probe — a dummy code, the STORED pair:
+curl -s -X POST https://oauth2.googleapis.com/token \
+  -d grant_type=authorization_code -d code=4/0Adummy_invalid_probe_code \
+  -d client_id="$CID" -d client_secret="$SECRET" \
+  -d redirect_uri=https%3A%2F%2Fvebfehrpzajhstyhinnw.supabase.co%2Fauth%2Fv1%2Fcallback
+```
+
+| Result | Meaning |
+|---|---|
+| `401 {"error":"invalid_client","error_description":"The provided client secret is invalid."}` | **the STORED secret is WRONG** (the AUTH-401 shape — the 167th-session live result with the stored 64-hex secret; an obviously-wrong control secret answers identically) |
+| `400 {"error":"invalid_grant", …code…}` | **the pair is VALID** (the GREEN shape — the secret was accepted, only the dummy code was rejected; this is what the probe must answer AFTER the owner pastes the correct pair) |
+| `400 {"error":"invalid_request","error_description":"client_secret is missing."}` | the no-secret control (proves Google validates the client pair specifically) |
+
+Also diagnostic, read straight from the GET: a stored secret whose charset is `[0-9a-f]` and length 64
+is NOT a Google secret at all (Google secrets are `GOCSPX-…` ≈35 chars, or legacy ≈24) — a hex value
+of that shape is a JWT-secret/DB-password-class paste error. **The masking effect to remember: a
+link-4 failure (redirect_uri_mismatch) HIDES a link-5 failure — the exchange is never reached
+until the callbacks are registered; an invalid secret can sit silently behind it.**
+
+#### 6.3 The owner fix (the AUTH-401 action, ~2 minutes)
+
+1. Supabase Dashboard → project `vebfehrpzajhstyhinnw` → **Authentication → Providers → Google**.
+2. Paste the **Client ID** `944201689219-j18ab6oevrt699j5dukb6smg5lg98iv8.apps.googleusercontent.com`
+   (the NEW `elimtiyaz-production` client — it ALREADY carries the Supabase callback, §5-probed).
+3. Paste the **Client Secret** — the FULL `GOCSPX-…Ma3E` value. The Google console now shows the
+   secret only as `****Ma3E`; if the full value from the client's creation (2026-10-13 09:51:58)
+   was not saved, open the client's page → **"Add new secret"** → copy the fresh value → paste THAT
+   (Google supports secret rotation without downtime; the old one keeps working until first use
+   of the new one).
+4. Save. (Alternative: the OLD client's own correct `GOCSPX-…` secret — but the old client lives
+   in the retired `elimtiyaz-android` project's console and dies with it; the new client is the
+   forward path.)
+5. Hygiene while in the Google console: add `https://elimtiyaz-website.vercel.app` to the NEW
+   client's Authorized JavaScript origins (not blocking for the redirect flow — correct for any
+   future Google Identity Services use).
+
+**Verification after the paste (agent):** re-run the §6 probe with the NEW pair → expect the GREEN
+`400 invalid_grant` shape → the first real browser sign-in on https://elimtiyaz-website.vercel.app
+→ account chooser → selection → the pending-activation screen (the "6-digit code" the owner
+expects) or the dashboard → flip AUTH-200 + AUTH-400 + AUTH-401 to VERIFIED together.
 
 ## Production web-push env vars (the OTHER owner step)
 
@@ -197,3 +255,28 @@ actionable warning naming exactly these two vars.
 - **The OLD project `hkvkefubghbbotgnteir` is INACTIVE with dead DNS** (Management API census +
   curl exit 6) — its registered-but-dead callback entry in the Google console is inert; keep or
   remove it freely, but the NEW callback must be ADDED regardless.
+
+## Discoveries recorded during the 167th session (2026-10-13 — T-522)
+
+- **The chain has FIVE links, and each newly-green link can UNMASK the next failure:** the owner
+  fixed the redirect URIs (AUTH-400) and the sign-in immediately died one link deeper (AUTH-401,
+  the exchange) — an invalid stored secret that had been sitting behind the link-4 failure all
+  along. Diagnose by the CURRENT live probe set, never by yesterday's blocker.
+- **The token-endpoint probe (§6) isolates the stored client credentials without a real code:**
+  Google validates `client_id`+`client_secret` BEFORE the authorization code, so a dummy-code
+  POST discriminates `invalid_client` (bad secret — the defect) from `invalid_grant` (good pair —
+  the GREEN shape). Zero side effects, no console access, re-runnable after the owner's paste.
+- **The Management API returns the ACTUAL secret value, not a mask** — the shape is readable
+  (charset/length): the stored value being 64-char lowercase hex proved it was never a Google
+  `GOCSPX-…` secret BEFORE any exchange attempt. Read the shape FIRST, probe SECOND.
+- **A failure the portal cannot see is a UX defect in itself:** Supabase redirects OAuth
+  failures to the site as `?error=…&error_description=…` (query + a double-encoded hash copy);
+  swallowing them silently leaves the parent staring at a bare login screen with no explanation
+  (the owner's "the authentication process does not continue"). The AUTH-200 stable-code pattern
+  extends to redirect-borne failures: read once at mount, localize, clean the URL. Do NOT call
+  setState inside the mount effect — seed the state via the lazy initializer (the
+  `react-hooks/set-state-in-effect` rule) and let the effect only clean the consumed params.
+- **The "6-digit verification code" language:** an owner describing the POST-sign-in activation
+  flow (pending-activation-screen.tsx Path A — the 6–7-digit school-issued activation code) means
+  the OAuth callback itself is failing BEFORE any activation screen could render. Translate the
+  owner's symptom into the chain link it implies before searching the code.
