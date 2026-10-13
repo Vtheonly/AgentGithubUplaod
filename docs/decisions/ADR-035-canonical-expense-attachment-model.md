@@ -1,0 +1,31 @@
+# ADR-035: The Canonical Expense & Attachment Model
+
+**Status:** ACCEPTED (2026-10-13, T-521 / GitHub issue #29)
+**Supersedes:** the implicit per-surface expense posture (no ADR — the 0008-era design)
+**Related:** ADR-002 (the canonical financial engine) · ADR-004 (server-authoritative receipt numbers — the ticket-numbering follow-up stays open) · §15.31/SYNC-110 (the one-canonical-metadata-store rule this ADR applies to expenses) · migrations 0008 / 0018 / 0056 / 0064 / **0153** · the SEC-118 registration (the authorization hardening this ADR deliberately does NOT claim)
+
+## Context
+
+GitHub issue #29 mandated ONE expense-management system shared across the desktop Finance section, the desktop Staff/Personnel section, and the Android application — "one expense-management system with multiple interfaces, not separate Finance, Staff/Personnel, and mobile expense implementations." The pre-T-521 reality:
+
+- **One canonical table** (`expense_tickets`, migration 0008 + 0056's payee + 0064's state machine) existed, and ONE repository family read it (the desktop's `SupabaseExpenseRepository`, T-093) — but only ONE surface (the Finance tab) consumed it. The Staff/Personnel section's "Demandes & Dépenses" tab rendered ONLY leave requests (WORKFORCE-517 — the "ddd" invisibility root cause: no data bug, a missing consumer).
+- **Attachments were un-unified** (WORKFORCE-518): the private `expense-receipts` bucket (0018, with correct RLS) had ZERO uploading call sites; the desktop settle path stored a data URL or `mock://` marker string directly into `receipt_path`; the Android scanner uploaded to the `payment-proofs` bucket and required manual path re-typing; a single string column stood in for the multi-image requirement.
+- **No responsible-person relationship** (WORKFORCE-520): `submitted_by` (the requester) was the only accountability link; the issue's three-role distinction (submitter / responsible / approver) had no column, no field, no display.
+- **The mobile approval was broken** (WORKFORCE-519): T-492-class plain-getter permission gates (disabled buttons), the pull's unconditional overwrite of locally-decided rows whose transition push failed (the silent revert), and a mapper dropping the proof-attribution columns.
+
+## Decision
+
+1. **ONE record store, MANY mounted interfaces.** `expense_tickets` (0008) remains the single canonical expense record. Every surface — the Finance Expenses tab, the Staff/Personnel ExpenseReviewSection, the Android Dépenses tab — reads the SAME repository observable / the SAME table with the SAME category embed (`*, expense_categories(code)`). No surface owns a private expense store, a JSON column, or a derivation. The Personnel section's review surface is a CONSUMER of the canonical stream, not a second implementation.
+2. **`expense_attachments` is the canonical attachment metadata table** (migration 0153 — the §15.31/SYNC-110 rule applied to expenses): one expense, MANY supporting images; the bytes live in the private `expense-receipts` bucket (0018 — reused, NOT recreated) at the `<tenant_id>/<expense_id>/<filename>` path canon; the metadata (path, name, mime, size, uploader, source) is the single source of truth for every client. `UNIQUE(expense_id, storage_path)` is the duplicate-upload guard. **No UPDATE policy** — attachment rows are immutable metadata (a wrong upload is delete + re-attach, both audited).
+3. **`receipt_path` remains as the legacy single-proof column** (backward compatibility for every deployed client) and continues to be written at settle — with the value being the ATTACHMENT's storage path (the settle proof IS an attachment; the desktop settle flow uploads through `addAttachment` and settles with the returned path).
+4. **`expense_tickets.responsible_profile_id`** (migration 0153) is the distinct accountable person — a nullable FK to `user_profiles`, DISTINCT from `submitted_by` (requester) and `approved_by` (decider). Historical rows keep NULL and are FLAGGED in the review surfaces ("À renseigner") — never back-filled, never fabricated. New submissions default the responsible person to the submitter's own profile when not explicitly named (the common case), and the submit form's select lists only ACTIVE personnel with a bound account (the T-371 assignability rule).
+5. **The edit contract** (`update()`): the editable fields (title/description/amount/category/payee/urgency/responsible) are patchable ONLY while the ticket is `draft`/`submitted` (the pre-approval window) — after approval the 0064 state machine owns the lifecycle and the amounts are frozen. Updates patch the SAME row (partial column patch, never a full-row clobber, never a duplicate).
+6. **The mobile chain:** the Android permission gates are collected state (the T-492 rule); the pull protects rows with pending local transitions (the queue is the authority until the push lands or permanently fails); the scanner's expense mode uploads to `expense-receipts` under the expense id and RETURNS its path through the nav result (the manual re-typing loop is dead). The no-self-approval rule (plan §08) stays server-authoritative (the 0064 trigger) with client-side guards as defense in depth only.
+
+## Consequences
+
+- An expense created in ANY interface appears in EVERY interface the reader is authorized to see (the issue's core acceptance criterion — pinned by the t-521 suites' cross-surface tests and the live E2E's section D).
+- The desktop's three surfaces share ONE gallery component, ONE drawer, ONE submit form (mounted twice) — the multi-interface requirement is satisfied by component reuse, not duplication.
+- The authorization class AROUND the approval rule (the forged-approver / unguarded-RPC paths) is explicitly OUT of this ADR's scope — SEC-118 (T-527) owns it; this ADR's live verification honestly documents the boundary.
+- The Android `expense_attachments` metadata registration (Room v21 + the DTO + the sync entity + the gallery surface) is the registered follow-up; until it lands, Android settles with `receipt_path` (the canonical column) and the metadata table is desktop-written.
+- Server-authoritative ticket numbering (the ADR-004 philosophy) remains the registered follow-up for the client-side `EXP-<year>-<6 base36>` generator.
