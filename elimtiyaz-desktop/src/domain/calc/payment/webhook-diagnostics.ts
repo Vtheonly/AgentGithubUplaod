@@ -275,6 +275,8 @@ interface AuditContext {
   /** type="charge" AND sourceType="installment" entries grouped by sourceId. */
   readonly ledgerChargesByInstallmentId: Map<string, LedgerEntry[]>;
   readonly installmentsByStudent: Map<string, Installment[]>;
+  /** Students by identity CODE (ELV-…) — the registration reg-identity's fallback token space (T-528). */
+  readonly studentByCode: Map<string, Student>;
   readonly allocationsByPayment: Map<string, PaymentAllocation[]>;
   readonly displayName: (parentId: string | null) => string | null;
 }
@@ -324,6 +326,14 @@ function buildAuditContext(params: {
     installmentsByStudent.set(i.studentId, list);
   }
 
+  // T-528 (AUDIT-507): students by identity CODE — the registration path's
+  // `reg-<code>-t<n>` token carries the student CODE whenever the charge's
+  // own studentId is absent, and the code is the resolvable token there.
+  const studentByCode = new Map<string, Student>();
+  for (const s of students) {
+    if (s.code) studentByCode.set(s.code, s);
+  }
+
   const allocationsByPayment = new Map<string, PaymentAllocation[]>();
   for (const a of allocations) {
     const list = allocationsByPayment.get(a.paymentId) ?? [];
@@ -336,7 +346,7 @@ function buildAuditContext(params: {
     parents, students, debtSummaries,
     paymentById, installmentById, studentById, parentById, debtByParent,
     ledgerPaymentsBySourceId, ledgerChargesByInstallmentId,
-    installmentsByStudent, allocationsByPayment,
+    installmentsByStudent, studentByCode, allocationsByPayment,
     displayName: (parentId) =>
       parentId === null
         ? null
@@ -344,6 +354,108 @@ function buildAuditContext(params: {
           ? parentDisplayName(parentById.get(parentId)!)
           : null,
   };
+}
+
+/* ================================================================== */
+/*  Charge→installment resolution — the canonical identity forms      */
+/*  (T-528 / AUDIT-507, the 172nd session)                             */
+/*                                                                     */
+/*  A charge entry stamped source_type='installment' may carry EITHER */
+/*  canonical identity in its source_id:                               */
+/*    (A) the installments table PK — the bulk-import path writes      */
+/*        charges whose source_id IS installments.id;                  */
+/*    (B) the registration path's deterministic BUSINESS identity      */
+/*        `reg-<studentCodeOrUuid>[-transport]-t<n>` (tuition wave n),  */
+/*        `reg-<studentCodeOrUuid>-transport-t<n>` (transport wave n)  */
+/*        or `reg-…-fi` (the registration fee, wave 0) — migrations     */
+/*        0102/0103/0128 (register_family_batch + the re-enrollment    */
+/*        flow). This identity NEVER equals the installments PK: the   */
+/*        installments rows carry UUID PKs plus their OWN              */
+/*        `<code>:<category>:T<n>` source identity — three DIFFERENT   */
+/*        identity spaces for the same business relationship.          */
+/*                                                                     */
+/*  Resolving through ONE space only (the pre-T-528 behavior) turned   */
+/*  every form-B charge — i.e. every legitimate charge on a newly      */
+/*  registered account — into a false CRITICAL « échéance introuvable » */
+/*  (AUDIT-507). The resolver walks BOTH spaces, reusing the context's */
+/*  EXISTING indexes (installmentById / installmentsByStudent /        */
+/*  studentByCode) — no parallel implementation, no data assumption    */
+/*  beyond what the registration conventions already guarantee.       */
+/* ================================================================== */
+
+/** The identity form that resolved a charge to its backing installment. */
+export type ChargeInstallmentResolutionForm =
+  | "installment-pk" // form A — the bulk-import identity
+  | "reg-identity"; // form B — the registration business identity
+
+export interface ChargeInstallmentResolution {
+  readonly installment: Installment;
+  readonly form: ChargeInstallmentResolutionForm;
+}
+
+/**
+ * The registration identity token: `reg-<token>[-transport]-t<n>` or
+ * `reg-<token>-fi`. The token is the student CODE or UUID (the 0103
+ * substitution keeps either form); `-transport-` marks the transport
+ * category; `t<n>` the wave; `fi` the registration fee (wave 0).
+ */
+const REG_IDENTITY_RE = /^reg-(?<token>.+?)-(?:transport-)?(?<wave>fi|t[0-9]+)$/;
+
+/**
+ * Resolve a `source_type='installment'` charge to its backing installment
+ * through the canonical identity forms, in order. Returns null when NO
+ * form resolves — the genuine dangling-reference class (the finding the
+ * owner demands preserved). PURE: reads the indexes only, mutates nothing.
+ */
+function resolveChargeInstallment(
+  ctx: AuditContext,
+  e: LedgerEntry,
+): ChargeInstallmentResolution | null {
+  // Form A — the direct PK (the bulk-import identity).
+  const byPk = ctx.installmentById.get(e.sourceId);
+  if (byPk) return { installment: byPk, form: "installment-pk" };
+
+  // Form B — the registration business identity.
+  const m = REG_IDENTITY_RE.exec(e.sourceId);
+  if (!m || !m.groups) return null;
+  const waveRaw = m.groups.wave === "fi" ? 0 : Number(m.groups.wave.slice(1));
+  if (!Number.isInteger(waveRaw) || waveRaw < 0 || waveRaw > 3) return null;
+  const trancheNumber = waveRaw as 0 | 1 | 2 | 3;
+
+  // The SUBJECT: the charge's own studentId (the registration always
+  // stamps it), then the token against the students stream by code.
+  let studentId = e.studentId;
+  if (!studentId) {
+    const byCode = ctx.studentByCode.get(m.groups.token);
+    if (byCode) studentId = byCode.id;
+  }
+  if (!studentId) return null;
+
+  // The CATEGORY: the charge's own category is authoritative; when the
+  // entry predates per-category stamping, the token's transport marker
+  // decides (the registration's two categories are tuition + transport).
+  const category =
+    e.category ?? (e.sourceId.includes("-transport-") ? "transport" : "tuition");
+
+  const rows = ctx.installmentsByStudent.get(studentId) ?? [];
+  // Exact wave match, inside the SAME family (never cross accounts).
+  const exact = rows.find(
+    (i) =>
+      i.category === category &&
+      i.trancheNumber === trancheNumber &&
+      i.parentId === e.parentId,
+  );
+  if (exact) return { installment: exact, form: "reg-identity" };
+
+  // Guarded fallback: a student with EXACTLY ONE installment of the
+  // charge's category resolves unambiguously even when the wave number
+  // drifts (the full-annual « Année complète » row may carry no wave).
+  const sameCategory = rows.filter(
+    (i) => i.category === category && i.parentId === e.parentId,
+  );
+  if (sameCategory.length === 1) return { installment: sameCategory[0], form: "reg-identity" };
+
+  return null;
 }
 
 /** Finding builder — keeps every construction site uniform. */
@@ -720,9 +832,16 @@ function auditDuplicates(
     );
   }
 
-  // (b) Exact business-tuple duplicates (same parent, amount, method, date,
-  //     status): the classic replayed-delivery signature when receipt
-  //     allocation diverged. Skips groups already caught by (a).
+  // (b) Exact business-tuple CANDIDATE groups (same parent, amount, method,
+  //     date, status) — the tuple remains the candidate generator, but the
+  //     duplicate JUDGMENT now sees the SUBJECT dimension (T-528 / AUDIT-508):
+  //     siblings in one family legitimately pay IDENTICAL per-grade amounts
+  //     on the same day (each payment a DIFFERENT student's obligation, each
+  //     with its own receipt — identical pricing makes the non-unique
+  //     attributes collide by design), while a REPEATED subject (same
+  //     student, or an unverifiable null one) with distinct receipts is the
+  //     classic replayed-delivery signature. Skips groups already caught
+  //     by (a).
   const byTuple = new Map<string, Payment[]>();
   for (const p of ctx.payments) {
     const key = `${p.parentId}|${p.amount}|${p.method}|${p.collectedAt}|${p.status}`;
@@ -734,33 +853,105 @@ function auditDuplicates(
     if (group.length < 2) continue;
     const receipts = new Set(group.map((p) => p.receiptNumber));
     if (receipts.size === 1) continue; // already reported by (a)
-    const total = group.reduce((s, p) => s + p.amount, 0);
-    const sample = group[0];
-    findings.push(
-      finding("duplicate_event", "warning", `dup-tuple:${sample.id}`, {
-        parentId: sample.parentId,
-        parentName: ctx.displayName(sample.parentId),
-        amount: total - sample.amount,
-        recordIds: { payment: sample.id, receiptNumber: sample.receiptNumber ?? undefined },
-        sourceRefs: group.map((p) => `payments:${p.id}`),
-        title: "Paiements identiques répétés (même montant, date, méthode)",
-        explanation:
-          `${group.length} paiements du parent ${sample.parentId} portent exactement le même profil : ` +
-          `${dzd(sample.amount)}, ${sample.method}, ${isoDate(sample.collectedAt)}, statut « ${sample.status} » ` +
-          `— la signature d'un événement rejoué (livraison dupliquée traitée deux fois avec des reçus différents).`,
-        evidence: group.map((p) => ({
-          label: `Paiement ${p.id}`,
-          value: `${p.receiptNumber} · ${dzd(p.amount)} · ${isoDate(p.collectedAt)}`,
-          sourceRef: `payments:${p.id}`,
-        })),
-        calculation: `Impact potentiel : ${dzd(total - sample.amount)} comptés en trop`,
-        suggestedSteps: [
-          "Vérifier dans le journal d'audit si les deux paiements proviennent du même événement source.",
-          "Confirmer avec le relevé bancaire/caisse qu'un seul encaissement a eu lieu.",
-          "Régulariser le doublon via le flux d'annulation existant.",
-        ],
-      }),
-    );
+
+    // Partition by SUBJECT — the student whose obligation the payment
+    // settles. Null studentIds are UNVERIFIABLE subjects: they form their
+    // own bucket and never count as sibling evidence.
+    const NULL_SUBJECT = "\u0000unverified-subject";
+    const bySubject = new Map<string, Payment[]>();
+    for (const p of group) {
+      const subject = p.studentId ?? NULL_SUBJECT;
+      const list = bySubject.get(subject) ?? [];
+      list.push(p);
+      bySubject.set(subject, list);
+    }
+
+    // THE SIBLING CLASS (T-528): every member on a DISTINCT, KNOWN student
+    // — the legitimate pattern (identical per-grade pricing, one collection
+    // day, distinct receipts). Reconciled, with the explanation of WHY
+    // identical tuples are expected — never a duplicate warning.
+    const allDistinctKnownStudents =
+      group.every((p) => p.studentId !== null) && bySubject.size === group.length;
+    if (allDistinctKnownStudents) {
+      const sample = group[0];
+      const studentNames = group.map((p) => {
+        const s = p.studentId ? ctx.studentById.get(p.studentId) : undefined;
+        return s ? `${s.firstName} ${s.lastName}` : p.studentId ?? "?";
+      });
+      const total = group.reduce((s, p) => s + p.amount, 0);
+      findings.push(
+        finding("reconciled", "ok", `dup-siblings:${sample.id}`, {
+          parentId: sample.parentId,
+          parentName: ctx.displayName(sample.parentId),
+          amount: total,
+          recordIds: { payment: sample.id, receiptNumber: sample.receiptNumber ?? undefined },
+          sourceRefs: group.map((p) => `payments:${p.id}`),
+          title: "Paiements identiques légitimes — élèves distincts de la même fratrie",
+          explanation:
+            `${group.length} paiements du même compte portent le même profil (${dzd(sample.amount)}, ` +
+            `${sample.method}, ${isoDate(sample.collectedAt)}, statut « ${sample.status} ») — mais chacun règle ` +
+            `l'obligation d'un ÉLÈVE DIFFÉRENT : ${studentNames.join(" · ")}, chacun avec son propre reçu ` +
+            `(${group.map((p) => p.receiptNumber).join(" · ")}). Des montants identiques entre frères et sœurs ` +
+            `sont attendus (tarification identique par niveau) — ce ne sont pas des événements rejoués.`,
+          evidence: group.map((p) => {
+            const s = p.studentId ? ctx.studentById.get(p.studentId) : undefined;
+            return {
+              label: `Paiement ${p.receiptNumber}`,
+              value: `${dzd(p.amount)} · ${isoDate(p.collectedAt)} · élève ${s ? `${s.firstName} ${s.lastName}` : p.studentId ?? "?"}`,
+              sourceRef: `payments:${p.id}`,
+            };
+          }),
+          calculation: `${group.length} paiements × ${dzd(sample.amount)} = ${dzd(total)} — ${group.length} élèves distincts, ${group.length} reçus distincts`,
+          suggestedSteps: [],
+        }),
+      );
+      continue;
+    }
+
+    // THE GENUINE CLASS: flag only the SAME-SUBJECT subsets — a repeated
+    // student (the same child's obligation paid twice) or repeated
+    // unverifiable subjects. Distinct-student members of a mixed group are
+    // NOT implicated by the other members' replay.
+    for (const [subject, subset] of bySubject) {
+      if (subset.length < 2) continue;
+      const subsetReceipts = new Set(subset.map((p) => p.receiptNumber));
+      if (subsetReceipts.size === 1) continue; // already reported by (a)
+      const total = subset.reduce((s, p) => s + p.amount, 0);
+      const sample = subset[0];
+      const subjectLabel =
+        subject === NULL_SUBJECT
+          ? "élève non renseigné (sujet invérifiable)"
+          : (() => {
+              const s = ctx.studentById.get(subject);
+              return s ? `${s.firstName} ${s.lastName} (${s.code})` : subject;
+            })();
+      findings.push(
+        finding("duplicate_event", "warning", `dup-tuple:${sample.id}`, {
+          parentId: sample.parentId,
+          parentName: ctx.displayName(sample.parentId),
+          amount: total - sample.amount,
+          recordIds: { payment: sample.id, receiptNumber: sample.receiptNumber ?? undefined },
+          sourceRefs: subset.map((p) => `payments:${p.id}`),
+          title: "Paiements identiques répétés pour le même élève (même montant, date, méthode)",
+          explanation:
+            `${subset.length} paiements du parent ${sample.parentId} portent exactement le même profil : ` +
+            `${dzd(sample.amount)}, ${sample.method}, ${isoDate(sample.collectedAt)}, statut « ${sample.status} » ` +
+            `— et règlent le même sujet (${subjectLabel}) — la signature d'un événement rejoué ` +
+            `(livraison dupliquée traitée deux fois avec des reçus différents).`,
+          evidence: subset.map((p) => ({
+            label: `Paiement ${p.id}`,
+            value: `${p.receiptNumber} · ${dzd(p.amount)} · ${isoDate(p.collectedAt)} · élève ${p.studentId ?? "non renseigné"}`,
+            sourceRef: `payments:${p.id}`,
+          })),
+          calculation: `Impact potentiel : ${dzd(total - sample.amount)} comptés en trop`,
+          suggestedSteps: [
+            "Vérifier dans le journal d'audit si les deux paiements proviennent du même événement source.",
+            "Confirmer avec le relevé bancaire/caisse qu'un seul encaissement a eu lieu.",
+            "Régulariser le doublon via le flux d'annulation existant.",
+          ],
+        }),
+      );
+    }
   }
 }
 
@@ -818,12 +1009,14 @@ function auditChargeJustification(
 
     // (a) Installment-backed charges — the canonical schedule charges.
     if (e.sourceType === "installment") {
-      const inst = ctx.installmentById.get(e.sourceId);
-      if (!inst) {
+      const resolved = resolveChargeInstallment(ctx, e);
+      if (!resolved) {
         // Distinguish MISSING DATA (unverified) from a DANGLING reference
         // (confirmed mismatch): when the installments stream itself is
         // empty/unavailable we cannot conclude; when rows exist but this
-        // one is gone, the source link is broken.
+        // one is gone through NEITHER canonical identity form (the PK NOR
+        // the reg-identity), the source link is broken — the GENUINE
+        // missing-installment class (preserved per the owner's contract).
         const sourceAvailable = ctx.installments.length > 0;
         findings.push(
           sourceAvailable
@@ -836,11 +1029,13 @@ function auditChargeJustification(
                 title: "Facture liée à une échéance introuvable",
                 explanation:
                   `L'écriture de facturation ${e.id} (${dzd(e.amount)}) référence l'échéance ${e.sourceId} ` +
-                  `qui n'existe pas (alors que le tableau des échéances est chargé) — la charge est orpheline de sa ` +
-                  `source : le montant reste dû au grand livre sans qu'aucune échéance concrète ne l'explique.`,
+                  `qui n'existe ni comme clé d'échéance ni comme identité d'inscription ` +
+                  `(reg-…-t<n> : élève/catégorie/tranche introuvables dans le périmètre du compte) — ` +
+                  `la charge est orpheline de sa source : le montant reste dû au grand livre sans ` +
+                  `qu'aucune échéance concrète ne l'explique.`,
                 evidence: [
                   { label: `Écriture ${e.id}`, value: `${dzd(e.amount)} · ${isoDate(e.at)}`, sourceRef: `ledger:${e.id}` },
-                  { label: "Échéance référencée", value: `${e.sourceId} — introuvable`, sourceRef: null },
+                  { label: "Échéance référencée", value: `${e.sourceId} — introuvable (PK et identité d'inscription)`, sourceRef: null },
                 ],
                 calculation: null,
                 suggestedSteps: [
@@ -871,6 +1066,7 @@ function auditChargeJustification(
         );
         continue;
       }
+      const inst = resolved.installment;
       // amount coherence: the charge must invoice the tranche's amountDue.
       if (Math.abs(e.amount - inst.amountDue) > ctx.thresholds.amountToleranceDzd) {
         findings.push(
@@ -883,7 +1079,8 @@ function auditChargeJustification(
             title: "Montant facturé ≠ montant de l'échéance",
             explanation:
               `L'écriture ${e.id} facture ${dzd(e.amount)} mais l'échéance source « ${inst.label} » porte ` +
-              `${dzd(inst.amountDue)} — la charge et son support ne décrivent pas le même montant.`,
+              `${dzd(inst.amountDue)} — la charge et son support ne décrivent pas le même montant` +
+              `${resolved.form === "reg-identity" ? ` (raccordement par l'identité d'inscription ${e.sourceId})` : ""}.`,
             evidence: [
               { label: `Écriture ${e.id}`, value: dzd(e.amount), sourceRef: `ledger:${e.id}` },
               { label: `Échéance ${inst.label}`, value: `${dzd(inst.amountDue)} · ${isoDate(inst.dueDate)}`, sourceRef: `installments:${inst.id}` },
@@ -893,6 +1090,45 @@ function auditChargeJustification(
               "Identifier la charge utile d'origine de l'écriture (import ou RPC) pour déterminer le montant authentique.",
               "Régulariser via le flux d'extourne + nouvelle écriture.",
             ],
+          }),
+        );
+        continue;
+      }
+      // T-528 (AUDIT-507): a REGISTRATION-IDENTITY charge that resolves and
+      // agrees is POSITIVELY accounted — this is exactly the charge class
+      // the PK-only lookup used to manufacture false « échéance introuvable »
+      // CRITICALs from (every legitimate charge on a newly registered
+      // account). The reconciled finding states WHICH identity form resolved
+      // the link, so the owner sees why the charge is clean. Form-A (PK)
+      // charges stay silent as before — the import class's counts remain
+      // byte-stable.
+      if (resolved.form === "reg-identity") {
+        const student = inst.studentId ? ctx.studentById.get(inst.studentId) : undefined;
+        findings.push(
+          finding("reconciled", "ok", `charge-reg-resolved:${e.id}`, {
+            parentId: e.parentId,
+            parentName,
+            amount: e.amount,
+            recordIds: { ledgerEntry: e.id, installment: inst.id },
+            sourceRefs: [`ledger:${e.id}`, `installments:${inst.id}`, `source:installment/${e.sourceId}`],
+            title: "Facture d'inscription raccordée à son échéancier",
+            explanation:
+              `L'écriture de facturation ${e.id} (${dzd(e.amount)}) porte l'identité d'inscription ` +
+              `${e.sourceId} : elle est raccordée à l'échéance « ${inst.label} » de ` +
+              `${student ? `${student.firstName} ${student.lastName} (${student.code})` : `l'élève ${inst.studentId ?? "?"}`} ` +
+              `— même famille, même catégorie (${inst.category}), montant conforme (${dzd(e.amount)} = ${dzd(inst.amountDue)}). ` +
+              `Les écritures d'inscription portent une identité métier (reg-…-t<n>) distincte de la clé de l'échéance : ` +
+              `le raccordement se fait par élève, catégorie et tranche, jamais par identifiant brut.`,
+            evidence: [
+              { label: `Écriture ${e.id}`, value: `${dzd(e.amount)} · ${isoDate(e.at)}`, sourceRef: `ledger:${e.id}` },
+              { label: "Identité d'inscription (source)", value: e.sourceId, sourceRef: `ledger:${e.id}#sourceId` },
+              { label: `Échéance « ${inst.label} »`, value: `${dzd(inst.amountDue)} · statut ${inst.status} · tranche ${inst.trancheNumber ?? "—"}`, sourceRef: `installments:${inst.id}` },
+              ...(student
+                ? [{ label: "Élève", value: `${student.firstName} ${student.lastName} (${student.code})`, sourceRef: `student:${student.id}` }]
+                : []),
+            ],
+            calculation: `${dzd(e.amount)} = ${dzd(inst.amountDue)} — montants conformes`,
+            suggestedSteps: [],
           }),
         );
       }
