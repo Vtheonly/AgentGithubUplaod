@@ -397,9 +397,15 @@ describe("T-511 scenario 4 — ledger, payments, installments and allocations al
       debtSummaries: [makeDebtSummary({ outstandingAmount: outstanding })],
     });
 
-    // No actionable finding of any kind.
-    const actionable = findingsOf(report).filter((f) => f.category !== "reconciled");
+    // No actionable finding of any kind — T-529 amendment: the ONE honest
+    // no-catalog coverage finding (unverified:price-noconfig:catalog) is the
+    // designed degradation when no pricingConfig is supplied, not a defect;
+    // every OTHER non-reconciled finding remains absent.
+    const actionable = findingsOf(report).filter(
+      (f) => f.category !== "reconciled" && f.id !== "unverified:price-noconfig:catalog",
+    );
     expect(actionable).toEqual([]);
+    expect(findingsOf(report).some((f) => f.id === "unverified:price-noconfig:catalog")).toBe(true);
     // The reconciled inventory: payment + price basis + family reconciliation.
     expect(findingsOf(report).some((f) => f.id === "reconciled:pay-ok:pay-1")).toBe(true);
     expect(findingsOf(report).some((f) => f.id === "reconciled:price-ok:s-1")).toBe(true);

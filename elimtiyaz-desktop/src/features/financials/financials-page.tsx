@@ -145,6 +145,11 @@ export function FinancialsPage() {
       },
     [],
   );
+  // T-529 (AUDIT-510): the ACTIVE configured price catalog — feeds the
+  // « Diagnostic Webhooks » card's configured-price compliance checks
+  // (repos.pricing.observe() is the ACTIVE config per ADR-025; the engine
+  // degrades honestly to ONE unverified coverage finding when absent).
+  const pricingConfig = useObservable(() => repos.pricing.observe(), []);
   const payrollPersonnel = useObservable(
     () =>
       repos.personnel?.observe?.() ?? {
@@ -509,6 +514,7 @@ export function FinancialsPage() {
               debtSummaries={debtSummary}
               parents={parents}
               students={students}
+              pricingConfig={pricingConfig}
               onOpenParent={(parentId) => openParent(parentId)}
               onOpenPayment={(paymentId) => setPaymentDetailId(paymentId)}
             />

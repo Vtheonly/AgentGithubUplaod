@@ -58,6 +58,7 @@ import {
   WEBHOOK_FINDING_SEVERITY_LABELS_FR,
   type WebhookFindingCategory,
   type WebhookDiagnosticFinding,
+  type WebhookDiagnosticsPricingConfig,
 } from "../../domain/calc/payment/webhook-diagnostics";
 
 const PAGE_SIZE = 8;
@@ -105,6 +106,8 @@ export interface WebhookDiagnosticsCardProps {
   readonly debtSummaries: readonly DebtSummary[];
   readonly parents: readonly Parent[];
   readonly students: readonly Student[];
+  /** T-529: the ACTIVE configured price catalog (the pricing repository's observe stream) — the configured-price compliance checks. */
+  readonly pricingConfig?: WebhookDiagnosticsPricingConfig | null;
   /** Opens the family's financial dossier (the page's person navigation). */
   readonly onOpenParent: (parentId: string) => void;
   /** Opens the payment detail drawer when a finding implicates a payment. */
@@ -119,6 +122,7 @@ export function WebhookDiagnosticsCard({
   debtSummaries,
   parents,
   students,
+  pricingConfig,
   onOpenParent,
   onOpenPayment,
 }: WebhookDiagnosticsCardProps) {
@@ -133,8 +137,9 @@ export function WebhookDiagnosticsCard({
         debtSummaries,
         parents,
         students,
+        pricingConfig,
       }),
-    [payments, installments, ledgerEntries, paymentAllocations, debtSummaries, parents, students],
+    [payments, installments, ledgerEntries, paymentAllocations, debtSummaries, parents, students, pricingConfig],
   );
 
   const [activeCategories, setActiveCategories] = useState<ReadonlySet<WebhookFindingCategory>>(
@@ -201,11 +206,12 @@ export function WebhookDiagnosticsCard({
               </Badge>
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Chaque paiement, charge, remboursement et écriture est audité : légitimité,
-              mappage, base de prix, cohérence de dates et traçabilité à un événement concret.
+              Chaque paiement, charge, remboursement et écriture est audité — quelle que soit son origine (import Excel,
+              inscription, saisie manuelle, encaissement comptoir) : légitimité, mappage, conformité aux tarifs configurés,
+              cohérence de dates et traçabilité à un événement concret.
               Audit au {new Date(report.asOf).toLocaleDateString("fr-FR")} — {report.coverage.payments} paiements,
               {" "}{report.coverage.ledgerEntries} écritures, {report.coverage.installments} échéances,{" "}
-              {report.coverage.allocations} ventilations.
+              {report.coverage.allocations} ventilations · catalogue de prix {report.coverage.pricingConfig ? "chargé" : "non chargé"}.
             </CardDescription>
           </div>
           <div
@@ -441,6 +447,16 @@ function WebhookFindingRow({
                       <li key={idx}>{s}</li>
                     ))}
                   </ol>
+                </div>
+              )}
+              {(finding.possibleCauses?.length ?? 0) > 0 && (
+                <div data-testid={`webhook-finding-causes-${finding.id}`}>
+                  <div className="font-semibold text-foreground mb-1">Causes possibles (hypothèses à vérifier) :</div>
+                  <ul className="list-disc list-outside pl-4 space-y-0.5 text-muted-foreground">
+                    {finding.possibleCauses!.map((c, idx) => (
+                      <li key={idx}>{c}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
               <div className="text-[9px] text-muted-foreground font-mono break-all">

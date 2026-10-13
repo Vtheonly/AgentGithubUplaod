@@ -12,6 +12,26 @@
  *   - tranche remaining     ← installmentRemaining (the INV-4 formula)
  *   - price basis           ← REAL_TUITION_BY_GRADE / realFiForGrade (the
  *                             school price matrix, T-425's official model)
+ *                             — with the ACTIVE PricingConfig preferred when
+ *                             supplied (T-529: the configured-price truth)
+ *
+ * ALL-ORIGINS CHARTER (T-529 / AUDIT-509, the owner's mandate): the audit is
+ * origin-blind BY CONSTRUCTION — every row of every stream is audited
+ * regardless of how it entered the system: the Excel bulk import, the
+ * manual registration flow (register_family_batch / re-enrollment), manual
+ * entry through the app's own interface, the Edge-Function collection &
+ * refund paths, and the counter RPCs. The charge identity forms censused
+ * on the live books (the §15.105 census rule, made standing here):
+ *   (A) sourceType='installment' + installments PK      — the import path;
+ *   (B) sourceType='installment' + `reg-<code>[-transport]-t<n>`/`-fi`
+ *       — the registration business identity (0102/0103/0128);
+ *   (C) sourceType='bulk_import' + `<studentId>:<FIELD>` — the import stems;
+ *   (D) sourceType='manual_entry' + `reg-<parentCode>-fee` — the
+ *       registration FI fee (family-level, « nouvelle famille »).
+ * (A)/(B) flow through the charge→installment resolution (both forms,
+ * T-528); (C)/(D) flow through the description/metadata justification gate.
+ * The report's `coverage.chargeForms` counts each form so the coverage
+ * claim is CHECKABLE, never aspirational.
  *
  * MANDATE (issue #30): determine whether every financial transaction and
  * ledger entry is legitimate, correctly mapped, and traceable to a concrete
@@ -48,13 +68,14 @@ import type {
 } from "../../model/payment";
 import type { LedgerEntry } from "../../model/ledger";
 import type { Parent } from "../../model/parent";
-import type { Student } from "../../model/student";
+import type { Student, GradeLevel } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
 import { installmentRemaining } from "./queries";
 import { computeParentSummary } from "../ledger/balance";
 import {
   REAL_TUITION_BY_GRADE,
   realFiForGrade,
+  type RealTuitionSchedule,
 } from "../pricing/school-price-matrix";
 
 /* ================================================================== */
@@ -125,6 +146,13 @@ export interface WebhookDiagnosticFinding {
   readonly evidence: readonly WebhookEvidenceItem[];
   /** The arithmetic, when a numeric comparison drives the finding. */
   readonly calculation: string | null;
+  /**
+   * T-529 (the owner's 7-point mandate, dimension 6): the PLAUSIBLE CAUSES
+   * of the finding — hypotheses with their supporting evidence, NEVER
+   * asserted as facts (the read-only charter: the engine explains, the
+   * owner rules). Empty for reconciled rows (nothing to explain).
+   */
+  readonly possibleCauses?: readonly string[];
   /** Suggested investigation steps (FR) — never an automatic correction. */
   readonly suggestedSteps: readonly string[];
 }
@@ -169,6 +197,27 @@ export const DEFAULT_WEBHOOK_DIAGNOSTICS_THRESHOLDS: WebhookDiagnosticsThreshold
   };
 
 /* ================================================================== */
+/*  The configured price catalog (T-529 / AUDIT-510)                   */
+/* ================================================================== */
+
+/**
+ * The structural subset of the ACTIVE `PricingConfig` the audit consumes
+ * (the owner's mandate: compare against "the prices defined in the
+ * application's configuration", not the hardcoded matrix). The desktop's
+ * full PricingConfig satisfies this structurally; tests may pass literals.
+ */
+export interface WebhookDiagnosticsPricingConfig {
+  /** The flat family registration fee (the LEGACY `registrationFee`). */
+  readonly registrationFee: number;
+  /** The per-grade per-student registration fee (the workbook convention). */
+  readonly registrationFeeByGrade: Readonly<Record<string, number>>;
+  /** The per-grade tuition grid (annual + the 3 installments). */
+  readonly tuitionByGradeLevel?: Readonly<
+    Record<string, { readonly annualAmount: number; readonly installments: readonly [number, number, number] }>
+  >;
+}
+
+/* ================================================================== */
 /*  Report shape                                                       */
 /* ================================================================== */
 
@@ -178,7 +227,19 @@ export interface WebhookDiagnosticsCoverage {
   readonly installments: number;
   readonly allocations: number;
   readonly parents: number;
+  /** T-529: the price catalog was supplied — the configured-price checks ran. */
+  readonly pricingConfig: boolean;
+  /** T-529 (AUDIT-509): the charge identity-form census (A/B/C/D + other). */
+  readonly chargeForms: Readonly<Record<ChargeSourceForm, number>>;
 }
+
+/** The charge source identity forms (the all-origins census). */
+export type ChargeSourceForm =
+  | "installment-pk" // (A) the import path — source_id IS the installments PK
+  | "installment-reg-identity" // (B) the registration business identity
+  | "bulk-import-stem" // (C) `<studentId>:<FIELD>` — the Excel import stems
+  | "manual-entry" // (D) manual entries (the registration fee stem, …)
+  | "other"; // anything else — still audited through the description gate
 
 export type WebhookFindingCounts = Record<WebhookFindingCategory, number>;
 
@@ -264,6 +325,10 @@ interface AuditContext {
   readonly parents: readonly Parent[];
   readonly students: readonly Student[];
   readonly debtSummaries: readonly DebtSummary[];
+  /** T-529: the configured price catalog (null = not supplied). */
+  readonly pricingConfig: WebhookDiagnosticsPricingConfig | null;
+  /** T-529 (AUDIT-509): the charge identity-form census (all-origins proof). */
+  readonly chargeForms: Record<ChargeSourceForm, number>;
   // Indexes
   readonly paymentById: Map<string, Payment>;
   readonly installmentById: Map<string, Installment>;
@@ -289,12 +354,13 @@ function buildAuditContext(params: {
   debtSummaries: readonly DebtSummary[];
   parents: readonly Parent[];
   students: readonly Student[];
+  pricingConfig: WebhookDiagnosticsPricingConfig | null;
   nowMs: number;
   thresholds: WebhookDiagnosticsThresholds;
 }): AuditContext {
   const {
     payments, installments, ledgerEntries, allocations, debtSummaries,
-    parents, students, nowMs, thresholds,
+    parents, students, pricingConfig, nowMs, thresholds,
   } = params;
 
   const paymentById = new Map(payments.map((p) => [p.id, p]));
@@ -341,9 +407,35 @@ function buildAuditContext(params: {
     allocationsByPayment.set(a.paymentId, list);
   }
 
+  // T-529 (AUDIT-509): the charge identity-form census — the all-origins
+  // proof, counted over the REAL stream (the §15.105 census rule, standing).
+  const chargeForms: Record<ChargeSourceForm, number> = {
+    "installment-pk": 0,
+    "installment-reg-identity": 0,
+    "bulk-import-stem": 0,
+    "manual-entry": 0,
+    other: 0,
+  };
+  for (const e of ledgerEntries) {
+    if (e.type !== "charge") continue;
+    if (e.sourceType === "installment") {
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.sourceId);
+      if (isUuid) chargeForms["installment-pk"] += 1;
+      else if (/^reg-/.test(e.sourceId)) chargeForms["installment-reg-identity"] += 1;
+      else chargeForms.other += 1;
+    } else if (e.sourceType === "bulk_import") {
+      chargeForms["bulk-import-stem"] += 1;
+    } else if (e.sourceType === "manual_entry") {
+      chargeForms["manual-entry"] += 1;
+    } else {
+      chargeForms.other += 1;
+    }
+  }
+
   return {
     nowMs, thresholds, payments, installments, ledgerEntries, allocations,
-    parents, students, debtSummaries,
+    parents, students, debtSummaries, pricingConfig, chargeForms,
     paymentById, installmentById, studentById, parentById, debtByParent,
     ledgerPaymentsBySourceId, ledgerChargesByInstallmentId,
     installmentsByStudent, studentByCode, allocationsByPayment,
@@ -944,6 +1036,11 @@ function auditDuplicates(
             sourceRef: `payments:${p.id}`,
           })),
           calculation: `Impact potentiel : ${dzd(total - sample.amount)} comptés en trop`,
+          possibleCauses: [
+            "Un événement source livré/deux fois traité (rejeu webhook/import avec des reçus distincts).",
+            "Un double encaissement réel au comptoir (deux reçus émis pour le même élève, même jour, même montant).",
+            "Un sujet non renseigné (élève absent) rend la comparaison impossible — à rattacher avant tout jugement.",
+          ],
           suggestedSteps: [
             "Vérifier dans le journal d'audit si les deux paiements proviennent du même événement source.",
             "Confirmer avec le relevé bancaire/caisse qu'un seul encaissement a eu lieu.",
@@ -1038,6 +1135,11 @@ function auditChargeJustification(
                   { label: "Échéance référencée", value: `${e.sourceId} — introuvable (PK et identité d'inscription)`, sourceRef: null },
                 ],
                 calculation: null,
+                possibleCauses: [
+                  "L'échéance source a été supprimée ou fusionnée sans extourne de la charge (vérifier le journal d'audit).",
+                  "Une identité d'inscription incomplète ou altérée (élève, catégorie ou tranche ne correspondant plus au périmètre du compte — famille fusionnée, tranche renumérotée).",
+                  "Une écriture créée avec un identifiant de source invalide (traitement partiel d'un flux).",
+                ],
                 suggestedSteps: [
                   "Vérifier l'historique de suppression/fusion des échéances (journal d'audit).",
                   "Si l'échéance a été supprimée sans extourne de la charge, régulariser via le flux existant.",
@@ -1264,6 +1366,48 @@ function auditAdjustmentsAndRefunds(
 }
 
 /* ================================================================== */
+/*  Configured-price resolution (T-529 / AUDIT-510) — the CONFIG        */
+/*  preferred, the T-425 official matrix the fallback                  */
+/* ================================================================== */
+
+/**
+ * The tuition schedule for a grade — the ACTIVE config's grid preferred
+ * (the owner's mandate: "the prices defined in the application's
+ * configuration"), the T-425 official matrix the fallback when no config
+ * was supplied. PURE.
+ */
+function tuitionScheduleFor(
+  ctx: AuditContext,
+  gradeLevel: GradeLevel,
+): RealTuitionSchedule | undefined {
+  const configured = ctx.pricingConfig?.tuitionByGradeLevel?.[gradeLevel];
+  if (
+    configured &&
+    Number.isFinite(configured.annualAmount) &&
+    Array.isArray(configured.installments) &&
+    configured.installments.length === 3
+  ) {
+    return {
+      scolarite: configured.annualAmount,
+      v2: configured.installments[0],
+      tranche3: configured.installments[1],
+      tranche4: configured.installments[2],
+    };
+  }
+  return REAL_TUITION_BY_GRADE[gradeLevel];
+}
+
+/**
+ * The per-grade registration fee — the config's `registrationFeeByGrade`
+ * preferred, the T-425 matrix (`realFiForGrade`) the fallback. PURE.
+ */
+function registrationFeeFor(ctx: AuditContext, gradeLevel: GradeLevel): number {
+  const configured = ctx.pricingConfig?.registrationFeeByGrade?.[gradeLevel];
+  if (configured != null && Number.isFinite(configured) && configured > 0) return configured;
+  return realFiForGrade(gradeLevel, false);
+}
+
+/* ================================================================== */
 /*  Check 7 — Price basis & outlier review (issue #30 Example B)       */
 /*  The imported tuition total is compared against the applicable     */
 /*  price-matrix schedule (T-425's official model). A material         */
@@ -1320,7 +1464,7 @@ function auditPriceBasis(
       continue;
     }
 
-    const schedule = REAL_TUITION_BY_GRADE[student.gradeLevel];
+    const schedule = tuitionScheduleFor(ctx, student.gradeLevel);
     if (!schedule) {
       findings.push(
         finding("unverified", "info", `price-nograde:${studentId}`, {
@@ -1361,7 +1505,7 @@ function auditPriceBasis(
 
     // FI (tranche 0) rows: the registration fee per grade.
     const fiImported = fiRows.reduce((s, i) => s + i.amountDue, 0);
-    const fiExpected = realFiForGrade(student.gradeLevel, false);
+    const fiExpected = registrationFeeFor(ctx, student.gradeLevel);
     if (fiRows.length > 0 && Math.abs(fiImported - fiExpected) > Math.max(tol, fiExpected * multiplier)) {
       findings.push(
         finding("outlier_review", "warning", `price-fi:${studentId}`, {
@@ -1494,6 +1638,355 @@ function auditPriceBasis(
     }
     // Between (expected, multiplier×expected): within the configurable
     // tolerance band — no finding (material only above the multiplier).
+  }
+}
+
+/* ================================================================== */
+/*  Check 7bis — Configured-price compliance (T-529 / AUDIT-510, the    */
+/*  owner's 173rd-session purpose mandate): every FI-tagged PAYMENT     */
+/*  (encaissement) and registration CHARGE compared against the         */
+/*  app's CONFIGURED prices — BOTH references: the flat family fee      */
+/*  (`registrationFee`, what the registration flow charges) AND the     */
+/*  per-grade fee (`registrationFeeByGrade`, what the Excel import      */
+/*  charges). A transaction matching ONE reference but violating the    */
+/*  other is a DIVERGENCE (outlier_review — the config itself carries   */
+/*  two conventions); matching NEITHER is a configured-price VIOLATION  */
+/*  (confirmed_mismatch); the config's own flat-vs-per-grade split is   */
+/*  surfaced ONCE as the root cause. READ-ONLY: the engine explains     */
+/*  and recommends, it never rewrites a financial record.               */
+/* ================================================================== */
+
+/** Is this payment an FI (frais d'inscription) encaissement? */
+function isFiPayment(p: Payment): boolean {
+  if ((p.receiptNumber ?? "").endsWith("-FI")) return true; // the import's deterministic receipt stem
+  return /frais\s*d['’]inscription/i.test(p.notes ?? "");
+}
+
+/** Is this charge a registration-fee charge? */
+function isRegistrationCharge(e: LedgerEntry): boolean {
+  if (e.metadata?.type === "registration_fee") return true; // the registration flow's stamp
+  return /frais\s*d['’]inscription/i.test(e.description ?? "");
+}
+
+/** The payment's provenance, read from the record's own stamps (never guessed). */
+function paymentProvenanceFr(p: Payment): string {
+  const notes = p.notes ?? "";
+  const runId = /import Excel run (\S+)/i.exec(notes)?.[1];
+  if (runId) return `import Excel (run ${runId})`;
+  if ((p.receiptNumber ?? "").startsWith("IMP-")) return "import Excel (reçu IMP-…)";
+  return "saisie via l'application (comptoir/flux manuel)";
+}
+
+function auditConfiguredPriceCompliance(
+  ctx: AuditContext,
+  findings: WebhookDiagnosticFinding[],
+): void {
+  const cfg = ctx.pricingConfig;
+  if (!cfg) {
+    // Honest degradation — ONE coverage finding, never silent, never spam.
+    findings.push(
+      finding("unverified", "info", "price-noconfig:catalog", {
+        parentId: null,
+        parentName: null,
+        amount: null,
+        recordIds: {},
+        sourceRefs: ["pricing-config:absent"],
+        title: "Catalogue de prix non chargé — conformité des montants non vérifiable",
+        explanation:
+          `La configuration de prix active n'a pas été fournie à l'audit : les encaissements et les factures ` +
+          `d'inscription ne peuvent pas être comparés aux tarifs configurés (5 000 DZD plat, tarifs par niveau…) — ` +
+          `la conformité des montants au catalogue ne peut être ni confirmée ni infirmée (non vérifiable, pas une anomalie).`,
+        evidence: [
+          { label: "Catalogue de prix (pricing_configs)", value: "non fourni à l'audit", sourceRef: null },
+          { label: "Contrôles concernés", value: "encaissements FI · factures d'inscription · base de prix par niveau", sourceRef: null },
+        ],
+        calculation: null,
+        possibleCauses: [
+          "Le flux de configuration n'était pas encore chargé au moment de l'audit (recharger la page Finances puis relancer).",
+        ],
+        suggestedSteps: [
+          "Recharger la configuration de prix (Paramètres → Tarification) puis relancer l'audit.",
+        ],
+      }),
+    );
+    return;
+  }
+
+  const tol = ctx.thresholds.amountToleranceDzd;
+  const flat = cfg.registrationFee;
+  const perGrade = cfg.registrationFeeByGrade ?? {};
+
+  // ── (0) The CONFIG-LEVEL tension — the root cause, surfaced ONCE ──────
+  const perGradeValues = Object.values(perGrade).filter((v) => Number.isFinite(v) && v > 0);
+  const distinctPerGrade = [...new Set(perGradeValues)];
+  const flatDiverges = distinctPerGrade.some((v) => Math.abs(v - flat) > tol);
+  if (flatDiverges) {
+    const lo = Math.min(...distinctPerGrade);
+    const hi = Math.max(...distinctPerGrade);
+    findings.push(
+      finding("outlier_review", "info", "price-config-tension:registration-fee", {
+        parentId: null,
+        parentName: null,
+        amount: null,
+        recordIds: {},
+        sourceRefs: ["pricing-config:registrationFee", "pricing-config:registrationFeeByGrade"],
+        title: "Configuration : deux tarifs d'inscription divergents",
+        explanation:
+          `Le catalogue de prix configuré porte DEUX conventions pour les frais d'inscription : un tarif familial ` +
+          `plat de ${dzd(flat)} (colonne « registrationFee » — c'est celui que facture le flux d'inscription ` +
+          `« nouvelle famille ») ET des tarifs par niveau de ${dzd(lo)} à ${dzd(hi)} ` +
+          `(« registrationFeeByGrade » — c'est celui que facture l'import Excel, colonne FI du classeur). ` +
+          `Un même concept possède donc deux prix configurés divergents : chaque encaissement FI conforme à l'un ` +
+          `viole l'autre — les écarts signalés ci-dessous trouvent leur cause racine ICI, dans la configuration, ` +
+          `pas nécessairement dans les écritures. Le modèle documente le tarif plat comme HÉRITÉ (CALC-001) : ` +
+          `trancher la convention autoritaire est une décision de direction.`,
+        evidence: [
+          { label: "Tarif plat configuré (familial)", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+          { label: "Tarifs par niveau configurés", value: `${dzd(lo)} – ${dzd(hi)} (${distinctPerGrade.length} valeurs distinctes)`, sourceRef: "pricing-config:registrationFeeByGrade" },
+          { label: "Qui facture quoi", value: "flux d'inscription → tarif plat · import Excel → tarif par niveau", sourceRef: null },
+        ],
+        calculation: `écart plat vs niveaux : ${dzd(lo - flat)} à ${dzd(hi - flat)}`,
+        possibleCauses: [
+          `La scission CALC-001 : la colonne plat « registrationFee » est conservée pour le flux d'inscription tandis que la matrice officielle par niveau (T-425) alimente l'import.`,
+          "Le tarif plat a pu être abaissé (5 000 DZD) sans aligner la grille par niveau (18 000–30 000) — ou l'inverse.",
+        ],
+        suggestedSteps: [
+          "Trancher la convention autoritaire (direction) : tarif plat familial OU tarif par niveau.",
+          "Aligner ensuite la configuration ET les flux d'écriture sur la convention retenue (jamais l'inverse — les écritures passées ne se réécrivent pas sans trace).",
+        ],
+      }),
+    );
+  }
+
+  // ── (i) The FI ENCAISSEMENTS vs BOTH configured references ────────────
+  for (const p of ctx.payments) {
+    if (!isFiPayment(p)) continue;
+    const student = p.studentId ? ctx.studentById.get(p.studentId) : undefined;
+    const grade = student?.gradeLevel ?? null;
+    const gradeFee = grade ? perGrade[grade] : undefined;
+    const hasGradeRef = gradeFee != null && Number.isFinite(gradeFee) && gradeFee > 0;
+
+    const matchFlat = Math.abs(p.amount - flat) <= tol;
+    const matchGrade = hasGradeRef && Math.abs(p.amount - gradeFee) <= tol;
+    const studentLabel = student
+      ? `${student.firstName} ${student.lastName} (${student.code})`
+      : p.studentId ?? "élève non renseigné";
+
+    if (matchFlat && (!hasGradeRef || matchGrade)) {
+      // Agrees with every applicable configured reference.
+      findings.push(
+        finding("reconciled", "ok", `price-fi-pay-ok:${p.id}`, {
+          parentId: p.parentId,
+          parentName: ctx.displayName(p.parentId),
+          amount: p.amount,
+          recordIds: { payment: p.id, receiptNumber: p.receiptNumber ?? undefined },
+          sourceRefs: [`payments:${p.id}`, `pricing-config:registrationFee`],
+          title: "Encaissement FI conforme au tarif configuré",
+          explanation:
+            `L'encaissement ${p.receiptNumber} (${dzd(p.amount)}, « ${(p.notes ?? "").slice(0, 60) || "frais d'inscription"} ») ` +
+            `correspond au tarif d'inscription configuré${hasGradeRef ? ` (plat ${dzd(flat)} et par niveau ${grade} : ${dzd(gradeFee!)})` : ` (plat ${dzd(flat)})`} — ` +
+            `le montant encaissé est conforme au catalogue.`,
+          evidence: [
+            { label: `Paiement ${p.receiptNumber}`, value: `${dzd(p.amount)} · ${isoDate(p.collectedAt)}`, sourceRef: `payments:${p.id}` },
+            { label: "Tarif plat configuré", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+            ...(hasGradeRef
+              ? [{ label: `Tarif par niveau configuré (${grade})`, value: dzd(gradeFee!), sourceRef: `pricing-config:registrationFeeByGrade:${grade}` }]
+              : []),
+          ],
+          calculation: `${dzd(p.amount)} = tarif configuré`,
+          suggestedSteps: [],
+        }),
+      );
+      continue;
+    }
+
+    if (matchFlat || matchGrade) {
+      // THE DIVERGENCE CLASS (the owner's example): follows one configured
+      // convention, violates the other — the config tension made concrete.
+      const followsGrade = matchGrade && !matchFlat;
+      const followedRef = followsGrade
+        ? `le tarif par niveau configuré (${grade} : ${dzd(gradeFee!)})`
+        : `le tarif plat configuré (${dzd(flat)})`;
+      const violatedRef = followsGrade
+        ? `le tarif plat configuré (${dzd(flat)})`
+        : `le tarif par niveau configuré (${grade} : ${dzd(gradeFee!)})`;
+      const violatedValue = followsGrade ? flat : gradeFee!;
+      const delta = p.amount - violatedValue;
+      findings.push(
+        finding("outlier_review", "warning", `price-fi-pay:${p.id}`, {
+          parentId: p.parentId,
+          parentName: ctx.displayName(p.parentId),
+          amount: delta,
+          recordIds: { payment: p.id, receiptNumber: p.receiptNumber ?? undefined },
+          sourceRefs: [`payments:${p.id}`, "pricing-config:registrationFee", `pricing-config:registrationFeeByGrade:${grade ?? "?"}`],
+          title: "Encaissement FI en écart avec un des tarifs d'inscription configurés",
+          explanation:
+            `L'encaissement ${p.receiptNumber} (${dzd(p.amount)}, ${isoDate(p.collectedAt)}) règle des frais ` +
+            `d'inscription (FI) et suit ${followedRef} — mais il VIOLE ${violatedRef} de ${dzd(delta)}. ` +
+            `Le catalogue configuré porte deux conventions divergentes (tarif plat ${dzd(flat)} vs tarifs par niveau) : ` +
+            `le montant est conforme à l'une et en écart avec l'autre. L'écart trouve sa cause la plus probable dans ` +
+            `la CONFIGURATION elle-même (voir le constat « deux tarifs d'inscription divergents »), pas nécessairement ` +
+            `dans l'encaissement — la décision appartient à la direction.`,
+          evidence: [
+            { label: `Paiement ${p.receiptNumber}`, value: `${dzd(p.amount)} · ${isoDate(p.collectedAt)} · ${p.method}`, sourceRef: `payments:${p.id}` },
+            { label: "Élève concerné", value: studentLabel, sourceRef: p.studentId ? `student:${p.studentId}` : null },
+            { label: "Tarif plat configuré", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+            ...(hasGradeRef
+              ? [{ label: `Tarif par niveau configuré (${grade})`, value: dzd(gradeFee!), sourceRef: `pricing-config:registrationFeeByGrade:${grade}` }]
+              : []),
+            { label: "Écart vs la référence violée", value: `${dzd(p.amount)} − ${dzd(violatedValue)} = ${dzd(delta)}`, sourceRef: null },
+            { label: "Provenance", value: paymentProvenanceFr(p), sourceRef: `payments:${p.id}#notes` },
+          ],
+          calculation: `${dzd(p.amount)} − ${dzd(violatedValue)} = ${dzd(delta)} d'écart avec ${followsGrade ? "le tarif plat" : "le tarif par niveau"} configuré`,
+          possibleCauses: [
+            `La configuration porte deux conventions divergentes : l'import Excel facture le tarif par niveau du classeur (${dzd(gradeFee ?? 0)} en ${grade ?? "?"}) tandis que le flux d'inscription facture le tarif plat (${dzd(flat)}) — cet encaissement suit la convention import.`,
+            "Si le tarif plat est la vérité actuelle : la grille par niveau est restée aux prix de l'année du classeur (désynchronisation de configuration).",
+            "Si le tarif par niveau est la vérité actuelle : le flux d'inscription sous-facture — à corriger dans le flux, pas dans les écritures passées.",
+          ],
+          suggestedSteps: [
+            "Trancher la convention autoritaire (voir le constat de configuration « deux tarifs divergents »).",
+            `Si le tarif plat (${dzd(flat)}) est autoritaire : régulariser l'excédent de ${dzd(delta)} par le flux existant (crédit/avoir) — jamais une écriture manuelle directe.`,
+            "Si le tarif par niveau est autoritaire : aucun montant à régulariser — aligner le flux d'inscription et le tarif plat sur la grille par niveau.",
+          ],
+        }),
+      );
+      continue;
+    }
+
+    // Matches NEITHER configured reference.
+    if (!hasGradeRef) {
+      findings.push(
+        finding("unverified", "info", `price-fi-pay-noref:${p.id}`, {
+          parentId: p.parentId,
+          parentName: ctx.displayName(p.parentId),
+          amount: p.amount - flat,
+          recordIds: { payment: p.id, receiptNumber: p.receiptNumber ?? undefined },
+          sourceRefs: [`payments:${p.id}`, "pricing-config:registrationFee"],
+          title: "Encaissement FI à référence de prix incomplète",
+          explanation:
+            `L'encaissement ${p.receiptNumber} (${dzd(p.amount)}) règle des frais d'inscription mais ne correspond ` +
+            `pas au tarif plat configuré (${dzd(flat)}) et le niveau de l'élève n'est pas déterminable — ` +
+            `la référence par niveau ne peut être établie (non vérifiable).`,
+          evidence: [
+            { label: `Paiement ${p.receiptNumber}`, value: `${dzd(p.amount)} · ${isoDate(p.collectedAt)}`, sourceRef: `payments:${p.id}` },
+            { label: "Tarif plat configuré", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+            { label: "Niveau de l'élève", value: "indéterminable", sourceRef: null },
+          ],
+          calculation: `${dzd(p.amount)} vs ${dzd(flat)} (plat) — référence par niveau indisponible`,
+          possibleCauses: [
+            "Le paiement ne référence aucun élève connu (sujet absent ou supprimé).",
+          ],
+          suggestedSteps: [
+            "Rattacher le paiement à son élève (flux existant) puis relancer l'audit.",
+          ],
+        }),
+      );
+      continue;
+    }
+    findings.push(
+      finding("confirmed_mismatch", "warning", `price-fi-pay-violation:${p.id}`, {
+        parentId: p.parentId,
+        parentName: ctx.displayName(p.parentId),
+        amount: p.amount - flat,
+        recordIds: { payment: p.id, receiptNumber: p.receiptNumber ?? undefined },
+        sourceRefs: [`payments:${p.id}`, "pricing-config:registrationFee", `pricing-config:registrationFeeByGrade:${grade}`],
+        title: "Encaissement FI non conforme aux tarifs configurés",
+        explanation:
+          `L'encaissement ${p.receiptNumber} (${dzd(p.amount)}) règle des frais d'inscription mais ne correspond ` +
+          `à AUCUN tarif configuré : ni le tarif plat (${dzd(flat)}), ni le tarif par niveau ${grade} (${dzd(gradeFee)}) — ` +
+          `un écart de ${dzd(p.amount - gradeFee!)} avec le tarif de son niveau. Le montant ne provient d'aucun prix ` +
+          `du catalogue : à examiner (saisie, calcul ou majoration non configurée).`,
+        evidence: [
+          { label: `Paiement ${p.receiptNumber}`, value: `${dzd(p.amount)} · ${isoDate(p.collectedAt)} · ${p.method}`, sourceRef: `payments:${p.id}` },
+          { label: "Élève concerné", value: studentLabel, sourceRef: p.studentId ? `student:${p.studentId}` : null },
+          { label: "Tarif plat configuré", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+          { label: `Tarif par niveau configuré (${grade})`, value: dzd(gradeFee!), sourceRef: `pricing-config:registrationFeeByGrade:${grade}` },
+          { label: "Provenance", value: paymentProvenanceFr(p), sourceRef: `payments:${p.id}#notes` },
+        ],
+        calculation: `${dzd(p.amount)} vs ${dzd(flat)} (plat) et ${dzd(gradeFee!)} (niveau ${grade}) — écart ${dzd(p.amount - gradeFee!)} avec le tarif de niveau`,
+        possibleCauses: [
+          "Une majoration ou un FI négocié non documenté dans la configuration.",
+          "Une erreur de saisie au comptoir ou dans le classeur source (un chiffre en trop).",
+          "Un mélange de conventions lors d'une année de transition de tarification.",
+        ],
+        suggestedSteps: [
+          "Retrouver l'origine du montant (reçu papier, ligne du classeur, journal d'audit).",
+          "Si un prix négocié s'applique : le documenter dans la configuration pour lever le signalement.",
+          "Sinon régulariser via le flux existant (crédit/avoir) — jamais une suppression directe.",
+        ],
+      }),
+    );
+  }
+
+  // ── (ii) The registration CHARGES vs the configured references ───────
+  for (const e of ctx.ledgerEntries) {
+    if (e.type !== "charge" || !isRegistrationCharge(e)) continue;
+    const student = e.studentId ? ctx.studentById.get(e.studentId) : undefined;
+    const grade = student?.gradeLevel ?? null;
+    const gradeFee = grade ? perGrade[grade] : undefined;
+    const hasGradeRef = gradeFee != null && Number.isFinite(gradeFee) && gradeFee > 0;
+
+    // The family-level registration fee (studentId null — the registration
+    // flow's « nouvelle famille » convention) answers to the FLAT fee.
+    const isFamilyLevel = e.studentId == null;
+    const matchFlat = Math.abs(e.amount - flat) <= tol;
+    const matchGrade = !isFamilyLevel && hasGradeRef && Math.abs(e.amount - gradeFee) <= tol;
+
+    if (matchFlat || matchGrade) {
+      findings.push(
+        finding("reconciled", "ok", `price-fi-charge-ok:${e.id}`, {
+          parentId: e.parentId,
+          parentName: ctx.displayName(e.parentId),
+          amount: e.amount,
+          recordIds: { ledgerEntry: e.id },
+          sourceRefs: [`ledger:${e.id}`, `source:${e.sourceType}/${e.sourceId}`, "pricing-config:registrationFee"],
+          title: "Facture d'inscription conforme au tarif configuré",
+          explanation:
+            `La facture d'inscription ${e.id} (« ${(e.description ?? "").slice(0, 60)} », ${dzd(e.amount)}) correspond ` +
+            `au tarif configuré (${isFamilyLevel || matchFlat ? `plat familial : ${dzd(flat)}` : `par niveau ${grade} : ${dzd(gradeFee!)}`}) — ` +
+            `le montant facturé est conforme au catalogue.`,
+          evidence: [
+            { label: `Écriture ${e.id}`, value: `${dzd(e.amount)} · ${isoDate(e.at)}`, sourceRef: `ledger:${e.id}` },
+            { label: "Tarif configuré appliqué", value: isFamilyLevel || matchFlat ? `plat familial ${dzd(flat)}` : `par niveau ${grade} : ${dzd(gradeFee!)}`, sourceRef: isFamilyLevel || matchFlat ? "pricing-config:registrationFee" : `pricing-config:registrationFeeByGrade:${grade}` },
+          ],
+          calculation: `${dzd(e.amount)} = tarif configuré`,
+          suggestedSteps: [],
+        }),
+      );
+      continue;
+    }
+
+    findings.push(
+      finding("outlier_review", "warning", `price-fi-charge:${e.id}`, {
+        parentId: e.parentId,
+        parentName: ctx.displayName(e.parentId),
+        amount: e.amount - flat,
+        recordIds: { ledgerEntry: e.id },
+        sourceRefs: [`ledger:${e.id}`, `source:${e.sourceType}/${e.sourceId}`, "pricing-config:registrationFee"],
+        title: "Facture d'inscription en écart avec le tarif configuré",
+        explanation:
+          `La facture d'inscription ${e.id} (« ${(e.description ?? "").slice(0, 60)} », ${dzd(e.amount)}) ne correspond ` +
+          `pas au tarif plat configuré (${dzd(flat)})${hasGradeRef && !isFamilyLevel ? ` ni au tarif par niveau ${grade} (${dzd(gradeFee)})` : ""} — ` +
+          `un écart de ${dzd(e.amount - flat)} avec le tarif familial configuré à examiner.`,
+        evidence: [
+          { label: `Écriture ${e.id}`, value: `${dzd(e.amount)} · ${isoDate(e.at)}`, sourceRef: `ledger:${e.id}` },
+          { label: "Description", value: e.description ?? "—", sourceRef: `ledger:${e.id}#description` },
+          { label: "Tarif plat configuré", value: dzd(flat), sourceRef: "pricing-config:registrationFee" },
+          ...(hasGradeRef && !isFamilyLevel
+            ? [{ label: `Tarif par niveau configuré (${grade})`, value: dzd(gradeFee!), sourceRef: `pricing-config:registrationFeeByGrade:${grade}` }]
+            : []),
+        ],
+        calculation: `${dzd(e.amount)} − ${dzd(flat)} = ${dzd(e.amount - flat)} d'écart avec le tarif plat configuré`,
+        possibleCauses: [
+          "Un FI négocié ou majoré non reflété dans la configuration.",
+          "Une désynchronisation entre le flux d'écriture et le catalogue (le flux facture un ancien tarif).",
+        ],
+        suggestedSteps: [
+          "Vérifier le tarif convenu avec la famille (devis/paiement d'acompte).",
+          "Documenter le prix négocié dans la configuration, ou régulariser via le flux d'ajustement existant.",
+        ],
+      }),
+    );
   }
 }
 
@@ -1969,6 +2462,14 @@ export function runWebhookDiagnostics(params: {
   readonly debtSummaries: readonly DebtSummary[];
   readonly parents: readonly Parent[];
   readonly students: readonly Student[];
+  /**
+   * T-529 (AUDIT-510): the ACTIVE configured price catalog (the structural
+   * subset this audit consumes — the desktop's full PricingConfig satisfies
+   * it structurally). When absent, the configured-price compliance checks
+   * emit ONE honest `unverified` coverage finding (never silent, never
+   * spam) and the price basis falls back to the T-425 official matrix.
+   */
+  readonly pricingConfig?: WebhookDiagnosticsPricingConfig | null;
   /** The audit clock — ISO string or epoch ms. Defaults to Date.now(). */
   readonly now?: string | number;
   readonly thresholds?: Partial<WebhookDiagnosticsThresholds>;
@@ -1992,6 +2493,7 @@ export function runWebhookDiagnostics(params: {
     debtSummaries: params.debtSummaries,
     parents: params.parents,
     students: params.students,
+    pricingConfig: params.pricingConfig ?? null,
     nowMs,
     thresholds,
   });
@@ -2005,6 +2507,7 @@ export function runWebhookDiagnostics(params: {
   auditChargeJustification(ctx, findings);
   auditAdjustmentsAndRefunds(ctx, findings);
   auditPriceBasis(ctx, findings);
+  auditConfiguredPriceCompliance(ctx, findings);
   auditAllocations(ctx, findings);
   auditInstallmentSatisfaction(ctx, findings);
   auditParentReconciliation(ctx, findings);
@@ -2044,6 +2547,8 @@ export function runWebhookDiagnostics(params: {
       installments: ctx.installments.length,
       allocations: ctx.allocations.length,
       parents: ctx.parents.length,
+      pricingConfig: ctx.pricingConfig !== null,
+      chargeForms: ctx.chargeForms,
     },
     counts,
     findings,

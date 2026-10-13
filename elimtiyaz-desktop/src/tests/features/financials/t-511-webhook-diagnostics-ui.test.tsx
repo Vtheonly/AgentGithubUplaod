@@ -315,19 +315,26 @@ describe("T-511 UI scenario 20 — pagination: no silent omission in the display
     renderCard({ parents: [makeParent()], ledgerEntries });
 
     // 23 unjustified charges + 1 unverified family reconciliation (no
-    // server summary supplied) = 24 findings, all visible via pagination.
+    // server summary supplied) + 1 unverified no-catalog coverage finding
+    // (T-529: unverified:price-noconfig:catalog — the designed degradation
+    // when no pricingConfig is supplied) = 25 findings, all visible via
+    // pagination.
     const pagination = screen.getByTestId("webhook-diagnostics-pagination");
-    expect(pagination.textContent).toContain("1–8 sur 24");
+    expect(pagination.textContent).toContain("1–8 sur 25");
     expect(screen.getAllByTestId(/^webhook-finding-/).filter((el) => el.tagName === "TR")).toHaveLength(8);
 
-    // Page forward to the last page.
+    // Page forward to the third page (17–24), then to the LAST page (25).
     fireEvent.click(screen.getByTestId("webhook-diagnostics-next"));
     fireEvent.click(screen.getByTestId("webhook-diagnostics-next"));
-    expect(screen.getByTestId("webhook-diagnostics-pagination").textContent).toContain("17–24 sur 24");
+    expect(screen.getByTestId("webhook-diagnostics-pagination").textContent).toContain("17–24 sur 25");
     expect(screen.getAllByTestId(/^webhook-finding-/).filter((el) => el.tagName === "TR")).toHaveLength(8);
+    fireEvent.click(screen.getByTestId("webhook-diagnostics-next"));
+    expect(screen.getByTestId("webhook-diagnostics-pagination").textContent).toContain("25–25 sur 25");
+    expect(screen.getAllByTestId(/^webhook-finding-/).filter((el) => el.tagName === "TR")).toHaveLength(1);
     // The NEXT button is disabled on the last page.
     expect((screen.getByTestId("webhook-diagnostics-next") as HTMLButtonElement).disabled).toBe(true);
     // Back to page 1 → PREV disabled there.
+    fireEvent.click(screen.getByTestId("webhook-diagnostics-prev"));
     fireEvent.click(screen.getByTestId("webhook-diagnostics-prev"));
     fireEvent.click(screen.getByTestId("webhook-diagnostics-prev"));
     expect((screen.getByTestId("webhook-diagnostics-prev") as HTMLButtonElement).disabled).toBe(true);
