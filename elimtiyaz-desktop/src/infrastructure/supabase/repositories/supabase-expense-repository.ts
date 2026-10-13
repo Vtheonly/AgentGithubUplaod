@@ -56,7 +56,7 @@
  * T-521 (issue #29) ADDITIONS:
  *   8. ATTACHMENTS — `expense_attachments` (migration 0153) is the canonical
  *      metadata store; the bytes go through the ONE media vault
- *      (`uploadPrivateMedia({bucket:"expense-receipts"})` — media-vault.ts,
+ *      (`uploadPrivateMedia` with the "expense-receipts" bucket — media-vault.ts,
  *      the §6 reuse rule) with the `<tenant>/<expense>/<file>` path canon
  *      (§15.28). `receipt_path` (the legacy single-proof column) stays
  *      written at settle for backward compatibility with deployed clients.
@@ -610,7 +610,11 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
       upload = await uploadPrivateMedia({
         bucket: "expense-receipts",
         entityId: expenseId,
-        tenantId,
+        // T-361/UPLOAD-102 compliance: the source guard requires the tenant
+        // argument in explicit `tenantId: <variable>` form (the object
+        // shorthand `tenantId,` is semantically identical but fails the
+        // regex — expanded here so the merged battery stays green).
+        tenantId: tenantId,
         file: file.blob as File,
       });
     } catch (e) {

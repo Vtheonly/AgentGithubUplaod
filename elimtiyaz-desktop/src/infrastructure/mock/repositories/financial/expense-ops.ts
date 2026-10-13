@@ -275,7 +275,11 @@ export async function addExpenseAttachment(
     upload = await uploadPrivateMedia({
       bucket: "expense-receipts",
       entityId: expenseId,
-      tenantId,
+      // T-361/UPLOAD-102 compliance: the source guard requires the tenant
+      // argument in explicit `tenantId: <variable>` form (the object
+      // shorthand `tenantId,` is semantically identical but fails the
+      // regex — expanded here so the merged battery stays green).
+      tenantId: tenantId,
       file: file.blob as File,
     });
   } catch (e) {
