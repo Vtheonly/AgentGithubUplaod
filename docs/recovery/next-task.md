@@ -1,3 +1,22 @@
+# 2026-10-13 — The 169th session IN PROGRESS (T-525 / UI-343 + CROSS-201 + SEC-117 + DATA-063): the owner's exam & homework calendar-visibility mandate — registration phase complete, the implementation phases next
+
+**The mandate (the owner's issue, abridged):** "Fix Exam and Homework Visibility in the Website Calendar — Exams and homework assignments are not appearing on the website calendar, even when their dates and schedules have been configured in the Pedagogy section … Trace the complete data flow … Identify the underlying cause rather than applying a superficial UI fix."
+
+**The live diagnosis (all probes real this session, 2026-10-13):** the homework data path WORKS (the owner's test row "dddddd" due 2026-10-13 is readable by the sole portal parent ABADA whose child is in the target class — live probe P2) — the website calendar's UTC date-key shift is why nothing appeared on the due date (UI-343); the EXAM path does not exist at all (no scheduling surface, 0 calendar_events rows live — CROSS-201); and the live RLS probe surfaced a NEW security defect — parents can WRITE staff calendar events through the role-check-less calendar_events_admin FOR ALL policy (SEC-117, live P5). 988+/1137 students have class_id NULL (DATA-063, owner action).
+
+**The plan (phases 2–7 in the T-525 registry entry):** migration 0154 (parent exam-scoped read + the _admin role check) → desktop domain/repository ('exam' virtual kind through the canonical calendar repository) → desktop Pedagogy "Examens" tab (schedule/list/edit/delete) → website calendar fixes (local date keys, month-range retrieval, all-children homework) → live verification → docs closeout. Per-commit push+merge per the owner's instruction; pull-before-commit against the concurrent T-521 expense session (phases 6–8 in flight — no shared files except the registries).
+
+**The standing open items (unchanged from the 168th session):**
+1. **THE owner action (2 minutes — the server half of AUTH-401):** paste the NEW Google client id + full `GOCSPX-…` secret into Supabase → Authentication → Providers → Google (the runbook `docs/operations/portal-google-oauth.md` §6 probe then answers `400 invalid_grant` = secret accepted).
+2. The closing verification round (agent, after the paste): the §6 probe GREEN shape → the first real browser sign-in on the production portal.
+3. End-to-end push delivery (after sign-in works): the notification permission grant arms the T-036 auto-registration; PUSH-100's `FIREBASE_SERVICE_ACCOUNT_JSON` remains unset for the FCM v1 send side.
+4. DATA-063 (new this session, owner action): run the class-placement/assignment flows so students.class_id is populated — otherwise most parents see no homework regardless of this task's fixes.
+5. The standing queue: the concurrent T-521 expense phases (coordinate via pull-before-commit), NOTIF-107's design ruling, the T-498 stale-schema residuals.
+
+**The next task:** THIS session continues — T-525 phase 2 (migration 0154). After T-525: the standing queue above.
+
+---
+
 # 2026-10-13 — The 168th session COMPLETE (T-524 / SEC-116 + the T-522 completion): the owner's CSP-eval console report root-caused to Zod 4.4.3's JIT capability probe and silenced by DECLARING the eval-free posture (`z.config({ jitless: true })` before the first schema — the library aligned to the strict CSP, the CSP never weakened; production deployment `792fcbb` live-probed with a CLEAN console: 0 Function string-constructor calls, 0 CSP violations); the interrupted 167th session's T-522 docs completed and pushed (renumbered per §15.43 after the concurrent T-521 collision); the sign-in blocker re-verified UNCHANGED and still owner-gated (the Supabase Google provider carries the OLD client id + an invalid 64-hex secret — Google still answers 401 invalid_client)
 
 **The mandate (the owner's paste, verbatim):** Firefox's console — "Content Security Policy of your site blocks the use of 'eval' in JavaScript … you can enable string evaluation by adding unsafe-eval as an allowed source in a script-src directive" — alongside the production login screen showing "Google sign-in could not be completed at the verification step. Please try again in a few minutes; if the problem persists, contact the school administration." (the T-522 localized message rendering live = that fix's behavioural confirmation).
