@@ -237,3 +237,22 @@ curl -s "$URL/rest/v1/parents?select=*&limit=3" -H "apikey: $ANON" -H "Authoriza
 ### 9.5 Structural + functional equivalence evidence (T-375…T-379)
 
 96 migrations through 0099 (production: 95 through 0098 — 0099 is the OPS-314 parity fix, NEW-only by design) · 83 public tables · 202 public + 24 storage policies · 100 public functions · extensions identical · 10 buckets identical (names + public flags) · business tables EMPTY except the migration-0063 chain-DML rows (1 parent / 1 student / 3 payments — the row-242 MAMER reconciliation artefacts that ship inside the migration itself, present on BOTH projects) · RLS recursion fixed and re-proven (`verify_t-376.sql` **12/12 PASS**, T-377) · the 14-EF fleet deployed + `t-379-ef-fleet-matrix.sh` **61/61 PASS** (anonymous-deny ×42, cron ×5, staff gates ×8, ALLOWED_ORIGINS, CRON_SECRET, live GROQ round-trip) · anon sees `[]` on every guarded table (RLS strength = production) · the production database was never written to (read-only source-of-truth diffs throughout).
+
+### 9.6 The owner's NEW Firebase project — `elimtiyaz-production` (T-519 / CONFIG-501, 2026-10-13 — the FCM web-push project for the parent portal)
+
+The owner created this project to replace `elimtiyaz-android` as the website's Firebase backend and supplied its full public web config ("make sure the website reflects these settings correctly"). The website's committed defaults (`src/lib/public-config.ts`) and `.env.example` were cut over in the same session (website commit `4deb9dd`). **Firebase is FCM-ONLY in the portal** — the auth chain is Supabase-side end-to-end; this project's config affects push notifications, never sign-in.
+
+| Value | Value | Classification / where it lives |
+|---|---|---|
+| Project id | `elimtiyaz-production` (nr. **944201689219**) | public — committed in `public-config.ts` |
+| Web API key | `AIzaSyByguKxez7hNjkGcdLnbTCHLI5nJzEFqvY` | public — committed; **live-verified resolving to 944201689219** (Identity Toolkit `/v1/projects?key=…` probe) |
+| Auth domain | `elimtiyaz-production.firebaseapp.com` | public — committed |
+| Storage bucket | `elimtiyaz-production.firebasestorage.app` | public — committed |
+| Messaging sender id | `944201689219` | public — committed |
+| WEB app id | `1:944201689219:web:b5fbe39a56e09c7629d3b6` | public — committed (the first-ever REAL web app id in the system; the OLD project had none — that was why `NEXT_PUBLIC_FIREBASE_APP_ID` was empty since T-096) |
+| measurementId | `G-G3YGN1WZF3` | public — **intentionally NOT wired** (Analytics-only; the portal imports no `firebase/analytics` — recorded here so it is not lost) |
+| VAPID key (web push) | **NOT ISSUED YET** | the SOLE remaining gap: owner generates a Web Push certificate (Firebase console → Project settings → Cloud Messaging → Web Push Certificates) and sets `NEXT_PUBLIC_FIREBASE_VAPID_KEY` on Vercel → `isFcmConfigured` flips to true and the live warning silences |
+
+Live-probed facts (2026-10-13): the new key's Identity Toolkit `authorizedDomains` = `localhost`, `elimtiyaz-production.firebaseapp.com`, `elimtiyaz-production.web.app` (the production domain is NOT listed — matters only if Firebase Auth is ever wired directly); the OLD project's key answers `CONFIGURATION_NOT_FOUND` (dead — the cutover was necessary). The OLD project's values are now a whole-tree regression guard (`t-519-firebase-project-cutover.test.ts` scans for the old API key / authDomain / storage bucket / sender id).
+
+**The auth-chain separation (the §15.99a lesson):** the owner's "rejisrtre it on cloud console for the auth" plan touches the auth chain ONLY through (i) the Supabase Google provider's client id + secret and (ii) the Google Cloud Console's authorized redirect URI (`https://vebfehrpzajhstyhinnw.supabase.co/auth/v1/callback` — AUTH-400). The Firebase project config above plays NO role in sign-in. If the owner registers a NEW OAuth client under the `elimtiyaz-production` Google Cloud project, the Supabase provider values must be updated to THAT client (Supabase dashboard → Authentication → Providers → Google) and the callback registered on it — one place each, never in the website repo.
