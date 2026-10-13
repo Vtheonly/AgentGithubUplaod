@@ -19,6 +19,7 @@ import type {
   CalendarEvent,
   CreateCalendarEventInput,
   CalendarEventBase,
+  ExamCalendarEvent,
 } from "../../../domain/model/calendar";
 import { store, appendAudit, nowIso, delay } from "./mock-store";
 import { parentDisplayName } from "../../../domain/model/parent";
@@ -30,6 +31,16 @@ export class MockCalendarRepository implements CalendarRepository {
 
   observeForMonth(yearMonth: string): Observable<CalendarEvent[]> {
     return new SubjectBehavior<CalendarEvent[]>(this.getEventsForMonth(yearMonth));
+  }
+
+  observeExams(): Observable<ExamCalendarEvent[]> {
+    // T-525 (CROSS-201): the mock stores domain events directly — exams are
+    // the kind==='exam' population, ascending by date (mock parity with the
+    // Supabase twin's target_entity_type='exam' query).
+    const exams = store.calendarEvents
+      .filter((e): e is ExamCalendarEvent => e.kind === "exam")
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
+    return new SubjectBehavior<ExamCalendarEvent[]>(exams);
   }
 
   async create(input: CreateCalendarEventInput): Promise<Result<CalendarEvent>> {
@@ -49,7 +60,9 @@ export class MockCalendarRepository implements CalendarRepository {
             ? "Rappel"
             : input.kind === "meeting"
               ? "Réunion"
-              : "Événement",
+              : input.kind === "exam"
+                ? "Examen"
+                : "Événement",
       priority: input.priority,
       createdBy: input.createdBy,
       assignedToUserId: input.assignedToUserId ?? null,
@@ -79,6 +92,17 @@ export class MockCalendarRepository implements CalendarRepository {
         kind: "meeting",
         location: input.location ?? null,
         attendeeCount: input.attendeeCount ?? 0,
+      };
+    } else if (input.kind === "exam") {
+      // T-525 (CROSS-201): mock parity — the domain exam event (the Supabase
+      // twin persists kind='custom' + target_entity_type='exam' and maps
+      // back; the mock keeps the domain shape directly).
+      event = {
+        ...base,
+        kind: "exam",
+        classId: input.classId ?? null,
+        room: input.room ?? null,
+        invigilatorName: input.invigilatorName ?? null,
       };
     } else {
       event = { ...base, kind: "custom" };
@@ -114,6 +138,13 @@ export class MockCalendarRepository implements CalendarRepository {
       ...(updates.priority ? { priority: updates.priority } : {}),
       ...(updates.assignedToUserId !== undefined ? { assignedToUserId: updates.assignedToUserId } : {}),
       ...(updates.assignedToRole !== undefined ? { assignedToRole: updates.assignedToRole } : {}),
+      // T-525 (CROSS-201): the exam extras are patchable (reschedule keeps
+      // the same row — no duplicates).
+      ...(before.kind === "exam" && updates.room !== undefined ? { room: updates.room } : {}),
+      ...(before.kind === "exam" && updates.invigilatorName !== undefined
+        ? { invigilatorName: updates.invigilatorName }
+        : {}),
+      ...(before.kind === "exam" && updates.classId !== undefined ? { classId: updates.classId } : {}),
     } as CalendarEvent;
     store.calendarEvents[idx] = updated;
     store.notifyCalendarEvents();

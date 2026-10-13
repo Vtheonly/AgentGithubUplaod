@@ -78,6 +78,7 @@ import type {
   ReminderCalendarEvent,
   MeetingCalendarEvent,
   CustomCalendarEvent,
+  ExamCalendarEvent,
   PaymentCalendarEvent,
   AuditCalendarEvent,
   ExpenseCalendarEvent,
@@ -172,7 +173,16 @@ const MANUAL_KINDS: ReadonlySet<string> = new Set([
   "reminder",
   "meeting",
   "custom",
+  // T-525 (CROSS-201): the domain-only 'exam' discriminator — persisted as
+  // kind='custom' + target_entity_type='exam' (see insertRowOf/mapManualRow).
+  "exam",
 ]);
+
+/** T-525: does this PHYSICAL row represent an exam? (kind='custom' +
+ *  target_entity_type='exam' — the portal's documented contract.) */
+function isExamRow(row: Pick<CalendarEventTableRow, "kind" | "target_entity_type">): boolean {
+  return row.kind === "custom" && row.target_entity_type === "exam";
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -253,6 +263,19 @@ function mapManualRow(row: CalendarEventTableRow): CalendarEvent {
       } satisfies MeetingCalendarEvent;
     case "custom":
     default:
+      // T-525 (CROSS-201): a custom row carrying target_entity_type='exam'
+      // is an EXAM (the Pedagogy scheduling surface's persistence shape —
+      // the portal's documented contract) — reconstruct the domain kind.
+      if (isExamRow(row)) {
+        return {
+          ...base,
+          kind: "exam",
+          sourceLabel: CALENDAR_EVENT_KIND_LABELS_FR.exam,
+          classId: row.target_entity_id ?? null,
+          room: row.location ?? null,
+          invigilatorName: row.target_name ?? null,
+        } satisfies ExamCalendarEvent;
+      }
       return { ...base, kind: "custom" } satisfies CustomCalendarEvent;
   }
 }
@@ -360,9 +383,14 @@ function insertRowOf(input: CreateCalendarEventInput): Record<string, unknown> {
   const time = input.time ?? null;
   // All-day convention (0013): start_at = date@00:00, all_day = true.
   const startAt = time ? `${input.date}T${time}:00` : `${input.date}T00:00:00`;
+  // T-525 (CROSS-201): the domain 'exam' kind persists as kind='custom' +
+  // target_entity_type='exam' — 0013's CHECK constraint is untouched; the
+  // portal reads this exact shape (event-kind.ts). The class id scopes the
+  // parent's RLS read window (migration 0154).
+  const physicalKind = input.kind === "exam" ? "custom" : input.kind;
   const row: Record<string, unknown> = {
     tenant_id: getTenantId(),
-    kind: input.kind,
+    kind: physicalKind,
     title: input.title,
     description: input.description ?? null,
     start_at: startAt,
@@ -383,6 +411,11 @@ function insertRowOf(input: CreateCalendarEventInput): Record<string, unknown> {
   } else if (input.kind === "reminder") {
     row.target_entity_type = input.linkedEntityType ?? null;
     row.target_entity_id = isUuid(input.linkedEntityId ?? "") ? (input.linkedEntityId ?? null) : null;
+  } else if (input.kind === "exam") {
+    row.target_entity_type = "exam";
+    row.target_entity_id = isUuid(input.classId ?? "") ? (input.classId ?? null) : null;
+    row.target_name = input.invigilatorName ?? null;
+    row.location = input.room ?? null;
   }
   return row;
 }
@@ -400,6 +433,9 @@ export class SupabaseCalendarRepository implements CalendarRepository {
   private readonly buckets = new Map<string, SubjectBehavior<CalendarEvent[]>>();
   /** Buckets that have been seeded at least once (per-instance). */
   private readonly seededBuckets = new Set<string>();
+  /** T-525 (CROSS-201): the all-exams stream (observeExams). Lazy — created
+   *  on first subscription, refreshed after every exam write. */
+  private exams$: SubjectBehavior<ExamCalendarEvent[]> | null = null;
   private readonly freshness = new CacheFreshness();
 
   constructor(private readonly client: SupabaseClient) {}
@@ -417,6 +453,22 @@ export class SupabaseCalendarRepository implements CalendarRepository {
     return this.bucketFor(yearMonth);
   }
 
+  observeExams(): Observable<ExamCalendarEvent[]> {
+    // T-525 (CROSS-201 — the Pedagogy "Examens" tab):
+    // a dedicated exam stream, seeded once per instance on first
+    // subscription and re-seeded lazily after the TTL / on focus (the same
+    // T-034/CROSS-104 policy as the month buckets) — plus an explicit
+    // refresh after every exam write (see create/update/delete).
+    if (!this.exams$) {
+      this.exams$ = new SubjectBehavior<ExamCalendarEvent[]>([]);
+      void this.refreshExams();
+    } else if (this.freshness.shouldReseed()) {
+      this.freshness.markSeeded();
+      void this.refreshExams();
+    }
+    return this.exams$;
+  }
+
   async create(input: CreateCalendarEventInput): Promise<Result<CalendarEvent>> {
     if (!MANUAL_KINDS.has(input.kind)) {
       return Err(Errors.conflict(`Kind ${input.kind} is auto-generated — cannot create manually`));
@@ -431,6 +483,7 @@ export class SupabaseCalendarRepository implements CalendarRepository {
       .single();
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refreshBucket(input.date.slice(0, 7));
+    if (input.kind === "exam") await this.refreshExams();
     return Ok(mapManualRow(data as unknown as CalendarEventTableRow));
   }
 
@@ -465,6 +518,16 @@ export class SupabaseCalendarRepository implements CalendarRepository {
       if (updates.targetName !== undefined) patch.target_name = updates.targetName ?? "";
       if (updates.phone !== undefined) patch.target_phone = updates.phone ?? null;
     }
+    // T-525 (CROSS-201): the exam row's editable extras (room → location,
+    // invigilator → target_name, class → target_entity_id). An exam row is
+    // kind='custom' + target_entity_type='exam' — detect by the target, not
+    // the kind (the physical kind carries no exam marker).
+    const rowIsExam = existing.target_entity_type === "exam";
+    if (rowIsExam && (updates.room !== undefined || updates.invigilatorName !== undefined || updates.classId !== undefined)) {
+      if (updates.room !== undefined) patch.location = updates.room ?? null;
+      if (updates.invigilatorName !== undefined) patch.target_name = updates.invigilatorName ?? null;
+      if (updates.classId !== undefined) patch.target_entity_id = isUuid(updates.classId ?? "") ? (updates.classId ?? null) : null;
+    }
 
     const { data, error } = await this.client
       .from("calendar_events")
@@ -479,6 +542,7 @@ export class SupabaseCalendarRepository implements CalendarRepository {
     if (updates.date && updates.date !== isoDateOf(existing.start_at)) {
       await this.refreshBucket(updates.date.slice(0, 7));
     }
+    if (rowIsExam) await this.refreshExams();
     return Ok(mapManualRow(data as unknown as CalendarEventTableRow));
   }
 
@@ -495,6 +559,7 @@ export class SupabaseCalendarRepository implements CalendarRepository {
       .eq("tenant_id", getTenantId());
     if (error) return Err(supabaseErrorToAppError(error));
     await this.refreshBucket(isoDateOf(existing.start_at).slice(0, 7));
+    if (existing.target_entity_type === "exam") await this.refreshExams();
     return Ok(undefined);
   }
 
@@ -563,6 +628,32 @@ export class SupabaseCalendarRepository implements CalendarRepository {
       .order("start_at", { ascending: true });
     if (error) throw error;
     return (data ?? []).map((row: Record<string, any>) => mapManualRow(row as unknown as CalendarEventTableRow));
+  }
+
+  /** T-525 (CROSS-201): re-query every EXAM row (target_entity_type='exam',
+   *  soft-deleted excluded) and re-emit the exams stream — ascending by
+   *  start_at. The Pedagogy "Examens" tab and the portal's exam timetable
+   *  read this population. */
+  private async refreshExams(): Promise<void> {
+    if (!this.exams$) return;
+    try {
+      const { data, error } = await this.client
+        .from("calendar_events")
+        .select("*")
+        .eq("tenant_id", getTenantId())
+        .is("is_deleted", false)
+        .eq("target_entity_type", "exam")
+        .order("start_at", { ascending: true });
+      if (error) throw error;
+      // Every row in this query IS an exam row (target_entity_type='exam'),
+      // so mapManualRow's exam branch produces the ExamCalendarEvent variant.
+      const exams = (data ?? []).map(
+        (row: Record<string, any>) => mapManualRow(row as unknown as CalendarEventTableRow) as ExamCalendarEvent,
+      );
+      this.exams$.set(exams);
+    } catch {
+      // Silently degrade to the current cache (shared pattern).
+    }
   }
 
   private async fetchPayments(bounds: { start: string; end: string }): Promise<CalendarEvent[]> {

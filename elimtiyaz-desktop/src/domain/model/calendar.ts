@@ -25,7 +25,12 @@ export type CalendarEventKind =
   | "follow_up_call"
   | "reminder"
   | "meeting"
-  | "custom";
+  | "custom"
+  /** T-525 (CROSS-201): a DOMAIN-ONLY discriminator — exam rows persist as
+   *  kind='custom' + target_entity_type='exam' (0013's CHECK constraint is
+   *  untouched; the adapter lives in SupabaseCalendarRepository, both
+   *  directions — the portal's documented contract, event-kind.ts). */
+  | "exam";
 
 export interface CalendarEventBase {
   readonly id: string;
@@ -109,6 +114,22 @@ export interface CustomCalendarEvent extends CalendarEventBase {
   readonly kind: "custom";
 }
 
+/** T-525 (CROSS-201): a scheduled EXAM — created in the Pedagogy section,
+ *  displayed on the parent portal calendar's "Exam Timetable" (dates,
+ *  rooms, invigilators). Persisted as kind='custom' +
+ *  target_entity_type='exam' + target_entity_id=<class id> +
+ *  location=<room> + target_name=<invigilator>; the repository adapter
+ *  reconstructs this shape on read. */
+export interface ExamCalendarEvent extends CalendarEventBase {
+  readonly kind: "exam";
+  /** The class the exam is scheduled for (target_entity_id). */
+  readonly classId: string | null;
+  /** The examination room (location). */
+  readonly room: string | null;
+  /** The invigilator's name (target_name). */
+  readonly invigilatorName: string | null;
+}
+
 export type CalendarEvent =
   | PaymentCalendarEvent
   | AuditCalendarEvent
@@ -116,11 +137,14 @@ export type CalendarEvent =
   | FollowUpCallCalendarEvent
   | ReminderCalendarEvent
   | MeetingCalendarEvent
-  | CustomCalendarEvent;
+  | CustomCalendarEvent
+  | ExamCalendarEvent;
 
-/** Input for creating a manually scheduled event (follow-up call, reminder, meeting, custom). */
+/** Input for creating a manually scheduled event (follow-up call, reminder,
+ *  meeting, custom — and, since T-525, EXAMS scheduled from the Pedagogy
+ *  section). */
 export interface CreateCalendarEventInput {
-  readonly kind: "follow_up_call" | "reminder" | "meeting" | "custom";
+  readonly kind: "follow_up_call" | "reminder" | "meeting" | "custom" | "exam";
   readonly date: string;
   readonly time: string | null;
   readonly title: string;
@@ -140,6 +164,12 @@ export interface CreateCalendarEventInput {
   // Reminder extras
   readonly linkedEntityType?: string | null;
   readonly linkedEntityId?: string | null;
+  // Exam extras (T-525/CROSS-201 — persisted as kind='custom' +
+  // target_entity_type='exam'; the class scopes the portal's RLS read
+  // window, migration 0154).
+  readonly classId?: string | null;
+  readonly room?: string | null;
+  readonly invigilatorName?: string | null;
 }
 
 export const CALENDAR_EVENT_KIND_LABELS_FR: Record<CalendarEventKind, string> = {
@@ -150,6 +180,7 @@ export const CALENDAR_EVENT_KIND_LABELS_FR: Record<CalendarEventKind, string> = 
   reminder: "Rappel",
   meeting: "Réunion",
   custom: "Événement",
+  exam: "Examen",
 };
 
 export const CALENDAR_EVENT_KIND_ICON: Record<CalendarEventKind, string> = {
@@ -160,4 +191,5 @@ export const CALENDAR_EVENT_KIND_ICON: Record<CalendarEventKind, string> = {
   reminder: "Bell",
   meeting: "Users",
   custom: "Calendar",
+  exam: "GraduationCap",
 };

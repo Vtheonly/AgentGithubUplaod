@@ -8,6 +8,7 @@ import {
   School,
   BookOpen,
   ClipboardList,
+  ClipboardCheck,
   Trophy,
   Brain,
   Stethoscope,
@@ -39,8 +40,10 @@ import { PromotionCyclesTab } from "./promotion-cycles/promotion-cycles-tab";
 import { TeachersTab } from "./teachers-tab";
 import { SubjectsDirectoryTab } from "./subjects-directory-tab";
 import { HomeworkHistoryTab } from "./homework-history-tab";
+import { ExamsTab } from "./exams-tab";
 import { JustificationsTab } from "./justifications-tab";
 import { HomeworkPushModal } from "./homework-push-modal";
+import { ExamSchedulingModal } from "./exam-scheduling-modal";
 import { TimetableTab } from "./timetable/timetable-tab";
 import { StudentsDirectoryTab } from "./students-directory-tab";
 
@@ -53,6 +56,7 @@ type AcademicsTab =
   | "promotion_cycles"
   | "timetable"
   | "homework"
+  | "exams"
   | "justifications"
   | "clubs"
   | "psychology"
@@ -65,6 +69,9 @@ export function AcademicsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<AcademicsTab>("classes");
   const [homeworkOpen, setHomeworkOpen] = useState(false);
+  // T-525 (CROSS-201): the Pedagogy exam-scheduling surface.
+  const [examModalOpen, setExamModalOpen] = useState(false);
+  const [editingExam, setEditingExam] = useState<import("../../domain/model/calendar").ExamCalendarEvent | null>(null);
   // T-413: the "Open in Pédagogie" deep link — the student directory opens
   // with the referenced student pre-selected (the /crm?studentId convention).
   const [directoryStudentId, setDirectoryStudentId] = useState<string | null>(null);
@@ -196,6 +203,12 @@ export function AcademicsPage() {
         visible: canObj.assignHomework,
       },
       {
+        value: "exams",
+        label: "Examens",
+        icon: ClipboardCheck,
+        visible: canObj.assignHomework,
+      },
+      {
         value: "justifications",
         label: "Justificatifs",
         icon: FileCheck,
@@ -255,6 +268,8 @@ export function AcademicsPage() {
         return "Cycles de promotion par année scolaire — revue et confirmation classe par classe (T-403).";
       case "homework":
         return "Historique des devoirs diffusés aux classes.";
+      case "exams":
+        return "Programmation des examens — dates, salles et surveillants, publiée sur le calendrier du portail web des élèves.";
       case "timetable":
         return "Génération automatique de l'emploi du temps — configuration, contraintes, essais, validation et publication.";
       case "justifications":
@@ -281,6 +296,17 @@ export function AcademicsPage() {
               onClick={() => setHomeworkOpen(true)}
             >
               Diffuser un devoir
+            </Button>
+          ) : tab === "exams" && canObj.assignHomework ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingExam(null);
+                setExamModalOpen(true);
+              }}
+            >
+              Programmer un examen
             </Button>
           ) : null
         }
@@ -335,6 +361,19 @@ export function AcademicsPage() {
           <HomeworkHistoryTab />
         </PageTabContent>
 
+        <PageTabContent value="exams">
+          <ExamsTab
+            onSchedule={() => {
+              setEditingExam(null);
+              setExamModalOpen(true);
+            }}
+            onEdit={(exam) => {
+              setEditingExam(exam);
+              setExamModalOpen(true);
+            }}
+          />
+        </PageTabContent>
+
         <PageTabContent value="justifications">
           <JustificationsTab />
         </PageTabContent>
@@ -353,6 +392,12 @@ export function AcademicsPage() {
       </PageTabs>
 
       <HomeworkPushModal open={homeworkOpen} onOpenChange={setHomeworkOpen} />
+
+      <ExamSchedulingModal
+        open={examModalOpen}
+        onOpenChange={setExamModalOpen}
+        exam={editingExam}
+      />
     </div>
   );
 }

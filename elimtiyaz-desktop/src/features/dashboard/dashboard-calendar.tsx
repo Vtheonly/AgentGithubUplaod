@@ -20,6 +20,7 @@ import {
   Bell,
   Users,
   Calendar as CalendarIcon,
+  GraduationCap,
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -120,6 +121,7 @@ const KIND_ICONS: Record<CalendarEventKind, typeof Wallet> = {
   reminder: Bell,
   meeting: Users,
   custom: CalendarIcon,
+  exam: GraduationCap,
 };
 
 const KIND_TONES: Record<
@@ -133,6 +135,7 @@ const KIND_TONES: Record<
   reminder: "info",
   meeting: "neutral",
   custom: "neutral",
+  exam: "danger",
 };
 
 export function DashboardCalendar() {
@@ -429,7 +432,8 @@ export function DashboardCalendar() {
                     e.kind === "follow_up_call" ||
                     e.kind === "reminder" ||
                     e.kind === "meeting" ||
-                    e.kind === "custom";
+                    e.kind === "custom" ||
+                    e.kind === "exam";
 
                   return (
                     <div

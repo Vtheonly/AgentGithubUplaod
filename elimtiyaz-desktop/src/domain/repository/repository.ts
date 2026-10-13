@@ -1467,6 +1467,13 @@ export interface CalendarRepository {
   observeForDate(date: string): Observable<CalendarEvent[]>;
   /** Reactive stream of all events in a month (YYYY-MM). */
   observeForMonth(yearMonth: string): Observable<CalendarEvent[]>;
+  /**
+   * T-525 (CROSS-201): reactive stream of every scheduled EXAM event
+   * (kind='exam' — rows persisted as kind='custom' + target_entity_type=
+   * 'exam'), ascending by date. The Pedagogy "Examens" tab's source; the
+   * same rows the parent portal calendar renders as its exam timetable.
+   */
+  observeExams(): Observable<import("../model/calendar").ExamCalendarEvent[]>;
   /** Manually schedule a new event. */
   create(input: CreateCalendarEventInput): Promise<Result<CalendarEvent>>;
   /** Update a manually scheduled event. */

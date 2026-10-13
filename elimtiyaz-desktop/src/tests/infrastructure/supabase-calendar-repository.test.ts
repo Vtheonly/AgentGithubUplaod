@@ -31,9 +31,12 @@ import { SupabaseCalendarRepository } from "../../infrastructure/supabase/reposi
 import { Role } from "../../core/rbac/roles";
 import type {
   CalendarEvent,
+  CreateCalendarEventInput,
+  CalendarEventBase,
   FollowUpCallCalendarEvent,
   PaymentCalendarEvent,
   ExpenseCalendarEvent,
+  ExamCalendarEvent,
 } from "../../domain/model/calendar";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -558,8 +561,8 @@ describe("SupabaseCalendarRepository (T-175)", () => {
     expect(wiring).not.toMatch(/calendar:\s*mockCalendarRepository/);
   });
 
-  it("12. cross-platform kind parity: domain union == migration 0013 CHECK == website CalendarEventRow", () => {
-    // (a) Domain model kinds
+  it("12. cross-platform kind parity: domain union == migration 0013 CHECK == website CalendarEventRow (+ the T-525 virtual 'exam' adapter)", () => {
+    // (a) Domain model kinds — the 7 PHYSICAL kinds…
     const domainKinds = [
       "payment_received",
       "audit_log",
@@ -576,7 +579,15 @@ describe("SupabaseCalendarRepository (T-175)", () => {
     for (const k of domainKinds) {
       expect(domainSrc).toContain(`"${k}"`);
     }
-    // (b) Migration 0013 CHECK constraint carries the same set
+    // …AND the T-525 VIRTUAL kind: 'exam' exists ONLY at the domain level —
+    // it persists as kind='custom' + target_entity_type='exam' (the portal's
+    // documented contract, event-kind.ts). The PHYSICAL kind unions below
+    // must therefore NOT gain it.
+    expect(domainSrc).toContain('"exam"');
+    expect(domainSrc).toContain("ExamCalendarEvent");
+    expect(domainSrc).toMatch(/target_entity_type='exam'|target_entity_type = 'exam'/);
+    // (b) Migration 0013 CHECK constraint carries the same PHYSICAL set
+    // (unchanged by T-525 — 0013 is immutable; the exam adapter adds no kind).
     const migration = fs.readFileSync(
       path.resolve(
         __dirname,
@@ -587,10 +598,13 @@ describe("SupabaseCalendarRepository (T-175)", () => {
     for (const k of domainKinds) {
       expect(migration).toContain(`'${k}'`);
     }
-    // (c) The website's typed CalendarEventRow carries the same set — the
-    // website repo must be checked out as a sibling (AgentGithubUplaod/
+    expect(migration).not.toContain("'exam'");
+    // (c) The website's typed CalendarEventRow carries the same PHYSICAL set
+    // — the website repo must be checked out as a sibling (AgentGithubUplaod/
     // elimtiyaz-desktop ↔ ../elimtiyaz-website); skipped gracefully when
-    // absent so the desktop suite stays runnable standalone.
+    // absent so the desktop suite stays runnable standalone. The website
+    // detects exams by target_entity_type === "exam" (event-kind.ts), NOT by
+    // a kind enum value — pinned by the source-scan below.
     const websiteTypesPath = path.resolve(
       __dirname,
       "../../../../../../elimtiyaz-website/src/lib/types/database.ts",
@@ -600,7 +614,171 @@ describe("SupabaseCalendarRepository (T-175)", () => {
       for (const k of domainKinds) {
         expect(websiteTypes).toContain(`"${k}"`);
       }
+      const websiteEventKindPath = path.resolve(
+        __dirname,
+        "../../../../../../elimtiyaz-website/src/features/calendar/event-kind.ts",
+      );
+      if (fs.existsSync(websiteEventKindPath)) {
+        const websiteEventKind = fs.readFileSync(websiteEventKindPath, "utf-8");
+        expect(websiteEventKind).toContain("target_entity_type='exam'");
+        expect(websiteEventKind).toContain("kind='meeting' or 'custom'");
+      }
     }
+  });
+});
+
+// ============================================================================
+// T-525 (CROSS-201) — the exam scheduling adapter: the domain 'exam' kind
+// persists as kind='custom' + target_entity_type='exam' (the portal's
+// documented contract) and round-trips back to ExamCalendarEvent.
+// ============================================================================
+describe("SupabaseCalendarRepository T-525 — the exam scheduling adapter", () => {
+  const CLASS_ID = "eeeeeeee-0000-0000-0000-0000000000e1";
+
+  beforeEach(() => {
+    fakeClient.tables = {};
+    fakeClient.rpcResponses = {};
+    localStorage.setItem(
+      "el-imtiyaz.session",
+      JSON.stringify({ tenantId: TENANT, userId: STAFF }),
+    );
+    return () => localStorage.removeItem("el-imtiyaz.session");
+  });
+
+  function examRow(overrides: Partial<Row> = {}): Row {
+    return {
+      id: "cal-exam-1",
+      tenant_id: TENANT,
+      kind: "custom",
+      title: "Examen de Mathématiques — Trimestre 1",
+      description: null,
+      start_at: "2026-10-20T08:30:00",
+      end_at: null,
+      all_day: false,
+      location: "Salle 12",
+      attendee_count: 0,
+      target_entity_type: "exam",
+      target_entity_id: CLASS_ID,
+      target_name: "M. Benali",
+      target_phone: null,
+      created_by: STAFF,
+      priority: "medium",
+      assigned_to_user_id: null,
+      assigned_to_role: null,
+      created_at: "2026-10-13T10:00:00Z",
+      updated_at: "2026-10-13T10:00:00Z",
+      is_deleted: false,
+      ...overrides,
+    };
+  }
+
+  it("17. create() with kind='exam' persists the PHYSICAL contract: kind='custom' + target_entity_type='exam' + class/room/invigilator mapping (0013's CHECK untouched)", async () => {
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const result = await repo.create({
+      kind: "exam",
+      date: "2026-10-20",
+      time: "08:30",
+      title: "Examen de Mathématiques — Trimestre 1",
+      description: "Chapitres 1 à 4. Calculatrice autorisée.",
+      priority: "medium",
+      createdBy: STAFF,
+      classId: CLASS_ID,
+      room: "Salle 12",
+      invigilatorName: "M. Benali",
+    });
+    expect(result.ok).toBe(true);
+    const row = fakeClient.tables["calendar_events"][0];
+    // The PHYSICAL shape the portal reads (event-kind.ts) and 0154 scopes:
+    expect(row.kind).toBe("custom");
+    expect(row.target_entity_type).toBe("exam");
+    expect(row.target_entity_id).toBe(CLASS_ID);
+    expect(row.target_name).toBe("M. Benali");
+    expect(row.location).toBe("Salle 12");
+    expect(row.start_at).toBe("2026-10-20T08:30:00");
+    expect(row.all_day).toBe(false);
+    // The DOMAIN event returned is the exam variant:
+    const event = (result as { value: ExamCalendarEvent }).value;
+    expect(event.kind).toBe("exam");
+    expect(event.classId).toBe(CLASS_ID);
+    expect(event.room).toBe("Salle 12");
+    expect(event.invigilatorName).toBe("M. Benali");
+    expect(event.sourceLabel).toBe("Examen");
+  });
+
+  it("18. an exam row read back maps to the domain exam kind (round-trip) — and a NON-exam custom row stays 'custom'", async () => {
+    fakeClient.tables["calendar_events"] = [
+      examRow(),
+      manualRow({
+        id: "cal-plain-custom",
+        kind: "custom",
+        target_entity_type: null,
+        target_entity_id: null,
+        start_at: "2026-10-21T09:00:00",
+      }),
+    ];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeForMonth("2026-10");
+    await settle();
+    const events = obs.get();
+    expect(events).toHaveLength(2);
+    const exam = events.find((e) => e.id === "cal-exam-1") as ExamCalendarEvent;
+    expect(exam.kind).toBe("exam");
+    expect(exam.classId).toBe(CLASS_ID);
+    expect(exam.room).toBe("Salle 12");
+    expect(exam.invigilatorName).toBe("M. Benali");
+    const plain = events.find((e) => e.id === "cal-plain-custom");
+    expect(plain?.kind).toBe("custom");
+  });
+
+  it("19. observeExams() returns ONLY exam rows, ascending by date", async () => {
+    fakeClient.tables["calendar_events"] = [
+      manualRow(),
+      examRow({ id: "cal-exam-2", start_at: "2026-11-05T10:00:00" }),
+      examRow(),
+    ];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeExams();
+    await settle();
+    const exams = obs.get();
+    expect(exams).toHaveLength(2);
+    expect(exams.every((e) => e.kind === "exam")).toBe(true);
+    expect(exams[0].id).toBe("cal-exam-1"); // 2026-10-20 sorts before 2026-11-05
+    expect(exams[1].id).toBe("cal-exam-2");
+  });
+
+  it("20. update() reschedules an exam on the SAME row (no duplicate) and patches room/invigilator/class", async () => {
+    fakeClient.tables["calendar_events"] = [examRow()];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const ok = await repo.update("cal-exam-1", {
+      date: "2026-10-22",
+      time: "10:00",
+      room: "Salle 14",
+      invigilatorName: "Mme Hadj",
+    });
+    expect(ok.ok).toBe(true);
+    // ONE row — patched in place, never duplicated:
+    expect(fakeClient.tables["calendar_events"]).toHaveLength(1);
+    const row = fakeClient.tables["calendar_events"][0];
+    expect(row.start_at).toBe("2026-10-22T10:00:00");
+    expect(row.location).toBe("Salle 14");
+    expect(row.target_name).toBe("Mme Hadj");
+    expect(row.target_entity_type).toBe("exam"); // still an exam row
+    // The updated domain event keeps the exam shape:
+    const event = (ok as { value: ExamCalendarEvent }).value;
+    expect(event.kind).toBe("exam");
+    expect(event.room).toBe("Salle 14");
+  });
+
+  it("21. delete() soft-deletes an exam and observeExams() drops it (0013 semantics)", async () => {
+    fakeClient.tables["calendar_events"] = [examRow()];
+    const repo = new SupabaseCalendarRepository(fakeClient as unknown as SupabaseClient);
+    const obs = repo.observeExams();
+    await settle();
+    expect(obs.get()).toHaveLength(1);
+    const result = await repo.delete("cal-exam-1");
+    expect(result.ok).toBe(true);
+    expect(fakeClient.tables["calendar_events"][0].is_deleted).toBe(true);
+    expect(obs.get()).toHaveLength(0);
   });
 });
 
