@@ -52,6 +52,20 @@
  * Reactive reads follow the repository-adapter pattern used by every
  * Supabase repository: a `SubjectBehavior` cache seeded on first
  * subscription and refreshed after every successful write.
+ *
+ * T-521 (issue #29) ADDITIONS:
+ *   8. ATTACHMENTS — `expense_attachments` (migration 0153) is the canonical
+ *      metadata store; the bytes go through the ONE media vault
+ *      (`uploadPrivateMedia({bucket:"expense-receipts"})` — media-vault.ts,
+ *      the §6 reuse rule) with the `<tenant>/<expense>/<file>` path canon
+ *      (§15.28). `receipt_path` (the legacy single-proof column) stays
+ *      written at settle for backward compatibility with deployed clients.
+ *   9. RESPONSIBLE PERSON — `responsible_profile_id` (migration 0153) is a
+ *      distinct nullable FK; historical rows keep NULL (flagged in the UI,
+ *      never fabricated).
+ *  10. EDIT — `update()` patches the editable fields while the ticket is
+ *      still draft/submitted (the pre-approval window); the SAME row is
+ *      updated, never duplicated.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
@@ -64,14 +78,20 @@ import { Errors } from "../../../core/app-error";
 import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
+import { uploadPrivateMedia } from "../../storage/media-vault";
 import type {
   Expense,
+  ExpenseAttachment,
+  ExpenseAttachmentFile,
+  ExpenseAttachmentSource,
   ExpenseCategory,
   ExpenseStatus,
   ExpenseUrgency,
   SubmitExpenseInput,
+  UpdateExpenseInput,
 } from "../../../domain/model/expense";
-import type { ExpenseTicketRow } from "../types";
+import { EXPENSE_STATUS_LABELS_FR } from "../../../domain/model/expense";
+import type { ExpenseTicketRow, ExpenseAttachmentRow } from "../types";
 import { getTenantId, requireTenantId, isUuid } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
@@ -184,6 +204,9 @@ function mapTicketRow(row: ExpenseTicketRow, categoryCode: string | null): Expen
     status: STATUS_FROM_DB[row.status] ?? "draft",
     submittedBy: row.submitted_by,
     submittedAt: row.submitted_at,
+    // T-521 (WORKFORCE-520): the distinct accountable person (nullable —
+    // historical rows stay NULL and are flagged in the UI, never fabricated).
+    responsibleProfileId: row.responsible_profile_id ?? null,
     approvedBy: row.approved_by,
     approvedAt: row.approved_at,
     approvalNote: row.approval_note ?? row.rejected_reason,
@@ -210,6 +233,26 @@ function mapTicketRow(row: ExpenseTicketRow, categoryCode: string | null): Expen
 }
 
 // ============================================================================
+// Row → domain mapper — attachments (T-521, migration 0153)
+// ============================================================================
+
+function mapAttachmentRow(row: ExpenseAttachmentRow): ExpenseAttachment {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    expenseId: row.expense_id,
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    sizeBytes: Number(row.size_bytes),
+    uploadedBy: row.uploaded_by,
+    uploadedAt: row.uploaded_at,
+    source: row.source,
+  };
+}
+
+// ============================================================================
 // Repository
 // ============================================================================
 
@@ -217,6 +260,12 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
   private readonly cache = new SubjectBehavior<Expense[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  /** T-521: per-expense attachment caches (lazily created, TTL-fresh). */
+  private readonly attachmentCaches = new Map<
+    string,
+    SubjectBehavior<ExpenseAttachment[]>
+  >();
+  private readonly attachmentFreshness = new Map<string, CacheFreshness>();
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -320,6 +369,14 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
         status: STATUS_TO_DB.submitted, // mock parity: submit creates a pending_approval ticket
         submitted_by: profileId ?? (isUuid(submittedBy) ? submittedBy : null),
         payee: input.payee, // migration 0056 — header note 3
+        // T-521 (WORKFORCE-520): the distinct accountable person — the
+        // submitter's own profile when they are responsible, another staff
+        // member's profile when they submit on someone's behalf; NULL when
+        // unknown (flagged for review in the UI, never fabricated).
+        responsible_profile_id:
+          input.responsibleProfileId && isUuid(input.responsibleProfileId)
+            ? input.responsibleProfileId
+            : profileId,
       })
       .select("*, expense_categories(code)")
       .single();
@@ -435,6 +492,255 @@ export class SupabaseExpenseRepository implements ExpenseRepository {
       AuditActions.ExpenseSettle,
       uploadedBy,
     );
+  }
+
+  // ==========================================================================
+  // T-521 (issue #29) — edit, attachments, responsible person
+  // ==========================================================================
+
+  /**
+   * T-521: edit an EXISTING expense — only while the ticket is still
+   * draft/submitted (the pre-approval window; after approval the 0064 state
+   * machine owns the lifecycle and the amounts are frozen). The SAME row is
+   * updated, never duplicated.
+   */
+  async update(
+    id: string,
+    input: UpdateExpenseInput,
+    actorId: string,
+  ): Promise<Result<Expense>> {
+    const before = this.cache.get().find((e) => e.id === id);
+    if (!before) return Err(Errors.notFound("Expense", id));
+    if (before.status !== "draft" && before.status !== "submitted") {
+      return Err(
+        Errors.conflict(
+          `Modification impossible: la dépense est déjà ${EXPENSE_STATUS_LABELS_FR[before.status].toLowerCase()} — seules les dépenses en attente sont modifiables.`,
+          `Modification impossible : la dépense est déjà ${EXPENSE_STATUS_LABELS_FR[before.status].toLowerCase()} — seules les dépenses en attente sont modifiables.`,
+        ),
+      );
+    }
+
+    // Build the DB-column patch (only the provided fields — a partial patch,
+    // never a full-row clobber; §15.31a's granular-mutation discipline).
+    const patch: Record<string, unknown> = { updated_at: nowIso() };
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.description !== undefined) {
+      patch.description = input.description;
+      // Header note 4: justification NOT NULL carries the submitter's text.
+      patch.justification = input.description;
+    }
+    if (input.amount !== undefined) patch.requested_amount = input.amount;
+    if (input.payee !== undefined) patch.payee = input.payee;
+    if (input.urgency !== undefined) patch.urgency = input.urgency;
+    if (input.category !== undefined) {
+      try {
+        patch.category_id = await this.categoryIdFor(
+          CATEGORY_TO_DB[input.category],
+        );
+      } catch (e) {
+        return Err(
+          Errors.validation(
+            e instanceof Error ? e.message : "Catégorie introuvable",
+          ),
+        );
+      }
+    }
+    if (input.responsibleProfileId !== undefined) {
+      // null is EXPLICIT (clearing); a value must be a uuid.
+      patch.responsible_profile_id =
+        input.responsibleProfileId && isUuid(input.responsibleProfileId)
+          ? input.responsibleProfileId
+          : null;
+    }
+
+    const { data, error } = await this.client
+      .from("expense_tickets")
+      .update(patch)
+      .eq("id", id)
+      .eq("tenant_id", getTenantId())
+      .select("*, expense_categories(code)")
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    const categoryCode =
+      (data.expense_categories as { code: string } | null)?.code ?? null;
+    const after = mapTicketRow(data as ExpenseTicketRow, categoryCode);
+    this.cache.set(this.cache.get().map((e) => (e.id === id ? after : e)));
+
+    await this.writeAudit(AuditActions.ExpenseUpdate, id, actorId, {
+      before: {
+        title: before.title,
+        amount: before.amount,
+        category: before.category,
+        payee: before.payee,
+        urgency: before.urgency,
+      },
+      after: {
+        title: after.title,
+        amount: after.amount,
+        category: after.category,
+        payee: after.payee,
+        urgency: after.urgency,
+      },
+    });
+
+    return Ok(after);
+  }
+
+  /**
+   * T-521 (WORKFORCE-518): attach a supporting image — upload the bytes
+   * through the ONE media vault (the private `expense-receipts` bucket, the
+   * `<tenant>/<expense>/<file>` path canon) and register the canonical
+   * `expense_attachments` metadata row. NEVER creates a separate expense.
+   */
+  async addAttachment(
+    expenseId: string,
+    file: ExpenseAttachmentFile,
+    uploadedBy: string,
+    source: ExpenseAttachmentSource = "desktop",
+  ): Promise<Result<ExpenseAttachment>> {
+    const expense = this.cache.get().find((e) => e.id === expenseId);
+    if (!expense) return Err(Errors.notFound("Expense", expenseId));
+    const tenantId = requireTenantId();
+
+    // 1. The bytes → the private bucket (the ONE upload path; §6 reuse rule).
+    let upload;
+    try {
+      upload = await uploadPrivateMedia({
+        bucket: "expense-receipts",
+        entityId: expenseId,
+        tenantId,
+        file: file.blob as File,
+      });
+    } catch (e) {
+      return Err(
+        Errors.network(
+          e instanceof Error
+            ? `Échec du téléversement : ${e.message}`
+            : "Échec du téléversement du justificatif",
+        ),
+      );
+    }
+
+    // 2. The canonical metadata row (duplicate-path guard = the DB UNIQUE).
+    const { data, error } = await this.client
+      .from("expense_attachments")
+      .insert({
+        tenant_id: tenantId,
+        expense_id: expenseId,
+        storage_bucket: "expense-receipts",
+        storage_path: upload.path,
+        file_name: file.name,
+        mime_type: file.type || "application/octet-stream",
+        size_bytes: file.size,
+        uploaded_by: isUuid(uploadedBy) ? uploadedBy : null,
+        source,
+      })
+      .select("*")
+      .single();
+
+    if (error) return Err(supabaseErrorToAppError(error));
+
+    const attachment = mapAttachmentRow(data as ExpenseAttachmentRow);
+    const cache = this.attachmentCaches.get(expenseId);
+    if (cache) cache.set([attachment, ...cache.get()]);
+
+    await this.writeAudit(AuditActions.ExpenseAttachmentAdd, expenseId, uploadedBy, {
+      before: null,
+      after: {
+        attachmentId: attachment.id,
+        fileName: attachment.fileName,
+        storagePath: attachment.storagePath,
+        source: attachment.source,
+      },
+    });
+
+    return Ok(attachment);
+  }
+
+  /** T-521: remove one attachment (the metadata row; the bytes stay in the
+   *  bucket per the retention policy — orphaned bytes are a storage cleanup
+   *  concern, never a data-integrity one). */
+  async removeAttachment(
+    attachmentId: string,
+    actorId: string,
+  ): Promise<Result<void>> {
+    // Find the owning cache (for the reactive update) before the delete.
+    let owningExpenseId: string | null = null;
+    for (const [expenseId, cache] of this.attachmentCaches) {
+      if (cache.get().some((a) => a.id === attachmentId)) {
+        owningExpenseId = expenseId;
+        break;
+      }
+    }
+
+    const { data, error } = await this.client
+      .from("expense_attachments")
+      .delete()
+      .eq("id", attachmentId)
+      .eq("tenant_id", getTenantId())
+      .select("*");
+
+    // §15.30b: PostgREST returns 200 + EMPTY array when a DELETE matches
+    // zero rows under RLS — assert the affected-row count, never the status.
+    if (error) return Err(supabaseErrorToAppError(error));
+    if (!data || data.length === 0) {
+      return Err(Errors.notFound("Attachment", attachmentId));
+    }
+
+    if (owningExpenseId) {
+      const cache = this.attachmentCaches.get(owningExpenseId);
+      if (cache) {
+        cache.set(cache.get().filter((a) => a.id !== attachmentId));
+      }
+      await this.writeAudit(
+        AuditActions.ExpenseAttachmentRemove,
+        owningExpenseId,
+        actorId,
+        {
+          before: { attachmentId },
+          after: null,
+        },
+      );
+    }
+
+    return Ok(undefined);
+  }
+
+  /** T-521: the reactive attachment list for ONE expense. */
+  observeAttachments(expenseId: string): Observable<ExpenseAttachment[]> {
+    let cache = this.attachmentCaches.get(expenseId);
+    if (!cache) {
+      cache = new SubjectBehavior<ExpenseAttachment[]>([]);
+      this.attachmentCaches.set(expenseId, cache);
+      this.attachmentFreshness.set(expenseId, new CacheFreshness());
+    }
+    const freshness = this.attachmentFreshness.get(expenseId)!;
+    if (freshness.shouldReseed()) {
+      freshness.markSeeded();
+      void this.refreshAttachments(expenseId);
+    }
+    return cache;
+  }
+
+  /** Fetch one expense's attachments and refresh its cache. */
+  private async refreshAttachments(expenseId: string): Promise<void> {
+    const cache = this.attachmentCaches.get(expenseId);
+    if (!cache) return;
+    try {
+      const { data, error } = await this.client
+        .from("expense_attachments")
+        .select("*")
+        .eq("tenant_id", getTenantId())
+        .eq("expense_id", expenseId)
+        .order("uploaded_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      cache.set((data ?? []).map((row) => mapAttachmentRow(row as ExpenseAttachmentRow)));
+    } catch {
+      // Degrade to the current cache (the repository-adapter convention).
+    }
   }
 
   // ==========================================================================

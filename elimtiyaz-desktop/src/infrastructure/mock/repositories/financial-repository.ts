@@ -54,7 +54,15 @@ import {
   type DebtAgingAnalysis,
   type DebtAgingThresholds,
 } from "../../../domain/calc/ledger/debt-aging";
-import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../domain/model/expense";
+import type {
+  Expense,
+  SubmitExpenseInput,
+  UpdateExpenseInput,
+  ExpenseAttachment,
+  ExpenseAttachmentFile,
+  ExpenseAttachmentSource,
+  ExpenseStatus,
+} from "../../../domain/model/expense";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 // T-466 (DEBT-102): the canonical charge-entry factory — the manual debt's
 // ledger twin is built through the SAME invariant-enforcing factory every
@@ -85,6 +93,8 @@ import {
 import {
   submitExpense, approveExpense, rejectExpense, disburseExpense,
   settleProofExpense, transitionExpense,
+  // T-521 (issue #29): the unification additions.
+  updateExpense, addExpenseAttachment, removeExpenseAttachment,
 } from "./financial/expense-ops";
 
 /** Shared ctx bundle — constructed once, passed to every op call. */
@@ -928,6 +938,10 @@ export class MockExpenseRepository implements ExpenseRepository {
   submit(input: SubmitExpenseInput, submittedBy: string): Promise<Result<Expense>> {
     return submitExpense(ctx, input, submittedBy);
   }
+  /** T-521 (issue #29): edit an existing expense (pre-approval window only). */
+  update(id: string, input: UpdateExpenseInput, actorId: string): Promise<Result<Expense>> {
+    return updateExpense(ctx, id, input, actorId);
+  }
   approve(id: string, approver: string, note?: string): Promise<Result<Expense>> {
     return approveExpense(ctx, id, approver, note);
   }
@@ -939,6 +953,27 @@ export class MockExpenseRepository implements ExpenseRepository {
   }
   settleProof(id: string, proofUrl: string, uploadedBy: string): Promise<Result<Expense>> {
     return settleProofExpense(ctx, id, proofUrl, uploadedBy);
+  }
+  /** T-521 (issue #29 / WORKFORCE-518): attach a supporting image. */
+  addAttachment(
+    expenseId: string,
+    file: ExpenseAttachmentFile,
+    uploadedBy: string,
+    source?: ExpenseAttachmentSource,
+  ): Promise<Result<ExpenseAttachment>> {
+    return addExpenseAttachment(ctx, expenseId, file, uploadedBy, source ?? "desktop");
+  }
+  /** T-521: remove one attachment. */
+  removeAttachment(attachmentId: string, actorId: string): Promise<Result<void>> {
+    return Promise.resolve(removeExpenseAttachment(ctx, attachmentId, actorId));
+  }
+  /** T-521: the reactive attachment list for ONE expense. */
+  observeAttachments(expenseId: string): Observable<ExpenseAttachment[]> {
+    return derived([store.expenseAttachments$], () =>
+      store.expenseAttachments
+        .filter((a) => a.expenseId === expenseId)
+        .sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1)),
+    );
   }
   /**
    * Iteration 6: shared state-machine transition. Kept as a private method

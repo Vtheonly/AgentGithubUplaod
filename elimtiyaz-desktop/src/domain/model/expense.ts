@@ -45,6 +45,42 @@ export const EXPENSE_URGENCY_TONE: Record<ExpenseUrgency, "success" | "warning" 
   high: "danger",
 };
 
+/**
+ * T-521 (issue #29 / WORKFORCE-518): where an attachment's bytes were
+ * captured — the canonical `expense_attachments.source` CHECK set (migration
+ * 0153). The desktop picker writes "desktop"; the Android scanner writes
+ * "mobile_camera" (TakePicture) or "mobile_gallery" (GetContent).
+ */
+export type ExpenseAttachmentSource = "desktop" | "mobile_camera" | "mobile_gallery";
+
+export const EXPENSE_ATTACHMENT_SOURCE_LABELS_FR: Record<ExpenseAttachmentSource, string> = {
+  desktop: "Ordinateur",
+  mobile_camera: "Scanner mobile",
+  mobile_gallery: "Galerie mobile",
+};
+
+/**
+ * T-521 (issue #29 / WORKFORCE-518): ONE supporting image attached to an
+ * expense — the canonical `expense_attachments` row (migration 0153). The
+ * bytes live in the private `expense-receipts` bucket (migration 0018) at
+ * `storagePath`; the metadata (name, mime, size, uploader, source) is the
+ * single source of truth shared by desktop Finance, desktop Staff/Personnel,
+ * and the Android scanner.
+ */
+export interface ExpenseAttachment {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly expenseId: string;
+  readonly storageBucket: "expense-receipts" | "payment-proofs";
+  readonly storagePath: string;
+  readonly fileName: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly uploadedBy: string | null;
+  readonly uploadedAt: string;
+  readonly source: ExpenseAttachmentSource;
+}
+
 export interface Expense {
   readonly id: string;
   readonly tenantId: string;
@@ -59,6 +95,13 @@ export interface Expense {
   readonly status: ExpenseStatus;
   readonly submittedBy: string;
   readonly submittedAt: string;
+  /**
+   * T-521 (issue #29 / WORKFORCE-520): the staff member accountable for the
+   * spend — DISTINCT from `submittedBy` (the requester) and `approvedBy` (the
+   * decider). Null on historical rows: those are FLAGGED for review in the
+   * UI ("à renseigner"), never fabricated.
+   */
+  readonly responsibleProfileId: string | null;
   readonly approvedBy: string | null;
   readonly approvedAt: string | null;
   readonly approvalNote: string | null;
@@ -107,4 +150,39 @@ export interface SubmitExpenseInput {
   readonly payee: string;
   /** VAULT §08.02 — urgency (Low / Medium / High), default "medium". */
   readonly urgency?: ExpenseUrgency;
+  /**
+   * T-521 (issue #29 / WORKFORCE-520): the accountable staff member — a
+   * user_profiles id, DISTINCT from the submitter. Optional: omitting leaves
+   * the row NULL (flagged for review, never fabricated).
+   */
+  readonly responsibleProfileId?: string | null;
+}
+
+/**
+ * T-521 (issue #29): the editable fields of an EXISTING expense — only
+ * accepted while the ticket is still `draft`/`submitted` (the pre-approval
+ * window; the 0064 state machine owns the lifecycle after that).
+ */
+export interface UpdateExpenseInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly amount?: number;
+  readonly category?: ExpenseCategory;
+  readonly payee?: string;
+  readonly urgency?: ExpenseUrgency;
+  readonly responsibleProfileId?: string | null;
+}
+
+/**
+ * T-521 (issue #29 / WORKFORCE-518): the file payload for a new attachment.
+ * `blob` carries the bytes (a browser File in the app; a Blob in tests) —
+ * the repository uploads it through the ONE media vault (expense-receipts
+ * bucket in Supabase mode, the in-memory vault in mock mode) and registers
+ * the canonical metadata row.
+ */
+export interface ExpenseAttachmentFile {
+  readonly name: string;
+  readonly type: string;
+  readonly size: number;
+  readonly blob: Blob;
 }

@@ -9,7 +9,16 @@ import type { Result } from "../../../../core/result";
 import { Ok, Err } from "../../../../core/result";
 import { Errors } from "../../../../core/app-error";
 import { AuditActions } from "../../../../core/audit-actions";
-import type { Expense, SubmitExpenseInput, ExpenseStatus } from "../../../../domain/model/expense";
+import { uploadPrivateMedia } from "../../../storage/media-vault";
+import type {
+  Expense,
+  ExpenseAttachment,
+  ExpenseAttachmentFile,
+  ExpenseAttachmentSource,
+  SubmitExpenseInput,
+  UpdateExpenseInput,
+  ExpenseStatus,
+} from "../../../../domain/model/expense";
 import type { FinancialOpsCtx } from "./types";
 
 /**
@@ -66,6 +75,10 @@ export async function submitExpense(
     requestCode: `EXP-2025-${String(seq).padStart(3, "0")}`,
     status: "submitted",
     submittedBy,
+    // T-521 (WORKFORCE-520): the distinct accountable person — defaults to
+    // the submitter when not named (the common case), another staff member
+    // when submitting on someone's behalf.
+    responsibleProfileId: input.responsibleProfileId ?? submittedBy,
     submittedAt: nowIso(),
     approvedBy: null, approvedAt: null, approvalNote: null,
     disbursedBy: null, disbursedAt: null,
@@ -186,6 +199,146 @@ export async function settleProofExpense(
     ...(finalSpentAmount !== undefined && finalSpentAmount > 0 ? { finalSpentAmount } : {}),
   };
   return transitionExpense(ctx, id, "settled", patches, AuditActions.ExpenseSettle, uploadedBy);
+}
+
+/**
+ * T-521 (issue #29): edit an EXISTING expense — only while draft/submitted
+ * (the pre-approval window). The SAME record is updated, never duplicated.
+ */
+export async function updateExpense(
+  ctx: FinancialOpsCtx,
+  id: string,
+  input: UpdateExpenseInput,
+  actorId: string,
+): Promise<Result<Expense>> {
+  const { store, appendAudit } = ctx;
+  const idx = store.expenses.findIndex((e) => e.id === id);
+  if (idx < 0) return Err(Errors.notFound("Expense", id));
+  const before = store.expenses[idx];
+  if (before.status !== "draft" && before.status !== "submitted") {
+    return Err(
+      Errors.conflict(
+        `Modification impossible: la dépense est déjà ${before.status} — seules les dépenses en attente sont modifiables.`,
+        `Modification impossible : la dépense est déjà ${before.status} — seules les dépenses en attente sont modifiables.`,
+      ),
+    );
+  }
+  const after: Expense = {
+    ...before,
+    ...(input.title !== undefined ? { title: input.title } : {}),
+    ...(input.description !== undefined ? { description: input.description } : {}),
+    ...(input.amount !== undefined ? { amount: input.amount } : {}),
+    ...(input.category !== undefined ? { category: input.category } : {}),
+    ...(input.payee !== undefined ? { payee: input.payee } : {}),
+    ...(input.urgency !== undefined ? { urgency: input.urgency } : {}),
+    ...(input.responsibleProfileId !== undefined
+      ? { responsibleProfileId: input.responsibleProfileId }
+      : {}),
+  };
+  store.expenses[idx] = after;
+  store.notifyExpenses();
+  appendAudit({
+    action: AuditActions.ExpenseUpdate,
+    entityType: "expense",
+    entityId: id,
+    actorId,
+    actorName: "Session courante",
+    diff: {
+      before: { title: before.title, amount: before.amount },
+      after: { title: after.title, amount: after.amount },
+    },
+  });
+  return Ok(after);
+}
+
+/**
+ * T-521 (issue #29 / WORKFORCE-518): attach a supporting image — the bytes go
+ * through the ONE media vault (`uploadPrivateMedia` is mode-aware: the
+ * in-memory mock vault when Supabase is not configured, the private
+ * `expense-receipts` bucket otherwise) and the canonical metadata row lands
+ * in the mock store's `expenseAttachments`. NEVER creates a separate expense.
+ */
+export async function addExpenseAttachment(
+  ctx: FinancialOpsCtx,
+  expenseId: string,
+  file: ExpenseAttachmentFile,
+  uploadedBy: string,
+  source: ExpenseAttachmentSource = "desktop",
+): Promise<Result<ExpenseAttachment>> {
+  const { store, appendAudit, nowIso, delay, tenantId } = ctx;
+  await delay(180);
+  const expense = store.expenses.find((e) => e.id === expenseId);
+  if (!expense) return Err(Errors.notFound("Expense", expenseId));
+
+  let upload;
+  try {
+    upload = await uploadPrivateMedia({
+      bucket: "expense-receipts",
+      entityId: expenseId,
+      tenantId,
+      file: file.blob as File,
+    });
+  } catch (e) {
+    return Err(
+      Errors.network(
+        e instanceof Error
+          ? `Échec du téléversement : ${e.message}`
+          : "Échec du téléversement du justificatif",
+      ),
+    );
+  }
+
+  const attachment: ExpenseAttachment = {
+    id: `expatt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    tenantId,
+    expenseId,
+    storageBucket: "expense-receipts",
+    storagePath: upload.path,
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    sizeBytes: file.size,
+    uploadedBy,
+    uploadedAt: nowIso(),
+    source,
+  };
+  store.expenseAttachments = [attachment, ...store.expenseAttachments];
+  store.notifyExpenseAttachments();
+  appendAudit({
+    action: AuditActions.ExpenseAttachmentAdd,
+    entityType: "expense",
+    entityId: expenseId,
+    actorId: uploadedBy,
+    actorName: "Session courante",
+    diff: {
+      before: null,
+      after: { fileName: attachment.fileName, source: attachment.source },
+    },
+  });
+  return Ok(attachment);
+}
+
+/** T-521: remove one attachment (the metadata row; mock vault bytes stay). */
+export function removeExpenseAttachment(
+  ctx: FinancialOpsCtx,
+  attachmentId: string,
+  actorId: string,
+): Result<void> {
+  const { store, appendAudit } = ctx;
+  const existing = store.expenseAttachments.find((a) => a.id === attachmentId);
+  if (!existing) return Err(Errors.notFound("Attachment", attachmentId));
+  store.expenseAttachments = store.expenseAttachments.filter(
+    (a) => a.id !== attachmentId,
+  );
+  store.notifyExpenseAttachments();
+  appendAudit({
+    action: AuditActions.ExpenseAttachmentRemove,
+    entityType: "expense",
+    entityId: existing.expenseId,
+    actorId,
+    actorName: "Session courante",
+    diff: { before: { attachmentId }, after: null },
+  });
+  return Ok(undefined);
 }
 
 /**

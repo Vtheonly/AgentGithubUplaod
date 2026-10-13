@@ -119,6 +119,10 @@ export const AuditActions = {
   ExpenseReject: "expense.reject",
   ExpenseDisburse: "expense.disburse",
   ExpenseSettle: "expense.settle",
+  // T-521 (issue #29): the unification additions — edit, attachments.
+  ExpenseUpdate: "expense.update",
+  ExpenseAttachmentAdd: "expense.attachment_add",
+  ExpenseAttachmentRemove: "expense.attachment_remove",
 
   // Personnel
   PersonnelCreate: "personnel.create",

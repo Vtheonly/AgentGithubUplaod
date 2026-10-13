@@ -57,7 +57,14 @@ import type {
   CalendarEvent,
   CreateCalendarEventInput,
 } from "../model/calendar";
-import type { Expense, SubmitExpenseInput } from "../model/expense";
+import type {
+  Expense,
+  SubmitExpenseInput,
+  UpdateExpenseInput,
+  ExpenseAttachment,
+  ExpenseAttachmentFile,
+  ExpenseAttachmentSource,
+} from "../model/expense";
 import type {
   Personnel,
   ReleveEntry,
@@ -948,6 +955,25 @@ export interface ExpenseRepository {
    * the receipt against the disbursed amount before the ticket closes.
    */
   settleProof(id: string, proofUrl: string, uploadedBy: string, finalSpentAmount?: number): Promise<Result<Expense>>;
+  /**
+   * T-521 (issue #29): edit an EXISTING expense's editable fields — only
+   * accepted while the ticket is still `draft`/`submitted` (the pre-approval
+   * window). Updates the SAME record (never a duplicate).
+   */
+  update(id: string, input: UpdateExpenseInput, actorId: string): Promise<Result<Expense>>;
+  /**
+   * T-521 (issue #29 / WORKFORCE-518): attach a supporting image to an
+   * expense — ONE expense may carry MANY attachments. The repository uploads
+   * the bytes through the ONE media vault (the private `expense-receipts`
+   * bucket in Supabase mode — migration 0018; the in-memory vault in mock
+   * mode) and registers the canonical `expense_attachments` metadata row
+   * (migration 0153). NEVER creates a separate expense.
+   */
+  addAttachment(expenseId: string, file: ExpenseAttachmentFile, uploadedBy: string, source?: ExpenseAttachmentSource): Promise<Result<ExpenseAttachment>>;
+  /** T-521: remove one attachment (privileged surface; audited client-side). */
+  removeAttachment(attachmentId: string, actorId: string): Promise<Result<void>>;
+  /** T-521: the reactive attachment list for ONE expense. */
+  observeAttachments(expenseId: string): Observable<ExpenseAttachment[]>;
 }
 
 export interface PersonnelRepository {

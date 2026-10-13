@@ -85,7 +85,7 @@ import type {
   TimetableEntry,
 } from "../../../domain/model/teacher";
 import type { Payment, Installment } from "../../../domain/model/payment";
-import type { Expense } from "../../../domain/model/expense";
+import type { Expense, ExpenseAttachment } from "../../../domain/model/expense";
 import type { Personnel, ReleveEntry } from "../../../domain/model/personnel";
 import type { AuditEntry } from "../../../domain/model/audit";
 import type { AppNotification } from "../../../domain/model/operations";
@@ -118,6 +118,9 @@ export class MockStore {
   payments: Payment[] = [...seedPayments];
   installments: Installment[] = [...seedInstallments];
   expenses: Expense[] = [...seedExpenses];
+  /** T-521 (issue #29 / WORKFORCE-518): the canonical attachment metadata
+   *  (the mock twin of migration 0153's expense_attachments). */
+  expenseAttachments: ExpenseAttachment[] = [];
   personnel: Personnel[] = [...seedPersonnel];
   releve: ReleveEntry[] = [...seedReleve];
   audit: AuditEntry[] = [...seedAudit];
@@ -165,6 +168,7 @@ export class MockStore {
   payments$ = new SubjectBehavior<Payment[]>(this.payments);
   installments$ = new SubjectBehavior<Installment[]>(this.installments);
   expenses$ = new SubjectBehavior<Expense[]>(this.expenses);
+  expenseAttachments$ = new SubjectBehavior<ExpenseAttachment[]>(this.expenseAttachments);
   personnel$ = new SubjectBehavior<Personnel[]>(this.personnel);
   releve$ = new SubjectBehavior<ReleveEntry[]>(this.releve);
   audit$ = new SubjectBehavior<AuditEntry[]>(this.audit);
@@ -196,6 +200,8 @@ export class MockStore {
   notifyPayments() { this.stageAndNotify("payment", this.payments as unknown as StagedRow[], () => this.payments$.set([...this.payments])); }
   notifyInstallments() { this.stageAndNotify("installment", this.installments as unknown as StagedRow[], () => this.installments$.set([...this.installments])); }
   notifyExpenses() { this.expenses$.set([...this.expenses]); }
+  /** T-521: the attachment stream (mock twin of the per-expense caches). */
+  notifyExpenseAttachments() { this.expenseAttachments$.set([...this.expenseAttachments]); }
   notifyPersonnel() { this.personnel$.set([...this.personnel]); }
   notifyAudit() { this.audit$.set([...this.audit]); }
   notifyNotifications() { this.notifications$.set([...this.notifications]); }
