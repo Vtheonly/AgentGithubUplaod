@@ -628,6 +628,8 @@ export function isAdjustmentReasonCode(value: string): value is AdjustmentReason
 
 export {
   sumPaidPayments,
+  sumPaidPaymentsAsOf,
+  sumFutureRecordedPaidPayments,
   sumInstallmentsDue,
   sumInstallmentsPaid,
   sumInstallmentsPending,

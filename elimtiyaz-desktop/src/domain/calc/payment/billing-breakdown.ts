@@ -30,6 +30,19 @@
  *      pending = derived remaining; an explicit bridge line reconciles to
  *      the server balance so NO number on screen is unexplained.
  *
+ * T-517 / BUSINESS-111 (2026-10-13) — the AS-OF payment semantics: the
+ * reconciliation's `clearedPaid` counts only payments COLLECTED AT OR
+ * BEFORE `input.now` (`sumPaidPaymentsAsOf` — the canonical ledger
+ * replay's own `isAtOrBefore` predicate), and payments recorded against
+ * FUTURE periods (the T-502/DATA-062 import bucket anchors) are split
+ * into their own `futureRecordedPaid` term — SURFACED, never counted as
+ * collected-to-date. Before T-517 this module counted every status='paid'
+ * payment regardless of date while every balance card beside it derived
+ * from the as-of replay: the Family Account modal could show Payé
+ * 441 000 next to a 1 310 000 / 100 % coverage bar for the same family.
+ * The website port already receives the as-of cleared figure as an input
+ * (DATA-032/B7); this closes the desktop-side divergence.
+ *
  * INVARIANTS honoured (docs/domain/financial-rules.md):
  *   - INV-4: remaining = clampNonNegative(amountDue − amountPaid − amountPending)
  *     — via `installmentRemaining`, never an inline `due − paid`.
@@ -61,7 +74,7 @@ import { clampNonNegative } from "../shared/money";
 import { splitNetTuitionByOfficialSchedule, getOfficialTuitionDueDates } from "../pricing/tuition";
 import { allocatePaymentToInstallments } from "./waterfall-allocator";
 import { installmentRemaining } from "./queries";
-import { sumPaidPayments, sumPendingPayments } from "./sums";
+import { sumPaidPaymentsAsOf, sumFutureRecordedPaidPayments, sumPendingPayments } from "./sums";
 
 /* ============================================================ */
 /*  Inputs                                                       */
@@ -82,10 +95,16 @@ export interface BillingBreakdownInput {
   readonly ledgerEntries: readonly LedgerEntry[];
   /** REAL installment rows for the family (empty list allowed). */
   readonly installments: readonly Installment[];
-  /** The family's payments (cleared totals derived via `sumPaidPayments`). */
+  /** The family's payments (cleared totals derived via `sumPaidPaymentsAsOf`). */
   readonly payments: readonly Payment[];
   /** The family's students. */
   readonly students: readonly Student[];
+  /** T-517/BUSINESS-111: the AS-OF clock for the cleared-payment cutoff.
+   *  Defaults to `new Date()` at call time; tests inject a fixed date so
+   *  the future-recorded split stays deterministic (§15.95d — injected
+   *  clock). Payments dated strictly after this instant are surfaced as
+   *  `futureRecordedPaid`, never counted as collected-to-date. */
+  readonly now?: Date;
   /** Optional pre-resolved academic year (skips the internal heuristic). */
   readonly academicYear?: string | null;
   /** Academic-year resolution hints (see `resolveBillingAcademicYear`). */
@@ -174,8 +193,13 @@ export interface ParentBillingBreakdown {
   readonly academicYear: string;
   /** Σ charge entries; falls back to `fallbackTotalDue` when none exist. */
   readonly totalBilled: number;
-  /** `sumPaidPayments(payments)` — cleared money only (canonical helper). */
+  /** `sumPaidPaymentsAsOf(payments, now)` — cleared money collected at or
+   *  before the evaluation instant (T-517/BUSINESS-111: balance-consistent
+   *  with the canonical as-of replay). */
   readonly totalClearedPaid: number;
+  /** Cleared payments recorded against FUTURE periods (T-517: surfaced,
+   *  never counted as collected-to-date — the T-502 import bucket anchors). */
+  readonly totalFutureRecordedPaid: number;
   /** True when at least one child runs on a synthesized schedule. */
   readonly hasSyntheticTranches: boolean;
   readonly byChild: readonly ChildBillingBreakdown[];
@@ -200,6 +224,18 @@ export interface ParentBillingBreakdown {
  * credit convention so the footer ALWAYS balances to the server number.
  * When `serverOutstanding` is not supplied, bridge is 0 and the surface
  * shows the derived figure only.
+ *
+ * T-517 / BUSINESS-111: `clearedPaid` is AS-OF (collected at or before the
+ * evaluation instant — the same cutoff as the canonical ledger replay
+ * feeding `serverOutstanding`), and `futureRecordedPaid` carries the
+ * FUTURE-period split so surfaces can display it as its own labelled
+ * line. `futureRecordedPaid` is NOT part of the equation above: it is
+ * money the books mark received whose recorded period has not yet
+ * arrived — surfacing it keeps the arithmetic auditable (§15.95a) while
+ * the balance stays as-of honest. When both sides of a surface used to
+ * disagree by exactly this term, the old `bridge` mislabelled it
+ * "autres écritures" with an empty adjustment history — the modal
+ * contradiction BUSINESS-111 fixed.
  */
 export interface BillingReconciliation {
   /** Σ charge entries (the gross "sticker price" shopping list). */
@@ -211,8 +247,11 @@ export interface BillingReconciliation {
   readonly adjustmentsCount: number;
   /** grossBilled + adjustmentsDebit − adjustmentsCredit. */
   readonly netDue: number;
-  /** Cleared payments only (`sumPaidPayments`). */
+  /** Cleared payments collected at or before `now` (`sumPaidPaymentsAsOf`). */
   readonly clearedPaid: number;
+  /** Cleared payments recorded against future periods — surfaced, never
+   *  counted as collected-to-date (T-517). */
+  readonly futureRecordedPaid: number;
   /** Uncleared cheques / transfers (`sumPendingPayments`). */
   readonly pendingPaid: number;
   /** netDue − clearedPaid − pendingPaid (may be negative = credit). */
@@ -444,7 +483,15 @@ export function computeParentBillingBreakdown(
   const rawChargeTotal = chargeEntries.reduce((s, c) => s + c.amount, 0);
   const totalBilled = rawChargeTotal > 0 ? rawChargeTotal : (input.fallbackTotalDue ?? 0);
 
-  const totalClearedPaid = sumPaidPayments(input.payments);
+  // T-517 / BUSINESS-111: the AS-OF cutoff — the canonical ledger replay's
+  // own `isAtOrBefore` predicate, applied to the payments population so a
+  // payments-derived total can never disagree with the as-of balance
+  // displayed beside it. Payments recorded against future periods (the
+  // T-502 import bucket anchors) are split into `futureRecordedPaid`:
+  // surfaced as their own term, never counted as collected-to-date.
+  const asOf = input.now ?? new Date();
+  const totalClearedPaid = sumPaidPaymentsAsOf(input.payments, asOf);
+  const totalFutureRecordedPaid = sumFutureRecordedPaidPayments(input.payments, asOf);
   const students = input.students;
 
   // Real installments already carry server-side waterfall results
@@ -607,6 +654,7 @@ export function computeParentBillingBreakdown(
     adjustmentsCount: adjustments.length,
     netDue,
     clearedPaid: totalClearedPaid,
+    futureRecordedPaid: totalFutureRecordedPaid,
     pendingPaid,
     derivedRemaining,
     serverOutstanding,
@@ -618,6 +666,7 @@ export function computeParentBillingBreakdown(
     academicYear,
     totalBilled,
     totalClearedPaid,
+    totalFutureRecordedPaid,
     hasSyntheticTranches: children.some((c) => c.isSyntheticSchedule),
     byChild: children,
     byService,

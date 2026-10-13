@@ -775,7 +775,15 @@ export function ParentDetailDrawer({
   );
 }
 
-function FinancesTab({
+/**
+ * The drawer's Finances & Échéances tab. Exported (T-517/BUSINESS-111) for
+ * the financial-consistency regression suite — the surfaces this component
+ * renders (summary cards, « Couverture de l'Engagement Annuel », the
+ * overdue warning, the T-168 reconciliation footer) are exactly the ones
+ * the modal-contradiction fix pinned; the suite renders it over the LIVE
+ * NACEF-shaped fixture with the clock frozen at the forensics date.
+ */
+export function FinancesTab({
   profile,
   outstanding,
   overdue,
@@ -983,11 +991,36 @@ function FinancesTab({
       </div>
 
       {overdue > 0 && outstanding > 0 && (
-        <div className="flex items-center gap-2 rounded-xl border border-status-danger/40 bg-status-danger/10 p-3 text-xs">
-          <AlertTriangle className="h-4 w-4 text-status-danger shrink-0" />
-          <span className="text-status-danger font-semibold">
-            Créance échue en retard : {formatDzd(overdue)}
-          </span>
+        <div
+          className="flex flex-col gap-1 rounded-xl border border-status-danger/40 bg-status-danger/10 p-3 text-xs"
+          data-testid="overdue-warning"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-status-danger shrink-0" />
+            <span className="text-status-danger font-semibold">
+              Créance échue en retard : {formatDzd(overdue)}
+            </span>
+          </div>
+          {/* T-517 / BUSINESS-111: when the overdue figure EXCEEDS the net
+              outstanding balance, the difference is the family's own
+              stranded per-account credit (money paid into accounts that
+              hold no charges — e.g. the import's transport versements
+              against a single tuition-category Devis). The canonical
+              per-account overdue (computeParentSummary) legitimately sums
+              only positive past-due accounts; this note explains the
+              offset where the two figures meet instead of leaving an
+              unexplained gap (the NACEF case: 949 000 overdue vs 869 000
+              net = 80 000 of unapplied advances). */}
+          {overdue > outstanding + 0.5 && (
+            <span
+              className="text-[11px] text-status-danger/90 pl-6"
+              data-testid="overdue-credit-note"
+            >
+              Dont {formatDzd(overdue - outstanding)} déjà couverts par des
+              avances non affectées (versements par service sans facture
+              associée) — la dette nette s'établit à {formatDzd(outstanding)}.
+            </span>
+          )}
         </div>
       )}
 
@@ -1032,6 +1065,23 @@ function FinancesTab({
               <span className="flex items-center gap-1 text-status-warning">
                 <span className="h-1.5 w-1.5 rounded-full bg-status-warning" />
                 En attente : {formatDzdPlain(recon.pendingPaid)} DZD
+              </span>
+            )}
+            {/* T-517 / BUSINESS-111: the future-recorded class — payments
+                the books mark received whose recorded period (the T-502
+                import bucket anchors: 2V → Dec 15, v3 → Mar 15) has not
+                yet arrived. NEVER counted as collected-to-date (the bar
+                above stays as-of consistent with the summary cards);
+                surfaced as its own labelled line so the arithmetic stays
+                auditable (§15.95a — surface, never rewrite the date). */}
+            {recon.futureRecordedPaid > 0 && (
+              <span
+                className="flex items-center gap-1 text-primary"
+                title="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."
+                data-testid="future-recorded-line"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                Enregistré à échéance future : {formatDzdPlain(recon.futureRecordedPaid)} DZD
               </span>
             )}
             <span className="flex items-center gap-1 text-status-danger">
@@ -1323,6 +1373,25 @@ function FinancesTab({
             <ReconRow label="− Encaissé confirmé" amount={-recon.clearedPaid} tone="paid" />
             {recon.pendingPaid > 0 && (
               <ReconRow label="− En attente (chèque / virement non débloqué)" amount={-recon.pendingPaid} tone="paid" />
+            )}
+            {/* T-517 / BUSINESS-111: the future-recorded class in the
+                every-dinar-explained footer — NOT subtracted (it is not
+                collected-to-date), displayed as its own informational
+                row so the reader can reconcile the installments' paid
+                state (which the server-side waterfall filled using these
+                records) with the as-of figures above. */}
+            {recon.futureRecordedPaid > 0 && (
+              <div
+                className="flex items-center justify-between text-[11px] rounded border border-primary/30 bg-primary/5 px-2 py-1"
+                data-testid="future-recorded-recon-row"
+              >
+                <span className="text-primary">
+                  ⊕ Encaissements enregistrés à échéance future (non encaissés à ce jour — ancre de période d'import)
+                </span>
+                <span className="font-mono font-bold text-primary">
+                  {formatDzdPlain(recon.futureRecordedPaid)}
+                </span>
+              </div>
             )}
             <ReconRow label="= Reste net (dérivation locale)" amount={recon.derivedRemaining} tone="net" />
             {recon.hasBridge && (
