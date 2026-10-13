@@ -32,6 +32,8 @@ import {
 } from "./role-dashboard-layout";
 import { formatDzd } from "../../../core/format/currency";
 import { REQUEST_TYPE_LABELS_FR } from "../../../domain/model/workforce";
+// T-521: the expense labels for the admin task list's expense entries.
+import { EXPENSE_CATEGORY_LABELS_FR } from "../../../domain/model/expense";
 
 interface Props {
   role: Role;
@@ -45,6 +47,10 @@ export function AdministratorDashboard({ role }: Props) {
   const personnel = useObservable(() => repos.personnel.observe(), []);
   const tasks = useObservable(() => repos.tasks.observe(), []);
   const leaveRequests = useObservable(() => repos.leaveRequests.observe(), []);
+  // T-521 (issue #29 / WORKFORCE-517): the canonical expenses stream — the
+  // KPI card named "Demandes & Dépenses" now counts the REAL pending expense
+  // tickets alongside the leave requests (it previously counted leave only).
+  const expenses = useObservable(() => repos.expenses.observe(), []);
   const absences = useObservable(
     () => repos.workforceAttendance.observeAbsences(),
     [],
@@ -57,6 +63,12 @@ export function AdministratorDashboard({ role }: Props) {
   const pendingRequests = useMemo(
     () => leaveRequests.filter((r) => r.status === "pending"),
     [leaveRequests],
+  );
+  // T-521: the pending EXPENSE tickets (the canonical stream — the same
+  // records the Finance tab and the Personnel review queue show).
+  const pendingExpenses = useMemo(
+    () => expenses.filter((e) => e.status === "submitted"),
+    [expenses],
   );
   const unexcusedAbsences = useMemo(
     () => absences.filter((a) => !a.isExcused),
@@ -104,9 +116,12 @@ export function AdministratorDashboard({ role }: Props) {
     },
     {
       label: "Demandes & Dépenses",
-      value: pendingRequests.length,
+      value: pendingRequests.length + pendingExpenses.length,
       icon: Users,
-      trend: pendingRequests.length > 0 ? "À traiter" : "0 en attente",
+      trend:
+        pendingRequests.length + pendingExpenses.length > 0
+          ? `${pendingRequests.length} congé(s) · ${pendingExpenses.length} dépense(s)`
+          : "0 en attente",
     },
   ];
 
@@ -122,6 +137,13 @@ export function AdministratorDashboard({ role }: Props) {
       label: `Demande : ${req.personnelName} (${REQUEST_TYPE_LABELS_FR[req.type]})`,
       description: `${req.reason}`,
       priority: "medium" as const,
+    })),
+    // T-521: the pending expense tickets join the admin task list.
+    ...pendingExpenses.map((exp) => ({
+      id: exp.id,
+      label: `Dépense : ${exp.title} (${exp.requestCode})`,
+      description: `${EXPENSE_CATEGORY_LABELS_FR[exp.category]} · ${exp.payee}`,
+      priority: (exp.urgency === "high" ? "high" : "medium") as "high" | "medium",
     })),
   ];
 

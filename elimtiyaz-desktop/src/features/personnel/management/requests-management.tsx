@@ -48,6 +48,10 @@ import {
 import { UnifiedModal } from "../../../shared/ui/unified-modal";
 import { formatDzd } from "../../../core/format/currency";
 import { formatDate } from "../../../core/format/date";
+// T-521 (issue #29 / WORKFORCE-517): the Staff/Personnel expense surface —
+// the SAME canonical expenses stream the Finance tab reads, mounted here
+// (one record store, two interfaces).
+import { ExpenseReviewSection } from "./expense-review-section";
 import {
   REQUEST_TYPE_LABELS_FR,
   REQUEST_STATUS_LABELS_FR,
@@ -248,6 +252,10 @@ export function RequestsManagement() {
 
   return (
     <div className="space-y-4">
+      {/* T-521 (issue #29 / WORKFORCE-517): the expense review surface — the
+          tab's own label promised "Dépenses" it never delivered. */}
+      <ExpenseReviewSection />
+
       <Card>
         <CardHeader className="border-b border-border/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
