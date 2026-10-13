@@ -50,11 +50,12 @@ import {
 } from "../../domain/model/expense";
 import { Permission } from "../../core/rbac/permissions";
 import { AnomalyExplainerModal } from "./anomaly-explainer-modal";
+import { ExpenseAttachmentsGallery } from "./expense-attachments-gallery";
 
 const STAGE_ORDER: ExpenseStatus[] = ["submitted", "approved", "disbursed", "settled"];
 
-/** Max proof file size kept in memory as a data URL (mock vault). */
-const MAX_PROOF_BYTES = 2 * 1024 * 1024;
+/** Max proof file size — the 0018 expense-receipts bucket limit (10 MB). */
+const MAX_PROOF_BYTES = 10 * 1024 * 1024;
 
 export function ExpenseDetailDrawer({
   expenseId,
@@ -72,20 +73,32 @@ export function ExpenseDetailDrawer({
     () => repos.expenses.observeById(expenseId ?? ""),
     [expenseId],
   );
+  // T-521 (WORKFORCE-520): resolve the responsible person's display name from
+  // the personnel directory (the bound user_profiles id is the join key).
+  const personnel = useObservable(() => repos.personnel.observe(), []);
 
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [disburseOpen, setDisburseOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
   const [anomalyOpen, setAnomalyOpen] = useState(false);
-  // Proof upload state (real file → data URL in mock mode).
+  // Proof upload state (T-521: the file uploads through the canonical
+  // attachment path; the settle transition receives its storage path).
   const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofDataUrl, setProofDataUrl] = useState<string | null>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [finalSpent, setFinalSpent] = useState<number>(0);
   const [settling, setSettling] = useState(false);
 
   if (!expense) return null;
+
+  const responsiblePerson = personnel.find(
+    (p) => p.userId && p.userId === expense.responsibleProfileId,
+  );
+  const responsibleLabel = expense.responsibleProfileId
+    ? responsiblePerson
+      ? `${responsiblePerson.firstName} ${responsiblePerson.lastName}`
+      : "Membre du personnel"
+    : "À renseigner";
 
   const canApprove = !!session && session.permissions.has(Permission.ApproveExpense) && session.userId !== expense.submittedBy;
   const canDisburse = !!session && session.permissions.has(Permission.DisburseExpense);
@@ -130,17 +143,12 @@ export function ExpenseDetailDrawer({
 
   function handleProofFileSelected(file: File | null) {
     setProofError(null);
-    setProofDataUrl(null);
     setProofFile(file);
     if (!file) return;
     if (file.size > MAX_PROOF_BYTES) {
-      setProofError(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo) — maximum 2 Mo pour l'aperçu. Sélectionnez un fichier plus léger.`);
+      setProofError(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo) — maximum 10 Mo (la limite du coffre).`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setProofDataUrl(typeof reader.result === "string" ? reader.result : null);
-    reader.onerror = () => setProofError("Échec de lecture du fichier.");
-    reader.readAsDataURL(file);
   }
 
   async function handleSettleProof() {
@@ -151,14 +159,29 @@ export function ExpenseDetailDrawer({
     }
     setSettling(true);
     try {
-      // Mock mode stores the proof as a data URL (with a mock://-style marker
-      // for small files, or the data URL directly when previewable). In
-      // Supabase mode this would upload to the private `expense-receipts`
-      // bucket and store the signed path.
-      const proofUrl = proofDataUrl ?? `mock://proof/${proofFile.name}`;
+      // T-521 (WORKFORCE-518): the proof uploads through the CANONICAL
+      // attachment path — the bytes land in the private expense-receipts
+      // bucket, the metadata row links them to this expense, and the settle
+      // transition records the storage path as receipt_path. A data URL is
+      // never persisted into the column.
+      const upload = await repos.expenses.addAttachment(
+        expense!.id,
+        {
+          name: proofFile.name,
+          type: proofFile.type || "application/octet-stream",
+          size: proofFile.size,
+          blob: proofFile,
+        },
+        session.userId,
+        "desktop",
+      );
+      if (!upload.ok) {
+        toast.showError("Téléversement échoué", upload.error.userMessage);
+        return;
+      }
       const r = await repos.expenses.settleProof(
         expense!.id,
-        proofUrl,
+        upload.value.storagePath,
         session.userId,
         finalSpent > 0 ? finalSpent : undefined,
       );
@@ -171,7 +194,7 @@ export function ExpenseDetailDrawer({
         );
         setProofOpen(false);
         setProofFile(null);
-        setProofDataUrl(null);
+        setProofError(null);
         setFinalSpent(0);
       } else {
         toast.showError("Échec", r.error.userMessage);
@@ -188,6 +211,12 @@ export function ExpenseDetailDrawer({
     { label: "Bénéficiaire", value: e.payee },
     { label: "Statut", value: EXPENSE_STATUS_LABELS_FR[e.status] },
     { label: "Soumis par", value: e.submittedBy },
+    // T-521 (WORKFORCE-520): the distinct accountable person — flagged when
+    // missing (never fabricated).
+    {
+      label: "Responsable",
+      value: responsibleLabel,
+    },
     { label: "Date", value: formatDateTime(e.submittedAt) },
   ];
 
@@ -282,6 +311,13 @@ export function ExpenseDetailDrawer({
         </div>
       ),
     },
+    {
+      id: "attachments",
+      label: "Justificatifs",
+      content: () => (
+        <ExpenseAttachmentsGallery expenseId={e.id} canManage={canSettle || canApprove} />
+      ),
+    },
   ];
 
   const actions = (e: Expense): readonly EntityDrawerAction<Expense>[] => {
@@ -369,7 +405,7 @@ export function ExpenseDetailDrawer({
             label="Reçu / justificatif"
             required
             error={proofError ?? undefined}
-            hint="Image ou PDF — maximum 2 Mo"
+            hint="Image ou PDF — maximum 10 Mo (le fichier rejoint le coffre privé de la dépense)"
           >
             <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
               <Upload className="h-4 w-4 text-muted-foreground" />
@@ -378,22 +414,11 @@ export function ExpenseDetailDrawer({
               </span>
               <input
                 type="file"
-                accept="image/*,.pdf"
+                accept="image/jpeg,image/png,image/webp,.pdf"
                 className="hidden"
                 onChange={(e) => handleProofFileSelected(e.target.files?.[0] ?? null)}
               />
             </label>
-            {proofDataUrl && proofFile && proofFile.type.startsWith("image/") && (
-              // T-078: removed the stale eslint-disable directive — it named
-              // jsx-a11y/img-redundant-alt, a rule that is not configured in
-              // this repo (ESLint reports unknown-rule directives as errors).
-              // The alt text below is descriptive anyway, not redundant.
-              <img
-                src={proofDataUrl}
-                alt="Aperçu du justificatif"
-                className="mt-2 max-h-40 rounded-md border border-border object-contain"
-              />
-            )}
           </FormField>
           <FormField
             label="Montant final réellement dépensé (DZD)"

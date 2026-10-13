@@ -490,7 +490,7 @@ export function FinancialsPage() {
           <DebtAgingTab />
         </PageTabContent>
         <PageTabContent value="expenses">
-          <ExpensesTab expenses={expenses} onOpenExpense={openExpense} />
+          <ExpensesTab expenses={expenses} personnel={payrollPersonnel} onOpenExpense={openExpense} />
         </PageTabContent>
         <PageTabContent value="receipts">
           <ReceiptsTab />
@@ -827,9 +827,17 @@ const EXPENSE_STATUS_TONE: Record<string, "success" | "info" | "warning" | "dang
 
 function ExpensesTab({
   expenses,
+  personnel,
   onOpenExpense,
 }: {
   expenses: readonly Expense[];
+  /** T-521 (WORKFORCE-520): the directory used to resolve the responsible
+   *  person's display name (the bound user_profiles id is the join key). */
+  personnel: readonly {
+    userId: string | null;
+    firstName: string;
+    lastName: string;
+  }[];
   onOpenExpense: (id: string) => void;
 }) {
   const columns: readonly DataTableColumn<Expense>[] = [
@@ -849,6 +857,24 @@ function ExpensesTab({
       cell: (e) => EXPENSE_CATEGORY_LABELS_FR[e.category],
     },
     { header: "Bénéficiaire", accessor: "payee" },
+    {
+      // T-521 (WORKFORCE-520): the distinct accountable person — the
+      // missing-assignment flag (never a fabricated name).
+      header: "Responsable",
+      accessor: "responsibleProfileId",
+      cell: (e) => {
+        const person = personnel.find(
+          (p) => p.userId && p.userId === e.responsibleProfileId,
+        );
+        return e.responsibleProfileId ? (
+          <span>{person ? `${person.firstName} ${person.lastName}` : "Membre du personnel"}</span>
+        ) : (
+          <span className="text-status-warning" title="Aucun responsable renseigné — à compléter">
+            À renseigner
+          </span>
+        );
+      },
+    },
     {
       header: "Montant",
       accessor: "amount",
