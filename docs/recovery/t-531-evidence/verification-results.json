@@ -1,0 +1,199 @@
+{
+  "viewports": {
+    "mobile-375x667": {
+      "splash": "splash-mobile-375x667.png",
+      "login": "login-mobile-375x667.png",
+      "layout": {
+        "mainClass": "brand-gradient relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 lg:grid lg:grid-cols-[minmax(480px,42%)_1fr] lg:p-0",
+        "gridClass": "animate-fade-up mb-8 flex flex-col items-center gap-4 text-center lg:mb-0 lg:h-full lg:justify-between lg:border-r lg:border-border/50 lg:bg-card/25 lg:p-10 lg:pb-6 xl:p-16 xl:pb-8 2xl:p-20 2xl:pb-10",
+        "canvasRect": {
+          "x": 59.5,
+          "y": 40,
+          "width": 256,
+          "height": 240,
+          "top": 40,
+          "right": 315.5,
+          "bottom": 280,
+          "left": 59.5
+        },
+        "cardRect": {
+          "x": 40,
+          "y": 384,
+          "width": 295,
+          "height": 336,
+          "top": 384,
+          "right": 335,
+          "bottom": 720,
+          "left": 40
+        },
+        "viewport": {
+          "w": 375,
+          "h": 667
+        },
+        "overflowX": false
+      }
+    },
+    "desktop-1280x800": {
+      "splash": "splash-desktop-1280x800.png",
+      "login": "login-desktop-1280x800.png",
+      "layout": {
+        "mainClass": "brand-gradient relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 lg:grid lg:grid-cols-[minmax(480px,42%)_1fr] lg:p-0",
+        "gridClass": "animate-fade-up mb-8 flex flex-col items-center gap-4 text-center lg:mb-0 lg:h-full lg:justify-between lg:border-r lg:border-border/50 lg:bg-card/25 lg:p-10 lg:pb-6 xl:p-16 xl:pb-8 2xl:p-20 2xl:pb-10",
+        "canvasRect": {
+          "x": 64,
+          "y": 266.5,
+          "width": 408.59375,
+          "height": 352,
+          "top": 266.5,
+          "right": 472.59375,
+          "bottom": 618.5,
+          "left": 64
+        },
+        "cardRect": {
+          "x": 684.796875,
+          "y": 236,
+          "width": 448,
+          "height": 288,
+          "top": 236,
+          "right": 1132.796875,
+          "bottom": 524,
+          "left": 684.796875
+        },
+        "viewport": {
+          "w": 1280,
+          "h": 800
+        },
+        "overflowX": false
+      }
+    },
+    "widescreen-1920x1080": {
+      "splash": "splash-widescreen-1920x1080.png",
+      "login": "login-widescreen-1920x1080.png",
+      "layout": {
+        "mainClass": "brand-gradient relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 lg:grid lg:grid-cols-[minmax(480px,42%)_1fr] lg:p-0",
+        "gridClass": "animate-fade-up mb-8 flex flex-col items-center gap-4 text-center lg:mb-0 lg:h-full lg:justify-between lg:border-r lg:border-border/50 lg:bg-card/25 lg:p-10 lg:pb-6 xl:p-16 xl:pb-8 2xl:p-20 2xl:pb-10",
+        "canvasRect": {
+          "x": 82.6875,
+          "y": 352.90625,
+          "width": 640,
+          "height": 475.1875,
+          "top": 352.90625,
+          "right": 722.6875,
+          "bottom": 828.09375,
+          "left": 82.6875
+        },
+        "cardRect": {
+          "x": 1139.1875,
+          "y": 376,
+          "width": 448,
+          "height": 288,
+          "top": 376,
+          "right": 1587.1875,
+          "bottom": 664,
+          "left": 1139.1875
+        },
+        "viewport": {
+          "w": 1920,
+          "h": 1080
+        },
+        "overflowX": false
+      }
+    },
+    "ultrawide-2560x1440": {
+      "splash": "splash-ultrawide-2560x1440.png",
+      "login": "login-ultrawide-2560x1440.png",
+      "layout": {
+        "mainClass": "brand-gradient relative flex min-h-[100dvh] flex-col items-center justify-center px-5 py-10 lg:grid lg:grid-cols-[minmax(480px,42%)_1fr] lg:p-0",
+        "gridClass": "animate-fade-up mb-8 flex flex-col items-center gap-4 text-center lg:mb-0 lg:h-full lg:justify-between lg:border-r lg:border-border/50 lg:bg-card/25 lg:p-10 lg:pb-6 xl:p-16 xl:pb-8 2xl:p-20 2xl:pb-10",
+        "canvasRect": {
+          "x": 217.09375,
+          "y": 453.703125,
+          "width": 640,
+          "height": 633.59375,
+          "top": 453.703125,
+          "right": 857.09375,
+          "bottom": 1087.296875,
+          "left": 217.09375
+        },
+        "cardRect": {
+          "x": 1593.59375,
+          "y": 556,
+          "width": 448,
+          "height": 288,
+          "top": 556,
+          "right": 2041.59375,
+          "bottom": 844,
+          "left": 1593.59375
+        },
+        "viewport": {
+          "w": 2560,
+          "h": 1440
+        },
+        "overflowX": false
+      }
+    }
+  },
+  "fps": {
+    "frames": 121,
+    "seconds": 2,
+    "fps": 61
+  },
+  "asset": {
+    "status": 200,
+    "bytes": 159357
+  },
+  "splash_html": {
+    "hasBar": false,
+    "hasSweep": false,
+    "hasImg": true,
+    "hasCanvas": true,
+    "bodyText": "El-Imtiyaz\n\nEspace Parent & Élève\n\nV1.0.0 — PORTAL\n\nBienvenue sur le portail El-Imtiyaz\n\nConnectez-vous avec votre compt"
+  },
+  "repulsion": {
+    "before": 143616,
+    "during": 143616,
+    "delta": 0
+  },
+  "reduced_motion": {
+    "canvasVisible": true,
+    "staticMarkVisible": true
+  },
+  "splash_census": {
+    "mobile-375x667": {
+      "hasBar": true,
+      "barAriaBusy": "true",
+      "barAriaLabel": "Chargement…",
+      "hasSweep": true,
+      "hasImg": true,
+      "hasCanvas": true,
+      "hasLoginButton": false
+    },
+    "desktop-1280x800": {
+      "hasBar": true,
+      "barAriaBusy": "true",
+      "barAriaLabel": "Chargement…",
+      "hasSweep": true,
+      "hasImg": true,
+      "hasCanvas": true,
+      "hasLoginButton": false
+    },
+    "widescreen-1920x1080": {
+      "hasBar": true,
+      "barAriaBusy": "true",
+      "barAriaLabel": "Chargement…",
+      "hasSweep": true,
+      "hasImg": true,
+      "hasCanvas": true,
+      "hasLoginButton": false
+    },
+    "ultrawide-2560x1440": {
+      "hasBar": true,
+      "barAriaBusy": "true",
+      "barAriaLabel": "Chargement…",
+      "hasSweep": true,
+      "hasImg": true,
+      "hasCanvas": true,
+      "hasLoginButton": false
+    }
+  }
+}
