@@ -27,9 +27,11 @@ interface Props {
   classes: readonly AcademicClass[];
   /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
+  /** Render inside the unified Diagnostic Actif module without a nested Card. */
+  embedded?: boolean;
 }
 
-export function PivotMatrixCard({ profiles, classes, headerActions }: Props) {
+export function PivotMatrixCard({ profiles, classes, headerActions, embedded = false }: Props) {
   const [dimension, setDimension] = useState<PivotDimension>("cycle");
   const [sortKey, setSortKey] = useState<
     "studentCount" | "totalDebt" | "averageGpa"
@@ -60,8 +62,8 @@ export function PivotMatrixCard({ profiles, classes, headerActions }: Props) {
     return { totalStudents, totalDebt, criticalTotal };
   }, [pivotRows]);
 
-  return (
-    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+  const panel = (
+    <>
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -215,6 +217,13 @@ export function PivotMatrixCard({ profiles, classes, headerActions }: Props) {
           </tbody>
         </table>
       </CardContent>
+    </>
+  );
+
+  if (embedded) return <section className="min-w-0">{panel}</section>;
+  return (
+    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+      {panel}
     </Card>
   );
 }

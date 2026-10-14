@@ -82,8 +82,6 @@ import {
   type StudentRiskProfile,
 } from "../components/analytics/operational-query-engine";
 import { OperationalQueryConsole } from "../components/analytics/operational-query-console";
-import { PivotMatrixCard } from "../components/analytics/pivot-matrix-card";
-import { CrossRiskCard } from "../components/analytics/cross-risk-card";
 import {
   DataInspectorProvider,
   InspectTrigger,
@@ -591,37 +589,39 @@ export function AnalyticsTab({
     // the full interactive console stays one mount in Diagnostic.
   ];
 
+  // T-533 / UI-347: one layout cell owns the entire diagnostic workflow.
+  // Roster, risk quadrants, and pivot stay on the same canonical profile stream.
   const diagnosticItems: DashboardLayoutItem[] = [
-    // T-503 (UI-334): the « Source des matrices » strip is RETIRED — the
-    // two triggers moved onto the surfaces they inspect (the cross-risk
-    // matrix + the console's roster).
     {
       id: "diagnostic-console",
-      label: "Console de diagnostic opérationnel",
+      label: "Console d'Investigation Opérationnelle",
       x: 0,
       y: 0,
       w: 12,
-      h: 14,
+      h: 36,
       minW: 6,
       maxW: 12,
-      minH: 8,
-      maxH: 24,
+      minH: 22,
+      maxH: 60,
       content: (
         <OperationalQueryConsole
           profiles={riskProfiles}
           onOpenStudent={onOpenStudent}
           onOpenParent={onOpenParent}
-          // T-502 (DEBT-104): the CONFIGURED severe-debt edge — the
-          // « Créances Critiques » quick query follows the tenant's
-          // debt.severe_debt_dzd setting (migration 0147).
+          // The configured severe-debt edge powers the existing quick query.
           severeDebtDzd={debtThresholdsActive.severeDebtDzd}
-          // T-503 (UI-335): the shared quadrant→console filter (the
-          // CrossRiskCard quadrants above drive this console's category).
           selectedCategory={consoleCategory}
           onSelectedCategoryChange={setConsoleCategory}
-          // T-503 (UI-334): the roster inspection lives ON the console (the
-          // console IS the student roster) — and T-507 (UI-338): the config
-          // trigger for the severe-debt quick query rides the same surface.
+          riskSummary={riskSummary}
+          classes={classes}
+          riskHeaderActions={
+            <InspectTrigger request={inspection({
+              domain: "academic-risk",
+              title: "Matrice de risque pédagogique",
+              metric: "risk_profiles",
+              sourceValue: riskProfiles.length,
+            })} />
+          }
           headerActions={
             <>
               <InspectTrigger request={inspection({ domain: "enrollment", title: "Roster des élèves", metric: "roster", sourceValue: students.length })} />
@@ -630,41 +630,6 @@ export function AnalyticsTab({
           }
         />
       ),
-    },
-    {
-      id: "diagnostic-cross-risk",
-      label: "Matrice croisée de risque",
-      x: 0,
-      y: 15,
-      w: 5,
-      h: 10,
-      minW: 4,
-      maxW: 12,
-      minH: 7,
-      maxH: 20,
-      content: (
-        // T-503 (UI-335): the CANONICAL summary (one derivation shared
-        // with the pilotage radar) + the quadrant clicks wired to the
-        // console's category filter.
-        <CrossRiskCard
-          summary={riskSummary}
-          onSelectCategory={setConsoleCategory}
-          headerActions={<InspectTrigger request={inspection({ domain: "academic-risk", title: "Matrice de risque pédagogique", metric: "risk_profiles", sourceValue: riskProfiles.length })} />}
-        />
-      ),
-    },
-    {
-      id: "diagnostic-pivot",
-      label: "Matrice pivot pédagogique",
-      x: 5,
-      y: 15,
-      w: 7,
-      h: 10,
-      minW: 4,
-      maxW: 12,
-      minH: 7,
-      maxH: 20,
-      content: <PivotMatrixCard profiles={riskProfiles} classes={classes} />,
     },
   ];
 

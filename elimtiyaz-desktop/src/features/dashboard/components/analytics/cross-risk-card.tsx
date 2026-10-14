@@ -33,12 +33,15 @@ interface Props {
    * by the diagnostic view's tab state).
    */
   onSelectCategory?: (category: string) => void;
+  /** Render inside the unified Diagnostic Actif module without a nested Card. */
+  embedded?: boolean;
 }
 
 export function CrossRiskCard({
   summary,
   onSelectCategory,
   headerActions,
+  embedded = false,
 }: Props) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
 
@@ -65,8 +68,8 @@ export function CrossRiskCard({
     void askAgent(prompt);
   };
 
-  return (
-    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+  const panel = (
+    <>
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -177,6 +180,13 @@ export function CrossRiskCard({
           Cliquez sur un quadrant pour filtrer la console d'investigation.
         </p>
       </CardContent>
+    </>
+  );
+
+  if (embedded) return <section className="min-w-0">{panel}</section>;
+  return (
+    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+      {panel}
     </Card>
   );
 }

@@ -233,6 +233,25 @@ describe("T-503 (UI-335) — ONE console mount", () => {
     expect(tab).not.toContain('"pilotage-queries"');
   });
 
+  it("the roster, risk quadrants, and pivot share one Diagnostic Actif layout item", () => {
+    const tab = readSrc("../../../features/dashboard/tabs/analytics-tab.tsx");
+    const start = tab.indexOf("const diagnosticItems: DashboardLayoutItem[] = [");
+    const end = tab.indexOf("const chartItems: DashboardLayoutItem[] = [", start);
+    const diagnostic = tab.slice(start, end);
+
+    expect((diagnostic.match(/id: "diagnostic-/g) ?? []).length).toBe(1);
+    expect(diagnostic).toContain("<OperationalQueryConsole");
+    expect(diagnostic).toContain("riskSummary={riskSummary}");
+    expect(diagnostic).toContain("classes={classes}");
+    expect(diagnostic).not.toContain("<CrossRiskCard");
+    expect(diagnostic).not.toContain("<PivotMatrixCard");
+
+    const consoleSource = readSrc("../../../features/dashboard/components/analytics/operational-query-console.tsx");
+    expect(consoleSource).toContain("<CrossRiskCard");
+    expect(consoleSource).toContain("<PivotMatrixCard");
+    expect(consoleSource).toContain("onSelectCategory={applyCategory}");
+  });
+
   it("the DEFAULT (Pilotage) view renders NO console; the Diagnostic view renders it", () => {
     function pay(overrides: Partial<Payment> & Pick<Payment, "id">): Payment {
       return {

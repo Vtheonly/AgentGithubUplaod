@@ -42,6 +42,7 @@ import {
 // the fallback when the caller does not supply the active thresholds.
 import { DEFAULT_DEBT_AGING_THRESHOLDS } from "../../../../domain/calc/ledger/debt-aging";
 import type {
+  AcademicClass,
   Assessment,
   AttendanceRecord,
   Subject,
@@ -63,6 +64,9 @@ import {
 } from "../../../../domain/model/payment";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { isRemiseAdjustment } from "./executive-statistics";
+import type { TripleRiskSummary } from "./executive-statistics";
+import { CrossRiskCard } from "./cross-risk-card";
+import { PivotMatrixCard } from "./pivot-matrix-card";
 import type { Student } from "../../../../domain/model/student";
 import { GRADE_LEVEL_LABELS_FR } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
@@ -96,6 +100,12 @@ interface Props {
   onSelectedCategoryChange?: (category: string) => void;
   /** T-503 (UI-334): the inspection controls — rendered ON the console's header. */
   headerActions?: ReactNode;
+  /** Canonical summary computed once from the shared student-risk profiles. */
+  riskSummary?: TripleRiskSummary;
+  /** Class dimension for the multidimensional matrix within this module. */
+  classes?: readonly AcademicClass[];
+  /** Inspection control attached to the cross-risk section's header. */
+  riskHeaderActions?: ReactNode;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -863,6 +873,9 @@ export function OperationalQueryConsole({
   selectedCategory,
   onSelectedCategoryChange,
   headerActions,
+  riskSummary,
+  classes,
+  riskHeaderActions,
 }: Props & { children?: ReactNode }) {
   const { askAgent, setIsOpen: openCopilot } = useAICopilot();
   const { openStudent, openParent } = usePersonNavigation();
@@ -1109,6 +1122,19 @@ export function OperationalQueryConsole({
             </div>
           </div>
 
+          {/* The same canonical risk summary is embedded into this investigation.
+              Clicking a quadrant applies the existing roster category filter. */}
+          {riskSummary && (
+            <div className="border-b border-border/60 pb-4">
+              <CrossRiskCard
+                summary={riskSummary}
+                onSelectCategory={applyCategory}
+                headerActions={riskHeaderActions}
+                embedded
+              />
+            </div>
+          )}
+
           {/* T-444/UI-324 restored: the filtered-cohort stats bar (dossiers
               filtrés / créances cumulées / moyenne cohorte). */}
           <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-surface-elevated/40 border border-border/50 text-muted-foreground">
@@ -1325,6 +1351,12 @@ export function OperationalQueryConsole({
               </div>
             )}
           </div>
+
+          {classes && (
+            <div className="border-t border-border/60 pt-4">
+              <PivotMatrixCard profiles={profiles} classes={classes} embedded />
+            </div>
+          )}
         </CardContent>
       </Card>
 
