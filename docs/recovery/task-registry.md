@@ -6301,7 +6301,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem ID:** UI-347 (registered OPEN before implementation per §13).
 
-**Status:** IMPLEMENTED (177th session, 2026-10-14 — source and regression test pushed to main in commit b0526330; automated verification remains pending).
+**Status:** IMPLEMENTED → TESTED (178th session verification round, 2026-10-14 — the full ladder executed on the 44d2ab32 tree PLUS this session's dead-prop cleanup follow-up; see the Delivered/Verified fields below for the evidence).
 
 **The owner mandate:** the Diagnostic Actif tab currently presents the « Console d'Investigation Opérationnelle », « Triage des Vulnérabilités Croisées », and « Matrice Croisée Multi-Dimensionnelle » as separate cards/layout indicators even though they describe the same student/family risk population. Make them one unified investigation module, sharing the information and canonical calculations rather than duplicating them.
 
@@ -6311,9 +6311,11 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Plan:** (1) registration-first commit 17486003 → (2) implementation + regression source commit b0526330 → (3) run the focused test, typecheck, and lint when a usable checkout/runner is available → (4) record only observed results.
 
-**Delivered:** one diagnostic-console layout item now contains the operational roster, canonical four-axis CrossRiskCard, and existing PivotMatrixCard. The canonical riskProfiles and memoized riskSummary are passed into the console; the existing quadrant filter remains connected, and the pivot still calls computeMultiDimensionalPivot. Added a regression pin for one layout item and nested section wiring. Pilotage Exécutif is untouched.
+**Delivered:** one diagnostic-console layout item now contains the operational roster, canonical four-axis CrossRiskCard, and existing PivotMatrixCard. The canonical riskProfiles and memoized riskSummary are passed into the console; the existing quadrant filter remains connected, and the pivot still calls computeMultiDimensionalPivot. Added a regression pin for one layout item and nested section wiring. Pilotage Exécutif is untouched. **Verification-round follow-up (178th session):** the lint gate surfaced that commit b0526330 left the console's `onOpenStudent`/`onOpenParent` props DEAD (destructured but never used — the console navigates through `usePersonNavigation` since T-514, and no test or production caller consumed them); the dead props were removed from `operational-query-console.tsx` + the `analytics-tab.tsx` pass-throughs in this session (the tab's `onOpenParent` KEEPS its live Pareto consumer; the tab's `onOpenStudent` prop had zero remaining consumers and was removed with it — `dashboard-page.tsx` never passed it).
 
-**Left:** execute the focused regression suite, npm run typecheck, the relevant lint gate, and the applicable full test suite. This session did not run these commands: the commit has no reported GitHub check-runs/workflow-runs and the local clone attempt failed because this runtime could not resolve github.com. Do not advance to TESTED without reproducible test output.
+**Verified (178th session, 2026-10-14, measured):** `tsc --noEmit` 0 errors · eslint 0 errors (the two dead-prop warnings GONE — project total 993 warnings, 2 below the T-529 baseline's 994) · the focused suites green on the final tree: t-503-indicator-consolidation 13/13 (includes the T-533 single-item pin), t-514-pareto-fullnames-click 7/7, t-534 4/4, dashboard-3zone 19/19 (43/43 total) · the FULL Layer 1 five-chunk census 5,247 passed / 0 failed / 5 skipped across 320 files · Layer 2 equivalence all matched (810/0/10 · 774/0/10/36 · 784/820 0 rows · sanity 820/820, canonical 319/319) · Layer 3 environment-gated with reasons (no Android sibling, no live PG, live-E2E owned by the verify_t-XXX convention) · the baseline moved to the measured state in `scripts/test-baseline.json` with the per-file +20 attribution.
+
+**Left:** nothing for the desktop scope — TESTED. (The live-visual confirmation on the owner's screen remains the owner's eyeball pass; not a repo gate.)
 
 **Related:** UI-335 (the earlier duplicate-indicator consolidation and quadrant→roster filtering) · UI-334 (inspection controls stay attached to their target) · T-503 (dashboard indicator/layout rules) · `operational-query-engine.ts` · `executive-statistics.ts` · `computeMultiDimensionalPivot`.
 
@@ -6322,7 +6324,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem ID:** UI-348 (registered OPEN before implementation per §13).
 
-**Status:** REGISTERED → IN PROGRESS (178th session, 2026-10-14; desktop UI/layout only).
+**Status:** REGISTERED → IN PROGRESS → IMPLEMENTED → TESTED (178th session, 2026-10-14 — implementation landed in commit 44d2ab32 with the honest "verification pending" note; THIS session executed the full ladder on that tree: see the Verified field).
 
 **The owner's mandate:** the « Radar de Vigilance Multi-Critères » and « Vélocité de Recouvrement par Vague Saisonnière » are clipped vertically; the « Console d'Investigation Opérationnelle »'s student 360° modal is also cut off. Each dashboard card must have a practical minimum height that accommodates its content, and the modal must show its full content via a correctly scrolling body instead of clipping it.
 
@@ -6332,6 +6334,33 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Plan:** (1) registration-first commit → (2) fix target dashboard sizing + collision handling for pre-existing layouts, fix the modal body's flex sizing → (3) add regression pins → (4) run the focused tests, typecheck, lint, and available full test gate → (5) update the task/problem/change-log/current-state/next-task records only to the measured evidence.
 
-**Left:** implementation, regression tests, and verification.
+**Verified (178th session verification round, 2026-10-14, measured on the 44d2ab32 tree):** `tsc --noEmit` 0 errors · eslint 0 errors / 0 new warnings on the touched files · the focused suite `t-534-dashboard-modal-sizing.test.ts` 4/4 (min-height clamping, collision healing, row positions, modal scroll sizing) · the sibling dashboard suites green (t-503 13/13 · t-427 wave semantics 7/7 · dashboard-3zone 19/19) · the FULL Layer 1 five-chunk census 5,247/0/5 across 320 files (the +20 over the T-529 baseline fully attributed to T-532/T-533/T-534) · Layer 2 equivalence all matched (810/0/10 · 774/0/10/36 · 784/820 0 rows · sanity 820/820, canonical 319/319) · Layer 3 reported with environment reasons.
+
+**Left:** nothing for the desktop scope — TESTED. (The live-visual confirmation on the owner's screen remains the owner's eyeball pass; not a repo gate.)
 
 **Related:** UI-336/T-503 (layout overflow containment and geometry) · UI-347/T-533 (single diagnostic module) · T-219 (shared UnifiedModal viewport cap) · `dashboard-layout-editor.tsx` · `unified-modal/parts.tsx` · `modal-shell.tsx`.
+
+
+## T-535 — The owner's lost-credential recovery: the live auth census (READ-ONLY), the honest bcrypt answer, and the owner-directed reset of the three unrecoverable staff passwords — the 179th session
+
+**Problem ID:** OPS-323 (registered after the fact — see the Status note; the owner's mandate arrived mid-session in chat and the operation was a live-ops action, not a code change).
+
+**Status:** VERIFIED (179th session, 2026-10-14 — every step live-verified against `vebfehrpzajhstyhinnw`; the password VALUES are deliberately absent from every repo file, doc, and commit per SEC-100).
+
+**The mandate (owner, in chat, 2026-10-14):** "i forgot the usernames and the password for this account and they're in supabase … give me the list of the usernames and the password BUT DO NOT CHANGE THEM AT ALL NEVER CHANGE THEM" — then, after receiving the census and the honest bcrypt answer: "just change the ones you can't get and this time give them to me." The second message is the explicit owner authorization that supersedes the first for exactly the three unrecoverable accounts; the admin credential and the two Google-OAuth identities were NEVER touched.
+
+**What was done (in order, all live):**
+
+1. **The read-only census (NO changes):** the data-gateway read of `user_profiles` (sb_secret key) + the Management-API SQL read of `auth.users` (the `sbp_` token — ALIVE this session, quirk §15.77 did not recur) + the `auth.identities` provider census + the bcrypt-format probe (`length(encrypted_password)` = 60, `$2a/b$` prefix). Result: 6 auth users — `admin@elimtiyaz.dz` (email) · `adam.cherif@elimtiyaz.dz` (email) · `mohamed.haddad@elimtiyaz.dz` (email) · `samir.khelifi@elimtiyaz.dz` (email) · `merselfares2@gmail.com` (google) · `digitalforgedv@gmail.com` (google); all active; 2 test residue profiles from T-464 present in `user_profiles` but with NO auth users (dormant rows, untouched).
+2. **The owner-pinned admin probe (read-only password grant):** `admin@elimtiyaz.dz` / the §1 owner-pinned value → HTTP 200, re-confirming credential.md §1's NEVER-ROTATE directive; a NEGATIVE probe of the dead SEC-100 demo password (`admin123`) → HTTP 400 (the historical demo credentials are confirmed dead on live).
+3. **The honest bcrypt answer:** the three staff accounts' passwords exist ONLY as 60-char bcrypt hashes — one-way, unrecoverable by design; not the service key, not the Management API, not Supabase support can reverse them. The T-527 finals were delivered out-of-band and are NOT recorded anywhere in the repo (SEC-100). This is why a reset was the only recovery path — exactly what credentials.md §SEC-100 prescribes: "A lost staff password is re-set through the GoTrue admin API."
+4. **The owner-directed reset (the ONLY writes of this task):** for each of the three staff accounts (adam/mohamed/samir), `PUT /auth/v1/admin/users/{id}` with a freshly generated 16-char four-class password (`secrets`-generated, the T-527 convention) → HTTP 200 ×3. Supabase auto-revokes the users' sessions on password change (the same semantics as the desktop `changePassword` path — the code's own doc comment states it). The new values were delivered to the owner IN CHAT ONLY (his explicit instruction — "this time give them to me"), never in any repo file, doc, log, or commit.
+5. **Per-account verification:** a read-only password grant with each NEW value → HTTP 200 ×3 (token issued). The admin credential re-probed unchanged → 200. The two Google identities untouched (provider census unchanged).
+
+**The §15.11 session-opening census (bonus, read-only):** live `schema_migrations` = 152 = local 151 + the documented stray `0118` (UNKNOWN-028's steady state) — NO new drift; the live head `0156` matches the local chain's last file.
+
+**What was deliberately NOT done:** no rotation of the owner-pinned admin credential (§15.23); no touch of the Google-OAuth identities (no password exists in Supabase — resetting is meaningless and the accounts sign in through Google); no deletion of the two dormant T-464 test-residue profile rows (they carry no auth user; a separate cleanup task if the owner wants one); no writes to `user_profiles.password_changed_at` (the column has NO trigger and NO app writer — verified by grep — so the GoTrue-internal change is the only honest record; the column was ALREADY not maintained by the desktop changePassword path, and inventing a new writer here would be an unregistered parallel implementation).
+
+**Left:** nothing — VERIFIED. (Standing note: the staff should change their passwords at first sign-in per the T-527 convention, Profile → Changer le mot de passe.)
+
+**Related:** SEC-100 (the no-plaintext-passwords rule this task obeyed) · §15.23 (the owner-pinned admin directive, respected) · T-527 (the staff accounts' creation + the out-of-band delivery convention this task's chat delivery replaced at the owner's explicit instruction) · T-464 (the two dormant test profiles) · UNKNOWN-028 (the stray 0118 steady state re-confirmed) · `docs/operations/credentials.md` §1 + the SEC-100 password-policy paragraph (updated this session).

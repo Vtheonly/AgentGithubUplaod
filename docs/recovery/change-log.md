@@ -4968,3 +4968,41 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Affected:** desktop dashboard only. No academic/financial calculations, business rules, backend, migrations, website, or Android behavior changed.
 
 **Next:** run npm run test:vitest -- src/tests/features/dashboard/t-503-indicator-consolidation.test.tsx, npm run typecheck, lint on the changed TypeScript files, then the registered full test gate; append actual output to the verification record before changing status.
+
+
+## 2026-10-14 — T-533 + T-534 (the 178th session's verification round) — THE DEFERRED-VERIFICATION RECONCILIATION: both dashboard mandates advanced to RESOLVED-TESTED on a FULLY-MEASURED ladder, the T-533 dead-prop residue cleaned, and the test baseline moved to the measured 5,247/0/5 state
+
+**What/Why:** the T-532 phases 2-3, T-533, and T-534 implementation commits (f172bc01 · 1e9a22ae · b0526330 · 44d2ab32) all landed on main with the honest "verification pending" note — their sessions could not run the gates (no runner / github.com unresolvable). This session provisioned the full environment (npm install + the complete ladder) and executed every gate on the 44d2ab32 tree, then closed both problems to the measured evidence.
+
+**The T-533 verification-round discovery (the only code change):** the eslint gate surfaced that commit b0526330 left the console's `onOpenStudent`/`onOpenParent` props DEAD — destructured but never used (the console navigates through `usePersonNavigation` since T-514; grep proved zero consumers in tests AND production). Removed from `operational-query-console.tsx` + the `analytics-tab.tsx` pass-throughs; the tab's `onOpenParent` KEPT (its live Pareto consumer, t-514 7/7 green); the tab's `onOpenStudent` prop removed with them (`dashboard-page.tsx` never passed it — zero callers anywhere). Project warnings 994 → 993 (2 dead-prop warnings gone, 0 new).
+
+**Verification (all measured this session, final tree):** `tsc --noEmit` 0 errors · eslint 0 errors (993 warnings, 2 below baseline) · focused suites 43/43 (t-503 13/13 incl. the T-533 pin · t-514 7/7 · t-534 4/4 · dashboard-3zone 19/19) · FULL Layer 1 five-chunk census **5,247 passed / 0 failed / 5 skipped across 320 files** (982 domain+core · 1,133 infrastructure · 1,041 features+ui · 409 rbac+security+ai+app · 1,682+5 cross-platform+integration+performance) · Layer 2 equivalence ALL matched (810/0/10 · 774/0/10/36 · 784/820 0 rows · sanity 820/820, canonical 319/319) · Layer 3 environment-gated with reasons (no Android sibling · no live PG · live-E2E owned by the verify_t-XXX convention) · **the baseline moved** (`scripts/test-baseline.json` → 5,247/319 with the per-file +20 attribution: t-532-student-counts 8 · t-532-placement-draft-persistence 7 · t-534 4 · +1 t-503 · t-370 modified 15→15).
+
+**Affected:** `operational-query-console.tsx` + `analytics-tab.tsx` (dead-prop removal only — zero behaviour change); `scripts/test-baseline.json` (the measured move); the recovery docs (this set).
+
+**Preserved:** every canonical derivation, count, and financial figure (Layer 2 byte-equivalent) · the T-534 geometry contract (44d2ab32 untouched) · Pilotage Exécutif · all 320 test files.
+
+**Problems:** UI-347 IMPLEMENTED → RESOLVED-TESTED · UI-348 OPEN/IN-PROGRESS → RESOLVED-TESTED (both on the measured evidence above; live-visual confirmation on the owner's screen remains the owner's eyeball pass — not a repo gate).
+
+**Next:** T-532's remaining phases (4 ACAD-516 + 5 ACAD-515 + 6 docs closeout) are the open student-lifecycle work.
+
+
+## 2026-10-14 — T-535 / OPS-323 (the 179th session) — THE OWNER'S LOST-CREDENTIAL RECOVERY: the read-only live census (6 auth users, providers, bcrypt format), the honest one-way-hash answer, and the owner-directed reset of exactly the three unrecoverable staff passwords — every step live-verified, the values delivered in chat only
+
+**What/Why:** the owner reported losing the staff sign-in credentials ("give me the list of the usernames and the password BUT DO NOT CHANGE THEM"), then — after the census proved the three staff passwords exist only as 60-char one-way bcrypt hashes — explicitly directed: "just change the ones you can't get and this time give them to me." The second message is the owner authorization scoped to exactly the three unrecoverable accounts.
+
+**What was done (in order):** (1) the READ-ONLY census — data-gateway `user_profiles` (sb_secret) + Management-API `auth.users`/`auth.identities` (the `sbp_` token, ALIVE this session) + the bcrypt format probe: 6 auth users (admin + 3 staff email accounts + 2 Google-OAuth identities), all active; the admin credential sign-in-verified 200 (§15.23 respected — NEVER rotated); a NEGATIVE probe confirmed the historical SEC-100 demo password `admin123` dead (400). (2) The owner-authorized reset — `PUT /auth/v1/admin/users/{id}` ×3 with fresh 16-char four-class values (the T-527 convention) → 200 ×3; Supabase auto-revokes each user's sessions on change (the desktop changePassword path's own documented semantics). (3) Per-account verification — password grant with each NEW value → 200 ×3. (4) The values delivered to the owner IN CHAT ONLY (his explicit instruction) — never in any repo file, doc, log, or commit (SEC-100).
+
+**What was deliberately NOT done:** no rotation of the owner-pinned admin credential · no touch of the Google-OAuth identities (no Supabase password exists) · no deletion of the two dormant T-464 test-residue profile rows (no auth users behind them) · no new writer for `user_profiles.password_changed_at` (the column has NO trigger and NO app writer — verified by grep; inventing one would be a parallel implementation).
+
+**Bonus (the §15.11 session-opening census, read-only):** live `schema_migrations` 152 = local 151 + the documented stray `0118` (UNKNOWN-028's steady state) — NO new drift; the live head `0156` matches the local chain's last file.
+
+**Verification:** reset 200 ×3 + sign-in 200 ×3 (live, this session) · the admin credential re-probed unchanged · the provider census unchanged after the operation · credentials.md §1 updated to the 2026-10-14 census (the stale "1 auth user" line from 2026-09-10 corrected).
+
+**Affected:** live `auth.users` only (the three staff password hashes + session revocation). NO repository code, NO schema, NO migration, NO RLS, NO admin credential, NO Google identity.
+
+**Problems:** OPS-323 RESOLVED-VERIFIED-LIVE (registered after the fact — the owner's mandate arrived mid-session in chat; the operation was live-ops, the registry entry records the full evidence trail).
+
+**Standing note:** the staff should change their passwords at first sign-in (Profile → Changer le mot de passe — the T-527 convention).
+
+**Next:** T-532's remaining phases (ACAD-516 the even-distribution engine · ACAD-515 the year-scoping fixes · the docs closeout).
