@@ -484,6 +484,14 @@ export function ReEnrollmentTab({
         candidate={reEnrollCandidate}
         onReEnrolled={() => {
           setReEnrollCandidate(null);
+          // DATA-064 (T-532, GitHub issue #32 §6): fn_re_enroll_student
+          // writes the student's target-year grade AND class_id (and the
+          // billing rows) — refresh the students and classes caches so the
+          // CRM student records, the class rosters, and every class-card
+          // count reflect the new assignment in the same cycle instead of
+          // healing behind the 30s cache TTL.
+          void (repos.students as { refresh?: () => Promise<void> }).refresh?.();
+          void (repos.classes as { refresh?: () => Promise<void> }).refresh?.();
           void refresh();
         }}
       />

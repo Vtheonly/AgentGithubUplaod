@@ -197,6 +197,14 @@ export class MockStore {
 
   notifyParents() { this.stageAndNotify("parent", this.parents as unknown as StagedRow[], () => this.parents$.set([...this.parents])); }
   notifyStudents() { this.stageAndNotify("student", this.students as unknown as StagedRow[], () => this.students$.set([...this.students])); }
+  /**
+   * DATA-064 (T-532, GitHub issue #32 §6): the classes stream push. The
+   * class-card/KPI counts re-derive through classes$ — every roster-changing
+   * student write (updateStudent classId, finalizePlacements, create-class
+   * link loops) must push here so Channel A (enrolledCount) and Channel B
+   * (the student-cache roster) move in the SAME cycle.
+   */
+  notifyClasses() { this.classes$.set([...this.classes]); }
   notifyPayments() { this.stageAndNotify("payment", this.payments as unknown as StagedRow[], () => this.payments$.set([...this.payments])); }
   notifyInstallments() { this.stageAndNotify("installment", this.installments as unknown as StagedRow[], () => this.installments$.set([...this.installments])); }
   notifyExpenses() { this.expenses$.set([...this.expenses]); }
@@ -417,6 +425,47 @@ export function appendAudit(input: AppendAuditInput): void {
  */
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * DATA-064 (T-532, GitHub issue #32 §6) — the ONE counting rule, shared by
+ * every mock write path that can change a roster:
+ *
+ *   a class's enrolledCount = the number of students currently assigned to
+ *   it (class_id = class) — NO status filter, matching `observeByClass`'s
+ *   roster semantics exactly (the class-detail page lists precisely these
+ *   students, rendering per-row status chips).
+ *
+ * BEFORE this helper the mock recomputed enrolledCount ONLY inside
+ * `finalizePlacements` and with an `status === "active"` filter the Supabase
+ * histogram never had — so the mock's class cards could disagree with the
+ * mock's own rosters, and every non-finalize roster write (updateStudent
+ * classId — the T-474 create/edit-modal seam, the single add/remove
+ * dialogs) left enrolledCount frozen at its stale value (the create-class
+ * path literally showed 0 next to a "N élève(s) affecté(s)" toast).
+ *
+ * Recomputes the AFFECTED classes only (the old AND the new class of a
+ * move) and pushes classes$ so every card/KPI re-derives in the same cycle.
+ */
+export function recomputeClassEnrolledCounts(
+  affected: Iterable<string | null | undefined>,
+): void {
+  const ids = new Set<string>();
+  for (const id of affected) {
+    if (typeof id === "string" && id.length > 0) ids.add(id);
+  }
+  if (ids.size === 0) return;
+  let changed = false;
+  for (let i = 0; i < store.classes.length; i++) {
+    const cls = store.classes[i];
+    if (!ids.has(cls.id)) continue;
+    const count = store.students.filter((s) => s.classId === cls.id).length;
+    if (cls.enrolledCount !== count) {
+      store.classes[i] = { ...cls, enrolledCount: count };
+      changed = true;
+    }
+  }
+  if (changed) store.notifyClasses();
 }
 
 

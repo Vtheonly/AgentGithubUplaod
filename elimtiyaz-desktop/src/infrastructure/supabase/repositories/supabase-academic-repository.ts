@@ -353,10 +353,18 @@ export class SupabaseClassRepository implements ClassRepository {
           .order("code", { ascending: true }),
         // enrolledCount is derived from the students table (the classes table
         // has no enrolled_count column) — one histogram query per refresh.
+        // DATA-064 (T-532, GitHub issue #32 §6): the ONE counting rule —
+        // every student currently assigned (class_id NOT NULL), soft-deleted
+        // rows excluded EXPLICITLY (RLS already filters them for staff, but
+        // the projection states its own dataset), NO enrollment-status
+        // filter — the class-detail roster (observeByClass) lists exactly
+        // these rows with per-row status chips, so the card count and the
+        // roster length can never disagree.
         this.client
           .from("students")
           .select("class_id")
-          .not("class_id", "is", null),
+          .not("class_id", "is", null)
+          .is("deleted_at", null),
       ] as const);
 
       if (error) throw error;

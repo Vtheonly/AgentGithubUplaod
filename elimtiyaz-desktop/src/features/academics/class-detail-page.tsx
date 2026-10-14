@@ -348,6 +348,13 @@ export function ClassDetailPage() {
 
       if (failures.length === 0) {
         const changes = toAdd.length + toRemove.length;
+        // DATA-064 (T-532): the roster diff just moved students in/out of
+        // THIS class (and out of/into their previous classes) — refresh the
+        // classes cache so the card counts follow the roster in the same
+        // cycle (the mock recomputes inside updateStudent itself).
+        if (changes > 0) {
+          void (repos.classes as { refresh?: () => Promise<void> }).refresh?.();
+        }
         toast.showSuccess(
           "Classe mise à jour",
           changes === 0
@@ -376,6 +383,9 @@ export function ClassDetailPage() {
     });
 
     if (result.ok) {
+      // DATA-064 (T-532): same roster-write seam — the class card count
+      // follows the roster in the same cycle.
+      void (repos.classes as { refresh?: () => Promise<void> }).refresh?.();
       toast.showSuccess(
         "Élève ajouté",
         `${stu.firstName} ${stu.lastName} a été affecté(e) à ${cls.name}.`,
@@ -694,7 +704,14 @@ export function ClassDetailPage() {
             // The students' grades/classes changed — force the reseed so the
             // roster reflects the promotion immediately (the T-370
             // cross-repo refresh seam — optional on the contract).
+            // DATA-064 (T-532): promotion clears class_id for promoted /
+            // graduated students — a ROSTER write on BOTH ends — so the
+            // classes cache (the enrolledCount histogram) refreshes in the
+            // same cycle, keeping the level cards and this page's roster
+            // in agreement (the students-only refresh left the class cards
+            // stale before this seam).
             void (repos.students as { refresh?: () => Promise<void> }).refresh?.();
+            void (repos.classes as { refresh?: () => Promise<void> }).refresh?.();
           }}
         />
       )}

@@ -49,7 +49,7 @@ import {
   createAcademicHistoryEntry,
   type PromotionCandidate,
 } from "../../../domain/calc/academics/promotion";
-import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { store, TENANT_ID, appendAudit, nowIso, delay, recomputeClassEnrolledCounts } from "./mock-store";
 import { ACADEMIC_YEAR } from "../seed-data";
 import { currentTermWindow, isDateInCurrentTerm } from "../../../domain/calc/academics/terms";
 import { logAutoReleveEntry } from "./auto-releve";
@@ -880,6 +880,8 @@ export class MockPromotionRepository implements PromotionRepository {
   }): Promise<Result<{ promotedStudents: Student[]; updatedCount: number }>> {
     await delay(300);
     const updatedStudents: Student[] = [];
+    // DATA-064 (T-532): the classes whose rosters this batch touches.
+    const affectedClassIds = new Set<string>();
 
     for (const item of input.candidates) {
       const { candidate, finalDecision } = item;
@@ -933,9 +935,15 @@ export class MockPromotionRepository implements PromotionRepository {
 
         store.students[idx] = updated;
         updatedStudents.push(updated);
+        // DATA-064 (T-532): the legacy batch executor clears class_id for
+        // promoted students too — collect the affected classes and
+        // recompute their enrolledCount below (the ONE counting rule).
+        affectedClassIds.add(current.classId ?? "");
+        affectedClassIds.add(updated.classId ?? "");
       }
     }
 
+    recomputeClassEnrolledCounts(affectedClassIds);
     store.notifyStudents();
 
     appendAudit({
@@ -1190,10 +1198,14 @@ export class MockClassPlacementRepository implements ClassPlacementRepository {
     }
 
     // Recompute enrolled counts (the students.class_id histogram).
+    // DATA-064 (T-532): the ONE counting rule — NO status filter, matching
+    // observeByClass's roster semantics exactly (the Supabase histogram and
+    // the class-detail roster count the same rows). The previous
+    // `status === "active"` filter made the mock's class cards disagree
+    // with the mock's own rosters whenever a non-active student held a
+    // class_id — a parity defect against the Supabase channel.
     for (const cls of store.classes) {
-      const count = store.students.filter(
-        (s) => s.classId === cls.id && s.status === "active",
-      ).length;
+      const count = store.students.filter((s) => s.classId === cls.id).length;
       const idx = store.classes.indexOf(cls);
       store.classes[idx] = { ...cls, enrolledCount: count };
     }
@@ -1440,6 +1452,11 @@ export class MockPromotionCycleRepository implements PromotionCycleRepository {
       };
       store.students[idx] = next;
     }
+    // DATA-064 (T-532): promotion clears class_id for promoted/graduated
+    // students — a ROSTER write on the confirmed class. The ONE counting
+    // rule recomputes its enrolledCount (the level cards and year-drawer
+    // KPIs follow the promotion in the same cycle, never a stale count).
+    recomputeClassEnrolledCounts([input.classId]);
     store.notifyStudents();
 
     classRow.status = "processed";

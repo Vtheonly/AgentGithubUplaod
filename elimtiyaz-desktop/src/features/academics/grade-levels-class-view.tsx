@@ -504,6 +504,16 @@ function CreateClassModal({
         else failedStudents.push(assignResult.error.userMessage);
       }
 
+      // DATA-064 (T-532, GitHub issue #32 §6): the per-student link loop is
+      // a ROSTER write — refresh the classes cache so the newly created
+      // class card's enrolledCount reflects the students just linked (the
+      // Supabase histogram captured at createClass time predates the loop —
+      // the card showed 0 next to this toast's "N élève(s) affecté(s)"
+      // before this seam; the mock recomputes inside updateStudent itself).
+      if (assignedCount > 0) {
+        void (repos.classes as { refresh?: () => Promise<void> }).refresh?.();
+      }
+
       toast.showSuccess(
         "Classe créée",
         failedStudents.length === 0

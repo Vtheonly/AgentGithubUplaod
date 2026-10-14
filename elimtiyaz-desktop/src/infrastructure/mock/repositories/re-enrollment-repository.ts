@@ -40,7 +40,7 @@ import { deriveAccountId } from "../../../domain/calc/ledger/account-id";
 // display names (the write path's COALESCE(NULLIF(TRIM(...), '')) guarantees
 // it), so the helper's trim+empty fallback is the exact client-side mirror.
 import { parentDisplayName } from "../../../domain/model/parent";
-import { store, appendAudit, nowIso } from "./mock-store";
+import { store, appendAudit, nowIso, recomputeClassEnrolledCounts } from "./mock-store";
 
 /** The mock store's re-enrollment rows (the singleton session state). */
 interface MockReEnrollmentRow {
@@ -295,6 +295,11 @@ export class MockReEnrollmentRepository implements ReEnrollmentRepository {
         status: "active",
         updatedAt: nowIso(),
       };
+      // DATA-064 (T-532): the re-enrollment is a ROSTER write too — the
+      // affected classes' enrolledCount recompute through the ONE counting
+      // rule (the class the student left AND the target class) so the
+      // class-card counts follow the placement in the same cycle.
+      recomputeClassEnrolledCounts([student.classId, input.classId]);
       store.notifyStudents();
 
       // INV-25c + DATA-057a (T-439): the billing legs mapped from the

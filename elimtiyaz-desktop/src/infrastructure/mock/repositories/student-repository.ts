@@ -28,7 +28,7 @@ import type {
 } from "../../../domain/model/student";
 import { gradeLevelFromLevelYear } from "../../../domain/model/student";
 import { normalizeTrackCode } from "../../../domain/model/filiere";
-import { store, TENANT_ID, appendAudit, nowIso, delay } from "./mock-store";
+import { store, TENANT_ID, appendAudit, nowIso, delay, recomputeClassEnrolledCounts } from "./mock-store";
 import type { Parent } from "../../../domain/model/parent";
 import { dispatchStudentEnrolled } from "./workflow-event-bridge";
 import { defaultPricingConfig } from "../pricing-seed";
@@ -116,6 +116,11 @@ export class MockStudentRepository implements StudentRepository {
       updatedAt: nowIso(),
     };
     store.students.unshift(student);
+    // DATA-064 (T-532): a created student WITH a class assignment is a
+    // roster write — the target class's enrolledCount follows immediately.
+    if (student.classId) {
+      recomputeClassEnrolledCounts([student.classId]);
+    }
     store.notifyStudents();
     appendAudit({
       action: AuditActions.StudentCreate,
@@ -172,6 +177,17 @@ export class MockStudentRepository implements StudentRepository {
       updatedAt: nowIso(),
     };
     store.students[idx] = after;
+    // DATA-064 (T-532, GitHub issue #32 §6): a classId-changing write is a
+    // ROSTER write — the affected classes' enrolledCount (the old class of
+    // a move AND the new one) recompute through the ONE counting rule and
+    // push classes$ in the same cycle, so the class cards / level badges /
+    // year-drawer KPIs can never contradict the roster the class-detail
+    // page renders (the create-class link loop's "0 élèves" card next to
+    // its "N élève(s) affecté(s)" toast was this seam's most visible
+    // symptom).
+    if (updates.classId !== undefined) {
+      recomputeClassEnrolledCounts([before.classId, after.classId]);
+    }
     store.notifyStudents();
     appendAudit({
       action: AuditActions.StudentUpdate,
@@ -192,7 +208,13 @@ export class MockStudentRepository implements StudentRepository {
     // (see nextId) so deletes can never cause id reuse.
     const existed = store.students.some((s) => s.id === id);
     if (!existed) return Err(Errors.notFound("Student", id));
+    // DATA-064 (T-532): deleting an assigned student is a roster write —
+    // its class's enrolledCount follows immediately.
+    const deleted = store.students.find((s) => s.id === id);
     store.students = store.students.filter((s) => s.id !== id);
+    if (deleted?.classId) {
+      recomputeClassEnrolledCounts([deleted.classId]);
+    }
     store.notifyStudents();
     appendAudit({
       action: "student.delete",
@@ -222,6 +244,8 @@ export class MockStudentRepository implements StudentRepository {
    */
   async batchRegister(input: BatchRegistrationInput): Promise<Result<BatchRegistrationResult>> {
     await delay(400);
+    // DATA-064 (T-532): the classes whose rosters this batch touches.
+    const batchAffectedClassIds = new Set<string>();
 
     // Step 1: Pre-validate inputs (fail fast, before any mutation).
     if (input.students.length === 0) {
@@ -309,7 +333,13 @@ export class MockStudentRepository implements StudentRepository {
         };
         store.students.unshift(student);
         students.push(student);
+        // DATA-064 (T-532): batch-registered students may carry a class
+        // assignment — collect the affected classes for the recompute.
+        if (student.classId) {
+          batchAffectedClassIds.add(student.classId);
+        }
       }
+      recomputeClassEnrolledCounts(batchAffectedClassIds);
       store.notifyStudents();
 
       // Step 3c (FIX — billing persistence): create the charge entries and
