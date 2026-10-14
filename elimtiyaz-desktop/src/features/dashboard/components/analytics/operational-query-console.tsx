@@ -78,8 +78,6 @@ import { CardHeaderActions } from "./card-header-actions";
 
 interface Props {
   profiles: StudentRiskProfile[];
-  onOpenStudent?: (studentId: string) => void;
-  onOpenParent?: (parentId: string) => void;
   /**
    * T-502 (DEBT-104): the tenant's CONFIGURED severe-debt edge
    * (`debt.severe_debt_dzd`, migration 0150 — default 40 000). The
@@ -867,8 +865,6 @@ function Student360Modal({
 
 export function OperationalQueryConsole({
   profiles,
-  onOpenStudent,
-  onOpenParent,
   severeDebtDzd,
   selectedCategory,
   onSelectedCategoryChange,

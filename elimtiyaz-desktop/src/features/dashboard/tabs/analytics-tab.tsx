@@ -106,7 +106,6 @@ export interface AnalyticsTabProps {
   payments: readonly Payment[];
   installments?: readonly Installment[];
   range?: { from: string; to: string };
-  onOpenStudent?: (studentId: string) => void;
   onOpenParent?: (parentId: string) => void;
   /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
   editing?: boolean;
@@ -155,7 +154,6 @@ export function AnalyticsTab({
   payments,
   installments: installmentsProp,
   range,
-  onOpenStudent,
   onOpenParent,
   editing = false,
   debtThresholds,
@@ -613,8 +611,6 @@ export function AnalyticsTab({
       content: (
         <OperationalQueryConsole
           profiles={riskProfiles}
-          onOpenStudent={onOpenStudent}
-          onOpenParent={onOpenParent}
           // The configured severe-debt edge powers the existing quick query.
           severeDebtDzd={debtThresholdsActive.severeDebtDzd}
           selectedCategory={consoleCategory}
