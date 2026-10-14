@@ -4953,3 +4953,18 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Commits:** 4ccbb6a5 (registration) · 7a4d43ed (accounts) · 15701299 (channel) · dc9e402d (0155) · 3092cea0 (E2E + 0156) · the closeout commit (this doc set).
 
 **Problems:** SEC-118 RESOLVED-TESTED-VERIFIED-LIVE · WORKFORCE-521 RESOLVED-TESTED-VERIFIED-LIVE · CHAT-306 RESOLVED-TESTED-VERIFIED-LIVE · CHAT-307 RESOLVED-TESTED-VERIFIED-LIVE (registered + fixed in-session) · SEC-119 registered OPEN (the same-class audit follow-up: batch_register_family + purge_expired_backups).
+
+
+## 2026-10-14 — T-533 / UI-347 — IMPLEMENTED, test verification pending
+
+**What/Why:** Consolidate the Diagnostic Actif investigation roster, four-axis cross-risk triage, and multidimensional academic/attendance/debt matrix into one dashboard layout item, as requested. The three views already use the same risk-profile stream; separate layout items created fragmented sizing/visibility controls without adding value.
+
+**Changes:** Commit b0526330 (https://github.com/Vtheonly/AgentGithubUplaod/commit/b05263302fb181db110083059468325198acff0e) embeds the existing CrossRiskCard and PivotMatrixCard inside OperationalQueryConsole, removes the separate diagnostic-cross-risk and diagnostic-pivot entries, and grows the single console layout bounds to accommodate the composite module. The canonical riskProfiles, memoized riskSummary, and computeMultiDimensionalPivot remain the only derivations. A regression assertion was added to t-503-indicator-consolidation.test.tsx. Registration was committed before code as 17486003.
+
+**Verification actually performed:** reviewed the pushed commit diff from GitHub; confirmed in source that diagnosticItems contains one item, CrossRiskCard receives the canonical summary and calls the existing applyCategory filter, and PivotMatrixCard receives the same profile array and class list. GitHub's commit-check endpoint returned 0 check runs and the Actions-runs endpoint returned 0 runs for main at inspection time. A local git clone attempt failed with "Could not resolve host: github.com". No TypeScript, lint, or Vitest command was executed; no pass result is claimed.
+
+**Status:** IMPLEMENTED. Do not advance to TESTED until the focused regression suite, typecheck, lint, and applicable full suite are run in a checkout with dependencies available.
+
+**Affected:** desktop dashboard only. No academic/financial calculations, business rules, backend, migrations, website, or Android behavior changed.
+
+**Next:** run npm run test:vitest -- src/tests/features/dashboard/t-503-indicator-consolidation.test.tsx, npm run typecheck, lint on the changed TypeScript files, then the registered full test gate; append actual output to the verification record before changing status.

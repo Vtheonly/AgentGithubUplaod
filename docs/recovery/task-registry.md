@@ -6301,7 +6301,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem ID:** UI-347 (registered OPEN before implementation per §13).
 
-**Status:** REGISTERED → IN PROGRESS (177th session, 2026-10-14; dashboard-only UI consolidation).
+**Status:** IMPLEMENTED (177th session, 2026-10-14 — source and regression test pushed to main in commit b0526330; automated verification remains pending).
 
 **The owner mandate:** the Diagnostic Actif tab currently presents the « Console d'Investigation Opérationnelle », « Triage des Vulnérabilités Croisées », and « Matrice Croisée Multi-Dimensionnelle » as separate cards/layout indicators even though they describe the same student/family risk population. Make them one unified investigation module, sharing the information and canonical calculations rather than duplicating them.
 
@@ -6309,8 +6309,10 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Implementation contract:** (a) the Diagnostic Actif layout has exactly ONE saved-layout item for this investigation, so its visibility, sizing, and positioning are managed as one module; (b) that module retains the quick-query presets, roster search/sorting, family/student navigation, 360° detail, IA actions, the four canonical risk quadrants and their live roster filters, plus the cycle/grade/class pivot controls; (c) pass the existing `riskSummary` and `riskProfiles` through — no second count engine or new business rules; (d) inspection/configuration actions remain attached to the surface they govern; (e) Pilotage Exécutif remains unaffected; (f) desktop-only, no schema/RPC/backend/Android/website change; (g) add a regression test that pins the single Diagnostic layout item and the nested, shared data wiring; (h) run the focused regression suite, typecheck, lint, and applicable full test gate where the available runtime permits, recording only results actually observed.
 
-**Plan:** (1) registration-first commit (this commit) → (2) refactor the three cards into one parent layout item while preserving each existing surface's controls → (3) pin the one-item/module wiring in the dashboard regression suite → (4) run verification and update problem/task/change-log/next-task records.
+**Plan:** (1) registration-first commit 17486003 → (2) implementation + regression source commit b0526330 → (3) run the focused test, typecheck, and lint when a usable checkout/runner is available → (4) record only observed results.
 
-**Left:** implementation, regression tests, and verification.
+**Delivered:** one diagnostic-console layout item now contains the operational roster, canonical four-axis CrossRiskCard, and existing PivotMatrixCard. The canonical riskProfiles and memoized riskSummary are passed into the console; the existing quadrant filter remains connected, and the pivot still calls computeMultiDimensionalPivot. Added a regression pin for one layout item and nested section wiring. Pilotage Exécutif is untouched.
+
+**Left:** execute the focused regression suite, npm run typecheck, the relevant lint gate, and the applicable full test suite. This session did not run these commands: the commit has no reported GitHub check-runs/workflow-runs and the local clone attempt failed because this runtime could not resolve github.com. Do not advance to TESTED without reproducible test output.
 
 **Related:** UI-335 (the earlier duplicate-indicator consolidation and quadrant→roster filtering) · UI-334 (inspection controls stay attached to their target) · T-503 (dashboard indicator/layout rules) · `operational-query-engine.ts` · `executive-statistics.ts` · `computeMultiDimensionalPivot`.

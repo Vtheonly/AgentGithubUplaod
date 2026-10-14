@@ -1,3 +1,11 @@
+# Current State — Project Snapshot (2026-10-14, 177th session — T-533 IMPLEMENTED / UI-347, verification pending): Diagnostic Actif's operational roster, four-axis cross-risk triage, and multidimensional academic/attendance/debt matrix are consolidated into ONE saved-layout item. Commit b0526330 pushed to main; the regression pin is added, but typecheck/lint/Vitest remain unrun because this runtime could not resolve github.com and GitHub reported no checks.
+
+> The registration is in commit 17486003, the implementation is in commit b05263302fb181db110083059468325198acff0e, and the change-log entry records the verification limitation. Status is IMPLEMENTED, not TESTED.
+
+The single diagnostic-console layout item now hosts the existing roster, canonical CrossRiskCard summary, and existing PivotMatrixCard. All continue to consume the same riskProfiles / memoized riskSummary and existing pivot derivation. The quadrant filter, inspection/configuration actions, quick queries, student/family navigation, and Cycles/Paliers/Classes controls remain wired; Pilotage Exécutif and all backend/mobile/website surfaces are untouched. Run the focused dashboard test, npm run typecheck, lint, and full gate from a working checkout before promoting task status.
+
+---
+
 # Current State — Project Snapshot (2026-10-12, ONE-HUNDRED-FIFTY-SIXTH session — T-505 COMPLETE [the CONCURRENT twin of the T-507 fleet]: the owner's Sync & Backup mandate — the error investigation concluded [BKUP-512: the pre-T-487 build's GCM/empty-archive class, live-forensics evidence] + the export warm-up hole closed [BKUP-510] + the file-based workflows delivered [BKUP-511: the ZIP-of-Excel checkpoint · the restore-from-file ladder · the native dialogs · the last-location memory · the safety-backup-gated restores]; the battery 4,982/0/5 BASELINE-MATCHED post-merge [299 files], the LIVE verification 12/12)
 
 > **The 156th session's summaries are in `docs/recovery/next-task.md` (head) and `docs/recovery/change-log.md` (the T-505 entry). The live evidence: `docs/recovery/t-505-live-verification.md` + the two committed probe reports.**

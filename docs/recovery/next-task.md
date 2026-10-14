@@ -1,10 +1,10 @@
-# 2026-10-14 — The 177th session IN PROGRESS (T-533 / UI-347): consolidate Diagnostic Actif's operational roster, four-axis cross-risk triage, and multidimensional matrix into ONE saved-layout investigation module. Registration-first is complete; implementation and regression verification remain.
+# 2026-10-14 — The 177th session IMPLEMENTED (T-533 / UI-347): Diagnostic Actif now has ONE resizable/hidden dashboard item for the operational roster, canonical cross-risk triage, and multidimensional academic/attendance/debt matrix. Source + regression test pushed to main in commit b0526330; verification is pending.
 
-**Registration (before code):** UI-347 OPEN + T-533 IN PROGRESS. The three existing components already consume the same canonical risk-profile stream; the fix is to consolidate their layout/presentation while keeping `evaluateStudentRiskProfiles`, `deriveTripleRiskSummary`, and `computeMultiDimensionalPivot` as the only derivations. This is a desktop-only dashboard change — Pilotage Exécutif and all backend/mobile/website surfaces remain untouched.
+**Delivered:** diagnosticItems contains only diagnostic-console. OperationalQueryConsole embeds the existing CrossRiskCard using the tab's memoized riskSummary and its existing category-filter callback, then embeds PivotMatrixCard using the same riskProfiles and classes. The original student/parent navigation, search, presets, sorting, configured severe-debt threshold, AI actions, inspection triggers, and cycle/grade/class pivot remain in place. No new risk calculations or business rules were introduced; Pilotage Exécutif and the other platforms are untouched.
 
-**Plan:** one `diagnostic-console` layout item embeds the canonical risk summary and the pivot under the roster console; preserve quick queries/search/sorting/360° navigation/IA actions, quadrant→roster filtering, Cycles/Paliers/Classes controls, and attached inspection/configuration triggers. Add a regression pin for exactly one Diagnostic layout item + nested section wiring; then run the focused test, typecheck, lint, and broader test gate available in the checkout.
+**Verification boundary:** the regression test has been added but was not executed in this session. GitHub reported zero workflow runs and zero commit check-runs for b0526330 at inspection time; the local clone attempt could not resolve github.com. Typecheck, lint, the focused Vitest suite, and the full test gate remain pending. Keep UI-347 at IMPLEMENTED (not TESTED) until those commands produce reproducible output.
 
-**Next:** implement T-533, verify actual command results, and close the registry/change-log only to the evidence achieved.
+**Next:** run the focused dashboard regression suite, npm run typecheck, relevant lint, and the available full gate from a working checkout; then update status only to the evidence achieved.
 
 ---
 
