@@ -92,7 +92,7 @@ export function UnifiedModalBody({
   return (
     <div
       className={cn(
-        "flex-1 overflow-y-auto",
+        "flex-1 min-h-0 overflow-y-auto",
         // command-palette defaults to p-0 (flush results list); dialog/drawer default to p-5.
         isCommandPalette ? "p-0" : "p-5",
         className,

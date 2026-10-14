@@ -423,11 +423,14 @@ export function AnalyticsTab({
       x: 0,
       y: 0,
       w: 4,
-      h: 8,
+      // T-534 (UI-348): four metric cards + the wrapped inspection header
+      // need a stable minimum footprint; existing saved heights are clamped
+      // to minH and the shared layout resolver moves any overlapping rows.
+      h: 9,
       minW: 3,
       maxW: 12,
-      minH: 6,
-      maxH: 16,
+      minH: 9,
+      maxH: 20,
       content: (
         <TripleRiskSummaryCard
           summary={riskSummary}
@@ -448,11 +451,14 @@ export function AnalyticsTab({
       x: 4,
       y: 0,
       w: 8,
-      h: 8,
+      // T-534 (UI-348): reserve enough vertical space for the complete T1/T2/T3
+      // pooled meters + their values/inspection controls. The card may grow
+      // further; it can no longer be saved below this usable floor.
+      h: 11,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 18,
+      minH: 11,
+      maxH: 24,
       content: (
         <WaveVelocityCard
           waves={waves}
@@ -474,7 +480,8 @@ export function AnalyticsTab({
       id: "pilotage-debt",
       label: "Triage des créances",
       x: 0,
-      y: 9,
+      // T-534: below the taller seasonal-wave row, with one grid-row gutter.
+      y: 12,
       w: 7,
       h: 8,
       minW: 4,
@@ -499,7 +506,7 @@ export function AnalyticsTab({
       id: "pilotage-discount",
       label: "Érosion des remises",
       x: 7,
-      y: 9,
+      y: 12,
       w: 5,
       h: 8,
       minW: 4,
@@ -517,7 +524,7 @@ export function AnalyticsTab({
       id: "pilotage-family",
       label: "Concentration du risque familial",
       x: 0,
-      y: 18,
+      y: 21,
       w: 7,
       h: 8,
       minW: 4,
@@ -535,7 +542,7 @@ export function AnalyticsTab({
       id: "pilotage-enrollment",
       label: "Dynamique des effectifs et fratries",
       x: 7,
-      y: 18,
+      y: 21,
       w: 5,
       h: 8,
       minW: 4,
@@ -548,7 +555,7 @@ export function AnalyticsTab({
       id: "pilotage-transport",
       label: "Rendement transport",
       x: 0,
-      y: 27,
+      y: 30,
       w: 7,
       h: 8,
       minW: 4,
@@ -566,7 +573,7 @@ export function AnalyticsTab({
       id: "pilotage-services",
       label: "Revenus services spécialisés",
       x: 7,
-      y: 27,
+      y: 30,
       w: 5,
       h: 8,
       minW: 4,
