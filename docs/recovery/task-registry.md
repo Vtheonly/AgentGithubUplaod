@@ -6295,3 +6295,22 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** the full implementation (starts immediately after this registration commit).
 
 **Related:** GitHub issue #32 · UI-346 · ACAD-515 · ACAD-516 · DATA-064 · docs/audits/pedagogy-academics-audit-2026-10-10.md (T-500, the audit basis) · T-437/T-439 (the re-enrollment foundation) · T-403/T-407 (the promotion cycles) · T-370/T-474/T-512 (the placement/roster seams this extends) · T-408 (ACAD-509, the canonical-year rule) · ADR-031 · the concurrent T-531 (website-only, no overlap with the desktop surfaces touched here).
+
+
+## T-533 — Diagnostic Actif: unify the investigation roster, cross-risk triage, and multidimensional academic/attendance/debt matrix into ONE dashboard module — the 177th session
+
+**Problem ID:** UI-347 (registered OPEN before implementation per §13).
+
+**Status:** REGISTERED → IN PROGRESS (177th session, 2026-10-14; dashboard-only UI consolidation).
+
+**The owner mandate:** the Diagnostic Actif tab currently presents the « Console d'Investigation Opérationnelle », « Triage des Vulnérabilités Croisées », and « Matrice Croisée Multi-Dimensionnelle » as separate cards/layout indicators even though they describe the same student/family risk population. Make them one unified investigation module, sharing the information and canonical calculations rather than duplicating them.
+
+**Confirmed root cause:** `analytics-tab.tsx` registers the operational roster, CrossRiskCard, and PivotMatrixCard as three different DashboardLayoutItems. They already receive the same canonical `riskProfiles`; `deriveTripleRiskSummary(riskProfiles)` is already memoized and shared with the executive radar, and the pivot uses the existing `computeMultiDimensionalPivot`. The duplication is primarily in layout/presentation, not a reason to fork the risk calculations.
+
+**Implementation contract:** (a) the Diagnostic Actif layout has exactly ONE saved-layout item for this investigation, so its visibility, sizing, and positioning are managed as one module; (b) that module retains the quick-query presets, roster search/sorting, family/student navigation, 360° detail, IA actions, the four canonical risk quadrants and their live roster filters, plus the cycle/grade/class pivot controls; (c) pass the existing `riskSummary` and `riskProfiles` through — no second count engine or new business rules; (d) inspection/configuration actions remain attached to the surface they govern; (e) Pilotage Exécutif remains unaffected; (f) desktop-only, no schema/RPC/backend/Android/website change; (g) add a regression test that pins the single Diagnostic layout item and the nested, shared data wiring; (h) run the focused regression suite, typecheck, lint, and applicable full test gate where the available runtime permits, recording only results actually observed.
+
+**Plan:** (1) registration-first commit (this commit) → (2) refactor the three cards into one parent layout item while preserving each existing surface's controls → (3) pin the one-item/module wiring in the dashboard regression suite → (4) run verification and update problem/task/change-log/next-task records.
+
+**Left:** implementation, regression tests, and verification.
+
+**Related:** UI-335 (the earlier duplicate-indicator consolidation and quadrant→roster filtering) · UI-334 (inspection controls stay attached to their target) · T-503 (dashboard indicator/layout rules) · `operational-query-engine.ts` · `executive-statistics.ts` · `computeMultiDimensionalPivot`.
