@@ -11,7 +11,7 @@
  *   4. Review Mode: Final pre-commit breakdown and atomic execution.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   GraduationCap,
   Users,
@@ -27,6 +27,7 @@ import {
   School,
   Table as TableIcon,
   LayoutGrid,
+  History,
 } from "lucide-react";
 import { UnifiedModal } from "../../../shared/ui/unified-modal";
 import { Button } from "../../../shared/ui/button";
@@ -64,6 +65,16 @@ export function ClassPlacementStudioModal({
 }: Props) {
   const studio = useClassPlacementStudio(presetGradeLevel ?? "1ap");
   const [viewMode, setViewMode] = useState<StudioViewMode>("board");
+
+  // UI-346 (T-532): the « Répartir (GRADE) » entry points pass a preset —
+  // honor it on every OPEN (before this, the preset only seeded the FIRST
+  // mount, so re-opening for another grade kept the previous context).
+  useEffect(() => {
+    if (open && presetGradeLevel && presetGradeLevel !== studio.targetGradeLevel) {
+      studio.setTargetGradeLevel(presetGradeLevel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, presetGradeLevel]);
 
   // Filtering on candidate pool
   const [search, setSearch] = useState("");
@@ -229,6 +240,33 @@ export function ClassPlacementStudioModal({
             );
           })}
         </div>
+
+        {/* UI-346 (T-532, GitHub issue #32 §4 — the "Free List"): the
+            reprise banner — a restored draft is NEVER mistaken for fresh
+            state (its age and size are stated, one click discards it). */}
+        {studio.restoredDraftInfo && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs">
+            <span className="flex items-center gap-1.5 text-primary min-w-0">
+              <History className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                Session reprise — {studio.restoredDraftInfo.assignmentCount} affectation(s) et{" "}
+                {studio.restoredDraftInfo.draftSectionCount} section(s) en cours restaurées
+                (enregistrée le {new Date(studio.restoredDraftInfo.savedAt).toLocaleString("fr-FR")}).
+              </span>
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 shrink-0 text-[10px] text-muted-foreground hover:text-status-danger"
+              onClick={() => {
+                studio.resetSessionAssignments();
+                clearSelection();
+              }}
+            >
+              <RotateCcw className="h-3 w-3" /> Reprendre à zéro
+            </Button>
+          </div>
+        )}
 
         {/* Top Status & Balance Alert Bar */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">

@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/features/academics/hooks/use-class-placement-studio.ts
 // ============================================================================
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useToast } from "../../../app/providers/toast-provider";
@@ -27,6 +27,20 @@ import {
   type BalanceAnalysisResult,
   type PlacementPoolSummary,
 } from "../../../domain/calc/academics/class-placement";
+import {
+  placementDraftKey,
+  readPlacementDraft,
+  writePlacementDraft,
+  clearPlacementDraft,
+  PLACEMENT_DRAFT_VERSION,
+} from "../placement/placement-draft-storage";
+
+/** What the hook exposes about a restored draft (the UI-346 reprise banner). */
+export interface RestoredPlacementDraftInfo {
+  readonly savedAt: string;
+  readonly assignmentCount: number;
+  readonly draftSectionCount: number;
+}
 
 export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
   const repos = useRepositories();
@@ -75,6 +89,95 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
   >(new Map());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ------------------------------------------------------------------
+  // UI-346 (T-532, GitHub issue #32 §4 — the "Free List"): the draft
+  // persistence. The studio's working state survives navigation, tab
+  // switches and application restarts — keyed per tenant + target year +
+  // target grade so concurrent contexts never collide. The restore is
+  // RE-VALIDATED against the live data (below); finalize and the explicit
+  // reset CLEAR the draft (a completed workflow leaves nothing stale).
+  // ------------------------------------------------------------------
+  const tenantKey = session?.tenantId ?? "default";
+  const draftKey = useMemo(
+    () => placementDraftKey(tenantKey, targetYearCode, targetGradeLevel),
+    [tenantKey, targetYearCode, targetGradeLevel],
+  );
+  /** The latest-ref pattern: the save effect writes under the CURRENT key
+   * even when the context change and the state change land in the same
+   * commit. */
+  const draftKeyRef = useRef(draftKey);
+  draftKeyRef.current = draftKey;
+  /** Gate: nothing is written before the restore for the current key has
+   * settled (else the initial empty state would clobber the draft). */
+  const draftReadyRef = useRef(false);
+  /** True while a restored draft awaits its re-validation pass (STATE, not a
+   * ref: the validation must run in the commit AFTER the restored values
+   * land — a ref flips synchronously and let the validation effect run in
+   * the SAME commit with the PRE-restore closure, dropping every assignment
+   * to a drafted section as a "vanished class"). */
+  const [pendingValidation, setPendingValidation] = useState(false);
+  const [restoredDraftInfo, setRestoredDraftInfo] =
+    useState<RestoredPlacementDraftInfo | null>(null);
+
+  // The RESTORE — runs on every context (key) change: a draft for the new
+  // context replaces the in-memory state; NO draft means a FRESH session
+  // for that context (the previous context's leftovers never bleed in —
+  // its work was persisted under its own key at its last mutation).
+  useEffect(() => {
+    draftReadyRef.current = false;
+    const draft = readPlacementDraft(draftKey);
+    const hasWork =
+      !!draft &&
+      (draft.assignedMap.length > 0 ||
+        draft.customClassDrafts.length > 0 ||
+        draft.modifiedClassPatches.length > 0);
+    if (draft && hasWork) {
+      setAssignedMap(new Map(draft.assignedMap));
+      setCustomClassDrafts(draft.customClassDrafts.map((d) => ({ ...d })));
+      setModifiedClassPatches(new Map(draft.modifiedClassPatches));
+      setRestoredDraftInfo({
+        savedAt: draft.savedAt,
+        assignmentCount: draft.assignedMap.filter(([, cId]) => cId !== null).length,
+        draftSectionCount: draft.customClassDrafts.length,
+      });
+      setPendingValidation(true);
+    } else {
+      setAssignedMap(new Map());
+      setCustomClassDrafts([]);
+      setModifiedClassPatches(new Map());
+      setRestoredDraftInfo(null);
+      setPendingValidation(false);
+    }
+    draftReadyRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  // The SAVE — every state mutation persists the working draft under the
+  // CURRENT context key; an emptied state (post-finalize / post-reset)
+  // CLEARS the draft instead of writing an empty husk.
+  useEffect(() => {
+    if (!draftReadyRef.current) return;
+    const key = draftKeyRef.current;
+    const hasWork =
+      assignedMap.size > 0 ||
+      customClassDrafts.length > 0 ||
+      modifiedClassPatches.size > 0;
+    if (!hasWork) {
+      clearPlacementDraft(key);
+      return;
+    }
+    writePlacementDraft(key, {
+      version: PLACEMENT_DRAFT_VERSION,
+      targetYearCode,
+      targetGradeLevel,
+      assignedMap: Array.from(assignedMap.entries()),
+      customClassDrafts,
+      modifiedClassPatches: Array.from(modifiedClassPatches.entries()),
+      savedAt: new Date().toISOString(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedMap, customClassDrafts, modifiedClassPatches]);
 
   // Target academic year entity (if exists)
   const targetYearEntity = useMemo(
@@ -178,6 +281,66 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
       return c;
     });
   }, [rawCandidatePool, assignedMap]);
+
+  // The RE-VALIDATION (UI-346) — once per restore, gated on the students
+  // cache having loaded (an empty pool while loading must never drop a
+  // draft): students no longer eligible drop out; assignments to classes
+  // that no longer exist (or are inactive) drop back to the reserve
+  // HONESTLY — never a silent ghost; patches for deleted classes drop.
+  useEffect(() => {
+    if (!pendingValidation) return;
+    if (allStudents.length === 0) return;
+    const poolIds = new Set(rawCandidatePool.map((c) => c.studentId));
+    const validClassIds = new Set<string>([
+      ...existingTargetClasses.map((c) => c.id),
+      ...customClassDrafts.map((d) => d.id),
+    ]);
+    let droppedStudents = 0;
+    let droppedClassTargets = 0;
+    const nextAssignments = new Map<string, string | null>();
+    for (const [studentId, classId] of assignedMap.entries()) {
+      if (!poolIds.has(studentId)) {
+        droppedStudents += 1;
+        continue;
+      }
+      if (classId !== null && !validClassIds.has(classId)) {
+        droppedClassTargets += 1;
+        continue;
+      }
+      nextAssignments.set(studentId, classId);
+    }
+    const nextPatches = new Map<string, Partial<ClassDraft>>();
+    for (const [classId, patch] of modifiedClassPatches.entries()) {
+      if (existingTargetClasses.some((c) => c.id === classId)) {
+        nextPatches.set(classId, patch);
+      }
+    }
+    setAssignedMap(nextAssignments);
+    setModifiedClassPatches(nextPatches);
+    setPendingValidation(false);
+    // Nothing survived the re-validation → there is no reprise to announce.
+    if (
+      nextAssignments.size === 0 &&
+      customClassDrafts.length === 0 &&
+      nextPatches.size === 0
+    ) {
+      setRestoredDraftInfo(null);
+    }
+    if (droppedStudents > 0 || droppedClassTargets > 0) {
+      const parts: string[] = [];
+      if (droppedStudents > 0) {
+        parts.push(`${droppedStudents} élève(s) sorti(s) du registre éligible`);
+      }
+      if (droppedClassTargets > 0) {
+        parts.push(`${droppedClassTargets} affectation(s) vers une classe disparue`);
+      }
+      toast.showInfo(
+        "Session reprise — ajustements",
+        `${parts.join(" · ")} : ces éléments obsolètes ont été écartés de la reprise.`,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingValidation, rawCandidatePool, existingTargetClasses, customClassDrafts, allStudents.length, assignedMap, modifiedClassPatches]);
 
   const unassignedCandidates = useMemo(
     () => candidatePool.filter((c) => c.assignedClassId === null),
@@ -381,6 +544,10 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
     setAssignedMap(new Map());
     setCustomClassDrafts([]);
     setModifiedClassPatches(new Map());
+    setRestoredDraftInfo(null);
+    // UI-346: a deliberate reset DISCARDS the persisted draft — the
+    // operator explicitly chose to start this context over.
+    clearPlacementDraft(draftKeyRef.current);
     toast.showInfo(
       "Session réinitialisée",
       "Toutes les affectations temporaires ont été réinitialisées.",
@@ -498,6 +665,10 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
       setAssignedMap(new Map());
       setCustomClassDrafts([]);
       setModifiedClassPatches(new Map());
+      setRestoredDraftInfo(null);
+      // UI-346: a FINALIZED workflow leaves no stale draft behind — the
+      // committed constitution is now the server's truth (students.class_id).
+      clearPlacementDraft(draftKeyRef.current);
     } finally {
       setIsSubmitting(false);
     }
@@ -541,5 +712,9 @@ export function useClassPlacementStudio(initialGradeLevel: GradeLevel = "1ap") {
     resetSessionAssignments,
     finalizePlacements,
     isSubmitting,
+    /** UI-346 (T-532): non-null right after a draft restore — the reprise
+     * banner's data (the draft's age + the restored work's size). */
+    restoredDraftInfo,
   };
 }
+// TEMP DEBUG

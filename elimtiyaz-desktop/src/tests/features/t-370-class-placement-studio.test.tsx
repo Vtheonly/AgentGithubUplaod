@@ -235,6 +235,16 @@ describe("T-370 MockClassPlacementRepository (ACAD-500 repair)", () => {
     store.students = studentsBefore;
     store.classes$.set([...store.classes]);
     store.notifyStudents();
+    // UI-346 (T-532): the studio hook now PERSISTS its working draft to
+    // localStorage — clear the placement drafts or a later test's mount
+    // restores a prior test's session (same-named drafts then trip the
+    // finalize validation's unique-name guard).
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("el-imtiyaz:placement-draft:")) {
+        localStorage.removeItem(key);
+      }
+    }
   });
 
   it("commits the whole batch: draft-id mapping, patches, counts, ONE audit entry", async () => {
@@ -642,6 +652,14 @@ describe("T-370 useClassPlacementStudio (the hook wiring)", () => {
     );
     store.notifyStudents();
     localStorage.removeItem(SESSION_KEY);
+    // UI-346 (T-532): the studio hook now PERSISTS its working draft —
+    // clear the placement drafts (cross-test session leakage guard).
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("el-imtiyaz:placement-draft:")) {
+        localStorage.removeItem(key);
+      }
+    }
   });
 
   it("routes finalize through the classPlacement repository (ONE call, never a loop)", async () => {
