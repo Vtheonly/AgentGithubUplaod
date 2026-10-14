@@ -6316,3 +6316,22 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** execute the focused regression suite, npm run typecheck, the relevant lint gate, and the applicable full test suite. This session did not run these commands: the commit has no reported GitHub check-runs/workflow-runs and the local clone attempt failed because this runtime could not resolve github.com. Do not advance to TESTED without reproducible test output.
 
 **Related:** UI-335 (the earlier duplicate-indicator consolidation and quadrant→roster filtering) · UI-334 (inspection controls stay attached to their target) · T-503 (dashboard indicator/layout rules) · `operational-query-engine.ts` · `executive-statistics.ts` · `computeMultiDimensionalPivot`.
+
+
+## T-534 — Keep the Pilotage Radar and seasonal-wave meter fully visible; repair the vertically clipped 360° investigation modal — the 178th session
+
+**Problem ID:** UI-348 (registered OPEN before implementation per §13).
+
+**Status:** REGISTERED → IN PROGRESS (178th session, 2026-10-14; desktop UI/layout only).
+
+**The owner's mandate:** the « Radar de Vigilance Multi-Critères » and « Vélocité de Recouvrement par Vague Saisonnière » are clipped vertically; the « Console d'Investigation Opérationnelle »'s student 360° modal is also cut off. Each dashboard card must have a practical minimum height that accommodates its content, and the modal must show its full content via a correctly scrolling body instead of clipping it.
+
+**Confirmed root causes:** (1) `analytics-tab.tsx` sets `pilotage-risk` and `pilotage-waves` to `h: 8` with a shrinkable `minH: 6`; the shared `DashboardLayoutEditor` cells deliberately use `overflow-hidden` to prevent neighbouring cards from being painted over, so a saved/edited undersized rectangle clips the card. Their following rows also start at fixed y coordinates and must be shifted when the minimum heights increase. (2) The student-profile modal uses the shared dialog shell's `max-h-[88vh]` + `overflow-hidden` and the shared `UnifiedModalBody` has `flex-1 overflow-y-auto` but omits `min-h-0`, so the flex child can refuse to shrink and the body content is clipped instead of scrolling reliably.
+
+**Implementation contract:** (a) raise the default and minimum grid heights of the Radar and wave-velocity cards to a content-appropriate floor, while keeping a useful larger resize range; (b) reflow the dashboard's subsequent fixed grid rows so the longer wave card never overlaps the debt, discount, family, enrollment, transport, or services indicators; (c) account for pre-existing saved layouts whose stored heights are now below the new minimum, and prevent those cards from overlapping later rows after the height clamp; (d) correct the shared modal body flex sizing with `min-h-0` while preserving the viewport cap and internal vertical scrolling; (e) add regression coverage for the target item geometry, row separation, and modal body; (f) presentation only: the existing financial figures/parity with Finance → Tranches, risk counts, canonical derivations, actions, other widgets, and business rules remain unchanged; no schema/RPC/Android/website changes.
+
+**Plan:** (1) registration-first commit → (2) fix target dashboard sizing + collision handling for pre-existing layouts, fix the modal body's flex sizing → (3) add regression pins → (4) run the focused tests, typecheck, lint, and available full test gate → (5) update the task/problem/change-log/current-state/next-task records only to the measured evidence.
+
+**Left:** implementation, regression tests, and verification.
+
+**Related:** UI-336/T-503 (layout overflow containment and geometry) · UI-347/T-533 (single diagnostic module) · T-219 (shared UnifiedModal viewport cap) · `dashboard-layout-editor.tsx` · `unified-modal/parts.tsx` · `modal-shell.tsx`.

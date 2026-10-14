@@ -1,3 +1,11 @@
+# 2026-10-14 — The 178th session IN PROGRESS (T-534 / UI-348): prevent vertical clipping in the Pilotage Radar, seasonal-wave collection card, and Operational Investigation's student 360° modal. The problem and implementation plan are registered before code; implementation and verification remain.
+
+**Registered:** UI-348 OPEN + T-534 IN PROGRESS. The dashboard fix must raise the first row's usable minimum heights and reflow both fresh/default and already-saved layouts without undoing UI-336 overflow containment. The modal fix must retain its 88vh viewport cap and make its flex body shrink and scroll using the shared UnifiedModal component. This is presentation-only; finance numbers and canonical derivations are not to change.
+
+**Next:** implement the geometry + modal-body fix; pin the min-height/collision/scroll contracts in tests; run the focused suites, typecheck, lint, and full gate that can actually be executed.
+
+---
+
 # 2026-10-14 — The 177th session IMPLEMENTED (T-533 / UI-347): Diagnostic Actif now has ONE resizable/hidden dashboard item for the operational roster, canonical cross-risk triage, and multidimensional academic/attendance/debt matrix. Source + regression test pushed to main in commit b0526330; verification is pending.
 
 **Delivered:** diagnosticItems contains only diagnostic-console. OperationalQueryConsole embeds the existing CrossRiskCard using the tab's memoized riskSummary and its existing category-filter callback, then embeds PivotMatrixCard using the same riskProfiles and classes. The original student/parent navigation, search, presets, sorting, configured severe-debt threshold, AI actions, inspection triggers, and cycle/grade/class pivot remain in place. No new risk calculations or business rules were introduced; Pilotage Exécutif and the other platforms are untouched.
