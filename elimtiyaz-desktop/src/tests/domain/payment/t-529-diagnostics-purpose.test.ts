@@ -448,7 +448,7 @@ describe("T-529 / AUDIT-509 E — the all-origins coverage: the identity-form ce
         makeLedgerEntry({ id: "led-b", sourceType: "installment", sourceId: "reg-ELV-2026-XXX-t1", amount: 2_000 }),
         makeLedgerEntry({ id: "led-c", sourceType: "bulk_import", sourceId: "stu-1:DEVIS_ANNUEL", amount: 3_000 }),
         makeLedgerEntry({ id: "led-d", sourceType: "manual_entry", sourceId: "reg-PAR-1-fee", amount: 4_000 }),
-        makeLedgerEntry({ id: "led-e", sourceType: "adjustment_note", sourceId: "whatever", amount: 5_000 }),
+        makeLedgerEntry({ id: "led-e", sourceType: "adjustment", sourceId: "whatever", amount: 5_000 }),
       ],
     });
     expect(report.coverage.chargeForms).toEqual({
