@@ -1,15 +1,17 @@
-# 2026-10-15 — The 180th session OPEN: the owner's five-part mandate (T-541..T-545 — renumbered after the concurrent 180th-session T-536/UI-349/UI-350 registration, eca9c1c1) supersedes the T-532 phases for this session. Next: T-541 (GPS Tournées complete removal) → T-542 (search RBAC) → T-543 (sidebar) → T-544 (attachment RLS + gates) → T-545 (Android scanner integration).
+# 2026-10-15 — The 180th session IN PROGRESS (the owner's five-part mandate T-541..T-545). **T-541 / OPS-324 → TESTED (COMPLETE):** the GPS Tournées feature removed from BOTH clients + the server — desktop half f27daaac, Android half d32c367 (pushed to origin/main), migration 0157 applied LIVE (tournee permissions 2→0, grants 4→0, the driver ROLE + its 3 worker grants preserved; post-apply census green). Android gates measured with the stash-baseline proof: the 7 debug / 2 release failures + the 1 lint error are ALL pre-existing on main (dashboard files untouched by T-541). **Next: T-542 / SEC-120** — the desktop search-index permission filter (makeSearchIndex gains the access context; unpermitted entity types NEVER QUERIED; worker = zero cross-entity results, admin = all six; regression test + gates + docs closeout per the registered plan).
 
-**Session-opening state (measured):** the branch mandate arrived SATISFIED for the hub (git ls-remote --heads = 1 ref, main-only) and was COMPLETED for Android (the fix/restore-working-login-remove-demo ref — already an ancestor of main, rev-list count 0 — deleted per §15.59 after a fresh containment census; its commits remain reachable from main). Desktop typecheck 0 errors; RBAC suites 111/111 green at open. The Android baseline gate is running (toolchain re-provisioned after the container reset: Temurin JDK 21 at /home/z/my-project/jdk, SDK 35 at /home/z/my-project/android-sdk, root .env via scripts/setup-env.sh).
+**Session-opening state (measured):** the branch mandate arrived SATISFIED for the hub (git ls-remote --heads = 1 ref, main-only) and was COMPLETED for Android (the fix/restore-working-login-remove-demo ref — already an ancestor of main, rev-list count 0 — deleted per §15.59 after a fresh containment census; its commits remain reachable from main). Desktop typecheck 0 errors; RBAC suites 111/111 green at open. The Android baseline gate was completed DURING T-541 (794 tests / 7 pre-existing failures on clean main — the baseline for this session's comparisons).
 
 **This session's queue (the owner's mandate, registered BEFORE any code change per §13):**
-1. **T-541 / OPS-324** — completely remove GPS Tournées/Tournee-Driver from desktop + Android + the exclusively-tournee server permission seeds (new migration 0157). Census recorded in the task entry.
-2. **T-542 / SEC-120** — the desktop Cmd+K search-index permission filter (worker must not see parents/students/payments/expenses/audit/personnel).
+1. **T-541 / OPS-324** — ✅ TESTED/COMPLETE (see above).
+2. **T-542 / SEC-120** — IN_PROGRESS (registered) — the desktop Cmd+K search-index permission filter (worker must not see parents/students/payments/expenses/audit/personnel). ← NEXT
 3. **T-543 / UI-351** — hide inaccessible sidebar sections; Personnel node → authenticated (the ungated /personnel home); Android personnel-tab parity.
-4. **T-544 / UPLOAD-105** — migration 0157's companion policy fix (expense_attachments submitter visibility) + the desktop drawer attach gate for submitters.
-5. **T-545 / WORKFORCE-522** — the Android expense attachment surface (scan/gallery) + the standalone Scanner tab/route removal.
+4. **T-544 / UPLOAD-105** — the expense_attachments submitter-visibility policy fix (NEW migration — 0157 is TAKEN by the tournee removal, so this becomes 0158) + the desktop drawer attach gate for submitters.
+5. **T-545 / WORKFORCE-522** — the Android expense attachment surface (scan/gallery) + the standalone Scanner tab/route removal (also retires the dead onNavigateToProofScanner param — the last pre-existing lint error).
 
 **Previously queued (T-532 phases 4-6 — ACAD-516, ACAD-515, docs closeout):** deferred behind the owner's mandate; unchanged, not blocked.
+
+**The known-red Android baseline (pre-existing on main, NOT this session's regressions — registered in the T-541 closeout):** SpacingTokenGateT460F19aTest ×2 (the ElExpandableCard 4.dp + ExecutiveCards 4.dp/26.dp literals — broken by 6a2fe0a) · DashboardOverviewStructureT489Test ×4 + TrancheWaveCardsT462Test ×1 (dashboard suites — the T-536 concurrent-session scope) · lint WrongNavigateRouteType ×1 (the Routes.ProofScanner class-navigation — T-545's scope).
 
 ---
 

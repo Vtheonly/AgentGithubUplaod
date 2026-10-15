@@ -8544,7 +8544,7 @@ The inspection confirms the gap with THREE structural facts:
 ### OPS-324 — The GPS Tournées / Tournee-Driver feature must be COMPLETELY removed from both clients (the owner's mandate: "This is a complete removal, not merely a UI change") — desktop stub + Android driver-routing subsystem + the exclusively-tournee server permission
 
 - **Category:** OPS / feature removal (the owner's mandate part 5) | **Severity:** MEDIUM (feature retirement, not a defect — but the mandate demands zero dead navigation, zero orphaned imports, zero orphaned code)
-- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-541 — census recorded in the task entry BEFORE any deletion per recovery-rule 9)
+- **Status:** OPEN → IN_PROGRESS → RESOLVED-TESTED (2026-10-15, T-541, 180th session — desktop half f27daaac, Android half d32c367, migration 0157 applied LIVE with census green; the full evidence in the T-541 closeout)
 - **Repositories:** AgentGithubUplaod (desktop + migration 0157) + elimtiyaz-android
 - **Platforms affected:** Desktop, Android, Backend (permission seed cleanup)
 - **Task:** T-541

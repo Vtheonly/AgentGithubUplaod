@@ -6393,7 +6393,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem ID:** OPS-324 (new — the complete-removal mandate).
 
-**Status:** IN_PROGRESS (registered 2026-10-15, 180th session, before any code change per §13).
+**Status:** IN_PROGRESS → TESTED (2026-10-15, 180th session — desktop half commit f27daaac, Android half commit d32c367 (pushed), migration 0157 applied LIVE with the post-apply census green; the full test evidence below). VERIFIED-LIVE deferred to the owner's eyeball on the next device/app run (the §15.11 rule: no status without recorded evidence — the live DB half IS verified; the client binaries are the owner's build).
 
 **The mandate (owner, in chat, 2026-10-15):** "Completely Remove the GPS Tournee Driver Feature … This is a complete removal, not merely a UI change. Audit and remove all components associated exclusively with this feature, including: Navigation entries, pages, screens, and UI components. GPS Tournee driver functionality and related workflows. Dedicated routes, menus, and settings. Feature-specific state, services, and integrations that are no longer used. Associated permissions and configuration where they are exclusively related to this feature. Obsolete code, tests, and documentation that refer to the removed functionality."
 
@@ -6407,7 +6407,9 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Plan:** (1) this registration → (2) desktop removal + test updates → (3) Android removal + Room v20→v21 migration → (4) migration 0157 (permission cleanup) + live application → (5) full gates (desktop typecheck/lint/vitest, Android lint/test) → (6) docs closeout.
 
-**Left:** everything — implementation starts after this registration commit.
+**Left (closeout, 2026-10-15):** nothing — the desktop removal (f27daaac: feature-registry node, /routing route + gate, AccessDriverMode enum + grants + matrix listing, sidebar item + i18n keys, routing-page.tsx deleted, route-access census test updated) · the Android removal (d32c367: 3 screens + GPS foreground service + OSRM/TSP + repository + domain model + Room v20→v21 dropping trip_logs/vehicles/routing_stops + ACCESS_DRIVER_MODE + manifest location permissions + Routes/AppNavHost/MainScreen/PersonnelHub wiring + the 160-import dead sweep + DemoSeedIds/eviction/PullSync cleanup + the version-pin test updates + NEW RoomSchemaUpgradeT541Test + the §15.86 release exclusion) · the server cleanup (migration 0157 applied LIVE via apply_0157_live.sh: registered=1, tournee_perms 2→0, tournee_grants 4→0, driver_role=1 preserved, driver worker grants 3 preserved) — all delivered.
+
+**Verified (closeout, 2026-10-15):** desktop half (f27daaac): `tsc --noEmit` 0 errors + the route-access/rbac suites green on that tree (recorded in the commit). Android half (d32c367): `:app:compileDebugKotlin` PASS · `:app:testDebugUnitTest` 794 tests / 7 failed — ALL 7 PRE-EXISTING on main (stash-baseline proof: the same 3 classes on the clean tree = 17 selected / 7 failed, identical set — SpacingTokenGate ×2 + DashboardOverviewStructureT489 ×4 + TrancheWaveCards ×1, dashboard files untouched by T-541) · `:app:testReleaseUnitTest` 719 / 2 failed (the same pre-existing spacing pair; the new migration suite §15.86-excluded) · `:app:lintDebug` RED with ONE pre-existing error (WrongNavigateRouteType on Routes.ProofScanner class-navigation from dacaa8b/T-521 — identical on clean main; T-541 adds ZERO new lint errors; the dead param is T-545's scope) · the NEW RoomSchemaUpgradeT541Test 2/2 (tables dropped; driver-role personnel row + chat data survive v20→v21). LIVE: 0157 census green (above).
 
 ---
 
