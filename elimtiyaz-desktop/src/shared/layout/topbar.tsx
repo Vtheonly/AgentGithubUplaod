@@ -82,6 +82,7 @@ import {
   loadRecentSearches,
   saveRecentSearch,
   clearRecentSearches,
+  permittedSearchTypes,
   type SearchResult,
   type SearchResultType,
   type RecentSearch,
@@ -112,7 +113,21 @@ export function Topbar() {
   const [detailAlert, setDetailAlert] = useState<AppNotification | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const searchIndex = useMemo(() => makeSearchIndex(repos), [repos]);
+  // T-542 / SEC-120: the search index is session-scoped — the palette
+  // queries only the entity types THIS session's grants permit (the
+  // unpermitted repositories are never touched). Rebuilt on session change
+  // (e.g. role switch after re-sign-in).
+  const searchIndex = useMemo(() => makeSearchIndex(repos, session), [repos, session]);
+
+  // T-542: the palette chips + the recent-search rows render only the
+  // permitted types — a restricted worker's empty state lists exactly what
+  // they can search, and stale recents saved under a broader role are not
+  // re-disclosed to a narrower one (localStorage survives role switches).
+  const permittedTypes = useMemo(() => permittedSearchTypes(session), [session]);
+  const visibleRecentSearches = useMemo(
+    () => recentSearches.filter((r) => permittedTypes.includes(r.type)),
+    [recentSearches, permittedTypes],
+  );
 
   // Iteration 9: topbar bell shows only alerts visible to this session.
   // The list is sorted by priority (urgent first), then by recency.
@@ -472,7 +487,7 @@ export function Topbar() {
             </button>
           )}
           {searchQuery.trim() === "" ? (
-            recentSearches.length > 0 ? (
+            visibleRecentSearches.length > 0 ? (
               <div>
                 <div className="flex items-center justify-between px-3 py-1">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -489,7 +504,7 @@ export function Topbar() {
                     <Trash2 className="h-3 w-3" /> Effacer
                   </button>
                 </div>
-                {recentSearches.map((r) => (
+                {visibleRecentSearches.map((r) => (
                   <ResultRow
                     key={`${r.type}-${r.id}-${r.at}`}
                     icon={RESULT_TYPE_META[r.type].icon}
@@ -504,7 +519,9 @@ export function Topbar() {
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 Tapez pour rechercher dans toute l'application.
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-[10px]">
-                  {(Object.keys(RESULT_TYPE_META) as SearchResultType[]).map((type) => (
+                  {/* T-542 / SEC-120: the empty-state type chips list only the
+                      types THIS session may search (permittedSearchTypes). */}
+                  {permittedTypes.map((type) => (
                     <span
                       key={type}
                       className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5"

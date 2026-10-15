@@ -1,5 +1,5 @@
 /**
- * Search index — iteration 7 (P3-R).
+ * Search index — iteration 8 (P3-R + SEC-120).
  *
  * Extends the Cmd+K command palette to query 6 entity types instead of
  * just parents + students. Provides a uniform `SearchResult` shape so the
@@ -13,10 +13,24 @@
  *   5. Audit       — by entity ID, action type, actor name
  *   6. Personnel   — by name, role, category
  *
+ * T-542 (SEC-120, 180th session) — the index is PERMISSION-AWARE: every
+ * result type maps to the permission of the section it references
+ * (SEARCH_TYPE_PERMISSIONS), and an unpermitted type is NEVER QUERIED —
+ * the repository call itself is skipped, not a post-filter on its results.
+ * The owner's live report: a restricted worker typed a name and the palette
+ * disclosed parents, students, payment amounts/receipt numbers, expenses,
+ * audit entries and personnel — the leak is the disclosure in the result
+ * list, not the navigation. Server-side RLS already narrows the ROWS for
+ * Supabase sessions; this closes the client disclosure layer (and the
+ * mock-mode default where the full demo dataset leaks every entity type).
+ *
  * Recent searches are persisted to localStorage (max 8 items, FIFO).
  */
 import type { Repositories } from "../app/providers/repository-provider";
 import { parentDisplayName } from "../domain/model/parent";
+import { Permission } from "../core/rbac/permissions";
+import { can } from "../core/rbac/session";
+import type { Session } from "../core/rbac/session";
 
 export type SearchResultType =
   | "parent"
@@ -25,6 +39,34 @@ export type SearchResultType =
   | "expense"
   | "audit"
   | "personnel";
+
+/**
+ * T-542 / SEC-120 — the permission each search result type requires: the
+ * permission of the SECTION the result navigates to (the feature-registry
+ * requirements — ViewRoster for the CRM roster, ViewFinancials for the
+ * Finances payments/expenses, ViewAuditLog for the settings audit log,
+ * ViewPersonnel for the personnel directory). Reuses the canonical
+ * `can(session, permission)` predicate — no parallel permission model.
+ */
+export const SEARCH_TYPE_PERMISSIONS: Record<SearchResultType, Permission> = {
+  parent: Permission.ViewRoster,
+  student: Permission.ViewRoster,
+  payment: Permission.ViewFinancials,
+  expense: Permission.ViewFinancials,
+  audit: Permission.ViewAuditLog,
+  personnel: Permission.ViewPersonnel,
+};
+
+/**
+ * T-542: the result types THIS session may search (and see as palette
+ * chips / recent-search rows). Empty only for a signed-out session — the
+ * topbar does not render the palette without a session anyway.
+ */
+export function permittedSearchTypes(session: Session | null): SearchResultType[] {
+  return (Object.keys(SEARCH_TYPE_PERMISSIONS) as SearchResultType[]).filter((t) =>
+    can(session, SEARCH_TYPE_PERMISSIONS[t]),
+  );
+}
 
 export interface SearchResult {
   type: SearchResultType;
@@ -43,11 +85,17 @@ const MAX_RESULTS_PER_TYPE = 3;
 const MAX_RECENT_SEARCHES = 8;
 const RECENT_SEARCHES_KEY = "el-imtiyaz:recent-searches";
 
-export function makeSearchIndex(repos: Repositories): SearchIndex {
+export function makeSearchIndex(repos: Repositories, session: Session | null): SearchIndex {
   return {
     async search(query: string): Promise<SearchResult[]> {
       const q = query.trim().toLowerCase();
       if (!q) return [];
+
+      // T-542 / SEC-120: the permission gate runs BEFORE the repository is
+      // touched — an unpermitted type is NEVER QUERIED (no repository call,
+      // no cache warm, no result to filter). A restricted worker's palette
+      // queries exactly the indexes their grants permit.
+      const canSearch = (t: SearchResultType) => can(session, SEARCH_TYPE_PERMISSIONS[t]);
 
       const [
         parentRes,
@@ -57,18 +105,18 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
         auditRes,
         personnel,
       ] = await Promise.all([
-        repos.parents.search(q),
-        repos.students.search(q),
-        Promise.resolve(repos.payments.observe().get()),
-        Promise.resolve(repos.expenses.observe().get()),
-        repos.audit.recent(200),
-        Promise.resolve(repos.personnel.observe().get()),
+        canSearch("parent") ? repos.parents.search(q) : Promise.resolve(null),
+        canSearch("student") ? repos.students.search(q) : Promise.resolve(null),
+        canSearch("payment") ? Promise.resolve(repos.payments.observe().get()) : Promise.resolve(null),
+        canSearch("expense") ? Promise.resolve(repos.expenses.observe().get()) : Promise.resolve(null),
+        canSearch("audit") ? repos.audit.recent(200) : Promise.resolve(null),
+        canSearch("personnel") ? Promise.resolve(repos.personnel.observe().get()) : Promise.resolve(null),
       ]);
 
       const results: SearchResult[] = [];
 
       // Parents
-      if (parentRes.ok) {
+      if (parentRes?.ok) {
         for (const p of parentRes.value.slice(0, MAX_RESULTS_PER_TYPE)) {
           results.push({
             type: "parent",
@@ -81,7 +129,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
       }
 
       // Students
-      if (studentRes.ok) {
+      if (studentRes && studentRes.ok) {
         for (const s of studentRes.value.slice(0, MAX_RESULTS_PER_TYPE)) {
           results.push({
             type: "student",
@@ -95,7 +143,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
 
       // Payments — search by receipt number / method
       let paymentCount = 0;
-      for (const pmt of payments) {
+      for (const pmt of payments ?? []) {
         if (paymentCount >= MAX_RESULTS_PER_TYPE) break;
         const receiptMatch = pmt.receiptNumber?.toLowerCase().includes(q);
         const methodMatch = pmt.method?.toLowerCase().includes(q);
@@ -113,7 +161,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
 
       // Expenses — search by requestCode / payee / title / description
       let expenseCount = 0;
-      for (const exp of expenses) {
+      for (const exp of expenses ?? []) {
         if (expenseCount >= MAX_RESULTS_PER_TYPE) break;
         const codeMatch = exp.requestCode?.toLowerCase().includes(q);
         const payeeMatch = exp.payee?.toLowerCase().includes(q);
@@ -132,7 +180,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
       }
 
       // Audit — search by entity ID / action / actor name
-      if (auditRes.ok) {
+      if (auditRes?.ok) {
         let auditCount = 0;
         for (const entry of auditRes.value) {
           if (auditCount >= MAX_RESULTS_PER_TYPE) break;
@@ -154,7 +202,7 @@ export function makeSearchIndex(repos: Repositories): SearchIndex {
 
       // Personnel — search by name / staffCategory / phone / email
       let personnelCount = 0;
-      for (const person of personnel) {
+      for (const person of personnel ?? []) {
         if (personnelCount >= MAX_RESULTS_PER_TYPE) break;
         const nameMatch = `${person.firstName} ${person.lastName}`.toLowerCase().includes(q);
         const categoryMatch = person.staffCategory?.toLowerCase().includes(q);
