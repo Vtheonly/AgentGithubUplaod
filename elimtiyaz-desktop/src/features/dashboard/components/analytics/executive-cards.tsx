@@ -279,15 +279,61 @@ export function WaveVelocityCard({
                           {formatDzdPlain(w.remainingTotal)}
                         </span>
                       </div>
+                      {/* T-427 (DATA-048), restored by T-536: the sub-label is
+                          PHASE-DRIVEN — an overdue wave counts its
+                          actually-late families; a future wave's owing
+                          families are "à échoir" / "non soldées". */}
+                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
+                          {isOverdue
+                            ? "Familles en retard"
+                            : w.anyUnsettledFuture
+                              ? "Familles à échoir"
+                              : "Familles non soldées"}
+                          <InfoTip tip="waveVelocity.families" size={10} className="ml-0.5 inline-flex align-middle" />
+                        </span>
+                        <span
+                          className={`font-mono font-semibold ${
+                            (isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount) > 0
+                              ? isOverdue
+                                ? "text-status-danger"
+                                : "text-status-warning"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount} /{" "}
+                          {w.familyCount}
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
+                          Catégories
+                          <InfoTip tip="waveVelocity.categories" size={10} className="ml-0.5 inline-flex align-middle" />
+                        </span>
+                        <span className="font-mono font-semibold text-foreground">
+                          {w.perCategory.length}
+                        </span>
+                      </div>
                     </div>
 
+                    {/* T-447, restored by T-536: the reconciliation line —
+                        the mandate's Total dû = Encaissé + En cours +
+                        Reste dû, stated with the wave's own numbers; the
+                        over-coverage leg appears only when funds exceed the
+                        due (parent credit ON the rows) so the identity is
+                        exact. */}
                     <p
                       className="text-[10px] font-mono text-muted-foreground leading-relaxed pt-1"
                       data-testid={`wave-identity-${w.wave}`}
                     >
-                      {formatDzdPlain(w.paidTotal)} DA encaissés sur {formatDzdPlain(w.dueTotal)} DA engagés
-                      {w.pendingTotal > 0 ? ` · ${formatDzdPlain(w.pendingTotal)} DA en cours` : ""}
-                      {w.remainingTotal > 0 ? ` · reste ${formatDzdPlain(w.remainingTotal)} DA` : " · soldée"}
+                      <InfoTip tip="waveVelocity.identity" size={10} className="mr-0.5 inline-flex align-middle" />
+                      Total dû {formatDzdPlain(w.dueTotal)} = Encaissé{" "}
+                      {formatDzdPlain(w.paidTotal)} + En cours{" "}
+                      {formatDzdPlain(w.pendingTotal)} + Reste dû{" "}
+                      {formatDzdPlain(w.remainingTotal)}
+                      {w.overCoverageTotal > 0
+                        ? ` (+ ${formatDzdPlain(w.overCoverageTotal)} couverts au-delà)`
+                        : ""}
                     </p>
 
                     {w.perCategory.length > 0 && (
@@ -299,11 +345,19 @@ export function WaveVelocityCard({
                           <span
                             key={c.category}
                             className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
+                            title={`${PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category} — facturé ${formatDzdPlain(
+                              c.dueTotal,
+                            )}, encaissé ${formatDzdPlain(c.paidTotal)}, reste dû ${formatDzdPlain(
+                              c.remainingTotal,
+                            )}`}
                           >
                             {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}{" "}
-                            <span className="text-foreground font-semibold">
-                              {c.dueTotal > 0 ? Math.round((c.paidTotal / c.dueTotal) * 100) : 0}%
-                            </span>
+                            <span className="text-foreground font-semibold">{c.dueTotal > 0 ? Math.round((c.paidTotal / c.dueTotal) * 100) : 0}%</span>
+                            {c.remainingTotal > 0 && (
+                              <span className="text-status-danger">
+                                · {formatDzd(c.remainingTotal, { compact: true })}
+                              </span>
+                            )}
                           </span>
                         ))}
                       </div>
@@ -344,7 +398,10 @@ export function WaveVelocityCard({
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">
                             {label}
-                            <span className="text-muted-foreground"> · {g.installmentCount} engagement(s)</span>
+                            {/* T-447, restored by T-536: the pluralized
+                                engagement count (the "(s)" form broke the
+                                FI-group contract pin). */}
+                            <span className="text-muted-foreground"> · {g.installmentCount} engagement{g.installmentCount > 1 ? "s" : ""}</span>
                           </p>
                           <p
                             className={`text-[10px] font-mono truncate ${
@@ -354,7 +411,10 @@ export function WaveVelocityCard({
                             }`}
                           >
                             {formatDzd(g.remainingTotal, { compact: true })} restants
-                            {range ? ` · ${range}` : ""}
+                            {/* T-434/T-435, restored by T-536: the échéance
+                                RANGE and the settled marker on the FI rows. */}
+                            {range ? ` · échéance ${range}` : ""}
+                            {g.remainingTotal === 0 && g.installmentCount > 0 ? " · soldé" : ""}
                           </p>
                         </div>
                         <span className="font-mono font-bold text-foreground shrink-0">
@@ -398,7 +458,14 @@ export function WaveVelocityCard({
                             }`}
                           >
                             {formatDzd(w.remainingTotal, { compact: true })}{" "}
-                            restants{auxDue ? ` · ${auxDue}` : ""}
+                            restants
+                            {/* T-434/T-435, restored by T-536: the auxiliary
+                                per-category waves carry their échéance and
+                                the overdue marker visibly. */}
+                            {auxDue ? ` · échéance ${auxDue}` : ""}
+                            {w.phase === "overdue" && w.remainingTotal > 0
+                              ? " · en retard"
+                              : ""}
                           </p>
                         </div>
                         <span className="font-mono font-bold text-foreground">

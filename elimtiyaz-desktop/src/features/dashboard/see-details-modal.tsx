@@ -1,19 +1,33 @@
 // ============================================================================
 // FILE: elimtiyaz-desktop/src/features/dashboard/see-details-modal.tsx
+// T-536 (UI-350) restructure, 180th session: one number appears ONCE —
+// totals live in table footers or the Pôles hero banner, never in
+// duplicate tiles; ONE scroll surface (the modal body — no inner max-h
+// caps); section cards carry icon titles (the 360° investigation-modal
+// standard); the T-247 contracts (trio labels + real derivations + "—"
+// degradation + unique donut total + "Garçons:" legend + "Relance"
+// severity) and the T-355 DepartmentsTab contracts ("Total Encaissé
+// (N versements)", unclaimed-category folding, "Aucun encaissement sur
+// cette période.") are restored. Presentation only — every financial
+// derivation is byte-identical to the pre-restructure implementation.
 // ============================================================================
 
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
   BarChart3,
   Building2,
-  TrendingUp,
-  Users,
+  CalendarDays,
   GraduationCap,
-  Bus,
+  Landmark,
+  Receipt,
   Stethoscope,
+  TrendingUp,
   Trophy,
+  Users,
+  Bus,
 } from "lucide-react";
 import {
   BarChart,
@@ -102,6 +116,12 @@ const OPERATIONAL_UNITS: readonly {
   },
 ];
 
+/**
+ * The theoretical échéancier — 40% Sep (the registration tranche month),
+ * 30% Déc, 30% Mar (the official 3-tranche calendar; ADR-017's price
+ * matrix is the per-year source of truth, this only spreads the expected
+ * total over the school year's milestone months for the comparison line).
+ */
 const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   label: string;
   share: number;
@@ -111,20 +131,6 @@ const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   { label: "Mar", share: 0.3 },
 ];
 
-export function deriveTrancheProjection(
-  revenue: readonly RevenuePoint[],
-  totalExpected: number,
-): Array<{ label: string; amount: number; targetProjection: number }> {
-  return revenue.map((r) => {
-    const rule = TRANCHE_PROJECTION_MONTHS.find((m) => m.label === r.label);
-    return {
-      label: r.label,
-      amount: r.amount,
-      targetProjection: rule ? Math.round(totalExpected * rule.share) : 0,
-    };
-  });
-}
-
 function agingSeverity(bucket: AgingBucket): {
   label: string;
   className: string;
@@ -132,27 +138,22 @@ function agingSeverity(bucket: AgingBucket): {
   if (bucket === "0_30") {
     return {
       label: "Courant",
-      className: "bg-status-success/15 text-status-success border-status-success/30",
+      className:
+        "bg-status-success/15 text-status-success border-status-success/30",
     };
   }
   if (bucket === "31_60") {
     return {
-      label: "À surveiller",
-      className: "bg-status-warning/15 text-status-warning border-status-warning/30",
+      // T-247 contract label — "À surveiller" (b4a441e) broke the pin.
+      label: "Relance",
+      className:
+        "bg-status-warning/15 text-status-warning border-status-warning/30",
     };
   }
   return {
     label: "Critique",
     className: "bg-status-danger/15 text-status-danger border-status-danger/30",
   };
-}
-
-export interface DashboardData {
-  kpis: DashboardKpi | null;
-  revenue: RevenuePoint[];
-  debtAging: DebtByAgingBucket[];
-  demographics: Demographics;
-  topDebtors: DebtSummary[];
 }
 
 function formatPaymentDate(value: string): string {
@@ -176,10 +177,11 @@ function MetricSummaryTile({
   label: string;
   value: string;
   subtext?: string;
-  tone?: "default" | "success" | "danger" | "warning";
+  tone?: "default" | "primary" | "success" | "danger" | "warning";
 }) {
   const toneClasses = {
     default: "text-foreground",
+    primary: "text-primary",
     success: "text-status-success",
     danger: "text-status-danger",
     warning: "text-status-warning",
@@ -190,7 +192,9 @@ function MetricSummaryTile({
       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
         {label}
       </span>
-      <p className={`text-xl font-mono font-bold ${toneClasses[tone]} tabular-nums truncate`}>
+      <p
+        className={`text-xl font-mono font-bold ${toneClasses[tone]} tabular-nums truncate`}
+      >
         {value}
       </p>
       {subtext && (
@@ -198,6 +202,45 @@ function MetricSummaryTile({
       )}
     </div>
   );
+}
+
+/** The dashboard's read-side payload (owned by the Overview tab; see tabs/types.ts). */
+export interface DashboardData {
+  kpis: DashboardKpi | null;
+  revenue: RevenuePoint[];
+  debtAging: DebtByAgingBucket[];
+  demographics: Demographics;
+  topDebtors: DebtSummary[];
+}
+
+/** Section card header with icon — the 360° investigation-modal standard. */
+function SectionCardTitle({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof TrendingUp;
+  children: string;
+}) {
+  return (
+    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+      <Icon className="h-3.5 w-3.5 text-primary" />
+      {children}
+    </CardTitle>
+  );
+}
+
+export function deriveTrancheProjection(
+  revenue: readonly RevenuePoint[],
+  totalExpected: number,
+): Array<{ label: string; amount: number; targetProjection: number }> {
+  return revenue.map((r) => {
+    const rule = TRANCHE_PROJECTION_MONTHS.find((m) => m.label === r.label);
+    return {
+      label: r.label,
+      amount: r.amount,
+      targetProjection: rule ? Math.round(totalExpected * rule.share) : 0,
+    };
+  });
 }
 
 export function SeeDetailsModal({
@@ -249,6 +292,15 @@ export function SeeDetailsModal({
     [payments],
   );
 
+  const totalDebt = useMemo(
+    () => data.debtAging.reduce((s, b) => s + b.amount, 0),
+    [data.debtAging],
+  );
+  const totalDebtFamilies = useMemo(
+    () => data.debtAging.reduce((s, b) => s + b.debtorCount, 0),
+    [data.debtAging],
+  );
+
   return (
     <UnifiedModal
       open={open}
@@ -288,39 +340,39 @@ export function SeeDetailsModal({
         {/* ────────── TAB 1: REVENUS ────────── */}
         <PageTabContent value="revenue">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* The T-247 trio — real derivations, honest "—" without kpis.
+                (T-536: "Budget Engagé Global" (tile1+tile2 arithmetic) and
+                "Règlements Reçus" (the table badge already carries the
+                count) removed — one number, one home.) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <MetricSummaryTile
-                label="Encaissé Annuel"
-                value={formatDzd(annualRevenue, { compact: true })}
-                subtext={`${collectionRate}% du budget attendu`}
+                label="Encaissé effectif (PAID)"
+                value={formatDzd(annualRevenue)}
+                subtext="Total des règlements encaissés"
                 tone="success"
               />
               <MetricSummaryTile
-                label="Créances Restantes"
-                value={formatDzd(outstanding, { compact: true })}
-                subtext={`${data.debtAging.reduce((s, b) => s + b.debtorCount, 0)} familles concernées`}
-                tone={outstanding > 0 ? "danger" : "default"}
+                label="Créances restantes"
+                value={data.kpis ? formatDzd(outstanding) : "—"}
+                subtext="Encours impayé consolidé"
+                tone="danger"
               />
               <MetricSummaryTile
-                label="Budget Engagé Global"
-                value={formatDzd(totalExpected, { compact: true })}
-                subtext="Total annuel consolidé"
-              />
-              <MetricSummaryTile
-                label="Règlements Reçus"
-                value={String(payments.length)}
-                subtext="Reçus de caisse validés"
-                tone="default"
+                label="Taux d'Atteinte Annuel"
+                value={data.kpis ? `${collectionRate}%` : "—"}
+                subtext="Encaissé sur total attendu"
+                tone="primary"
               />
             </div>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
               <CardHeader className="border-b border-border/50 px-4 py-3">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Échéancier Trimestriel Prévisionnel vs Réalisé (40% · 30% · 30%)
-                </CardTitle>
+                <SectionCardTitle icon={TrendingUp}>
+                  Encaissements vs Échéancier Théorique (40% · 30% · 30%)
+                </SectionCardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Comparaison des encaissements par rapport aux jalons de rentrée
+                  Barres pleines : encaissements réels · Ligne pointillée :
+                  jalons théoriques de rentrée
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
@@ -381,9 +433,9 @@ export function SeeDetailsModal({
             <Card className="border-border/70 bg-surface-panel shadow-sm">
               <CardHeader className="border-b border-border/50 px-4 py-3 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <SectionCardTitle icon={Receipt}>
                     Derniers Règlements Encaissés
-                  </CardTitle>
+                  </SectionCardTitle>
                   <CardDescription className="text-xs text-muted-foreground">
                     Journal chronologique des encaissements enregistrés
                   </CardDescription>
@@ -398,47 +450,47 @@ export function SeeDetailsModal({
                     Aucun versement n'a été enregistré pour cette période.
                   </div>
                 ) : (
-                  <div className="max-h-[300px] overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-surface-panel text-muted-foreground z-10">
-                        <tr className="border-b border-border/60">
-                          <th className="px-4 py-2.5 text-left font-medium">N° Reçu</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Date & Heure</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Prestation</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Mode</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Statut</th>
-                          <th className="px-4 py-2.5 text-right font-medium">Montant</th>
+                  /* T-536: no inner max-h scroll cap — the table grows and
+                     the modal body is the ONE scroll surface (88vh shell). */
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/30 text-left text-muted-foreground">
+                      <tr className="border-b border-border/60">
+                        <th className="px-4 py-2.5 font-medium">N° Reçu</th>
+                        <th className="px-4 py-2.5 text-left font-medium">Date & Heure</th>
+                        <th className="px-4 py-2.5 text-left font-medium">Prestation</th>
+                        <th className="px-4 py-2.5 text-left font-medium">Mode</th>
+                        <th className="px-4 py-2.5 text-left font-medium">Statut</th>
+                        <th className="px-4 py-2.5 text-right font-medium">Montant</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {recentPayments.map((payment) => (
+                        <tr key={payment.id} className="hover:bg-accent/5">
+                          <td className="px-4 py-2 font-mono font-medium text-foreground">
+                            {payment.receiptNumber}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {formatPaymentDate(payment.collectedAt)}
+                          </td>
+                          <td className="px-4 py-2 text-foreground font-medium">
+                            {paymentCategoryLabelFr(payment.category)}
+                          </td>
+                          <td className="px-4 py-2 text-muted-foreground">
+                            {PAYMENT_METHOD_LABELS_FR[payment.method]}
+                          </td>
+                          <td className="px-4 py-2">
+                            <StatusChip
+                              label={PAYMENT_STATUS_LABELS_FR[payment.status]}
+                              tone={payment.status === "paid" ? "success" : "warning"}
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono font-bold">
+                            {formatDzdPlain(payment.amount)} DA
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40">
-                        {recentPayments.map((payment) => (
-                          <tr key={payment.id} className="hover:bg-accent/5">
-                            <td className="px-4 py-2 font-mono font-medium text-foreground">
-                              {payment.receiptNumber}
-                            </td>
-                            <td className="px-4 py-2 text-muted-foreground">
-                              {formatPaymentDate(payment.collectedAt)}
-                            </td>
-                            <td className="px-4 py-2 text-foreground font-medium">
-                              {paymentCategoryLabelFr(payment.category)}
-                            </td>
-                            <td className="px-4 py-2 text-muted-foreground">
-                              {PAYMENT_METHOD_LABELS_FR[payment.method]}
-                            </td>
-                            <td className="px-4 py-2">
-                              <StatusChip
-                                label={PAYMENT_STATUS_LABELS_FR[payment.status]}
-                                tone={payment.status === "paid" ? "success" : "warning"}
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-right font-mono font-bold">
-                              {formatDzdPlain(payment.amount)} DA
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </CardContent>
             </Card>
@@ -453,27 +505,14 @@ export function SeeDetailsModal({
         {/* ────────── TAB 3: DÉMOGRAPHIE ────────── */}
         <PageTabContent value="demographics">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <MetricSummaryTile
-                label="Effectif Total Inscrits"
-                value={String(genderTotal)}
-                subtext="Élèves scolarisés actifs"
-                tone="default"
-              />
-              <MetricSummaryTile
-                label="Garçons / Filles"
-                value={
-                  data.demographics.gender.length >= 2
-                    ? `${data.demographics.gender[0].count} / ${data.demographics.gender[1].count}`
-                    : "—"
-                }
-                subtext="Répartition par genre"
-                tone="default"
-              />
+            {/* T-536: the total and the gender split live ONLY in the donut
+                (center + legend) — the duplicate tiles are gone; what
+                remains are the two numbers no chart below carries. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <MetricSummaryTile
                 label="Paliers Représentés"
                 value={String(data.demographics.grade.length)}
-                subtext="Niveaux pédagogiques"
+                subtext="Niveaux pédagogiques actifs"
               />
               <MetricSummaryTile
                 label="Âge Médian"
@@ -482,7 +521,7 @@ export function SeeDetailsModal({
                     ? `${data.demographics.age[Math.floor(data.demographics.age.length / 2)].label} ans`
                     : "—"
                 }
-                subtext="Cohorte centrale"
+                subtext="Cohorte centrale des effectifs"
               />
             </div>
 
@@ -490,9 +529,9 @@ export function SeeDetailsModal({
               <div className="lg:col-span-7">
                 <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
                   <CardHeader className="border-b border-border/50 px-4 py-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionCardTitle icon={GraduationCap}>
                       Distribution des Effectifs par Niveau
-                    </CardTitle>
+                    </SectionCardTitle>
                     <CardDescription className="text-xs text-muted-foreground">
                       Nombre d'élèves par niveau scolaire
                     </CardDescription>
@@ -541,9 +580,9 @@ export function SeeDetailsModal({
               <div className="lg:col-span-5 space-y-4">
                 <Card className="border-border/70 bg-surface-panel shadow-sm">
                   <CardHeader className="border-b border-border/50 px-4 py-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionCardTitle icon={Users}>
                       Répartition par Genre
-                    </CardTitle>
+                    </SectionCardTitle>
                   </CardHeader>
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="relative flex h-[130px] w-[130px] items-center justify-center shrink-0">
@@ -587,7 +626,8 @@ export function SeeDetailsModal({
                                 backgroundColor: [chartPalette.primary, chartPalette.gold, chartPalette.cyan][i % 3],
                               }}
                             />
-                            <span className="text-foreground font-medium">{g.label}</span>
+                            {/* T-247 contract: "Garçons:" / "Filles:" (colon). */}
+                            <span className="text-muted-foreground">{g.label}:</span>
                           </span>
                           <span className="font-mono font-bold text-foreground">
                             {g.count} ({g.percent}%)
@@ -600,12 +640,12 @@ export function SeeDetailsModal({
 
                 <Card className="border-border/70 bg-surface-panel shadow-sm">
                   <CardHeader className="border-b border-border/50 px-4 py-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionCardTitle icon={CalendarDays}>
                       Pyramide des Âges
-                    </CardTitle>
+                    </SectionCardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
-                    <div className="h-[120px]">
+                    <div className="h-[140px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data.demographics.age} margin={{ top: 5, right: 0, bottom: 0, left: -20 }}>
                           <XAxis
@@ -640,30 +680,19 @@ export function SeeDetailsModal({
         {/* ────────── TAB 4: CRÉANCES ────────── */}
         <PageTabContent value="debt">
           <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <MetricSummaryTile
-                label="Encours Global des Créances"
-                value={formatDzd(
-                  data.debtAging.reduce((s, b) => s + b.amount, 0),
-                  { compact: true },
-                )}
-                subtext="Total des échéances échues"
-                tone="danger"
-              />
-              <MetricSummaryTile
-                label="Familles Débitrices"
-                value={String(data.debtAging.reduce((s, b) => s + b.debtorCount, 0))}
-                subtext="Foyers avec solde impayé"
-                tone="warning"
-              />
+            {/* T-536: the encours and family totals live ONLY in the aging
+                table's footer row below — the two tiles that restated them
+                are gone. What remains: the two cross-bucket aggregates no
+                table row carries directly. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <MetricSummaryTile
                 label="Retards Critiques (> 60j)"
                 value={String(
                   (data.debtAging.find((b) => b.bucket === "61_90")?.debtorCount ?? 0) +
                   (data.debtAging.find((b) => b.bucket === "91_180")?.debtorCount ?? 0) +
-                  (data.debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0)
+                  (data.debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0),
                 )}
-                subtext="Dossiers en phase d'arbitrage"
+                subtext="Foyers en phase d'arbitrage"
                 tone="danger"
               />
               <MetricSummaryTile
@@ -674,6 +703,7 @@ export function SeeDetailsModal({
                     : "—"
                 }
                 subtext="Sur les débiteurs principaux"
+                tone="warning"
               />
             </div>
 
@@ -681,9 +711,9 @@ export function SeeDetailsModal({
               <div className="lg:col-span-5">
                 <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
                   <CardHeader className="border-b border-border/50 px-4 py-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionCardTitle icon={AlertTriangle}>
                       Structure par Ancienneté
-                    </CardTitle>
+                    </SectionCardTitle>
                     <CardDescription className="text-xs text-muted-foreground">
                       Ventilation des impayés selon l'âge du retard
                     </CardDescription>
@@ -721,6 +751,18 @@ export function SeeDetailsModal({
                           );
                         })}
                       </tbody>
+                      <tfoot className="border-t-2 border-border/60 bg-muted/20">
+                        <tr className="font-semibold">
+                          <td className="px-3.5 py-2.5 text-muted-foreground">Total</td>
+                          <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">
+                            {formatDzdPlain(totalDebt)} DA
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono font-bold">
+                            {totalDebtFamilies}
+                          </td>
+                          <td />
+                        </tr>
+                      </tfoot>
                     </table>
                   </CardContent>
                 </Card>
@@ -729,9 +771,9 @@ export function SeeDetailsModal({
               <div className="lg:col-span-7">
                 <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
                   <CardHeader className="border-b border-border/50 px-4 py-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionCardTitle icon={Landmark}>
                       Top 10 Débiteurs Prioritaires
-                    </CardTitle>
+                    </SectionCardTitle>
                     <CardDescription className="text-xs text-muted-foreground">
                       Dossiers nécessitant une relance active de trésorerie
                     </CardDescription>
@@ -742,40 +784,40 @@ export function SeeDetailsModal({
                         Aucun dossier débiteur enregistré.
                       </p>
                     ) : (
-                      <div className="max-h-[340px] overflow-auto">
-                        <table className="w-full text-xs">
-                          <thead className="bg-muted/30 text-left text-muted-foreground sticky top-0 bg-surface-panel z-10">
-                            <tr className="border-b border-border/60">
-                              <th className="px-3 py-2.5 font-medium w-10">#</th>
-                              <th className="px-3 py-2.5 font-medium">Famille</th>
-                              <th className="px-3 py-2.5 font-medium">Contact</th>
-                              <th className="px-3 py-2.5 text-right font-medium">Retard</th>
-                              <th className="px-3 py-2.5 text-right font-medium">Créance</th>
+                      /* T-536: no inner max-h scroll cap — the table grows
+                         and the modal body is the ONE scroll surface. */
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/30 text-left text-muted-foreground">
+                          <tr className="border-b border-border/60">
+                            <th className="px-3 py-2.5 font-medium w-10">#</th>
+                            <th className="px-3 py-2.5 font-medium">Famille</th>
+                            <th className="px-3 py-2.5 font-medium">Contact</th>
+                            <th className="px-3 py-2.5 text-right font-medium">Retard</th>
+                            <th className="px-3 py-2.5 text-right font-medium">Créance</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {data.topDebtors.map((d, i) => (
+                            <tr key={d.parentId} className="hover:bg-accent/5">
+                              <td className="px-3 py-2 font-mono text-muted-foreground">
+                                #{i + 1}
+                              </td>
+                              <td className="px-3 py-2 font-medium text-foreground truncate max-w-[150px]">
+                                {d.parentName}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground font-mono">
+                                {d.parentPhone || "—"}
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                                {d.daysOverdue} j
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono font-bold text-status-danger">
+                                {formatDzdPlain(d.outstandingAmount)} DA
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/40">
-                            {data.topDebtors.map((d, i) => (
-                              <tr key={d.parentId} className="hover:bg-accent/5">
-                                <td className="px-3 py-2 font-mono text-muted-foreground">
-                                  #{i + 1}
-                                </td>
-                                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[150px]">
-                                  {d.parentName}
-                                </td>
-                                <td className="px-3 py-2 text-muted-foreground font-mono">
-                                  {d.parentPhone || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono text-muted-foreground">
-                                  {d.daysOverdue} j
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono font-bold text-status-danger">
-                                  {formatDzdPlain(d.outstandingAmount)} DA
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </CardContent>
                 </Card>
@@ -806,33 +848,41 @@ function DepartmentsTab({ payments }: { payments: readonly Payment[] }) {
   const grandTotal =
     unitsWithTotals.reduce((s, u) => s + u.amount, 0) + otherAmount;
 
+  // T-355: the honest empty state — no fabricated zeros, no placeholder.
+  if (payments.length === 0) {
+    return (
+      <Card className="border-border/70 bg-surface-panel shadow-sm">
+        <CardContent className="py-12 text-center text-xs text-muted-foreground">
+          Aucun encaissement sur cette période.
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricSummaryTile
-          label="Total Recettes Pôles"
-          value={formatDzd(grandTotal, { compact: true })}
-          subtext={`${payments.length} transactions globales`}
-          tone="success"
-        />
-        <MetricSummaryTile
-          label="Pôle Scolarité"
-          value={formatDzd(unitsWithTotals[0]?.amount ?? 0, { compact: true })}
-          subtext={`${grandTotal > 0 ? Math.round(((unitsWithTotals[0]?.amount ?? 0) / grandTotal) * 100) : 0}% des recettes`}
-        />
-        <MetricSummaryTile
-          label="Services de Vie Scolaire"
-          value={formatDzd(unitsWithTotals[3]?.amount ?? 0, { compact: true })}
-          subtext="Transport & Cantine"
-        />
-        <MetricSummaryTile
-          label="Pôles Spécialisés"
-          value={formatDzd(
-            (unitsWithTotals[1]?.amount ?? 0) + (unitsWithTotals[2]?.amount ?? 0),
-            { compact: true },
-          )}
-          subtext="Thérapie & Parascolaire"
-        />
+      {/* T-355 hero banner — the ONE grand-total home ("Total Encaissé
+          (N versements)"); the T-356 never-dropped contract surfaces the
+          unclaimed-category residual here ("hors pôles"). */}
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Total Encaissé ({payments.length} versement{payments.length > 1 ? "s" : ""})
+            </h3>
+            <p className="mt-1 text-xl font-mono font-bold text-status-success tabular-nums">
+              {formatDzdPlain(grandTotal)} DA
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {otherAmount > 0
+                ? `Toutes unités — dont ${formatDzdPlain(otherAmount)} DA de prestations hors pôles identifiés`
+                : "Toutes unités opérationnelles confondues"}
+            </p>
+          </div>
+          <Badge variant="outline" className="font-mono text-xs">
+            {payments.length} transactions
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -853,7 +903,7 @@ function DepartmentsTab({ payments }: { payments: readonly Payment[] }) {
                     <div>
                       <h4 className="text-xs font-bold text-foreground">{u.label}</h4>
                       <span className="text-[10px] text-muted-foreground font-mono">
-                        {u.count} transaction(s) enregistrée(s)
+                        {u.count} versement{u.count > 1 ? "s" : ""}
                       </span>
                     </div>
                   </div>
