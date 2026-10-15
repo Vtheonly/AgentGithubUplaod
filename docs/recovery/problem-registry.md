@@ -8594,7 +8594,7 @@ The inspection confirms the gap with THREE structural facts:
 ### WORKFORCE-522 — The Android scanner is a STANDALONE feature (a "Scanner" tab in the Financials hub + a dedicated route) instead of an option inside the file-attachment workflow — and the mobile expense detail has NO multi-attachment surface at all (the domain Expense carries only the legacy single proofUrl) while the desktop reads the canonical `expense_attachments` table
 
 - **Category:** WORKFORCE / feature integration (the owner's mandate part 1) | **Severity:** MEDIUM (the mandate: "The scanner must not exist as a separate feature, screen, or section in the app")
-- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-545; scope CLARIFIED by the owner the same day in the 181st session — see the note below)
+- **Status:** OPEN → IN_PROGRESS → RESOLVED-TESTED (2026-10-15, T-545 — Android commit aaa9603 pushed; the clarified scope delivered: the Take Photo option in the chat composer + the in-context settle-dialog capture, the standalone tab/route/param/screen removed; the 5-test ScannerIntegrationT545 census green; VERIFIED-LIVE deferred to the owner's device run per §15.11)
 - **Repositories:** elimtiyaz-android (+ the hub's canonical table it will now read)
 - **Platforms affected:** Android
 - **Task:** T-545
@@ -8607,7 +8607,7 @@ The inspection confirms the gap with THREE structural facts:
 ### CALL-523 — The Android calling path's feedback and error contracts are incomplete (two of fifteen call sites fail SILENTLY, a missing dialer app surfaces as a cryptic raw exception, and the number-sanitization contract has zero test coverage) — the dial intent itself is correct but the owner's "investigate and fix the calling functionality" mandate demands the whole path be honest and verified
 
 - **Category:** CALL / platform integration (the owner's two-part directive, part 2) | **Severity:** MEDIUM (the feature works on dialer-equipped devices; the defects are the silent-failure sites and the unverifiable contract)
-- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-547)
+- **Status:** OPEN → IN_PROGRESS → RESOLVED-TESTED (2026-10-15, T-547 — delivered in the same Android commit aaa9603: the dedicated ActivityNotFoundException branch, the two toast-less sites fixed, the manifest <queries> entry, the sanitizeDialNumber/whatsappLink extraction with the 8-test Robolectric pin; the ACTION_DIAL + tel: + NEW_TASK contract preserved verbatim; VERIFIED-LIVE deferred to the owner's device dialer run per §15.11)
 - **Repositories:** elimtiyaz-android
 - **Platforms affected:** Android
 - **Task:** T-547

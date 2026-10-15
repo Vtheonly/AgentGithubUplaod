@@ -6471,7 +6471,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem ID:** WORKFORCE-522 (new — the standalone-scanner mandate).
 
-**Status:** IN_PROGRESS (registered 2026-10-15, 180th session, before any code change).
+**Status:** IN_PROGRESS → TESTED (2026-10-15, 181st session — Android commit aaa9603 pushed to origin/main; the full gates below; VERIFIED-LIVE deferred to the owner's device run per §15.11 — the camera capture + the dialer open are the owner's eyeball).
 
 **The mandate (owner, in chat, 2026-10-15):** "In the mobile app, I want the scanner functionality that was previously implemented to be integrated into the existing file attachment and upload system. The scanner must not exist as a separate feature, screen, or section in the app. Integrate it directly into the existing attachment workflow, alongside options for uploading images, PDFs, and other supported files … Remove the standalone scanner entry, screen, and navigation elements from the mobile app."
 
@@ -6483,13 +6483,17 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **THE OWNER'S SCOPE CLARIFICATION (chat, 2026-10-15, the 181st session — SUPERSEDES the multi-attachment half of the contract above):** "When I said scanner, I did not mean a dedicated document-scanning system or a standalone scanner feature. I simply meant a camera option that allows users to take a picture of an object or document and attach it directly … Integrate a simple Take Photo option into the existing file attachment interface. Allow users to open the device camera, capture an image, preview it, and attach it. Keep the existing options for uploading images, PDFs, and other supported files. Do not create a separate scanner screen, module, or navigation entry. Reuse the existing attachment workflow and keep the implementation lightweight. The goal is simply to take a picture and attach it, not to build a dedicated scanning system … Avoid unnecessary complexity or unrelated changes." → the canonical `expense_attachments` multi-attachment surface (fix-contract items 1's read/gallery half) is DEFERRED (not lost — it remains the T-544 desktop-lane counterpart's mobile sibling for a later session); T-545's delivered scope is now: (a) a **Take Photo** camera option IN the two existing attachment interfaces — the chat composer's attachment row (capture → preview chip → send, the existing pendingAttachments workflow) and the expense settle dialog (capture → inline preview → upload via the one ProofScanner engine → path auto-fill, NO navigation); (b) the standalone "Scanner" tab + `Routes.ProofScanner` route + permission mapping + the dead MainScreen param REMOVED, ProofScannerScreen deleted; (c) the camera capture pattern follows the existing HomeworkPushScreen precedent (permission launcher + FileProvider + TakePicture) — no new screen, module, or navigation entry. **Priority (owner): T-545 FIRST, then the calling fix (T-547).**
 
+**Left:** nothing for the CLARIFIED scope. The deferred canonical expense_attachments multi-attachment surface (the original fix-contract half) remains registered for a later session — it is the T-544 desktop lane's mobile sibling.
+
+**Verified (closeout, 2026-10-15, 181st session):** Android aaa9603: `:app:compileDebugKotlin` PASS · `:app:testDebugUnitTest` 807 tests / 7 failed — the IDENTICAL pre-existing baseline set (SpacingTokenGate ×2 + DashboardOverviewStructureT489 ×4 + TrancheWaveCardsT462 ×1; the 13 NEW tests all green: ScannerIntegrationT545 5/5 + PhoneUtilsT547 8/8 + the rewritten ExpenseApprovalT521 item d) · `:app:lintDebug` PASS — the pre-existing WrongNavigateRouteType error RETIRED by the Routes.ProofScanner removal. The owner's push-first directive honored: the commit landed on origin/main BEFORE the full gates ran.
+
 ---
 
 ## T-547 — The owner's calling-feature mandate (the 181st session): audit + fix the Android calling path — every call action must open the system dialer with the correct number, with honest feedback when it cannot
 
 **Problem ID:** CALL-523 (new — the calling audit).
 
-**Status:** IN_PROGRESS (registered 2026-10-15, 181st session, before any code change).
+**Status:** IN_PROGRESS → TESTED (2026-10-15, 181st session — delivered in the SAME Android commit aaa9603 as T-545 per the one-delivery plan; the gates are recorded on T-545's closeout; VERIFIED-LIVE deferred to the owner's device dialer run per §15.11).
 
 **The mandate (owner, in chat, 2026-10-15):** "Also investigate and fix the calling functionality in the mobile application. Verify that the calling feature works correctly from the relevant screens. Check call buttons, phone-number handling, Android permissions, and the intent used to initiate calls. Ensure tapping a call action opens the appropriate phone or dialer interface with the correct number. Identify and fix any issues preventing calls from being initiated. Preserve the existing interface and intended calling behavior."
 
@@ -6499,7 +6503,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Plan:** (1) this registration → (2) PhoneUtils hardening + extraction → (3) the two toast-less sites → (4) manifest queries → (5) unit tests → (6) Android gates with the T-545 commit → (7) docs closeout.
 
-**Left:** everything — implemented in the same Android commit as T-545 (the owner's two-part directive, one delivery).
+**Left:** nothing — all five fix-contract items delivered (the ActivityNotFoundException branch, the two toast-less sites, the manifest queries, the pure-function extraction, the 8-test pin; the dial intent preserved verbatim).
 
 
 ---
