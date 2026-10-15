@@ -1,13 +1,6 @@
 // ============================================================================
 // FILE: elimtiyaz-desktop/src/features/dashboard/tabs/analytics-tab.tsx
 // ============================================================================
-/**
- * AnalyticsTab — Statistics / Executive Command Center + exploration hub.
- *
- * Every visible statistics widget is a first-class DashboardLayoutEditor item.
- * The layout layer controls presentation only; repository data and business
- * derivations remain unchanged.
- */
 
 import { useMemo, useState, useCallback } from "react";
 import { Search, BarChart3, Gauge } from "lucide-react";
@@ -21,9 +14,6 @@ import type {
 } from "../../../domain/model/payment";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../domain/model/payment";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
-// T-507 (UI-338): the contextual thresholds-config trigger — the small
-// attached control that opens the scoped editor (renders NOTHING when the
-// config api is absent — provider-less test renders stay byte-identical).
 import {
   ThresholdsConfigTrigger,
   type ThresholdsConfigApi,
@@ -31,6 +21,7 @@ import {
 } from "../../settings/contextual-thresholds-config";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+import { parentDisplayName } from "../../../domain/model/parent";
 import {
   applyAnalyticsFilters,
   presentCategories,
@@ -50,9 +41,6 @@ import {
   derivePayrollCostTrend,
   SERVICE_CATEGORIES,
 } from "../components/analytics/executive-statistics";
-// T-447 (STATS-401): the canonical POOLED all-categories derivation + the
-// non-wave summary — the parity objects the main wave cards render (the
-// SAME rows the Finance Tranches strip consumes).
 import {
   derivePooledTrancheWaves,
   deriveNonWaveSummary,
@@ -73,8 +61,6 @@ import { MethodMixCard, CategoryMixCard } from "../components/analytics/mix-card
 import { YoYComparisonCard } from "../components/analytics/yoy-comparison-card";
 import { AgingCompositionCard } from "../components/analytics/aging-composition-card";
 import { DebtorsParetoCard } from "../components/analytics/debtors-pareto-card";
-// T-412 — the Statistics planning view of the canonical payroll forecast
-// (ADR-024): the SAME computation as Personnel and Finance.
 import { PayrollCostTrendCard } from "../components/analytics/payroll-cost-trend-card";
 import { computePayrollForecast } from "../../../domain/calc/payroll/payroll-forecast";
 import {
@@ -88,8 +74,6 @@ import {
   type InspectRequest,
 } from "../components/analytics/data-inspector";
 import { DashboardLayoutEditor, type DashboardLayoutItem } from "../dashboard-layout-editor";
-// T-447 (UI-325): the bilingual explainability tooltips (the glossary lives
-// in src/i18n/stats-tips.ts — dictionary-only, never JSX text).
 import { InfoTip } from "../components/analytics/info-tip";
 
 const ALL_METHODS: PaymentMethod[] = ["cash", "check", "transfer"];
@@ -107,26 +91,11 @@ export interface AnalyticsTabProps {
   installments?: readonly Installment[];
   range?: { from: string; to: string };
   onOpenParent?: (parentId: string) => void;
-  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
   editing?: boolean;
-  /**
-   * T-443 (DEBT-101): the tenant's ACTIVE debt-aging thresholds. Absent →
-   * the tab reads `repos.debt.observeThresholds()` itself (the embedded
-   * default when even that is unavailable is the documented DEFAULTS).
-   */
   debtThresholds?: DebtAgingThresholds;
-  /**
-   * T-507 (UI-338): the contextual-config api (the dashboard page's host —
-   * the live-preview triggers ride the wave/triage/console headers).
-   * Absent → no trigger renders (the pure-prop contract).
-   */
   thresholdsConfig?: ThresholdsConfigApi | null;
 }
 
-/* ── T-507 (UI-338): the per-component config scopes ──
- * ONLY the parameters each component's derivations actually consume (the
- * compact-modal requirement): the wave meters → the grace period; the
- * triage → the day hierarchy; the console's quick query → the severe edge. */
 const WAVE_METER_SCOPE: ThresholdsConfigScope = {
   title: "Vagues de tranches",
   params: ["gracePeriodDays"],
@@ -179,17 +148,10 @@ export function AnalyticsTab({
   );
   const internalInstallments = useObservable(() => repos.installments.observe(), []);
   const installments = installmentsProp ?? internalInstallments;
-  // T-443 (DEBT-101): the ACTIVE debt-aging thresholds — the prop wins (the
-  // dashboard page's single read), else this tab's own subscription (the
-  // same repository stream; the subject's seed value IS the documented
-  // DEFAULTS until the light reader lands).
   const internalDebtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
   const debtThresholdsActive = debtThresholds ?? internalDebtThresholds;
   const ledger = useObservable(() => repos.ledger.observe(), []);
-  // T-412 (ADR-024): the canonical payroll forecast's two input streams
-  // (the T-411 observeAllocations optional-method pattern — fakes/test
-  // repos without the payroll surface get a constant-empty stream and the
-  // trend card renders its honest empty state).
+
   const payrollPersonnel = useObservable(
     () =>
       repos.personnel?.observe?.() ?? {
@@ -206,14 +168,27 @@ export function AnalyticsTab({
       },
     [],
   );
+
   const [viewMode, setViewMode] = useState<ViewMode>("pilotage");
   const [filters, setFilters] = useState<AnalyticsFilterState>(NO_ANALYTICS_FILTERS);
-  // T-503 (UI-335): the diagnostic view's shared quadrant→console filter —
-  // the CrossRiskCard quadrants drive the OperationalQueryConsole's
-  // category filter (the card's caption finally does what it promises).
   const [consoleCategory, setConsoleCategory] = useState<string>("all");
 
   const riskDebt = debtSummaries ?? topDebtors;
+
+  const parentNameMap = useMemo(
+    () => new Map(parents.map((p) => [p.id, parentDisplayName(p)])),
+    [parents],
+  );
+
+  const enrichedDebtors = useMemo(
+    () =>
+      riskDebt.map((d) => ({
+        ...d,
+        parentName: parentNameMap.get(d.parentId) || d.parentName || `Famille ${d.parentId.slice(-6)}`,
+      })),
+    [riskDebt, parentNameMap],
+  );
+
   const riskProfiles = useMemo<StudentRiskProfile[]>(() => {
     return evaluateStudentRiskProfiles({
       students,
@@ -236,26 +211,11 @@ export function AnalyticsTab({
     riskDebt,
   ]);
 
-  // T-447 (STATS-401): ONE clock for the wave/triage/concentration
-  // derivations — computed once per data change so the phase AND the
-  // days-late agree (§15.54d: the card receives this value, never its own
-  // Date.now()). The `installments` dep is DELIBERATE (re-pin the clock
-  // when the data changes — the derivation memo's own freshness anchor);
-  // eslint's exhaustive-deps cannot see that intent.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const waveNow = useMemo(() => Date.now(), [installments]);
   const waves = useMemo(
     () => deriveTrancheWaves(installments, waveNow, debtThresholdsActive),
     [installments, waveNow, debtThresholdsActive],
   );
-  // T-447: the canonical pooled all-categories T1/T2/T3 analysis (the
-  // main wave cards) + the non-wave summary (FI etc.) — derived from the
-  // SAME rows at the SAME clock as the per-category detail above.
-  // T-502 (STATS-403): all three derivations consume the ACTIVE debt
-  // thresholds — the wave meters' "En retard" verdicts follow the
-  // CONFIGURED grace period (the same `debt.grace_period_days` the
-  // triage/stages apply), so a configuration change moves the meter
-  // counts and the stage counts TOGETHER.
   const pooledWaves = useMemo(
     () => derivePooledTrancheWaves(installments, waveNow, debtThresholdsActive),
     [installments, waveNow, debtThresholdsActive],
@@ -282,13 +242,6 @@ export function AnalyticsTab({
     () => deriveTransportYield({ students, installments }),
     [students, installments],
   );
-  // T-447 (STATS-402 ledger #1 — the audit's scope defect): the services
-  // card consumed the RAW all-years payments stream while every sibling
-  // installment card is year-scoped and the tab's own "Encaissements
-  // services" InspectTrigger is range-scoped — the card and its own
-  // inspector trigger disagreed by every payment outside the active
-  // range. Now the card consumes the SAME range-scoped paid slice
-  // (applyAnalyticsFilters — the ONE cross-filtering engine).
   const services = useMemo(
     () =>
       deriveServiceYield(
@@ -305,8 +258,6 @@ export function AnalyticsTab({
     () => deriveTripleRiskSummary(riskProfiles),
     [riskProfiles],
   );
-  // T-412 — ONE canonical forecast → the Statistics trend projection (the
-  // Personnel waves and the Finance treasury block read the same object).
   const payrollForecast = useMemo(
     () =>
       computePayrollForecast({
@@ -410,25 +361,17 @@ export function AnalyticsTab({
   const inspection = (request: InspectRequest) => request;
 
   const pilotageItems: DashboardLayoutItem[] = [
-    // T-503 (UI-334): the « Inspection directe » STRIP is RETIRED — every
-    // inspection button now lives ON the card it inspects (the optional
-    // headerActions surface every analytics card accepts), so the
-    // relationship between a button and its target is immediately obvious
-    // and the buttons stay attached through drags/resizes/hides.
     {
       id: "pilotage-risk",
       label: "Radar de vigilance multi-critères",
       x: 0,
       y: 0,
       w: 4,
-      // T-534 (UI-348): four metric cards + the wrapped inspection header
-      // need a stable minimum footprint; existing saved heights are clamped
-      // to minH and the shared layout resolver moves any overlapping rows.
-      h: 9,
+      h: 12,
       minW: 3,
       maxW: 12,
-      minH: 9,
-      maxH: 20,
+      minH: 10,
+      maxH: 24,
       content: (
         <TripleRiskSummaryCard
           summary={riskSummary}
@@ -449,14 +392,11 @@ export function AnalyticsTab({
       x: 4,
       y: 0,
       w: 8,
-      // T-534 (UI-348): reserve enough vertical space for the complete T1/T2/T3
-      // pooled meters + their values/inspection controls. The card may grow
-      // further; it can no longer be saved below this usable floor.
-      h: 11,
+      h: 18,
       minW: 4,
       maxW: 12,
-      minH: 11,
-      maxH: 24,
+      minH: 14,
+      maxH: 30,
       content: (
         <WaveVelocityCard
           waves={waves}
@@ -467,7 +407,6 @@ export function AnalyticsTab({
             <>
               <InspectTrigger request={inspection({ domain: "revenue", title: `Revenus ${academicYear}`, metric: "annual_revenue", sourceValue: currentRevenueTotal })} />
               <InspectTrigger request={inspection({ domain: "tranche", title: `Vague 1 — reste dû ${academicYear}`, metric: "tranche_1_remaining", sourceValue: trancheOneRemaining, filters: { trancheNumber: 1, mode: "remaining", scope: "academic-year" } })} />
-              {/* T-507 (UI-338): the config trigger ON the wave meters. */}
               <ThresholdsConfigTrigger scope={WAVE_METER_SCOPE} config={thresholdsConfig} />
             </>
           }
@@ -478,14 +417,13 @@ export function AnalyticsTab({
       id: "pilotage-debt",
       label: "Triage des créances",
       x: 0,
-      // T-534: below the taller seasonal-wave row, with one grid-row gutter.
-      y: 12,
+      y: 19,
       w: 7,
-      h: 8,
+      h: 12,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 18,
+      minH: 10,
+      maxH: 24,
       content: (
         <DebtTriageCard
           triage={triage}
@@ -493,7 +431,6 @@ export function AnalyticsTab({
           headerActions={
             <>
               <InspectTrigger request={inspection({ domain: "debt", title: `Créances ${academicYear}`, metric: "outstanding_debt", sourceValue: yearOutstandingDebt, filters: { scope: "academic-year" } })} />
-              {/* T-507 (UI-338): the config trigger ON the triage. */}
               <ThresholdsConfigTrigger scope={DEBT_TRIAGE_SCOPE} config={thresholdsConfig} />
             </>
           }
@@ -504,13 +441,13 @@ export function AnalyticsTab({
       id: "pilotage-discount",
       label: "Érosion des remises",
       x: 7,
-      y: 12,
+      y: 19,
       w: 5,
-      h: 8,
+      h: 12,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 18,
+      minH: 8,
+      maxH: 24,
       content: (
         <DiscountErosionCard
           ledger={ledger}
@@ -522,13 +459,13 @@ export function AnalyticsTab({
       id: "pilotage-family",
       label: "Concentration du risque familial",
       x: 0,
-      y: 21,
+      y: 32,
       w: 7,
-      h: 8,
+      h: 11,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 20,
+      minH: 8,
+      maxH: 24,
       content: (
         <FamilyConcentrationCard
           concentration={concentration}
@@ -540,26 +477,26 @@ export function AnalyticsTab({
       id: "pilotage-enrollment",
       label: "Dynamique des effectifs et fratries",
       x: 7,
-      y: 21,
+      y: 32,
       w: 5,
-      h: 8,
+      h: 11,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 20,
+      minH: 8,
+      maxH: 24,
       content: <EnrollmentDynamicsCard dynamics={dynamics} />,
     },
     {
       id: "pilotage-transport",
       label: "Rendement transport",
       x: 0,
-      y: 30,
+      y: 44,
       w: 7,
-      h: 8,
+      h: 10,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 20,
+      minH: 8,
+      maxH: 24,
       content: (
         <TransportYieldCard
           transport={transport}
@@ -571,13 +508,13 @@ export function AnalyticsTab({
       id: "pilotage-services",
       label: "Revenus services spécialisés",
       x: 7,
-      y: 30,
+      y: 44,
       w: 5,
-      h: 8,
+      h: 10,
       minW: 4,
       maxW: 12,
-      minH: 6,
-      maxH: 20,
+      minH: 8,
+      maxH: 24,
       content: (
         <ServiceYieldCard
           services={services}
@@ -585,17 +522,8 @@ export function AnalyticsTab({
         />
       ),
     },
-    // T-503 (UI-335): the DUPLICATE console mount is RETIRED — the
-    // OperationalQueryConsole belongs to the Diagnostic view (its own
-    // label reads "Console de diagnostic opérationnel"); mounting it in
-    // BOTH modes rendered the same Triple-Risque table twice per mode
-    // switch (the owner's "two instances in each dashboard mode"). The
-    // pilotage view keeps its executive RADAR (TripleRiskSummaryCard);
-    // the full interactive console stays one mount in Diagnostic.
   ];
 
-  // T-533 / UI-347: one layout cell owns the entire diagnostic workflow.
-  // Roster, risk quadrants, and pivot stay on the same canonical profile stream.
   const diagnosticItems: DashboardLayoutItem[] = [
     {
       id: "diagnostic-console",
@@ -603,15 +531,14 @@ export function AnalyticsTab({
       x: 0,
       y: 0,
       w: 12,
-      h: 36,
+      h: 48,
       minW: 6,
       maxW: 12,
-      minH: 22,
-      maxH: 60,
+      minH: 32,
+      maxH: 80,
       content: (
         <OperationalQueryConsole
           profiles={riskProfiles}
-          // The configured severe-debt edge powers the existing quick query.
           severeDebtDzd={debtThresholdsActive.severeDebtDzd}
           selectedCategory={consoleCategory}
           onSelectedCategoryChange={setConsoleCategory}
@@ -637,9 +564,6 @@ export function AnalyticsTab({
   ];
 
   const chartItems: DashboardLayoutItem[] = [
-    // T-503 (UI-334): the « Ligne de provenance active » strip is RETIRED —
-    // the provenance trigger rides the slicer panel whose filters define
-    // it, and every chart's trigger lives on the chart itself.
     {
       id: "charts-slicers",
       label: "Filtres statistiques",
@@ -650,7 +574,7 @@ export function AnalyticsTab({
       minW: 6,
       maxW: 12,
       minH: 4,
-      maxH: 10,
+      maxH: 12,
       content: (
         <AnalyticsSlicers
           filters={filters}
@@ -662,8 +586,6 @@ export function AnalyticsTab({
           filteredCount={slice.length}
           filteredTotal={sliceTotal}
           totalCount={unfilteredCount}
-          // T-503 (UI-334): the provenance inspection rides the slicers
-          // (the panel that defines the active filter).
           headerActions={<InspectTrigger request={inspection({ domain: "revenue", title: "Encaissements filtrés", metric: "filtered_paid_revenue", sourceValue: sliceTotal, filters: { from: range?.from, to: range?.to, methods: [...filters.methods], categories: [...filters.categories] } })} />}
         />
       ),
@@ -674,11 +596,11 @@ export function AnalyticsTab({
       x: 0,
       y: 6,
       w: 12,
-      h: 5,
+      h: 6,
       minW: 6,
       maxW: 12,
       minH: 4,
-      maxH: 10,
+      maxH: 12,
       content: (
         <div className="h-full space-y-2">
           <div className="flex items-center justify-between">
@@ -693,13 +615,13 @@ export function AnalyticsTab({
       id: "charts-method-mix",
       label: "Mix des méthodes de paiement",
       x: 0,
-      y: 12,
+      y: 13,
       w: 6,
-      h: 9,
+      h: 11,
       minW: 4,
       maxW: 12,
-      minH: 7,
-      maxH: 18,
+      minH: 8,
+      maxH: 20,
       content: (
         <MethodMixCard
           slice={slice}
@@ -711,13 +633,13 @@ export function AnalyticsTab({
       id: "charts-category-mix",
       label: "Mix des catégories de paiement",
       x: 6,
-      y: 12,
+      y: 13,
       w: 6,
-      h: 9,
+      h: 11,
       minW: 4,
       maxW: 12,
-      minH: 7,
-      maxH: 18,
+      minH: 8,
+      maxH: 20,
       content: (
         <CategoryMixCard
           slice={slice}
@@ -729,13 +651,13 @@ export function AnalyticsTab({
       id: "charts-yoy",
       label: "Comparaison annuelle des revenus",
       x: 0,
-      y: 22,
+      y: 25,
       w: 12,
-      h: 9,
+      h: 11,
       minW: 6,
       maxW: 12,
-      minH: 7,
-      maxH: 18,
+      minH: 8,
+      maxH: 20,
       content: (
         <YoYComparisonCard
           currentYear={academicYear}
@@ -757,17 +679,14 @@ export function AnalyticsTab({
       id: "charts-aging",
       label: "Vieillissement des créances",
       x: 0,
-      y: 32,
+      y: 37,
       w: 12,
-      h: 10,
+      h: 12,
       minW: 6,
       maxW: 12,
-      minH: 8,
-      maxH: 20,
+      minH: 9,
+      maxH: 24,
       content: (
-        // T-503 (UI-334): the total's trigger lives on the card's header;
-        // each bucket's trigger lives ON ITS OWN TABLE ROW (the exact
-        // bucket it inspects — the old floating strip carried all six).
         <AgingCompositionCard
           debtAging={debtAging}
           headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Vieillissement des créances (total)", metric: "debt_aging", sourceValue: debtAging.reduce((sum, bucket) => sum + bucket.amount, 0), filters: { scope: "academic-year" } })} />}
@@ -785,23 +704,17 @@ export function AnalyticsTab({
       id: "charts-pareto",
       label: "Pareto des familles débitrices",
       x: 0,
-      y: 43,
+      y: 50,
       w: 12,
-      h: 10,
+      h: 13,
       minW: 6,
       maxW: 12,
-      minH: 8,
-      maxH: 20,
+      minH: 10,
+      maxH: 24,
       content: (
         <DebtorsParetoCard
-          topDebtors={riskDebt as DebtSummary[]}
-          // T-467 (DASH-411): the WHOLE dataset's total outstanding (the
-          // T-351 full-stream wiring) — the whole-dataset reference mode's
-          // honest denominator.
+          topDebtors={enrichedDebtors as DebtSummary[]}
           totalOutstanding={currentDebtTotal}
-          // T-514 (UI-342): the bar-click navigation to the family's
-          // dossier (the tab's existing onOpenParent prop — previously
-          // consumed only by the operational console).
           onOpenParent={onOpenParent}
           headerActions={<InspectTrigger request={inspection({ domain: "debt", title: "Pareto des familles débitrices (toutes années)", metric: "debtors_pareto", sourceValue: currentDebtTotal, filters: { scope: "all" } })} />}
         />
@@ -811,21 +724,15 @@ export function AnalyticsTab({
       id: "charts-payroll-trend",
       label: "Coûts du Personnel — Réalisé vs Projeté & Besoin de Financement",
       x: 0,
-      y: 53,
+      y: 64,
       w: 12,
-      h: 11,
+      h: 15,
       minW: 6,
       maxW: 12,
-      minH: 8,
-      maxH: 22,
+      minH: 12,
+      maxH: 26,
       content: (
         <div className="h-full space-y-2">
-          {/* T-412 — the canonical monthly/quarterly personnel-cost &
-              funding-requirement trend (same calculation as Personnel and
-              Finance). No InspectTrigger here: the inspector's domain union
-              is a closed lineage contract (data-inspector-lineage.ts) — the
-              card labels its own figures and the parity suite pins the
-              values instead. */}
           <PayrollCostTrendCard trend={payrollTrend} />
         </div>
       ),

@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/executive-cards.tsx
 // ============================================================================
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   Waves,
   Percent,
@@ -41,17 +41,10 @@ import {
   type EnrollmentDynamics,
 } from "./executive-statistics";
 import type { StudentRiskProfile } from "./operational-query-engine";
-// T-447 (UI-325): the bilingual explainability tooltips — the glossary
-// lives in src/i18n/stats-tips.ts (dictionary-only, never JSX text).
 import { InfoTip } from "./info-tip";
-// T-503 (UI-334): the ONE reusable attachment surface for the inspection
-// controls (the optional headerActions node every analytics card accepts).
 import { CardHeaderActions } from "./card-header-actions";
-// T-467 (DASH-411): the user-selectable reference population.
 import { ReferencePopulationSelector, type ReferencePopulationMode } from "./reference-population-selector";
-// T-447 (STATS-401): the canonical POOLED derivation + the non-wave
-// summary — the parity objects the main wave cards render (the SAME
-// rows the Finance Tranches strip consumes).
+import { useState } from "react";
 import {
   emptyPooledWave,
   type PooledTrancheWave,
@@ -59,14 +52,10 @@ import {
 } from "../../../../domain/calc/payment/tranche-waves";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../../domain/model/parent";
 
-// T-447 (STATS-401 / §15.65a): the subtitles state the ALL-CATEGORIES
-// basis and NEVER fold the registration fee into T1 — FI is tranche 0, a
-// non-wave row with its own "hors tranches" section on the card. The old
-// "Rentrée & Inscription" T1 subtitle contradicted the billing model.
 const WAVE_TITLES: Record<number, { title: string; subtitle: string }> = {
-  1: { title: "Tranche 1 (T1)", subtitle: "Toutes catégories — 1er versement (Sept)" },
-  2: { title: "Tranche 2 (T2)", subtitle: "Toutes catégories — mi-parcours (Déc)" },
-  3: { title: "Tranche 3 (T3)", subtitle: "Toutes catégories — clôture (Mars)" },
+  1: { title: "Tranche 1 (T1)", subtitle: "1er versement de rentrée (Septembre)" },
+  2: { title: "Tranche 2 (T2)", subtitle: "Versement de mi-parcours (Décembre)" },
+  3: { title: "Tranche 3 (T3)", subtitle: "Versement de clôture (Mars)" },
 };
 
 export function WaveVelocityCard({
@@ -77,27 +66,10 @@ export function WaveVelocityCard({
   variant = "full",
   headerActions,
 }: {
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
-  /** The per-category wave detail (the canonical view models — the breakdown grid). */
   waves: TrancheWave[];
-  /**
-   * T-447 (STATS-401): the canonical POOLED all-categories T1/T2/T3
-   * analysis — the SAME `PooledTrancheWave` rows the Finance Tranches
-   * strip consumes (derivePooledTrancheWaves). The MAIN wave cards render
-   * these rows: every billing category pooled per wave, the numbers
-   * matching Finance to the exact dinar by construction (one derivation,
-   * two presentations).
-   */
   pooled: PooledTrancheWave[];
-  /**
-   * T-447: the non-wave rows (FI / unnumbered / out-of-range) — the
-   * categories the wave model excludes BY DESIGN, rendered in their own
-   * "hors tranches" section so the analysis covers every revenue
-   * commitment with nothing silently dropped.
-   */
   nonWave: NonWaveCategoryStats[];
-  /** The derivation's clock (§15.54d — ONE now for the phase AND the days-late). */
   nowEpochMs: number;
   variant?: "full" | "hero";
 }) {
@@ -106,7 +78,6 @@ export function WaveVelocityCard({
   const totalPending = pooled.reduce((s, w) => s + w.pendingTotal, 0);
   const totalRemaining = pooled.reduce((s, w) => s + w.remainingTotal, 0);
   const globalPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
-  // The fixed T1..T3 slots — waves with no rows render the honest zero state.
   const slots: PooledTrancheWave[] = ([1, 2, 3] as const).map(
     (wave) => pooled.find((p) => p.wave === wave) ?? emptyPooledWave(wave),
   );
@@ -114,7 +85,7 @@ export function WaveVelocityCard({
 
   return (
     <Card
-      className="border-border/70 bg-surface-panel shadow-sm flex flex-col"
+      className="border-border/70 bg-surface-panel shadow-sm flex flex-col min-h-full"
       data-testid="wave-velocity-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between gap-3 flex-wrap">
@@ -125,8 +96,7 @@ export function WaveVelocityCard({
             <InfoTip tip="waveVelocity.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Analyse T1/T2/T3 toutes catégories (Scolarité, Transport, FI, services) — parité
-            exacte avec l'onglet Finances → Tranches
+            Progression des versements trimestriels (Scolarité, Transport et Services)
           </CardDescription>
         </div>
 
@@ -146,7 +116,6 @@ export function WaveVelocityCard({
             </span>
           </div>
         )}
-        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -160,31 +129,18 @@ export function WaveVelocityCard({
           </p>
         ) : (
           <>
-            {/* T-447 (STATS-401): the MAIN T1/T2/T3 analysis — the canonical
-                POOLED rows (every billing category per wave). These are the
-                exact numbers the Finance Tranches strip renders over the
-                same rows: due = paid + pending + remaining (+
-                over-coverage), to the dinar. The PREVIOUS main grid
-                filtered to tuition only — the owner's parity complaint. */}
             <div
               className="grid grid-cols-1 md:grid-cols-3 gap-3.5"
               data-testid="wave-pooled-grid"
             >
               {slots.map((w) => {
                 const isOverdue = w.anyUnsettledOverdue;
-                // T-427 (DATA-048, issue #24 Track 2 item 4): a wave is
-                // "Clôturée" only when NOTHING remains to collect
-                // (`remainingTotal === 0` — the canonical INV-4 basis).
                 const isComplete = w.remainingTotal === 0 && w.installmentCount > 0;
                 const statusTone = isComplete
                   ? "success"
                   : isOverdue
                     ? "danger"
                     : "info";
-                // T-434 (UI-316): the wave's échéance is ON the card (the
-                // red verdict's visible cause). T-447: ONE clock — the
-                // derivation's nowEpochMs (the old code recomputed
-                // Date.now() at render and could disagree with the phase).
                 const dueIso =
                   w.dueDateMin !== null ? new Date(w.dueDateMin).toISOString() : null;
                 const dueIsoMax =
@@ -192,8 +148,6 @@ export function WaveVelocityCard({
                 const daysLate = dueIso ? daysBetweenFloor(dueIso, nowEpochMs) : 0;
                 const dueLineTone =
                   isOverdue && !isComplete ? "text-status-danger" : "text-muted-foreground";
-                // T-435 (UI-317): the wave's due-date RANGE (min → max when
-                // the rows drifted off the official schedule).
                 const dueRangeLabel = formatDueDateRange(dueIso, dueIsoMax);
 
                 return (
@@ -202,57 +156,55 @@ export function WaveVelocityCard({
                     className="rounded-xl border border-border/80 bg-surface-elevated/30 p-3.5 space-y-3 transition-all hover:border-border hover:bg-surface-elevated/60"
                     data-testid={`wave-meter-${w.wave}`}
                   >
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
                         <h4 className="text-xs font-bold text-foreground">
                           {WAVE_TITLES[w.wave]?.title ?? `Tranche ${w.wave}`}
                         </h4>
-                        <p className="text-[11px] text-muted-foreground">
-                          {WAVE_TITLES[w.wave]?.subtitle ?? "Toutes catégories"}
-                        </p>
-                        {dueRangeLabel && (
-                          <p
-                            className={`text-[10px] font-mono ${dueLineTone}`}
-                            data-testid={`wave-due-${w.wave}`}
-                          >
-                            <InfoTip tip="waveVelocity.echeance" size={10} className="mr-0.5 inline-flex align-middle" />
-                            Échéance : {dueRangeLabel}
-                            {!isComplete &&
-                              (isOverdue
-                                ? ` — ${daysLate} j de retard`
-                                : daysLate < 0
-                                  ? ` — dans ${-daysLate} j`
-                                  : "")}
-                          </p>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            statusTone === "success"
+                              ? "bg-status-success/15 text-status-success border-status-success/30"
+                              : statusTone === "danger"
+                                ? "bg-status-danger/15 text-status-danger border-status-danger/30"
+                                : "bg-status-info/15 text-status-info border-status-info/30"
+                          }`}
+                        >
+                          {statusTone === "success" ? (
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                          ) : statusTone === "danger" ? (
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                          ) : (
+                            <Clock className="h-2.5 w-2.5" />
+                          )}
+                          {isComplete
+                            ? "Clôturée"
+                            : isOverdue
+                              ? "En retard"
+                              : "En cours"}
+                          <InfoTip tip="waveVelocity.phase" size={9} className="ml-0.5 inline-flex align-middle" />
+                        </span>
                       </div>
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                          statusTone === "success"
-                            ? "bg-status-success/15 text-status-success border-status-success/30"
-                            : statusTone === "danger"
-                              ? "bg-status-danger/15 text-status-danger border-status-danger/30"
-                              : "bg-status-info/15 text-status-info border-status-info/30"
-                        }`}
-                      >
-                        {statusTone === "success" ? (
-                          <CheckCircle2 className="h-2.5 w-2.5" />
-                        ) : statusTone === "danger" ? (
-                          <AlertTriangle className="h-2.5 w-2.5" />
-                        ) : (
-                          <Clock className="h-2.5 w-2.5" />
-                        )}
-                        {isComplete
-                          ? "Clôturée"
-                          : isOverdue
-                            ? "En retard"
-                            : "En cours"}
-                        <InfoTip tip="waveVelocity.phase" size={9} className="ml-0.5 inline-flex align-middle" />
-                      </span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {WAVE_TITLES[w.wave]?.subtitle ?? "Toutes catégories"}
+                      </p>
+                      {dueRangeLabel && (
+                        <p
+                          className={`text-[10px] font-mono mt-1 ${dueLineTone}`}
+                          data-testid={`wave-due-${w.wave}`}
+                        >
+                          <InfoTip tip="waveVelocity.echeance" size={10} className="mr-0.5 inline-flex align-middle" />
+                          Échéance : {dueRangeLabel}
+                          {!isComplete &&
+                            (isOverdue
+                              ? ` — ${daysLate} j de retard`
+                              : daysLate < 0
+                                ? ` — dans ${-daysLate} j`
+                                : "")}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Progress Bar & Rate */}
                     <div className="space-y-1.5">
                       <div className="flex items-baseline justify-between">
                         <span className="text-xl font-bold font-mono text-foreground tabular-nums">
@@ -278,10 +230,6 @@ export function WaveVelocityCard({
                       </div>
                     </div>
 
-                    {/* 2x3 Metric Grid — T-447: the "En cours" (pending) leg
-                        joins the card so the mandate's Total Due = Paid +
-                        Pending + Remaining identity is verifiable at a
-                        glance (Facturé = Encaissé + En cours + Reste dû). */}
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-[11px]">
                       <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
@@ -331,88 +279,31 @@ export function WaveVelocityCard({
                           {formatDzdPlain(w.remainingTotal)}
                         </span>
                       </div>
-                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
-                        {/* T-427 (DATA-048): the sub-label is PHASE-DRIVEN —
-                            an overdue wave counts its actually-late
-                            families; a future wave's owing families are "à
-                            échoir" / "non soldées". */}
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
-                          {isOverdue
-                            ? "Familles en retard"
-                            : w.anyUnsettledFuture
-                              ? "Familles à échoir"
-                              : "Familles non soldées"}
-                          <InfoTip tip="waveVelocity.families" size={10} className="ml-0.5 inline-flex align-middle" />
-                        </span>
-                        <span
-                          className={`font-mono font-semibold ${
-                            (isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount) > 0
-                              ? isOverdue
-                                ? "text-status-danger"
-                                : "text-status-warning"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {isOverdue ? w.overdueDebtorFamilyCount : w.debtorFamilyCount} /{" "}
-                          {w.familyCount}
-                        </span>
-                      </div>
-                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground block">
-                          Catégories
-                          <InfoTip tip="waveVelocity.categories" size={10} className="ml-0.5 inline-flex align-middle" />
-                        </span>
-                        <span className="font-mono font-semibold text-foreground">
-                          {w.perCategory.length}
-                        </span>
-                      </div>
                     </div>
 
-                    {/* The reconciliation line (T-447): the mandate's
-                        Total Due = Paid + Pending + Remaining, stated with
-                        the wave's own numbers; the over-coverage leg
-                        appears only when funds exceed the due (parent
-                        credit ON the rows) so the identity is exact. */}
                     <p
-                      className="text-[10px] font-mono text-muted-foreground leading-relaxed"
+                      className="text-[10px] font-mono text-muted-foreground leading-relaxed pt-1"
                       data-testid={`wave-identity-${w.wave}`}
                     >
-                      <InfoTip tip="waveVelocity.identity" size={10} className="mr-0.5 inline-flex align-middle" />
-                      Total dû {formatDzdPlain(w.dueTotal)} = Encaissé{" "}
-                      {formatDzdPlain(w.paidTotal)} + En cours{" "}
-                      {formatDzdPlain(w.pendingTotal)} + Reste dû{" "}
-                      {formatDzdPlain(w.remainingTotal)}
-                      {w.overCoverageTotal > 0
-                        ? ` (+ ${formatDzdPlain(w.overCoverageTotal)} couverts au-delà)`
-                        : ""}
+                      {formatDzdPlain(w.paidTotal)} DA encaissés sur {formatDzdPlain(w.dueTotal)} DA engagés
+                      {w.pendingTotal > 0 ? ` · ${formatDzdPlain(w.pendingTotal)} DA en cours` : ""}
+                      {w.remainingTotal > 0 ? ` · reste ${formatDzdPlain(w.remainingTotal)} DA` : " · soldée"}
                     </p>
 
-                    {/* The per-category breakdown (T-447): every category
-                        with a row in the wave — the audit trail that no
-                        revenue category is silently excluded from the main
-                        analysis. */}
                     {w.perCategory.length > 0 && (
                       <div
-                        className="flex flex-wrap gap-1.5"
+                        className="flex flex-wrap gap-1.5 pt-1"
                         data-testid={`wave-categories-${w.wave}`}
                       >
                         {w.perCategory.map((c) => (
                           <span
                             key={c.category}
                             className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
-                            title={`${PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category} — facturé ${formatDzdPlain(
-                              c.dueTotal,
-                            )}, encaissé ${formatDzdPlain(c.paidTotal)}, reste dû ${formatDzdPlain(
-                              c.remainingTotal,
-                            )}`}
                           >
                             {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}{" "}
-                            <span className="text-foreground font-semibold">{c.dueTotal > 0 ? Math.round((c.paidTotal / c.dueTotal) * 100) : 0}%</span>
-                            {c.remainingTotal > 0 && (
-                              <span className="text-status-danger">
-                                · {formatDzd(c.remainingTotal, { compact: true })}
-                              </span>
-                            )}
+                            <span className="text-foreground font-semibold">
+                              {c.dueTotal > 0 ? Math.round((c.paidTotal / c.dueTotal) * 100) : 0}%
+                            </span>
                           </span>
                         ))}
                       </div>
@@ -422,15 +313,9 @@ export function WaveVelocityCard({
               })}
             </div>
 
-            {/* T-447: the NON-WAVE section — the registration fee (FI) and
-                every other commitment the wave model excludes BY DESIGN
-                (unnumbered "Année complète" rows, legacy out-of-range
-                rows). Surfaced explicitly so the analysis covers ALL
-                revenue/commitment categories — visible, never silently
-                dropped. */}
             {nonWave.length > 0 && variant === "full" && (
               <div
-                className="pt-2 border-t border-border/40 space-y-2"
+                className="pt-3 border-t border-border/40 space-y-2"
                 data-testid="wave-nonwave"
               >
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -459,7 +344,7 @@ export function WaveVelocityCard({
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">
                             {label}
-                            <span className="text-muted-foreground"> · {g.installmentCount} engagement{g.installmentCount > 1 ? "s" : ""}</span>
+                            <span className="text-muted-foreground"> · {g.installmentCount} engagement(s)</span>
                           </p>
                           <p
                             className={`text-[10px] font-mono truncate ${
@@ -469,8 +354,7 @@ export function WaveVelocityCard({
                             }`}
                           >
                             {formatDzd(g.remainingTotal, { compact: true })} restants
-                            {range ? ` · échéance ${range}` : ""}
-                            {g.remainingTotal === 0 && g.installmentCount > 0 ? " · soldé" : ""}
+                            {range ? ` · ${range}` : ""}
                           </p>
                         </div>
                         <span className="font-mono font-bold text-foreground shrink-0">
@@ -483,13 +367,9 @@ export function WaveVelocityCard({
               </div>
             )}
 
-            {/* The per-category wave detail (the breakdown view — the
-                canonical per-(category × wave) view models). Kept as the
-                detail layer under the pooled main cards: same rows, the
-                category-by-category reading. */}
             {waves.length > 0 && variant === "full" && (
               <div
-                className="pt-2 border-t border-border/40 space-y-2"
+                className="pt-3 border-t border-border/40 space-y-2"
                 data-testid="wave-others"
               >
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -498,8 +378,6 @@ export function WaveVelocityCard({
                 </span>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                   {waves.map((w) => {
-                    // T-435 (UI-317): the due-date RANGE on the detail
-                    // waves too (the single date when the rows share one).
                     const auxDue = formatDueDateRange(w.dueDate, w.dueDateMax);
                     return (
                       <div
@@ -520,11 +398,7 @@ export function WaveVelocityCard({
                             }`}
                           >
                             {formatDzd(w.remainingTotal, { compact: true })}{" "}
-                            restants
-                            {auxDue ? ` · échéance ${auxDue}` : ""}
-                            {w.phase === "overdue" && w.remainingTotal > 0
-                              ? " · en retard"
-                              : ""}
+                            restants{auxDue ? ` · ${auxDue}` : ""}
                           </p>
                         </div>
                         <span className="font-mono font-bold text-foreground">
@@ -548,14 +422,13 @@ export function DiscountErosionCard({
   headerActions,
 }: {
   ledger: readonly LedgerEntry[];
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   const erosion = useMemo(() => deriveDiscountErosion(ledger), [ledger]);
 
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="discount-erosion-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
@@ -571,7 +444,6 @@ export function DiscountErosionCard({
               : "Impact des concessions tarifaires sur les revenus"}
           </CardDescription>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the gauge. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -581,7 +453,7 @@ export function DiscountErosionCard({
             className="text-xs text-muted-foreground text-center py-8"
             data-testid="discount-erosion-empty"
           >
-            Aucune remise commerciale enregistrée au grand livre.
+            Aucune remise commerciale enregistrée.
           </p>
         ) : (
           <>
@@ -604,7 +476,6 @@ export function DiscountErosionCard({
               </div>
             </div>
 
-            {/* Erosion Gauge */}
             <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
               <div
                 className="h-full rounded-full bg-status-warning transition-all"
@@ -614,15 +485,13 @@ export function DiscountErosionCard({
 
             <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Volume catalogue brut
-                </span>
+                <span className="text-muted-foreground">Volume catalogue brut</span>
                 <span className="font-mono font-semibold">
                   {formatDzdPlain(erosion.stickerTotal)} DA
                 </span>
               </div>
               <div className="flex justify-between text-status-warning font-semibold">
-                <span>Remises commerciales</span>
+                <span>Remises accordées</span>
                 <span className="font-mono">
                   −{formatDzdPlain(erosion.remiseTotal)} DA
                 </span>
@@ -631,12 +500,6 @@ export function DiscountErosionCard({
                 <span>Net facturé (devis effectifs)</span>
                 <span className="font-mono text-foreground">
                   {formatDzdPlain(erosion.grossCharges)} DA
-                </span>
-              </div>
-              <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Remise moyenne par famille</span>
-                <span className="font-mono">
-                  {formatDzdPlain(erosion.averageRemise)} DA
                 </span>
               </div>
             </div>
@@ -654,7 +517,6 @@ export function DebtTriageCard({
 }: {
   triage: DebtTriage;
   parents: readonly Parent[];
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   const parentNameById = useMemo(
@@ -677,7 +539,7 @@ export function DebtTriageCard({
 
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="debt-triage-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
@@ -698,7 +560,6 @@ export function DebtTriageCard({
               {formatDzd(triage.totalOutstanding, { compact: true })} total
             </span>
           )}
-          {/* T-503 (UI-334): the inspection controls live ON the triage. */}
           <CardHeaderActions>{headerActions}</CardHeaderActions>
         </div>
       </CardHeader>
@@ -713,7 +574,6 @@ export function DebtTriageCard({
           </p>
         ) : (
           <>
-            {/* The 4 Tiers */}
             <div className="space-y-2" data-testid="debt-triage-buckets">
               {triage.buckets.map((b) => (
                 <div key={b.bucket} className="space-y-1">
@@ -746,7 +606,6 @@ export function DebtTriageCard({
               ))}
             </div>
 
-            {/* Immediate Call List */}
             {triage.callList.length > 0 && (
               <div
                 className="rounded-xl border border-status-danger/30 bg-status-danger/5 p-3 space-y-2"
@@ -797,12 +656,8 @@ export function FamilyConcentrationCard({
   headerActions,
 }: {
   concentration: FamilyConcentration;
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
-  // T-467 (DASH-411): the user's lens — the top-N SELECTION is fixed by the
-  // derivation (deriveFamilyConcentration); switching the mode changes only
-  // the "Part" column's denominator, the header line and the tooltips.
   const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("whole-dataset");
   const shareOf = (f: FamilyExposure): number =>
     referenceMode === "top10"
@@ -810,41 +665,30 @@ export function FamilyConcentrationCard({
         ? Math.round((f.outstanding / concentration.topTotal) * 100)
         : 0
       : f.shareOfTotalDebt;
+
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="family-concentration-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          Concentration du Risque par Foyer
-          <InfoTip tip="concentration.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          {referenceMode === "top10" ? (
-            <>
-              Répartition de l'encours des <strong className="text-foreground">Top {concentration.topFamilies.length}</strong> foyers
-              entre eux (base {formatDzd(concentration.topTotal, { compact: true })} — les {concentration.topFamilies.length} premiers seuls)
-            </>
-          ) : (
-            <>
-              Top {concentration.topFamilies.length} familles représentent{" "}
-              <strong className="text-foreground">
-                {concentration.topConcentrationPct}%
-              </strong>{" "}
-              de la dette globale
-            </>
-          )}
-        </CardDescription>
-          {/* T-467: the reference-population selector — the SAME control the
-              inspector and the Pareto card mount (one concept, one UI). */}
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            Concentration du Risque par Foyer
+            <InfoTip tip="concentration.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Top {concentration.topFamilies.length} familles représentent{" "}
+            <strong className="text-foreground">
+              {concentration.topConcentrationPct}%
+            </strong>{" "}
+            de la dette globale
+          </CardDescription>
           <div className="mt-1.5">
             <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact tipKey="concentration.referenceMode" />
           </div>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -879,14 +723,7 @@ export function FamilyConcentrationCard({
                     <td className="py-2 px-1 text-right font-mono font-bold text-status-danger">
                       {formatDzd(f.outstanding, { compact: true })}
                     </td>
-                    <td
-                      className="py-2 px-1 text-right font-mono text-muted-foreground"
-                      title={
-                        referenceMode === "top10"
-                          ? `${shareOf(f)}% des ${concentration.topFamilies.length} premiers seuls (répartition interne)`
-                          : `${shareOf(f)}% de l'ensemble du dataset (non normalisé)`
-                      }
-                    >
+                    <td className="py-2 px-1 text-right font-mono text-muted-foreground">
                       {shareOf(f)}%
                     </td>
                   </tr>
@@ -905,12 +742,11 @@ export function TransportYieldCard({
   headerActions,
 }: {
   transport: TransportYield;
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="transport-yield-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
@@ -921,11 +757,9 @@ export function TransportYieldCard({
             <InfoTip tip="transport.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            {transport.riders} élèves transportés · {transport.routes.length}{" "}
-            circuits
+            {transport.riders} élèves transportés · {transport.routes.length} circuits
           </CardDescription>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -943,12 +777,10 @@ export function TransportYieldCard({
               <div key={r.destination} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium truncate max-w-[180px]">
-                    {TRANSPORT_DESTINATION_LABELS_FR[r.destination] ??
-                      r.destination}
+                    {TRANSPORT_DESTINATION_LABELS_FR[r.destination] ?? r.destination}
                   </span>
                   <span className="font-mono text-muted-foreground">
-                    <strong className="text-foreground">{r.riders}</strong> él.
-                    · {r.collectedPct}%
+                    <strong className="text-foreground">{r.riders}</strong> él. · {r.collectedPct}%
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
@@ -971,12 +803,11 @@ export function ServiceYieldCard({
   headerActions,
 }: {
   services: ReturnType<typeof deriveServiceYield>;
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="service-yield-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
@@ -990,7 +821,6 @@ export function ServiceYieldCard({
             Orthophonie, Psychologie et Activités Annexes
           </CardDescription>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -1000,7 +830,7 @@ export function ServiceYieldCard({
             className="text-xs text-muted-foreground text-center py-8"
             data-testid="service-yield-empty"
           >
-            Aucun paiement de service enregistré pour le moment.
+            Aucun paiement de service enregistré.
           </p>
         ) : (
           <div className="space-y-2.5">
@@ -1010,9 +840,7 @@ export function ServiceYieldCard({
                 className="flex items-center justify-between text-xs py-1 border-b border-border/40 last:border-0"
               >
                 <div>
-                  <span className="font-medium text-foreground block">
-                    {s.label}
-                  </span>
+                  <span className="font-medium text-foreground block">{s.label}</span>
                   <span className="text-[10px] text-muted-foreground">
                     {s.studentCount} él. suivis · {s.paymentCount} règlements
                   </span>
@@ -1034,30 +862,28 @@ export function EnrollmentDynamicsCard({
   headerActions,
 }: {
   dynamics: EnrollmentDynamics;
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   return (
     <Card
-      className="border-border/70 bg-surface-panel h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel min-h-full flex flex-col justify-between"
       data-testid="enrollment-dynamics-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Scale className="h-4 w-4 text-primary" />
-          Dynamique des Effectifs & Fratries
-          <InfoTip tip="dynamics.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          Indice fratrie :{" "}
-          <strong className="text-foreground">
-            {dynamics.siblingIndex?.toFixed(2) ?? "—"}
-          </strong>{" "}
-          élèves par famille
-        </CardDescription>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Scale className="h-4 w-4 text-primary" />
+            Dynamique des Effectifs & Fratries
+            <InfoTip tip="dynamics.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Indice fratrie :{" "}
+            <strong className="text-foreground">
+              {dynamics.siblingIndex?.toFixed(2) ?? "—"}
+            </strong>{" "}
+            élèves par famille
+          </CardDescription>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the meter. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -1090,7 +916,6 @@ export function EnrollmentDynamicsCard({
               </div>
             </div>
 
-            {/* Distribution */}
             <div className="space-y-1.5" data-testid="family-size-distribution">
               <span className="text-[11px] font-semibold text-muted-foreground block">
                 Répartition taille des familles :
@@ -1125,14 +950,13 @@ export function TripleRiskSummaryCard({
 }: {
   summary: ReturnType<typeof deriveTripleRiskSummary>;
   profiles: readonly StudentRiskProfile[];
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
 }) {
   const tripleCount = summary.tripleCriticalCount;
 
   return (
     <Card
-      className={`border-border/80 h-full flex flex-col justify-between ${
+      className={`border-border/80 min-h-full flex flex-col justify-between ${
         tripleCount > 0
           ? "bg-gradient-to-br from-status-danger/10 via-surface-panel to-surface-panel border-status-danger/40"
           : "bg-surface-panel"
@@ -1141,16 +965,15 @@ export function TripleRiskSummaryCard({
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Radar className="h-4 w-4 text-status-danger" />
-          Radar de Vigilance Multi-Critères
-          <InfoTip tip="risk.card" />
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          Corrélation directe : Notes + Assiduité + Créance financière
-        </CardDescription>
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <Radar className="h-4 w-4 text-status-danger" />
+            Radar de Vigilance Multi-Critères
+            <InfoTip tip="risk.card" />
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Corrélation directe : Notes + Assiduité + Créance financière
+          </CardDescription>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the radar. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 

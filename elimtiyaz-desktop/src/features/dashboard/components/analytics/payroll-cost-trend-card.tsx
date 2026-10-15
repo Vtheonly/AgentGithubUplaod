@@ -1,21 +1,8 @@
 // ============================================================================
 // FILE: elimtiyaz-desktop/src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx
 // ============================================================================
-/**
- * T-412 — "Coûts du Personnel & Besoin de Financement" (the Statistics
- * planning view of the canonical payroll forecast, ADR-024).
- *
- * Monthly / quarterly personnel-cost trend with the historical ACTUALS
- * (real salary disbursements) vs the PROJECTED costs (the canonical
- * forecast) clearly separated, plus the per-period funding requirement.
- * The Monthly/Quarterly toggle re-aggregates the SAME canonical points —
- * no second calculation (§15.53a).
- *
- * Cross-page summary link → the Personnel operational view (the wave
- * detail); the Finance cash-management view is linked from there.
- */
+
 import { useState } from "react";
-// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
 import { useNavigate, useInRouterContext } from "react-router-dom";
 import { Users } from "lucide-react";
@@ -45,36 +32,30 @@ import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { PayrollCostTrend } from "./executive-statistics";
 
 export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
-  // Router-optional navigation (the analytics-visuals suite mounts the tab
-  // WITHOUT a Router): the navigating Button is a CHILD component rendered
-  // only inside a Router context — useNavigate would throw at call time in
-  // a bare mount (the t-369/t-412 convention).
   const inRouter = useInRouterContext();
   const [granularity, setGranularity] = useState<"monthly" | "quarterly">(
     "monthly",
   );
 
   const points = granularity === "monthly" ? trend.monthly : trend.quarterly;
-  // Recharts expects a mutable array — copy the canonical readonly points.
   const chartData = [...points];
   const hasAnyData =
     trend.totals.actualTotal > 0 || trend.totals.projectedTotal > 0;
 
   return (
     <Card
-      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col"
+      className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col"
       data-testid="payroll-cost-trend-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
-            Coûts du Personnel — Réalisé vs Projeté & Besoin de Financement
+            Coûts du Personnel — Réalisé vs Projeté &amp; Besoin de Financement
             <InfoTip tip="payroll.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Prévision canonique des vagues de paie — même calcul que Personnel
-            et Finance (Diagnostic)
+            Projection des engagements salariaux et besoins de trésorerie
           </CardDescription>
         </div>
         <div className="flex items-center gap-1.5">
@@ -140,9 +121,6 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
                       name,
                     ]}
                   />
-                  {/* Manual legend — the shared recharts test mocks predate
-                      <Legend> and mock it away per-file; a hand-rolled row
-                      avoids forcing every mock to grow (scope control). */}
                   <Bar
                     dataKey="actualPaid"
                     name="Réalisé (versements)"
@@ -172,7 +150,6 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
               </ResponsiveContainer>
             </div>
 
-            {/* Manual legend — same colors as the chart series. */}
             <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <span
@@ -201,7 +178,6 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
               </span>
             </div>
 
-            {/* Summary strip — the canonical totals (single source). */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2 rounded-md border border-border bg-surface-elevated/40">
                 <span className="text-[10px] uppercase text-muted-foreground block">
@@ -224,7 +200,9 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
                   Pic de besoin
                 </span>
                 <span className="font-mono font-semibold">
-                  {formatDzd(trend.totals.maxFundingRequirement, { compact: true })}
+                  {formatDzd(trend.totals.maxFundingRequirement, {
+                    compact: true,
+                  })}
                 </span>
               </div>
               <div className="p-2 rounded-md border border-border bg-surface-elevated/40">
@@ -232,39 +210,38 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
                   Coût mensuel projeté
                 </span>
                 <span className="font-mono font-semibold">
-                  {formatDzd(trend.totals.projectedMonthlyPayroll, { compact: true })}
+                  {formatDzd(trend.totals.projectedMonthlyPayroll, {
+                    compact: true,
+                  })}
                 </span>
               </div>
             </div>
 
             <p className="text-[10px] text-muted-foreground">
-              Réalisé = versements enregistrés (salary_payments) · Projeté =
-              salaires de base actuels (les primes futures ne sont pas
-              prévisibles) · Besoin = masse salariale moins fonds sécurisés.
+              Réalisé = versements de salaires enregistrés · Projeté = salaires
+              de base contractuels · Besoin = engagements nets restants.
             </p>
+
+            <div className="flex justify-end pt-1">
+              {inRouter ? (
+                <PersonnelLinkButton />
+              ) : (
+                <a
+                  href="/personnel"
+                  className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+                  data-testid="link-personnel-payroll-trend"
+                >
+                  Détail des vagues de paie — Personnel
+                </a>
+              )}
+            </div>
           </>
         )}
-
-        {/* Cross-page summary — the Personnel operational view. */}
-        <div className="flex justify-end">
-          {inRouter ? (
-            <PersonnelLinkButton />
-          ) : (
-            <a
-              href="/personnel"
-              className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
-              data-testid="link-personnel-payroll-trend"
-            >
-              Détail des vagues de paie — Personnel
-            </a>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
 }
 
-/** SPA-navigation variant (rendered only inside a Router context). */
 function PersonnelLinkButton() {
   const navigate = useNavigate();
   return (

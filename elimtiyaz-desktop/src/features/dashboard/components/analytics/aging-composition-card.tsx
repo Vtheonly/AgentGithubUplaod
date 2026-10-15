@@ -4,9 +4,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Hourglass } from "lucide-react";
-// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
-// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
 import { CardHeaderActions } from "./card-header-actions";
 import {
   Card,
@@ -16,7 +14,7 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { AGING_COLORS } from "../../tabs/types";
-import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
+import { formatDzd } from "../../../../core/format/currency";
 import type { DebtByAgingBucket } from "../../../../domain/model/operations";
 import { deriveAgingComposition } from "./analytics-derivations";
 
@@ -26,13 +24,7 @@ export function AgingCompositionCard({
   rowActions,
 }: {
   debtAging: DebtByAgingBucket[];
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header (the total). */
   headerActions?: ReactNode;
-  /**
-   * T-503 (UI-334): the PER-BUCKET inspection controls — each table row
-   * renders its own bucket's button at the exact bucket it inspects (the
-   * old floating strip carried all six above the card).
-   */
   rowActions?: Partial<Record<DebtByAgingBucket["bucket"], ReactNode>>;
 }) {
   const segments = useMemo(
@@ -45,18 +37,18 @@ export function AgingCompositionCard({
 
   return (
     <Card
-      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+      className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col justify-between"
       data-testid="aging-composition-card"
     >
       <CardHeader className="py-3 px-4 border-b border-border/50 flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Hourglass className="h-4 w-4 text-primary" />
-            Structure d'Ancienneté de l'Encours
+            Ancienneté des Créances
             <InfoTip tip="aging.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Répartition proportionnelle de la dette globale
+            Répartition proportionnelle de la dette globale par tranche de retard
           </CardDescription>
         </div>
 
@@ -66,12 +58,11 @@ export function AgingCompositionCard({
               {formatDzd(total, { compact: true })} · {totalFamilies} familles
             </span>
           )}
-          {/* T-503 (UI-334): the inspection controls live ON the meter. */}
           <CardHeaderActions>{headerActions}</CardHeaderActions>
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-center">
+      <CardContent className="p-4 space-y-4 flex-1 flex flex-col justify-between">
         {segments.length === 0 ? (
           <p
             className="text-xs text-muted-foreground text-center py-10"
@@ -81,7 +72,6 @@ export function AgingCompositionCard({
           </p>
         ) : (
           <>
-            {/* 100% Stacked Bar */}
             <div
               className="flex h-7 w-full rounded-xl overflow-hidden border border-border/60 shadow-inner"
               data-testid="aging-stacked-bar"
@@ -91,11 +81,6 @@ export function AgingCompositionCard({
                   key={seg.bucket}
                   role="progressbar"
                   aria-label={`${seg.label} : ${seg.share}%`}
-                  // TEST-501 repair (T-469 verification, 2026-10-03): the
-                  // owner's "okay" rewrite dropped aria-valuenow — a
-                  // role="progressbar" without its value is an ARIA
-                  // violation; restored (the analytics-visuals suite
-                  // pinned it and went red when it disappeared).
                   aria-valuenow={seg.share}
                   aria-valuemin={0}
                   aria-valuemax={100}
@@ -117,19 +102,15 @@ export function AgingCompositionCard({
               ))}
             </div>
 
-            {/* Table Breakdown */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs" data-testid="aging-table">
                 <thead>
                   <tr className="text-muted-foreground border-b border-border/60 text-left">
                     <th className="py-2 px-2 font-medium">Tranche de Retard</th>
-                    <th className="py-2 px-2 text-right font-medium">
-                      Encours
-                    </th>
-                    <th className="py-2 px-2 text-right font-medium">
-                      Familles
-                    </th>
+                    <th className="py-2 px-2 text-right font-medium">Encours</th>
+                    <th className="py-2 px-2 text-right font-medium">Familles</th>
                     <th className="py-2 px-2 text-right font-medium">Part</th>
+                    <th className="py-2 px-2 text-right font-medium w-16" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -159,17 +140,11 @@ export function AgingCompositionCard({
                       <td className="text-right font-mono py-2 px-2 text-muted-foreground">
                         {seg.share}%
                       </td>
-                      {/* T-503 (UI-334): this bucket's inspection control,
-                          rendered ON the row it inspects. */}
                       <td className="py-1.5 px-2 text-right">
                         {rowActions?.[seg.bucket] ?? null}
                       </td>
                     </tr>
                   ))}
-                  {/* TEST-501 repair (T-469 verification, 2026-10-03): the
-                      owner's "okay" rewrite dropped the reconciliation row
-                      — restored (the Σ-encours / Σ-familles / 100% footing
-                      is the honest-total discipline the suite pins). */}
                   <tr className="border-t border-border/80 font-semibold">
                     <td className="py-2 px-2 font-bold">Total</td>
                     <td className="text-right font-mono font-bold py-2 px-2">
@@ -181,11 +156,7 @@ export function AgingCompositionCard({
                     <td className="text-right font-mono py-2 px-2">
                       {segments.reduce((s, seg) => s + seg.debtorCount, 0)}
                     </td>
-                    <td className="text-right font-mono py-2 px-2">
-                      100%
-                    </td>
-                    {/* T-503 (UI-334): the total row's trailing cell (the
-                        column alignment). */}
+                    <td className="text-right font-mono py-2 px-2">100%</td>
                     <td />
                   </tr>
                 </tbody>

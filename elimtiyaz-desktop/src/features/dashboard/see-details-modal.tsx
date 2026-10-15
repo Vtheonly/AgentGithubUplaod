@@ -3,18 +3,17 @@
 // ============================================================================
 
 import { useTranslation } from "react-i18next";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   BarChart3,
   Building2,
-  CheckCircle2,
-  Database,
-  Plus,
-  Trash2,
   TrendingUp,
   Users,
+  GraduationCap,
+  Bus,
+  Stethoscope,
+  Trophy,
 } from "lucide-react";
 import {
   BarChart,
@@ -39,14 +38,17 @@ import type { Payment } from "../../domain/model/payment";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import {
   AGING_BUCKET_LABELS_FR,
-  PAYMENT_CATEGORY_LABELS_FR,
   paymentCategoryLabelFr,
+  PAYMENT_CATEGORY_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
+  PAYMENT_METHOD_LABELS_FR,
   type PaymentCategory,
   type DebtSummary,
   type AgingBucket,
 } from "../../domain/model/payment";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
+import { Badge } from "../../shared/ui/badge";
+import { StatusChip } from "../../shared/ui/status-chip";
 import {
   PageTabs,
   PageTabList,
@@ -68,30 +70,35 @@ const OPERATIONAL_UNITS: readonly {
   label: string;
   categories: readonly PaymentCategory[];
   color: string;
+  icon: typeof GraduationCap;
 }[] = [
   {
     key: "scolarite",
-    label: "Scolarité (académique)",
+    label: "Scolarité & Pédagogie",
     categories: ["tuition", "books", "uniform", "second_apron"],
     color: "#349bd4",
+    icon: GraduationCap,
   },
   {
     key: "therapy",
-    label: "Thérapie & Accompagnement (Orthophonie / Psy)",
+    label: "Accompagnement & Thérapie",
     categories: ["therapy_psychology", "therapy_speech"],
     color: "#eab308",
+    icon: Stethoscope,
   },
   {
     key: "clubs",
-    label: "Activités & Clubs Parascolaires",
+    label: "Activités & Clubs",
     categories: ["extracurricular"],
     color: "#f43f5e",
+    icon: Trophy,
   },
   {
     key: "auxiliary",
-    label: "Services Auxiliaires (Transport / Cantine)",
+    label: "Services de Vie Scolaire",
     categories: ["transport", "canteen"],
     color: "#10b981",
+    icon: Bus,
   },
 ];
 
@@ -103,27 +110,6 @@ const TRANCHE_PROJECTION_MONTHS: ReadonlyArray<{
   { label: "Déc", share: 0.3 },
   { label: "Mar", share: 0.3 },
 ];
-
-type ManualPaymentEntry = {
-  id: string;
-  name: string;
-  dateTime: string;
-  amount: string;
-};
-
-function createManualEntry(): ManualPaymentEntry {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
-
-  return {
-    id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: "",
-    dateTime: localDate,
-    amount: "",
-  };
-}
 
 export function deriveTrancheProjection(
   revenue: readonly RevenuePoint[],
@@ -146,15 +132,13 @@ function agingSeverity(bucket: AgingBucket): {
   if (bucket === "0_30") {
     return {
       label: "Courant",
-      className:
-        "bg-status-success/15 text-status-success border-status-success/30",
+      className: "bg-status-success/15 text-status-success border-status-success/30",
     };
   }
   if (bucket === "31_60") {
     return {
-      label: "Relance",
-      className:
-        "bg-status-warning/15 text-status-warning border-status-warning/30",
+      label: "À surveiller",
+      className: "bg-status-warning/15 text-status-warning border-status-warning/30",
     };
   }
   return {
@@ -183,17 +167,37 @@ function formatPaymentDate(value: string): string {
   }).format(date);
 }
 
-function formatManualDate(value: string): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("fr-DZ", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+function MetricSummaryTile({
+  label,
+  value,
+  subtext,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  subtext?: string;
+  tone?: "default" | "success" | "danger" | "warning";
+}) {
+  const toneClasses = {
+    default: "text-foreground",
+    success: "text-status-success",
+    danger: "text-status-danger",
+    warning: "text-status-warning",
+  };
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
+        {label}
+      </span>
+      <p className={`text-xl font-mono font-bold ${toneClasses[tone]} tabular-nums truncate`}>
+        {value}
+      </p>
+      {subtext && (
+        <p className="text-[11px] text-muted-foreground truncate">{subtext}</p>
+      )}
+    </div>
+  );
 }
 
 export function SeeDetailsModal({
@@ -210,7 +214,6 @@ export function SeeDetailsModal({
   payments?: readonly Payment[];
 }) {
   const { t } = useTranslation();
-  const [manualEntries, setManualEntries] = useState<ManualPaymentEntry[]>([]);
 
   const annualRevenue = useMemo(
     () => data.revenue.reduce((s, r) => s + r.amount, 0),
@@ -234,11 +237,6 @@ export function SeeDetailsModal({
     [data.demographics.gender],
   );
 
-  const livePaymentTotal = useMemo(
-    () => payments.reduce((sum, payment) => sum + payment.amount, 0),
-    [payments],
-  );
-  const revenueReconciliationDifference = livePaymentTotal - annualRevenue;
   const recentPayments = useMemo(
     () =>
       [...payments]
@@ -247,37 +245,9 @@ export function SeeDetailsModal({
             new Date(b.collectedAt).getTime() -
             new Date(a.collectedAt).getTime(),
         )
-        .slice(0, 12),
+        .slice(0, 15),
     [payments],
   );
-
-  const manualTotal = useMemo(
-    () =>
-      manualEntries.reduce((sum, entry) => {
-        const amount = Number(entry.amount);
-        return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
-      }, 0),
-    [manualEntries],
-  );
-
-  const addManualEntry = () => {
-    setManualEntries((current) => [...current, createManualEntry()]);
-  };
-
-  const updateManualEntry = (
-    id: string,
-    patch: Partial<Omit<ManualPaymentEntry, "id">>,
-  ) => {
-    setManualEntries((current) =>
-      current.map((entry) =>
-        entry.id === id ? { ...entry, ...patch } : entry,
-      ),
-    );
-  };
-
-  const removeManualEntry = (id: string) => {
-    setManualEntries((current) => current.filter((entry) => entry.id !== id));
-  };
 
   return (
     <UnifiedModal
@@ -288,7 +258,7 @@ export function SeeDetailsModal({
       icon={BarChart3}
       iconTone="primary"
       title={t("dashboard.seeDetails")}
-      description="Détails pratiques des encaissements, des personnes saisies et des indicateurs du dashboard"
+      description="Synthèse analytique globale — performances financières, effectifs et créances"
       hideFooter
     >
       <PageTabs defaultValue={initialTab} variant="elevated">
@@ -315,57 +285,46 @@ export function SeeDetailsModal({
           />
         </PageTabList>
 
+        {/* ────────── TAB 1: REVENUS ────────── */}
         <PageTabContent value="revenue">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Encaissé effectif (PAID)
-                </span>
-                <p className="text-xl font-mono font-bold text-status-success">
-                  {formatDzd(annualRevenue)}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Agrégat du dashboard repository
-                </p>
-              </div>
-
-              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Créances restantes
-                </span>
-                <p className="text-xl font-mono font-bold text-status-danger">
-                  {data.kpis ? formatDzd(outstanding) : "—"}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Agrégat du dashboard repository
-                </p>
-              </div>
-
-              <div className="space-y-1 rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Taux d'Atteinte Annuel
-                </span>
-                <p className="text-xl font-mono font-bold text-primary">
-                  {data.kpis ? `${collectionRate}%` : "—"}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Encaissé sur total attendu
-                </p>
-              </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricSummaryTile
+                label="Encaissé Annuel"
+                value={formatDzd(annualRevenue, { compact: true })}
+                subtext={`${collectionRate}% du budget attendu`}
+                tone="success"
+              />
+              <MetricSummaryTile
+                label="Créances Restantes"
+                value={formatDzd(outstanding, { compact: true })}
+                subtext={`${data.debtAging.reduce((s, b) => s + b.debtorCount, 0)} familles concernées`}
+                tone={outstanding > 0 ? "danger" : "default"}
+              />
+              <MetricSummaryTile
+                label="Budget Engagé Global"
+                value={formatDzd(totalExpected, { compact: true })}
+                subtext="Total annuel consolidé"
+              />
+              <MetricSummaryTile
+                label="Règlements Reçus"
+                value={String(payments.length)}
+                subtext="Reçus de caisse validés"
+                tone="default"
+              />
             </div>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
               <CardHeader className="border-b border-border/50 px-4 py-3">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Encaissements vs Échéancier Théorique (40% · 30% · 30%)
+                  Échéancier Trimestriel Prévisionnel vs Réalisé (40% · 30% · 30%)
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  Barres pleines : agrégat réel · Ligne pointillée : jalon théorique calculé
+                  Comparaison des encaissements par rapport aux jalons de rentrée
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="h-[260px]">
+                <div className="h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart
                       data={projection}
@@ -420,39 +379,33 @@ export function SeeDetailsModal({
             </Card>
 
             <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="border-b border-border/50 px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Versements réels
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-xs text-muted-foreground">
-                      {payments.length} enregistrement(s) reçu(s) du flux de paiements pour cette période
-                    </CardDescription>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Flux payments
-                    </div>
-                    <div className="font-mono text-sm font-bold text-foreground">
-                      {formatDzdPlain(livePaymentTotal)} DA
-                    </div>
-                  </div>
+              <CardHeader className="border-b border-border/50 px-4 py-3 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Derniers Règlements Encaissés
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Journal chronologique des encaissements enregistrés
+                  </CardDescription>
                 </div>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {payments.length} transactions
+                </Badge>
               </CardHeader>
               <CardContent className="p-0">
                 {recentPayments.length === 0 ? (
                   <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    Aucun versement réel n'est disponible dans le flux pour la période sélectionnée.
+                    Aucun versement n'a été enregistré pour cette période.
                   </div>
                 ) : (
-                  <div className="max-h-[320px] overflow-auto">
+                  <div className="max-h-[300px] overflow-auto">
                     <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-surface-panel text-muted-foreground">
+                      <thead className="sticky top-0 bg-surface-panel text-muted-foreground z-10">
                         <tr className="border-b border-border/60">
-                          <th className="px-4 py-2.5 text-left font-medium">Reçu</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Date</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Service</th>
+                          <th className="px-4 py-2.5 text-left font-medium">N° Reçu</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Date & Heure</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Prestation</th>
+                          <th className="px-4 py-2.5 text-left font-medium">Mode</th>
                           <th className="px-4 py-2.5 text-left font-medium">Statut</th>
                           <th className="px-4 py-2.5 text-right font-medium">Montant</th>
                         </tr>
@@ -460,19 +413,25 @@ export function SeeDetailsModal({
                       <tbody className="divide-y divide-border/40">
                         {recentPayments.map((payment) => (
                           <tr key={payment.id} className="hover:bg-accent/5">
-                            <td className="px-4 py-2.5 font-mono text-foreground">
+                            <td className="px-4 py-2 font-mono font-medium text-foreground">
                               {payment.receiptNumber}
                             </td>
-                            <td className="px-4 py-2.5 text-muted-foreground">
+                            <td className="px-4 py-2 text-muted-foreground">
                               {formatPaymentDate(payment.collectedAt)}
                             </td>
-                            <td className="px-4 py-2.5 text-foreground">
+                            <td className="px-4 py-2 text-foreground font-medium">
                               {paymentCategoryLabelFr(payment.category)}
                             </td>
-                            <td className="px-4 py-2.5 text-muted-foreground">
-                              {PAYMENT_STATUS_LABELS_FR[payment.status]}
+                            <td className="px-4 py-2 text-muted-foreground">
+                              {PAYMENT_METHOD_LABELS_FR[payment.method]}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono font-semibold">
+                            <td className="px-4 py-2">
+                              <StatusChip
+                                label={PAYMENT_STATUS_LABELS_FR[payment.status]}
+                                tone={payment.status === "paid" ? "success" : "warning"}
+                              />
+                            </td>
+                            <td className="px-4 py-2 text-right font-mono font-bold">
                               {formatDzdPlain(payment.amount)} DA
                             </td>
                           </tr>
@@ -481,432 +440,347 @@ export function SeeDetailsModal({
                     </table>
                   </div>
                 )}
-
-                <div className="border-t border-border/60 px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <span className="text-muted-foreground">
-                      Comparaison agrégat dashboard ↔ flux payments
-                    </span>
-                    {Math.abs(revenueReconciliationDifference) < 0.5 ? (
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-status-success">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Réconciliation exacte
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-status-warning">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Écart : {formatDzdPlain(Math.abs(revenueReconciliationDifference))} DA
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex flex-wrap justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-                    <span>Dashboard: {formatDzdPlain(annualRevenue)} DA</span>
-                    <span>Payments: {formatDzdPlain(livePaymentTotal)} DA</span>
-                  </div>
-                </div>
               </CardContent>
             </Card>
+          </div>
+        </PageTabContent>
 
-            <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="border-b border-border/50 px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+        {/* ────────── TAB 2: PÔLES OPÉRATIONNELS ────────── */}
+        <PageTabContent value="departments">
+          <DepartmentsTab payments={payments} />
+        </PageTabContent>
+
+        {/* ────────── TAB 3: DÉMOGRAPHIE ────────── */}
+        <PageTabContent value="demographics">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricSummaryTile
+                label="Effectif Total Inscrits"
+                value={String(genderTotal)}
+                subtext="Élèves scolarisés actifs"
+                tone="default"
+              />
+              <MetricSummaryTile
+                label="Garçons / Filles"
+                value={
+                  data.demographics.gender.length >= 2
+                    ? `${data.demographics.gender[0].count} / ${data.demographics.gender[1].count}`
+                    : "—"
+                }
+                subtext="Répartition par genre"
+                tone="default"
+              />
+              <MetricSummaryTile
+                label="Paliers Représentés"
+                value={String(data.demographics.grade.length)}
+                subtext="Niveaux pédagogiques"
+              />
+              <MetricSummaryTile
+                label="Âge Médian"
+                value={
+                  data.demographics.age.length > 0
+                    ? `${data.demographics.age[Math.floor(data.demographics.age.length / 2)].label} ans`
+                    : "—"
+                }
+                subtext="Cohorte centrale"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-7">
+                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+                  <CardHeader className="border-b border-border/50 px-4 py-3">
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Saisie manuelle
+                      Distribution des Effectifs par Niveau
                     </CardTitle>
-                    <CardDescription className="mt-1 max-w-2xl text-xs text-muted-foreground">
-                      Ajoutez plusieurs personnes avec leur propre nom, date/heure et montant. Ces lignes restent locales à cette vue et ne modifient pas les données du dépôt.
+                    <CardDescription className="text-xs text-muted-foreground">
+                      Nombre d'élèves par niveau scolaire
                     </CardDescription>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addManualEntry}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Ajouter une personne
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                {manualEntries.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-7 text-center">
-                    <p className="text-xs font-medium text-foreground">
-                      Aucune saisie manuelle
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Cliquez sur « Ajouter une personne » pour créer une première ligne.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {manualEntries.map((entry, index) => (
-                      <div
-                        key={entry.id}
-                        className="rounded-xl border border-border/70 bg-surface-elevated/30 p-3"
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            Personne {index + 1}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => removeManualEntry(entry.id)}
-                            aria-label={`Supprimer la personne ${index + 1}`}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-status-danger/10 hover:text-status-danger"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.35fr)_minmax(180px,0.9fr)_minmax(130px,0.65fr)]">
-                          <label className="space-y-1">
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              Nom
-                            </span>
-                            <input
-                              value={entry.name}
-                              onChange={(event) =>
-                                updateManualEntry(entry.id, {
-                                  name: event.target.value,
-                                })
-                              }
-                              placeholder="Nom de la personne"
-                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20"
-                            />
-                          </label>
-
-                          <label className="space-y-1">
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              Date / heure
-                            </span>
-                            <input
-                              type="datetime-local"
-                              value={entry.dateTime}
-                              onChange={(event) =>
-                                updateManualEntry(entry.id, {
-                                  dateTime: event.target.value,
-                                })
-                              }
-                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
-                            />
-                          </label>
-
-                          <label className="space-y-1">
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              Montant (DA)
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              inputMode="decimal"
-                              value={entry.amount}
-                              onChange={(event) =>
-                                updateManualEntry(entry.id, {
-                                  amount: event.target.value,
-                                })
-                              }
-                              placeholder="0"
-                              className="h-9 w-full rounded-md border border-border/70 bg-background px-2.5 text-right font-mono text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/20"
-                            />
-                          </label>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-[10px]">
-                          <span className="text-muted-foreground">
-                            {entry.name.trim() || "Nom non renseigné"} · {formatManualDate(entry.dateTime)}
-                          </span>
-                          <span className="font-mono font-semibold text-foreground">
-                            {formatDzdPlain(Number(entry.amount) || 0)} DA
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
-                      <div>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Total des saisies manuelles
-                        </span>
-                        <p className="text-sm font-mono font-bold text-foreground">
-                          {formatDzdPlain(manualTotal)} DA
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {manualEntries.length} personne(s) saisie(s)
-                      </span>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="h-[260px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.demographics.grade}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke={DASHBOARD_THEME.gridStroke}
+                            vertical={false}
+                          />
+                          <XAxis
+                            dataKey="label"
+                            {...DASHBOARD_THEME.axisTick}
+                            axisLine={false}
+                            tickLine={false}
+                            angle={-25}
+                            textAnchor="end"
+                            height={45}
+                          />
+                          <YAxis
+                            {...DASHBOARD_THEME.axisTick}
+                            axisLine={false}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <RTooltip
+                            contentStyle={DASHBOARD_THEME.tooltipStyle}
+                            formatter={(v: number) => [`${v} élèves`, "Inscrits"]}
+                          />
+                          <Bar
+                            dataKey="count"
+                            fill={chartPalette.primary}
+                            radius={[4, 4, 0, 0]}
+                            barSize={20}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </div>
 
-            <div className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5 text-[10px] leading-relaxed text-muted-foreground">
-              <div className="flex items-start gap-2">
-                <Database className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>
-                  Les versements réels ci-dessus viennent du flux repository. Les lignes de saisie manuelle servent uniquement à préparer/tester des entrées dans l'interface et sont volontairement exclues de la réconciliation du dashboard. Le branchement Supabase pourra être ajouté plus tard sans changer cette séparation UI.
-                </span>
+              <div className="lg:col-span-5 space-y-4">
+                <Card className="border-border/70 bg-surface-panel shadow-sm">
+                  <CardHeader className="border-b border-border/50 px-4 py-3">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Répartition par Genre
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="relative flex h-[130px] w-[130px] items-center justify-center shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data.demographics.gender}
+                            dataKey="count"
+                            nameKey="label"
+                            innerRadius={42}
+                            outerRadius={58}
+                            paddingAngle={3}
+                            stroke="none"
+                          >
+                            {data.demographics.gender.map((_, i) => (
+                              <Cell
+                                key={i}
+                                fill={
+                                  [chartPalette.primary, chartPalette.gold, chartPalette.cyan][i % 3]
+                                }
+                              />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold font-mono text-foreground">
+                          {genderTotal}
+                        </span>
+                        <span className="text-[9px] uppercase text-muted-foreground">élèves</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-xs flex-1 pl-4">
+                      {data.demographics.gender.map((g, i) => (
+                        <div key={g.label} className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{
+                                backgroundColor: [chartPalette.primary, chartPalette.gold, chartPalette.cyan][i % 3],
+                              }}
+                            />
+                            <span className="text-foreground font-medium">{g.label}</span>
+                          </span>
+                          <span className="font-mono font-bold text-foreground">
+                            {g.count} ({g.percent}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/70 bg-surface-panel shadow-sm">
+                  <CardHeader className="border-b border-border/50 px-4 py-3">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Pyramide des Âges
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="h-[120px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.demographics.age} margin={{ top: 5, right: 0, bottom: 0, left: -20 }}>
+                          <XAxis
+                            dataKey="label"
+                            {...DASHBOARD_THEME.axisTick}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            {...DASHBOARD_THEME.axisTick}
+                            axisLine={false}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
+                          <Bar
+                            dataKey="count"
+                            fill={chartPalette.cyan}
+                            radius={[3, 3, 0, 0]}
+                            barSize={16}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>
         </PageTabContent>
 
-        <PageTabContent value="departments">
-          <DepartmentsTab payments={payments} />
-        </PageTabContent>
-
-        <PageTabContent value="demographics">
-          <div className="space-y-4">
-            <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="border-b border-border/50 px-4 py-3">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Distribution des Effectifs par Niveau
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Agrégats fournis par le repository dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.demographics.grade}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={DASHBOARD_THEME.gridStroke}
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="label"
-                        {...DASHBOARD_THEME.axisTick}
-                        axisLine={false}
-                        tickLine={false}
-                        angle={-25}
-                        textAnchor="end"
-                        height={45}
-                      />
-                      <YAxis
-                        {...DASHBOARD_THEME.axisTick}
-                        axisLine={false}
-                        tickLine={false}
-                        allowDecimals={false}
-                      />
-                      <RTooltip
-                        contentStyle={DASHBOARD_THEME.tooltipStyle}
-                        formatter={(v: number) => [`${v} élèves`, "Inscrits"]}
-                      />
-                      <Bar
-                        dataKey="count"
-                        fill={chartPalette.primary}
-                        radius={[4, 4, 0, 0]}
-                        barSize={20}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Card className="border-border/70 bg-surface-panel shadow-sm">
-                <CardHeader className="border-b border-border/50 px-4 py-3">
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Répartition par Genre
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center p-4">
-                  <div className="relative flex h-[180px] w-full items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.demographics.gender}
-                          dataKey="count"
-                          nameKey="label"
-                          innerRadius={54}
-                          outerRadius={74}
-                          paddingAngle={3}
-                          stroke="none"
-                        >
-                          {data.demographics.gender.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={
-                                [
-                                  chartPalette.primary,
-                                  chartPalette.gold,
-                                  chartPalette.cyan,
-                                ][i % 3]
-                              }
-                            />
-                          ))}
-                        </Pie>
-                        <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-2xl font-bold font-mono text-foreground">
-                        {genderTotal}
-                      </span>
-                      <span className="text-[10px] uppercase text-muted-foreground">
-                        élèves
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex justify-center gap-6 text-xs">
-                    {data.demographics.gender.map((g, i) => (
-                      <div key={g.label} className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{
-                            backgroundColor: [
-                              chartPalette.primary,
-                              chartPalette.gold,
-                              chartPalette.cyan,
-                            ][i % 3],
-                          }}
-                        />
-                        <span className="text-muted-foreground">{g.label}:</span>
-                        <strong className="font-mono text-foreground">{g.count}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/70 bg-surface-panel shadow-sm">
-                <CardHeader className="border-b border-border/50 px-4 py-3">
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Pyramide des Âges
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.demographics.age}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={DASHBOARD_THEME.gridStroke}
-                          vertical={false}
-                        />
-                        <XAxis
-                          dataKey="label"
-                          {...DASHBOARD_THEME.axisTick}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          {...DASHBOARD_THEME.axisTick}
-                          axisLine={false}
-                          tickLine={false}
-                          allowDecimals={false}
-                        />
-                        <RTooltip contentStyle={DASHBOARD_THEME.tooltipStyle} />
-                        <Bar
-                          dataKey="count"
-                          fill={chartPalette.cyan}
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </PageTabContent>
-
+        {/* ────────── TAB 4: CRÉANCES ────────── */}
         <PageTabContent value="debt">
           <div className="space-y-4">
-            <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="border-b border-border/50 px-4 py-3">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Structure des Retards par Ancienneté
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Agrégats du repository dashboard pour la période sélectionnée.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/30 text-left text-muted-foreground">
-                    <tr className="border-b border-border/60">
-                      <th className="px-4 py-2.5 font-medium">Tranche</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Encours</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Familles</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Sévérité</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {data.debtAging.map((b) => {
-                      const sev = agingSeverity(b.bucket);
-                      return (
-                        <tr key={b.bucket} className="hover:bg-accent/5">
-                          <td className="px-4 py-2.5 font-medium">
-                            {AGING_BUCKET_LABELS_FR[b.bucket]}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-mono font-bold text-foreground">
-                            {formatDzdPlain(b.amount)} DA
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-mono">{b.debtorCount}</td>
-                          <td className="px-4 py-2.5 text-right">
-                            <span
-                              className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${sev.className}`}
-                            >
-                              {sev.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/70 bg-surface-panel shadow-sm">
-              <CardHeader className="border-b border-border/50 px-4 py-3">
-                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Top Débiteurs Prioritaires (10 Plus Fortes Créances)
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Enregistrements issus du flux de dettes observé par le dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {data.topDebtors.length === 0 ? (
-                  <p className="py-6 text-center text-xs text-muted-foreground">
-                    Aucune créance enregistrée.
-                  </p>
-                ) : (
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/30 text-left text-muted-foreground">
-                      <tr className="border-b border-border/60">
-                        <th className="px-4 py-2.5 font-medium">Rang</th>
-                        <th className="px-4 py-2.5 font-medium">Famille</th>
-                        <th className="px-4 py-2.5 text-right font-medium">Retard</th>
-                        <th className="px-4 py-2.5 text-right font-medium">Créance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {data.topDebtors.map((d, i) => (
-                        <tr key={d.parentId} className="hover:bg-accent/5">
-                          <td className="px-4 py-2 font-mono text-muted-foreground">#{i + 1}</td>
-                          <td className="px-4 py-2 font-medium text-foreground">{d.parentName}</td>
-                          <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                            {d.daysOverdue} j
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono font-bold text-status-danger">
-                            {formatDzdPlain(d.outstandingAmount)} DA
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <MetricSummaryTile
+                label="Encours Global des Créances"
+                value={formatDzd(
+                  data.debtAging.reduce((s, b) => s + b.amount, 0),
+                  { compact: true },
                 )}
-              </CardContent>
-            </Card>
+                subtext="Total des échéances échues"
+                tone="danger"
+              />
+              <MetricSummaryTile
+                label="Familles Débitrices"
+                value={String(data.debtAging.reduce((s, b) => s + b.debtorCount, 0))}
+                subtext="Foyers avec solde impayé"
+                tone="warning"
+              />
+              <MetricSummaryTile
+                label="Retards Critiques (> 60j)"
+                value={String(
+                  (data.debtAging.find((b) => b.bucket === "61_90")?.debtorCount ?? 0) +
+                  (data.debtAging.find((b) => b.bucket === "91_180")?.debtorCount ?? 0) +
+                  (data.debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0)
+                )}
+                subtext="Dossiers en phase d'arbitrage"
+                tone="danger"
+              />
+              <MetricSummaryTile
+                label="Retard Moyen"
+                value={
+                  data.topDebtors.length > 0
+                    ? `${Math.round(data.topDebtors.reduce((s, d) => s + d.daysOverdue, 0) / data.topDebtors.length)} jours`
+                    : "—"
+                }
+                subtext="Sur les débiteurs principaux"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div className="lg:col-span-5">
+                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+                  <CardHeader className="border-b border-border/50 px-4 py-3">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Structure par Ancienneté
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      Ventilation des impayés selon l'âge du retard
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/30 text-left text-muted-foreground">
+                        <tr className="border-b border-border/60">
+                          <th className="px-3.5 py-2.5 font-medium">Tranche</th>
+                          <th className="px-3 py-2.5 text-right font-medium">Encours</th>
+                          <th className="px-3 py-2.5 text-right font-medium">Foyers</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium">Niveau</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {data.debtAging.map((b) => {
+                          const sev = agingSeverity(b.bucket);
+                          return (
+                            <tr key={b.bucket} className="hover:bg-accent/5">
+                              <td className="px-3.5 py-2.5 font-medium">
+                                {AGING_BUCKET_LABELS_FR[b.bucket]}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-mono font-bold text-foreground">
+                                {formatDzdPlain(b.amount)} DA
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-mono">{b.debtorCount}</td>
+                              <td className="px-3.5 py-2.5 text-right">
+                                <span
+                                  className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${sev.className}`}
+                                >
+                                  {sev.label}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="lg:col-span-7">
+                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+                  <CardHeader className="border-b border-border/50 px-4 py-3">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Top 10 Débiteurs Prioritaires
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      Dossiers nécessitant une relance active de trésorerie
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {data.topDebtors.length === 0 ? (
+                      <p className="py-8 text-center text-xs text-muted-foreground">
+                        Aucun dossier débiteur enregistré.
+                      </p>
+                    ) : (
+                      <div className="max-h-[340px] overflow-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/30 text-left text-muted-foreground sticky top-0 bg-surface-panel z-10">
+                            <tr className="border-b border-border/60">
+                              <th className="px-3 py-2.5 font-medium w-10">#</th>
+                              <th className="px-3 py-2.5 font-medium">Famille</th>
+                              <th className="px-3 py-2.5 font-medium">Contact</th>
+                              <th className="px-3 py-2.5 text-right font-medium">Retard</th>
+                              <th className="px-3 py-2.5 text-right font-medium">Créance</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {data.topDebtors.map((d, i) => (
+                              <tr key={d.parentId} className="hover:bg-accent/5">
+                                <td className="px-3 py-2 font-mono text-muted-foreground">
+                                  #{i + 1}
+                                </td>
+                                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[150px]">
+                                  {d.parentName}
+                                </td>
+                                <td className="px-3 py-2 text-muted-foreground font-mono">
+                                  {d.parentPhone || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                                  {d.daysOverdue} j
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-status-danger">
+                                  {formatDzdPlain(d.outstandingAmount)} DA
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </PageTabContent>
       </PageTabs>
@@ -916,78 +790,109 @@ export function SeeDetailsModal({
 
 function DepartmentsTab({ payments }: { payments: readonly Payment[] }) {
   const unitsWithTotals = OPERATIONAL_UNITS.map((u) => {
-    const amount = payments
-      .filter((p) => p.category !== null && u.categories.includes(p.category))
-      .reduce((s, p) => s + p.amount, 0);
-    return { ...u, amount };
+    const matchingPayments = payments.filter(
+      (p) => p.category !== null && u.categories.includes(p.category),
+    );
+    const amount = matchingPayments.reduce((s, p) => s + p.amount, 0);
+    const count = matchingPayments.length;
+    return { ...u, amount, count };
   });
 
   const claimed = new Set(OPERATIONAL_UNITS.flatMap((u) => u.categories));
-  // ADR-023: multi-service (null-category) payments have no unit match —
-  // they fall into the residual bucket like any unclaimed category.
-  const otherAmount = payments
-    .filter((p) => p.category === null || !claimed.has(p.category))
-    .reduce((s, p) => s + p.amount, 0);
+  const otherPayments = payments.filter(
+    (p) => p.category === null || !claimed.has(p.category),
+  );
+  const otherAmount = otherPayments.reduce((s, p) => s + p.amount, 0);
   const grandTotal =
     unitsWithTotals.reduce((s, u) => s + u.amount, 0) + otherAmount;
 
   return (
-    <Card className="border-border/70 bg-surface-panel shadow-sm">
-      <CardHeader className="border-b border-border/50 px-4 py-3">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Ventilation par Pôle Opérationnel
-        </CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">
-          Répartition des encaissements effectifs par activité, calculée sur les versements du flux live.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 p-4">
-        {grandTotal === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            Aucun encaissement sur cette période.
-          </p>
-        ) : (
-          <>
-            <div className="space-y-3">
-              {unitsWithTotals.map((u) => {
-                const pct = grandTotal > 0 ? Math.round((u.amount / grandTotal) * 100) : 0;
-                return (
-                  <div key={u.key} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: u.color }}
-                        />
-                        {u.label}
-                      </span>
-                      <span className="font-mono font-bold text-foreground">
-                        {formatDzd(u.amount)}{" "}
-                        <span className="font-normal text-muted-foreground">({pct}%)</span>
-                      </span>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricSummaryTile
+          label="Total Recettes Pôles"
+          value={formatDzd(grandTotal, { compact: true })}
+          subtext={`${payments.length} transactions globales`}
+          tone="success"
+        />
+        <MetricSummaryTile
+          label="Pôle Scolarité"
+          value={formatDzd(unitsWithTotals[0]?.amount ?? 0, { compact: true })}
+          subtext={`${grandTotal > 0 ? Math.round(((unitsWithTotals[0]?.amount ?? 0) / grandTotal) * 100) : 0}% des recettes`}
+        />
+        <MetricSummaryTile
+          label="Services de Vie Scolaire"
+          value={formatDzd(unitsWithTotals[3]?.amount ?? 0, { compact: true })}
+          subtext="Transport & Cantine"
+        />
+        <MetricSummaryTile
+          label="Pôles Spécialisés"
+          value={formatDzd(
+            (unitsWithTotals[1]?.amount ?? 0) + (unitsWithTotals[2]?.amount ?? 0),
+            { compact: true },
+          )}
+          subtext="Thérapie & Parascolaire"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        {unitsWithTotals.map((u) => {
+          const Icon = u.icon;
+          const pct = grandTotal > 0 ? Math.round((u.amount / grandTotal) * 100) : 0;
+          return (
+            <Card key={u.key} className="border-border/70 bg-surface-panel shadow-sm">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${u.color}15`, color: u.color }}
+                    >
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: u.color }}
-                      />
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground">{u.label}</h4>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {u.count} transaction(s) enregistrée(s)
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <span
+                    className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border"
+                    style={{
+                      color: u.color,
+                      borderColor: `${u.color}30`,
+                      backgroundColor: `${u.color}10`,
+                    }}
+                  >
+                    {pct}%
+                  </span>
+                </div>
 
-            <div className="flex items-center justify-between border-t border-border/60 pt-3">
-              <span className="text-xs font-bold text-foreground">
-                Total Encaissé ({payments.length} versements)
-              </span>
-              <span className="font-mono text-base font-bold text-status-success">
-                {formatDzdPlain(grandTotal)} DA
-              </span>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Volume Encaissé</span>
+                    <span className="font-mono font-bold text-foreground">
+                      {formatDzdPlain(u.amount)} DA
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: u.color }}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                  <span className="font-semibold text-foreground mr-1">Comprend :</span>
+                  {u.categories.map((c) => PAYMENT_CATEGORY_LABELS_FR[c] ?? c).join(", ")}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

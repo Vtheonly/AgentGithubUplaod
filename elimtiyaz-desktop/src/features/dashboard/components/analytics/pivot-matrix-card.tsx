@@ -12,7 +12,6 @@ import {
   CardDescription,
 } from "../../../../shared/ui/card";
 import { InfoTip } from "./info-tip";
-// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
 import { CardHeaderActions } from "./card-header-actions";
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { AcademicClass } from "../../../../domain/model/academic";
@@ -25,9 +24,7 @@ import {
 interface Props {
   profiles: StudentRiskProfile[];
   classes: readonly AcademicClass[];
-  /** T-503 (UI-334): the inspection controls — rendered ON the card's header. */
   headerActions?: ReactNode;
-  /** Render inside the unified Diagnostic Actif module without a nested Card. */
   embedded?: boolean;
 }
 
@@ -68,7 +65,7 @@ export function PivotMatrixCard({ profiles, classes, headerActions, embedded = f
         <div>
           <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
             <Layers className="h-4 w-4 text-primary" />
-            Matrice Croisée Multi-Dimensionnelle
+            Analyse Croisée des Effectifs &amp; Créances
             <InfoTip tip="pivot.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
@@ -111,7 +108,6 @@ export function PivotMatrixCard({ profiles, classes, headerActions, embedded = f
             Classes
           </button>
         </div>
-        {/* T-503 (UI-334): the inspection controls live ON the matrix. */}
         <CardHeaderActions>{headerActions}</CardHeaderActions>
       </CardHeader>
 
@@ -222,7 +218,7 @@ export function PivotMatrixCard({ profiles, classes, headerActions, embedded = f
 
   if (embedded) return <section className="min-w-0">{panel}</section>;
   return (
-    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+    <Card className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col justify-between">
       {panel}
     </Card>
   );

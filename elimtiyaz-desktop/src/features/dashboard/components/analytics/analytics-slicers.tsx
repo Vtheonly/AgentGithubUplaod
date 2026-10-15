@@ -9,27 +9,23 @@ import {
   type PaymentMethod,
   type PaymentCategory,
 } from "../../../../domain/model/payment";
-import { PAYMENT_CATEGORY_LABELS_FR, paymentCategoryLabelFr } from "../../../../domain/model/payment";
+import { paymentCategoryLabelFr } from "../../../../domain/model/payment";
 import {
   hasActiveFilters,
   type AnalyticsFilterState,
 } from "./analytics-derivations";
 import { formatDzd } from "../../../../core/format/currency";
-// T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
-// T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
 import { CardHeaderActions } from "./card-header-actions";
 import type { ReactNode } from "react";
 
 export interface AnalyticsSlicersProps {
-  /** T-503 (UI-334): the inspection controls — the provenance line rides the slicer panel it inspects. */
   headerActions?: ReactNode;
   filters: AnalyticsFilterState;
   onToggleMethod: (method: PaymentMethod) => void;
   onToggleCategory: (category: PaymentCategory | null) => void;
   onReset: () => void;
   methods: PaymentMethod[];
-  /** ADR-023: null = the multi-service bucket (labeled via the canonical helper). */
   categories: (PaymentCategory | null)[];
   filteredCount: number;
   filteredTotal: number;
@@ -83,13 +79,11 @@ export function AnalyticsSlicers({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Filter className="h-3.5 w-3.5 text-primary" />
-          Filtres Dynamiques (Slicers Interactifs)
+          Filtres d'analyse
           <InfoTip tip="slicers.header" />
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* T-503 (UI-334): the provenance inspection rides the slicer
-              panel whose filters define it. */}
           <CardHeaderActions>{headerActions}</CardHeaderActions>
           <span
             className="text-xs font-mono text-muted-foreground flex items-center gap-0.5"
@@ -150,7 +144,7 @@ export function AnalyticsSlicers({
             </span>
             {categories.map((c) => (
               <Chip
-                key={c}
+                key={c ?? "null"}
                 label={paymentCategoryLabelFr(c)}
                 active={filters.categories.has(c)}
                 onClick={() => onToggleCategory(c)}

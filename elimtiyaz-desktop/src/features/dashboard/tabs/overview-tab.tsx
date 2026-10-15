@@ -2,14 +2,6 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/tabs/overview-tab.tsx
 // ============================================================================
 
-/**
- * OverviewTab — executive operational overview.
- *
- * Every visible dashboard widget is a first-class layout item. The layout
- * editor owns only presentation state; all existing data and business logic
- * remain unchanged.
- */
-
 import { LayoutDashboard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SparklineKpiCard } from "../components/sparkline-kpi-card";
@@ -22,16 +14,11 @@ import { InsightsRail } from "../components/insights-rail";
 import { DashboardCalendar } from "../dashboard-calendar";
 import { WaveVelocityCard } from "../components/analytics/executive-cards";
 import { deriveTrancheWaves, deriveDebtTriage } from "../components/analytics/executive-statistics";
-// T-447 (STATS-401): the canonical pooled + non-wave derivations (the
-// wave hero's new props — the exact-dinar parity objects).
 import {
   derivePooledTrancheWaves,
   deriveNonWaveSummary,
 } from "../../../domain/calc/payment/tranche-waves";
 import type { DebtAgingThresholds } from "../../../domain/calc/ledger/debt-aging";
-// T-507 (UI-338): the contextual thresholds-config trigger — the small
-// attached control that opens the scoped editor (renders NOTHING when the
-// config api is absent — provider-less test renders stay byte-identical).
 import {
   ThresholdsConfigTrigger,
   type ThresholdsConfigApi,
@@ -51,10 +38,6 @@ export interface DashboardData {
   topDebtors: DebtSummary[];
 }
 
-/* ── T-507 (UI-338): the per-component config scopes ──
- * ONLY the parameters each component's derivations actually consume (the
- * compact-modal requirement): the wave meters' « En retard » verdicts follow
- * the grace period; the funnel's escalation tiers follow the day hierarchy. */
 const WAVE_METER_SCOPE: ThresholdsConfigScope = {
   title: "Vagues de tranches",
   params: ["gracePeriodDays"],
@@ -66,9 +49,6 @@ const RECOVERY_FUNNEL_SCOPE: ThresholdsConfigScope = {
     "gracePeriodDays",
     "yellowDays",
     "redDays",
-    // T-508 (UI-339): the amount bands — the PERSISTED canonical settings
-    // (migration 0138) the per-row « Bande montant » chips classify with;
-    // editable from the funnel through the SAME T-507 shared-source chain.
     "amountYellowDzd",
     "amountRedDzd",
   ],
@@ -92,31 +72,15 @@ export function OverviewTab({
   range?: { from: string; to: string };
   onDrillDown: (kpi: string) => void;
   onGoToAlerts: () => void;
-  /** Optional since the T-404 packaging-gate typecheck repair (2026-09-22). */
   editing?: boolean;
-  /**
-   * T-443 (DEBT-101): the tenant's ACTIVE debt-aging thresholds
-   * (`repos.debt.observeThresholds()`, wired by the dashboard page). Absent
-   * → the documented DEFAULTS (test renders + the pure-prop contract).
-   */
   debtThresholds?: DebtAgingThresholds;
-  /**
-   * T-507 (UI-338): the contextual-config api (the dashboard page's host —
-   * the live-preview triggers ride the wave/funnel headers). Absent → no
-   * trigger renders (the pure-prop contract).
-   */
   thresholdsConfig?: ThresholdsConfigApi | null;
 }) {
   const { t } = useTranslation();
   const { kpis, revenue, debtAging, topDebtors } = data;
 
   const nowEpochMs = Date.now();
-  // T-502 (STATS-403): the wave derivations consume the ACTIVE debt
-  // thresholds (the configured grace period) — the SAME configuration the
-  // triage below applies, so the meters and the stages agree by construction.
   const waves = deriveTrancheWaves(installments, nowEpochMs, debtThresholds);
-  // T-447: the pooled all-categories analysis + the non-wave rows — the
-  // SAME canonical objects the Statistics tab's main cards render.
   const pooledWaves = derivePooledTrancheWaves(installments, nowEpochMs, debtThresholds);
   const nonWaveSummary = deriveNonWaveSummary(installments, nowEpochMs, debtThresholds);
   const triage = deriveDebtTriage(installments, nowEpochMs, debtThresholds);
@@ -127,9 +91,6 @@ export function OverviewTab({
   const last = revenue.length >= 2 ? revenue[revenue.length - 1] : null;
   const prev = revenue.length >= 2 ? revenue[revenue.length - 2] : null;
   const momDelta = last && prev && prev.amount > 0 ? Math.round(((last.amount - prev.amount) / prev.amount) * 100) : undefined;
-  // T-469 (DEBT-103): the funnel derives from the CANONICAL triage (the
-  // deriveDebtTriage the tab already computes) + the CONFIGURED thresholds —
-  // never the hardcoded aging-bucket edges (the DEBT-103 defect class).
   const funnelStages = deriveRecoveryFunnel(triage);
   const overdueFamilies = debtAging.reduce((s, b) => s + b.debtorCount, 0);
   const deepOverdueFamilies =
@@ -137,11 +98,6 @@ export function OverviewTab({
     (debtAging.find((b) => b.bucket === "91_180")?.debtorCount ?? 0) +
     (debtAging.find((b) => b.bucket === "180_plus")?.debtorCount ?? 0);
   const outstanding = kpis?.outstandingDebt ?? 0;
-  // T-426 (DATA-045, GitHub issue #24 Track-4): the DEDICATED overdue
-  // metric — the DZD actually past due (dynamic predicate), distinct from
-  // the card's total-receivables value. The card was previously labeled
-  // "Créances en retard" while showing the TOTAL invoiced balance
-  // (194.2M incl. future tranches) — a total presented as late debt.
   const overdueNow = kpis?.overdueAmount ?? 0;
 
   const items: DashboardLayoutItem[] = [
@@ -251,11 +207,11 @@ export function OverviewTab({
       x: 0,
       y: 5,
       w: 8,
-      h: 8,
+      h: 12,
       minW: 5,
       maxW: 12,
-      minH: 6,
-      maxH: 16,
+      minH: 10,
+      maxH: 22,
       content: (
         <WaveVelocityCard
           waves={waves}
@@ -275,17 +231,14 @@ export function OverviewTab({
       x: 8,
       y: 5,
       w: 4,
-      h: 8,
+      h: 12,
       minW: 3,
       maxW: 12,
-      minH: 6,
-      maxH: 16,
+      minH: 8,
+      maxH: 22,
       content: (
         <RecoveryFunnelCard
           stages={funnelStages}
-          // T-508 (UI-339): the REAL data for the production household
-          // lists — the SAME installments/thresholds the triage above
-          // consumed (counts and lists share the edges by construction).
           installments={installments}
           debtThresholds={debtThresholds}
           headerActions={
@@ -298,42 +251,39 @@ export function OverviewTab({
       id: "weekly-rhythm",
       label: "Rythme hebdomadaire",
       x: 0,
-      y: 14,
+      y: 18,
       w: 4,
-      h: 8,
+      h: 10,
       minW: 3,
       maxW: 12,
-      minH: 6,
-      maxH: 16,
+      minH: 8,
+      maxH: 18,
       content: <WeeklyOperatingRhythm payments={payments} range={range} />,
     },
     {
       id: "calendar",
       label: "Calendrier opérationnel",
       x: 4,
-      y: 14,
+      y: 18,
       w: 8,
-      h: 8,
+      h: 10,
       minW: 4,
       maxW: 12,
-      // h: 8 is the collision-free budget: the row below (insights, y=23)
-      // starts right after this widget, and the calendar's own sheet must
-      // fit in the 8 rows × 32px + 12px gaps box without spilling into it.
       minH: 8,
-      maxH: 20,
+      maxH: 22,
       content: <DashboardCalendar />,
     },
     {
       id: "insights",
       label: "Rail contextuel",
       x: 0,
-      y: 23,
+      y: 29,
       w: 12,
-      h: 7,
+      h: 14,
       minW: 4,
       maxW: 12,
-      minH: 5,
-      maxH: 20,
+      minH: 10,
+      maxH: 26,
       content: (
         <InsightsRail
           achieved={annualRevenue}
