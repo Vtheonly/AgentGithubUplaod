@@ -6530,3 +6530,23 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Plan:** (1) this registration → (2) the token/tailwind/chart-layer implementation → (3) the tooltip + LaTeX implementation → (4) the glossary formula extension → (5) regression tests (light tokens, live getters, tooltip contract, LaTeX render + fallback) → (6) gates (typecheck/lint/focused suites/full battery) → (7) docs closeout + the registered baseline move.
 
 **Left:** everything — implementation starts after this registration commit.
+
+---
+
+## T-548 — The school-year selection/persistence bug (the 182nd session): the shared AutoFormModal clobbers mid-edit form state on every parent re-render — implement the owner-approved Fix A (reset ONLY on the closed→open transition, ONE canonical fix in the shared primitive)
+
+**Problem IDs:** UI-355 (new — the mid-edit clobber family; registered this session with the full measured root cause).
+
+**Status:** IN_PROGRESS (registered 2026-10-15, 182nd session, before any code change per §13).
+
+**The mandate (owner, in chat, 2026-10-15):** "Fix A: reset only on the closed→open transition (one canonical fix in AutoFormModal)" — the chosen fix for the school-year selection/persistence reports: when adding or editing a school year (Year Tracking / Finances), when selecting or assigning a student's school year (Pédagogie), or when entering a date/info associated with a different school year, the application keeps reverting the selection to the current default school year. Preserve manually selected school years; preserve the year associated with user-entered dates/information; retain the selection through the entire save/reopen/edit cycle; use the current school year as default ONLY when creating a new record with no explicitly selected year; remove the redundant reset behavior responsible — without removing legitimate school-year functionality.
+
+**Root cause (measured, BEFORE the fix):** `src/shared/ui/auto-form/auto-form-modal.tsx:31-33` — the reset effect carries `initialValues` in its dependency array and fires whenever `open` is true, so EVERY fresh `initialValues` reference mid-open calls `form.reset(defaults)`. Every consumer builds `initialValues` inline at render time (the census: manual-debt-modal 324-327, school-years-tab 233-251, subjects-directory-tab, subject-configurations-panel 340, clubs-tab 254, installment-schedule-tab 904-907, calendar-event-creator-modal 108-113, alert-creator-modal 129, secret-edit-modal 59, task-form-modal 138, manager-dashboard 364 — employee-form-modal 152 memoizes on `editing`), and the parents subscribe to live repository observables, so any repository emission or sibling state change mid-edit silently reverts the user's selection to the default (the current school year, the `defaultAcademicYear` prop, or the stored record values — wiping create-mode edits back to `buildDefaultCode()`).
+
+**The fix contract (Fix A):** ONE canonical fix in the shared primitive — a rising-edge guard (`wasOpen` ref): `form.reset(initialValues)` fires ONLY when `open` transitions false→true; while the modal stays open, a re-rendered `initialValues` NEVER resets the form. The open-time reset still seeds the defaults (the current-year default for NEW records, the record's own values for EDIT), so the legitimate default-value behavior is preserved exactly where the owner wants it (creation with no explicit selection). Compatibility census: NO consumer depends on `initialValues` arriving asynchronously after open — all seed from pre-set state (`editTarget`/`editing`/props set before the modal opens), so the rising-edge reset is contract-safe for every existing surface.
+
+**Scope fences:** the shared primitive `auto-form-modal.tsx` + its regression suite; NO consumer-side changes (the fix is canonical by design); NO backend/migration changes (the persistence layer stores what the form submits — the corruption happens client-side before submit); NO change to the INV-14 date-inference or the current-year defaulting at open.
+
+**Plan:** (1) this registration → (2) the rising-edge guard in auto-form-modal.tsx → (3) regression tests in the primitives suite (mid-open re-render must NOT clobber edits; close→re-open must re-seed; open-with-fresh-values must seed) → (4) the verification ladder (tsc, eslint on the touched files, the primitives + consumer suites) → (5) docs closeout (task registry, problem registry, change-log, next-task, the AGENTS.md permanent rule).
+
+**Left:** everything — implementation starts after this registration commit.
