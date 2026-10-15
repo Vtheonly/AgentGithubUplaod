@@ -23,7 +23,6 @@ export const fr = {
     financials: "Finances",
     personnel: "Personnel",
     workflow: "Automatisations",
-    routing: "Tournées",
     settings: "Paramètres",
   },
   language: {

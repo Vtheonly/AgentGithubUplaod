@@ -3,7 +3,7 @@
  *
  * The AppShell previously guarded ONLY "/" (DASHBOARD_RESTRICTED_ROLES).
  * Direct URL navigation to /crm, /academics, /financials, /workflow,
- * /routing, /settings landed any signed-in staff role inside the full
+ * /settings landed any signed-in staff role inside the full
  * administrative pages — the sidebar padlock was cosmetic.
  *
  * route-access.ts is the pure guard table: every protected route prefix
@@ -11,6 +11,12 @@
  * routeRedirectFor() returns "/personnel" when the session may not enter.
  * This keeps ONE source of truth for both the sidebar lock and the route
  * guard (defense in depth without a second permission map).
+ *
+ * T-541 / OPS-324 (180th session): the /routing gate is REMOVED with the
+ * GPS Tournées feature — the guard-table census drops it and the driver
+ * route assertions invert (every role, driver included, redirects from
+ * the retired path... see the last describe block: /routing is now
+ * UNGUARDED-OR-ABSENT, so it falls through to the catch-all Navigate).
  */
 import { describe, it, expect } from "vitest";
 import { routeRedirectFor, PROTECTED_ROUTE_PREFIXES } from "../../core/rbac/route-access";
@@ -38,10 +44,10 @@ function sessionFor(role: Role): Session {
 
 describe("RBAC-300 — route guards (route-access.ts)", () => {
   describe("guard table covers every gated navigation section", () => {
-    it("protects dashboard, crm, academics, financials, workflow, routing, settings", () => {
+    it("protects dashboard, crm, academics, financials, workflow, settings (T-541: routing removed)", () => {
       const prefixes = PROTECTED_ROUTE_PREFIXES.map((g) => g.prefix).sort();
       expect(prefixes).toEqual(
-        ["/", "/academics", "/crm", "/financials", "/routing", "/settings", "/workflow"].sort(),
+        ["/", "/academics", "/crm", "/financials", "/settings", "/workflow"].sort(),
       );
     });
   });
@@ -100,11 +106,10 @@ describe("RBAC-300 — route guards (route-access.ts)", () => {
       expect(routeRedirectFor(sessionFor(Role.Manager), "/financials")).toBe("/personnel");
     });
 
-    it("SuperAdmin keeps /workflow, /settings, /routing", () => {
+    it("SuperAdmin keeps /workflow, /settings", () => {
       const s = sessionFor(Role.SuperAdmin);
       expect(routeRedirectFor(s, "/workflow")).toBeNull();
       expect(routeRedirectFor(s, "/settings")).toBeNull();
-      expect(routeRedirectFor(s, "/routing")).toBeNull();
     });
 
     it("FinancialOfficer keeps /workflow + /settings (ViewWorkflowRuns + ViewAuditLog)", () => {
@@ -136,10 +141,14 @@ describe("RBAC-300 — route guards (route-access.ts)", () => {
     });
   });
 
-  describe("driver keeps the driver-mode route", () => {
-    it("driver → /routing allowed, teacher → /routing redirected", () => {
+  describe("T-541 — the retired /routing path carries no gate (GPS Tournées removal)", () => {
+    it("every role (driver included) — /routing is no longer a protected prefix; the route itself is gone (catch-all Navigate)", () => {
+      expect(PROTECTED_ROUTE_PREFIXES.some((g) => g.prefix === "/routing")).toBe(false);
+      // The guard no longer knows the path: with no gate, routeRedirectFor
+      // returns null — the AppShell route table has NO /routing entry, so
+      // the catch-all <Navigate to=\"/\"> handles the retired URL.
       expect(routeRedirectFor(sessionFor(Role.Driver), "/routing")).toBeNull();
-      expect(routeRedirectFor(sessionFor(Role.Teacher), "/routing")).toBe("/personnel");
+      expect(routeRedirectFor(sessionFor(Role.Teacher), "/routing")).toBeNull();
     });
   });
 

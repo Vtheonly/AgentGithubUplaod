@@ -112,8 +112,9 @@ const PERMISSION_GROUPS: Array<{ name: string; permissions: Permission[] }> = [
   {
     name: "Audit & Config",
     permissions: [
+      // T-541 / OPS-324: AccessDriverMode removed with the Tournées feature.
       Permission.ViewAuditLog, Permission.ManageSettings,
-      Permission.ManageTenants, Permission.AccessDriverMode,
+      Permission.ManageTenants,
     ],
   },
 ];

@@ -1,9 +1,12 @@
 /**
  * App sidebar — primary navigation (plan §03.02).
  *
- * Persistent left sidebar with 4 Hubs + Personnel + Routing + Settings.
+ * Persistent left sidebar with 4 Hubs + Personnel + Settings.
  * Each item is GatedContent-wrapped so locked sections render at reduced
  * opacity with a lock icon. Collapsible to a thin rail.
+ *
+ * T-541 / OPS-324 (180th session): the Routing (Tournées) entry is REMOVED —
+ * the GPS Tournee driver feature was retired entirely from both clients.
  */
 import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -14,7 +17,6 @@ import {
   Wallet,
   UserCog,
   Workflow as WorkflowIcon,
-  Route as RouteIcon,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +31,6 @@ import {
   Financials,
   Personnel,
   WorkflowAutomation,
-  Routing,
   Settings as SettingsNode,
 } from "../../core/rbac/feature-registry";
 import { GatedContent } from "./gated-content";
@@ -48,7 +49,6 @@ const ITEMS: SidebarItemDef[] = [
   { node: Financials, icon: Wallet, to: "/financials" },
   { node: Personnel, icon: UserCog, to: "/personnel" },
   { node: WorkflowAutomation, icon: WorkflowIcon, to: "/workflow" },
-  { node: Routing, icon: RouteIcon, to: "/routing" },
   { node: SettingsNode, icon: Settings, to: "/settings" },
 ];
 
@@ -139,7 +139,6 @@ function labelFor(nodeId: string, t: (key: string) => string): string {
     "section.financials": t("nav.financials"),
     "section.personnel": t("nav.personnel"),
     "section.workflow_automation": t("nav.workflow"),
-    "section.routing": t("nav.routing"),
     "section.settings": t("nav.settings"),
   };
   return map[nodeId] ?? nodeId;

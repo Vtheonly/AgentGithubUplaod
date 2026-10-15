@@ -1256,13 +1256,6 @@ export const genAr = {
       }
     }
   },
-  routing: {
-    routing: {
-      RoutingPage: {
-        k2: "الوصول مرفوض"
-      }
-    }
-  },
   settings: {
     settings: {
       AccountsTab: {

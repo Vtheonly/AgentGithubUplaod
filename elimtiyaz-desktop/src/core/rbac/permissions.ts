@@ -85,8 +85,9 @@ export enum Permission {
   ViewAuditLog = "view_audit_log",
   ViewReleve = "view_releve",
 
-  // Routing (driver mode — legacy routing/OSRM)
-  AccessDriverMode = "access_driver_mode",
+  // T-541 / OPS-324 (180th session): AccessDriverMode ("access_driver_mode")
+  // is REMOVED — the exclusively-tournee permission went with the Tournées
+  // feature. The server seed cleanup ships in migration 0157.
 
   // Settings
   ManageSettings = "manage_settings",
@@ -195,7 +196,6 @@ export const PERMISSION_LABELS_FR: Record<Permission, string> = {
   [Permission.ManagePersonnel]: "Gérer le personnel",
   [Permission.ViewAuditLog]: "Consulter le journal d'audit",
   [Permission.ViewReleve]: "Consulter le relevé",
-  [Permission.AccessDriverMode]: "Mode conducteur",
   [Permission.ManageSettings]: "Gérer les paramètres",
   [Permission.ManageTenants]: "Gérer les tenants",
   [Permission.ManagePricing]: "Gérer la tarification",
@@ -399,7 +399,7 @@ DEFAULT_ROLE_PERMISSIONS[Role.Driver] = new Set<Permission>([
   Permission.ViewTasks,
   Permission.UpdateTaskStatus,
   Permission.ManageDeliveries,
-  Permission.AccessDriverMode,
+  // T-541: AccessDriverMode removed with the Tournées feature.
   Permission.UseChat,
   Permission.ClockInOut,
   Permission.SubmitRequests,

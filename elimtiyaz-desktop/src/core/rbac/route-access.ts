@@ -11,7 +11,6 @@ import {
   Academics,
   Financials,
   WorkflowAutomation,
-  Routing,
   Settings,
 } from "./feature-registry";
 
@@ -28,7 +27,7 @@ export const PROTECTED_ROUTE_PREFIXES: readonly RouteGate[] = [
   { prefix: "/academics", node: Academics },
   { prefix: "/financials", node: Financials },
   { prefix: "/workflow", node: WorkflowAutomation },
-  { prefix: "/routing", node: Routing },
+  // T-541 / OPS-324: the /routing gate is REMOVED with the Tournées feature.
   { prefix: "/settings", node: Settings },
 ];
 

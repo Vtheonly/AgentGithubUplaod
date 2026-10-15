@@ -1256,13 +1256,6 @@ export const genEn = {
       }
     }
   },
-  routing: {
-    routing: {
-      RoutingPage: {
-        k2: "Access denied"
-      }
-    }
-  },
   settings: {
     settings: {
       AccountsTab: {

@@ -16,7 +16,6 @@ import { GradeEntryScreen } from "../features/academics/grade-entry-screen";
 import { FinancialsPage } from "../features/financials/financials-page";
 import { PersonnelPage } from "../features/personnel/personnel-page";
 import { WorkflowPage } from "../features/workflow/workflow-page";
-import { RoutingPage } from "../features/routing/routing-page";
 import { SettingsPage } from "../features/settings/settings-page";
 import { ProfilePage } from "../features/profile/profile-page";
 import { useRepositories } from "./providers/repository-provider";
@@ -81,7 +80,6 @@ export function AppShell() {
                 <Route path="/financials" element={<FinancialsPage />} />
                 <Route path="/personnel" element={<PersonnelPage />} />
                 <Route path="/workflow" element={<WorkflowPage />} />
-                <Route path="/routing" element={<RoutingPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

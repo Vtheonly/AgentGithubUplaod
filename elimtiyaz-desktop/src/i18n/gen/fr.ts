@@ -1256,13 +1256,6 @@ export const genFr = {
       }
     }
   },
-  routing: {
-    routing: {
-      RoutingPage: {
-        k2: "Accès refusé"
-      }
-    }
-  },
   settings: {
     settings: {
       AccountsTab: {

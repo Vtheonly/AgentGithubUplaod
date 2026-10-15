@@ -138,11 +138,14 @@ export const WorkflowAutomation: FeatureNode = {
   ],
 };
 
-export const Routing: FeatureNode = {
-  id: "section.routing",
-  label: "Tournées",
-  requirement: requiresPermission(P.AccessDriverMode),
-};
+/**
+ * T-541 / OPS-324 (180th session, 2026-10-15): the Routing (Tournées)
+ * driver-mode feature node is REMOVED — the owner retired GPS Tournee /
+ * Tournee-Driver entirely from both clients. The sidebar entry, the
+ * /routing route, and the AccessDriverMode permission are gone with it
+ * (see permissions.ts). Role.Driver and the deliveries dashboard REMAIN
+ * (the deliveries workflow, not tournee).
+ */
 
 export const Settings: FeatureNode = {
   id: "section.settings",
@@ -158,7 +161,6 @@ export const SIDEBAR_SECTIONS: readonly FeatureNode[] = [
   Financials,
   Personnel,
   WorkflowAutomation,
-  Routing,
   Settings,
 ];
 
