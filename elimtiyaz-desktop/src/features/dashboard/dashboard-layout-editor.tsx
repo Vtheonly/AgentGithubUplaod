@@ -334,7 +334,12 @@ const LayoutCell = memo(function LayoutCell({
       style={
         {
           gridColumn: `${rect.x + 1} / span ${rect.w}`,
-          ...(editing ? { gridRow: `${rect.y + 1} / span ${rect.h}` } : {}),
+          // T-536 (UI-349): the saved row geometry renders in VIEW mode too
+          // (b4a441e's auto-placement silently discarded y/h outside edit
+          // mode, so moving/resizing a card had no visible effect). Combined
+          // with the container's minmax view rows, a card keeps its saved
+          // span as a MINIMUM and the tracks grow when content needs more.
+          gridRow: `${rect.y + 1} / span ${rect.h}`,
         } as CSSProperties
       }
       data-dashboard-layout-id={item.id}
@@ -797,6 +802,15 @@ export function DashboardLayoutEditor({
             <Eye className="h-3 w-3" />
             Tout afficher
           </button>
+          {/* T-504 (UI-337) restored (T-536): the honest save-outcome hint
+              must live in the VIEW bar too — a restore that persists
+              locally while the server is down shows its failure here,
+              not only inside the edit-mode banner (b4a441e dropped it). */}
+          {saveState === "save-failed" && (
+            <span className="w-full text-destructive">
+              Serveur injoignable — restauration conservée localement, réessayez depuis la personnalisation
+            </span>
+          )}
         </div>
       )}
 
@@ -804,7 +818,13 @@ export function DashboardLayoutEditor({
         ref={gridRef}
         className={`relative grid grid-cols-12 gap-3 pb-8 ${editing ? "rounded-xl border border-dashed border-primary/30 bg-[linear-gradient(to_right,hsl(var(--primary)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.06)_1px,transparent_1px)] bg-[size:8.333%_32px] p-2" : ""}`}
         style={{
-          gridAutoRows: editing ? `${ROW_HEIGHT}px` : "auto",
+          // T-536 (UI-349): BOTH modes place cards at their saved gridRow —
+          // the saved layout IS the rendered layout. The difference is the
+          // track budget: edit mode pins 32px rows (predictable drag/resize
+          // math on the schematic canvas), while view mode lets every row
+          // GROW past the 32px floor when a card's content needs more
+          // (the owner's vertical-growth mandate — no clipping, no ignore).
+          gridAutoRows: editing ? `${ROW_HEIGHT}px` : `minmax(${ROW_HEIGHT}px, auto)`,
           minHeight: editing
             ? `${contentRows * ROW_HEIGHT + Math.max(0, contentRows - 1) * GRID_GAP + 16}px`
             : undefined,
@@ -837,13 +857,19 @@ export function DashboardLayoutEditor({
         })}
       </div>
 
+      {/* T-504 (UI-337): the all-hidden honest state — the guidance names
+          the bar's actual buttons (« Afficher » / « Tout afficher ») so the
+          operator never needs edit-mode knowledge to restore (restored
+          verbatim by T-536 after b4a441e shortened it past the contract). */}
       {visibleItems.length === 0 && (
         <div
           className="rounded-xl border border-dashed border-border/70 bg-surface-panel/50 px-4 py-10 text-center text-xs text-muted-foreground"
           data-testid="dashboard-all-hidden"
         >
           Tous les indicateurs de cette vue sont masqués. Utilisez la barre
-          ci-dessus pour les restaurer.
+          « {hiddenItems.length === 1 ? "1 indicateur masqué" : `${hiddenItems.length} indicateurs masqués`} »
+          ci-dessus : « Afficher » restaure un indicateur, « Tout afficher »
+          les rétablit tous en une fois.
         </div>
       )}
 

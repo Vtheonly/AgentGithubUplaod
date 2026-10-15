@@ -221,22 +221,27 @@ export function PayrollCostTrendCard({ trend }: { trend: PayrollCostTrend }) {
               Réalisé = versements de salaires enregistrés · Projeté = salaires
               de base contractuels · Besoin = engagements nets restants.
             </p>
-
-            <div className="flex justify-end pt-1">
-              {inRouter ? (
-                <PersonnelLinkButton />
-              ) : (
-                <a
-                  href="/personnel"
-                  className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
-                  data-testid="link-personnel-payroll-trend"
-                >
-                  Détail des vagues de paie — Personnel
-                </a>
-              )}
-            </div>
           </>
         )}
+
+        {/* T-412 cross-page summary — the Personnel operational view.
+            T-536: restored OUTSIDE the data conditional (b4a441e moved it
+            into the data branch only, so the honest empty state lost its
+            navigation path — the T-412 empty-state contract pins it in
+            BOTH states). */}
+        <div className="flex justify-end">
+          {inRouter ? (
+            <PersonnelLinkButton />
+          ) : (
+            <a
+              href="/personnel"
+              className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+              data-testid="link-personnel-payroll-trend"
+            >
+              Détail des vagues de paie — Personnel
+            </a>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

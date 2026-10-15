@@ -116,12 +116,20 @@ const ROW_PX = 44;
 // 1. OVERFLOW CONTAINMENT
 // ============================================================
 describe("T-503 (UI-336) — overflow containment", () => {
-  it("every cell carries overflow-hidden (view mode AND editing mode)", () => {
+  // T-536 (UI-349) re-measure: the owner's vertical-growth mandate changed
+  // the view-mode contract. Overflow containment (no card bleeding over its
+  // neighbours) is now enforced GEOMETRICALLY in view mode — the saved
+  // gridRow + minmax(32px, auto) tracks size every row to its tallest
+  // spanning card, so content cannot escape its area; clipping via
+  // overflow-hidden would defeat the growth. Edit mode KEEPS the
+  // overflow-hidden schematic containment (fixed 32px rows).
+  it("view-mode cells are overflow-visible (rows grow); edit-mode cells keep overflow-hidden", () => {
     const { rerender } = render(
       <DashboardLayoutEditor storageKey={VIEW_KEY} items={ITEMS} />,
     );
     for (const id of ["top", "below"]) {
-      expect(cellOf(id).className).toContain("overflow-hidden");
+      expect(cellOf(id).className).toContain("overflow-visible");
+      expect(cellOf(id).className).not.toContain("overflow-hidden");
     }
     rerender(
       <DashboardLayoutEditor storageKey={VIEW_KEY} items={ITEMS} editing />,
