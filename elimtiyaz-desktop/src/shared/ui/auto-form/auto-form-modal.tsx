@@ -1,8 +1,19 @@
 /**
  * <AutoFormModal<T>> — schema-driven modal form primitive.
  * Replaces 25+ handwritten form modals. Built on react-hook-form + zod.
+ *
+ * UI-355 (T-548, Fix A) — the reset contract: the form is seeded from
+ * `initialValues` ONLY on the closed→open transition. While the modal stays
+ * open, a re-rendered `initialValues` (every consumer passes an inline
+ * render-time object literal, so the reference is fresh on EVERY parent
+ * render) must NEVER clobber the user's in-progress edits — that clobber was
+ * the school-year selection reversion root cause (a manually selected older
+ * year silently reverting to the current-default year before the save).
+ * Consumers that need to edit a different record must close and re-open
+ * (the census: every existing surface seeds from pre-set state — no
+ * consumer relies on `initialValues` arriving asynchronously after open).
  */
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Loader2 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
@@ -28,8 +39,20 @@ export function AutoFormModal<T extends ZodType>(props: AutoFormModalProps<T>): 
     mode: "onSubmit",
   });
 
+  // T-548 / UI-355 (Fix A): reset ONLY on the closed→open RISING EDGE. The
+  // previous form carried `initialValues` in the deps unguarded — every
+  // parent re-render mid-open (a live repository observable emission, a
+  // sibling state change) reset the form to the defaults and silently
+  // reverted the user's edits (the school-year selection bug). The guard
+  // keeps `initialValues` in the deps (lint-clean) but only lets the reset
+  // through when `open` actually transitioned false→true, using the values
+  // of the render that performed the transition.
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (open) form.reset(initialValues as Record<string, unknown>);
+    if (open && !wasOpenRef.current) {
+      form.reset(initialValues as Record<string, unknown>);
+    }
+    wasOpenRef.current = open;
   }, [open, initialValues, form]);
 
   const isSubmitting = form.formState.isSubmitting;

@@ -2,6 +2,7 @@
  * Smoke tests for the 5 core UI primitives built in Phase 3.
  */
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { z } from "zod";
 import { DataTable } from "../../shared/ui/data-table";
@@ -140,6 +141,78 @@ describe("AutoFormModal primitive", () => {
     );
     const input = screen.getByDisplayValue("supersecret") as HTMLInputElement;
     expect(input.type).toBe("password");
+  });
+
+  // T-548 / UI-355 (Fix A) — the reset contract regression pins. The host
+  // mirrors the REAL consumers: `initialValues` is built INLINE at render
+  // time (a fresh object reference on every parent render — school-years-tab,
+  // manual-debt-modal, subjects, clubs, … all do this), and the re-render
+  // trigger stands in for the live repository observable emissions that fire
+  // while a modal is open.
+  describe("UI-355 / T-548 Fix A — the reset-on-rising-edge contract", () => {
+    function ReRenderingHost() {
+      const [, force] = useState(0);
+      // Fresh object reference on EVERY render — the consumer census shape.
+      const initialValues = { name: "2026-2027 (défaut)", age: 20 };
+      return (
+        <div>
+          <button type="button" onClick={() => force((n) => n + 1)}>
+            observable-emission
+          </button>
+          <AutoFormModal
+            open onOpenChange={() => {}} title="Année scolaire"
+            schema={Schema}
+            fields={[{ name: "name", label: "Année", type: "text", required: true }]}
+            initialValues={initialValues}
+            onSubmit={() => {}}
+          />
+        </div>
+      );
+    }
+
+    it("does NOT clobber the user's in-progress selection when the parent re-renders with a fresh initialValues reference mid-open (the school-year reversion bug)", async () => {
+      render(<ReRenderingHost />);
+      const input = screen.getByDisplayValue("2026-2027 (défaut)");
+      // The user manually selects an OLDER school year.
+      fireEvent.change(input, { target: { value: "2022-2023" } });
+      expect(screen.getByDisplayValue("2022-2023")).toBeInTheDocument();
+      // A parent re-render fires mid-edit (repository observable emission /
+      // sibling state change) — initialValues is a NEW reference with the
+      // same defaults. Under the pre-fix effect this reset the form and
+      // silently reverted the selection to the current-default year.
+      fireEvent.click(screen.getByText("observable-emission"));
+      fireEvent.click(screen.getByText("observable-emission"));
+      await waitFor(() => {
+        expect(screen.getByDisplayValue("2022-2023")).toBeInTheDocument();
+      });
+    });
+
+    it("re-seeds from initialValues ONLY on the closed→open transition (a different record's values replace the stale form state; a mid-open seed change does not)", () => {
+      function TogglingHost({ open, seed }: { open: boolean; seed: string }) {
+        // Inline literal — the fresh-reference-every-render consumer shape.
+        const initialValues = { name: seed, age: 20 };
+        return (
+          <AutoFormModal
+            open={open} onOpenChange={() => {}} title="Modifier"
+            schema={Schema}
+            fields={[{ name: "name", label: "Année", type: "text", required: true }]}
+            initialValues={initialValues}
+            onSubmit={() => {}}
+          />
+        );
+      }
+      const { rerender } = render(<TogglingHost open seed="2022-2023" />);
+      expect(screen.getByDisplayValue("2022-2023")).toBeInTheDocument();
+      // The user edits mid-open.
+      fireEvent.change(screen.getByDisplayValue("2022-2023"), { target: { value: "mid-edit" } });
+      // Close → the dialog content unmounts.
+      rerender(<TogglingHost open={false} seed="2022-2023" />);
+      expect(screen.queryByDisplayValue("mid-edit")).toBeNull();
+      // Re-open for a DIFFERENT record (editTarget switched) — the fresh
+      // seed MUST replace the stale mid-edit form state.
+      rerender(<TogglingHost open seed="2024-2025" />);
+      expect(screen.getByDisplayValue("2024-2025")).toBeInTheDocument();
+    });
   });
 });
 
