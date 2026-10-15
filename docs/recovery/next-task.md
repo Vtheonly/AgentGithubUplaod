@@ -1,3 +1,17 @@
+# 2026-10-15 — The 181st session OPEN (T-546 / UI-352 · UI-353 · UI-354): the owner's Clair Épuré + tooltip-math mandate — refine the light theme's borders/charts/diagrams/gradients THROUGH the shared token system, fix the shared tooltip positioning/clipping, and deliver LaTeX-rendered formula explanations derived from the canonical engines. Registration precedes the implementation per §13. CONCURRENT with the 180th session (T-541..T-545 — that session's own header below tracks its state; the two mandates touch disjoint surfaces: this one the theme/chart/tooltip/glossary layer, that one GPS/search-RBAC/sidebar/attachments/scanner).
+
+**Session-opening state (measured):** branch precondition verified (git ls-remote --heads = 1 ref, main-only — §15.59 holds; rebased over the concurrent dd040737 T-541 closeout); `npm ci` clean (602 packages); `npm run typecheck` → 0 errors on the pristine tree; `katex` + `@types/katex` installed for the math mandate (the only new dependency; offline-safe CSS+fonts).
+
+**This session's queue (registered BEFORE any code change per §13):**
+1. **T-546 step 1 / UI-352** — the token/tailwind/chart-layer rewiring: live-getter chartPalette, `rgb(var(--x-rgb)/<alpha-value>)` utilities, theme-aware gridStroke/axis/tooltip chrome, the `--card-border-strength` channel, light border #94a3b8, themed focus ring, the SVG whites → themed classes.
+2. **T-546 step 2 / UI-353** — the shared TooltipContent contract (no internal clipping, collisionPadding, modal-safe z) + InfoTip width/formula room + the shared Recharts tooltip prop set.
+3. **T-546 step 3 / UI-354** — the `<Latex>` component + the glossary `formula`/`vars` extension (fr/en/ar shape-locked) with formulas derived from analytics-derivations.ts / tranche-waves.ts.
+4. **T-546 steps 4-5** — the regression suite (t-546) + the gates (typecheck/lint/focused suites/full battery + the registered baseline move) + the docs closeout.
+
+**The concurrent 180th-session queue (T-541..T-545, registered bd89b260):** tracked in its own header below — disjoint surfaces, no shared files except this documentation.
+
+---
+
 # 2026-10-15 — The 180th session IN PROGRESS (the owner's five-part mandate T-541..T-545). **T-541 / OPS-324 → TESTED (COMPLETE):** the GPS Tournées feature removed from BOTH clients + the server — desktop half f27daaac, Android half d32c367 (pushed to origin/main), migration 0157 applied LIVE (tournee permissions 2→0, grants 4→0, the driver ROLE + its 3 worker grants preserved; post-apply census green). Android gates measured with the stash-baseline proof: the 7 debug / 2 release failures + the 1 lint error are ALL pre-existing on main (dashboard files untouched by T-541). **Next: T-542 / SEC-120** — the desktop search-index permission filter (makeSearchIndex gains the access context; unpermitted entity types NEVER QUERIED; worker = zero cross-entity results, admin = all six; regression test + gates + docs closeout per the registered plan).
 
 **Session-opening state (measured):** the branch mandate arrived SATISFIED for the hub (git ls-remote --heads = 1 ref, main-only) and was COMPLETED for Android (the fix/restore-working-login-remove-demo ref — already an ancestor of main, rev-list count 0 — deleted per §15.59 after a fresh containment census; its commits remain reachable from main). Desktop typecheck 0 errors; RBAC suites 111/111 green at open. The Android baseline gate was completed DURING T-541 (794 tests / 7 pre-existing failures on clean main — the baseline for this session's comparisons).
