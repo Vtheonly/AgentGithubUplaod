@@ -6364,3 +6364,19 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** nothing — VERIFIED. (Standing note: the staff should change their passwords at first sign-in per the T-527 convention, Profile → Changer le mot de passe.)
 
 **Related:** SEC-100 (the no-plaintext-passwords rule this task obeyed) · §15.23 (the owner-pinned admin directive, respected) · T-527 (the staff accounts' creation + the out-of-band delivery convention this task's chat delivery replaced at the owner's explicit instruction) · T-464 (the two dormant test profiles) · UNKNOWN-028 (the stray 0118 steady state re-confirmed) · `docs/operations/credentials.md` §1 + the SEC-100 password-policy paragraph (updated this session).
+
+## T-536 — Repair the unregistered b4a441e dashboard-grid/modal state: view-mode geometry that both respects the saved layout AND grows vertically (UI-349), plus the « Voir les détails » modal restructure on the 360° standard (UI-350) — the 180th session
+
+**Problem IDs:** UI-349, UI-350 (registered this session; the T-534 height pins and T-247 modal contracts are re-measured as part of this task, not new problems).
+
+**Status:** IN_PROGRESS (180th session, 2026-10-15).
+
+**The mandate (owner, in chat, 2026-10-15):** clone + consolidate branches (verified: main-only already holds, all PR heads ancestors); read the audit docs + AGENTS.md before changes; fix the reported `Badge is not defined` / `StatusChip` / `PAYMENT_CATEGORY_LABELS_FR` errors (forensics: the pushed b4a441e already contains those imports — typecheck + build green at HEAD; the runtime error came from the owner's stale pre-push build — a desktop rebuild clears it); fix UI clipping so components grow vertically as needed; bring the « Voir les détails » modal to the main dashboard modal standard (hierarchy, spacing, density, alignment, grouping, no redundancy, no hollow space); keep the surface user-facing (no SQL/DB details); presentation only — NOT the broader white redesign.
+
+**Scope fences:** dashboard-layout-editor view-mode geometry; see-details-modal.tsx; the T-534/T-247 test pins; registry/docs updates. NO financial-derivation changes, NO unrelated components, NO migration/backend changes, NO visual redesign beyond the modal.
+
+**Plan:** (1) registration commit (this one); (2) fix(dashboard) UI-349 — restore `gridRow` in view mode + `gridAutoRows: minmax(32px, auto)` view-mode tracks; update T-534 pins to the owner's measured floors (risk 12/10/24 · waves 18/14/30 · rows 19/32/44) + add view-mode grow-contract assertions; (3) fix(dashboard) UI-350 — modal restructure per tab (T-247 trio restored, dedup via totals footers, single scroll surface, icon-titled section cards, colon legend, Relance label, "—" degradation); (4) verification ladder: tsc, eslint, focused suites (t-534, ai-review-screens, dashboard-3zone, analytics-visuals, t-503), build; (5) docs closeout (registries, change-log, next-task) + push per commit.
+
+**Verified:** (registration round, measured at HEAD b4a441e before changes) `tsc --noEmit` 0 · eslint 0 errors/991 warnings · build green · vitest: t-534 2 failed / ai-review-screens 4 failed / dashboard-3zone 19/19 / analytics-visuals 26/26 — the failure inventory this task exists to repair.
+
+**Related:** UI-348/T-534 (the contract this task re-measures), UI-336/T-503 (overflow containment — preserved in edit mode), UI-347/T-533 (diagnostic module), REG-003 (the unregistered-patch pattern this session's forensics re-confirm), ADR-028 (branch consolidation verified held).
