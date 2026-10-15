@@ -233,8 +233,11 @@ const wineAvailable = (() => {
   }
 })();
 
+// A native Windows runner does not need Wine to build the NSIS installer.
+const canBuildNsis = isWindows || wineAvailable;
+
 rmSync(releaseDir, { recursive: true, force: true });
-if (wineAvailable) {
+if (canBuildNsis) {
   run(npm, ["run", "dist:win", "--", "--publish", "never"], buildEnv);
 } else {
   console.log(
@@ -270,7 +273,7 @@ const asarPath = join(unpackedDir, "resources", "app.asar");
 // non-zero. Declared here so both scopes see the same binding.
 let setupSize = 0;
 
-if (wineAvailable) {
+if (canBuildNsis) {
   assertFile(setupPath, "Windows NSIS installer");
   setupSize = statSync(setupPath).size;
   if (setupSize < 5 * 1024 * 1024) fail(`NSIS installer is unexpectedly small (${setupSize} bytes).`);
@@ -351,7 +354,7 @@ assertPayloadContainsText(
 }
 
 const hashLines = [`${sha256(portablePath)}  ${expectedPortable}`];
-if (wineAvailable) {
+if (canBuildNsis) {
   hashLines.unshift(`${sha256(setupPath)}  ${expectedSetup}`);
 }
 const hashes = hashLines.join("\n") + "\n";
@@ -374,7 +377,7 @@ if (existsSync(smokeSource)) {
 console.log("\n============================================================");
 console.log(" WINDOWS PACKAGE VERIFIED");
 console.log("============================================================");
-if (wineAvailable) {
+if (canBuildNsis) {
   console.log(`Installer : ${expectedSetup} (${Math.round(setupSize / 1024 / 1024)} MB)`);
 } else {
   console.log("Installer : SKIPPED (wine unavailable on this host — run on a wine/Linux or Windows host for the NSIS setup.exe)");
