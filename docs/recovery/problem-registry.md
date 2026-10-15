@@ -8594,14 +8594,27 @@ The inspection confirms the gap with THREE structural facts:
 ### WORKFORCE-522 — The Android scanner is a STANDALONE feature (a "Scanner" tab in the Financials hub + a dedicated route) instead of an option inside the file-attachment workflow — and the mobile expense detail has NO multi-attachment surface at all (the domain Expense carries only the legacy single proofUrl) while the desktop reads the canonical `expense_attachments` table
 
 - **Category:** WORKFORCE / feature integration (the owner's mandate part 1) | **Severity:** MEDIUM (the mandate: "The scanner must not exist as a separate feature, screen, or section in the app")
-- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-545)
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-545; scope CLARIFIED by the owner the same day in the 181st session — see the note below)
 - **Repositories:** elimtiyaz-android (+ the hub's canonical table it will now read)
 - **Platforms affected:** Android
 - **Task:** T-545
-- **Registered:** 2026-10-15, the 180th session.
+- **Registered:** 2026-10-15, the 180th session; scope clarification 2026-10-15, the 181st session.
 - **Description (what is wrong):** the Financials hub renders "Scanner" as tab 5 (a standalone section); Routes.ProofScanner exists as a standalone route with a dead MainScreen navigation param; meanwhile the expense detail screen offers no attachment gallery — the canonical expense_attachments system (migration 0153, T-521) has NO mobile consumer.
-- **What must change:** the mobile expense detail gains the canonical attachment surface (read expense_attachments; add via SCAN — the existing ProofScanner engine in-context — or GALLERY); the standalone tab + route + dead param are removed; the settle dialog's in-context scan action stays (it is already an attachment-workflow usage).
-- **Evidence:** FinancialsHubScreen tabs list + tab-5 inline render; Routes.kt ProofScanner + SETTLE_EXPENSE_PROOF mapping; MainScreen dead param; ExpenseApprovalScreen settle dialog; the owner's mandate.
+- **Owner's scope clarification (181st session):** "When I said scanner, I did not mean a dedicated document-scanning system … I simply meant a camera option that allows users to take a picture of an object or document and attach it directly … Do not create a separate scanner screen, module, or navigation entry. Reuse the existing attachment workflow and keep the implementation lightweight." → T-545 delivers the TAKE PHOTO integration (chat composer + settle dialog, the HomeworkPushScreen capture pattern) and the standalone removal; the canonical expense_attachments read surface is DEFERRED to a later session (recorded on T-545's block).
+- **What must change:** a Take Photo camera option inside the existing attachment interfaces (chat composer + expense settle dialog — capture, preview, attach); the standalone tab + route + dead param are removed; the settle dialog's capture becomes fully in-context (no navigation).
+- **Evidence:** FinancialsHubScreen tabs list + tab-5 inline render; Routes.kt ProofScanner + SETTLE_EXPENSE_PROOF mapping; MainScreen dead param; ExpenseApprovalScreen settle dialog; the owner's mandate + the 181st-session clarification.
+
+### CALL-523 — The Android calling path's feedback and error contracts are incomplete (two of fifteen call sites fail SILENTLY, a missing dialer app surfaces as a cryptic raw exception, and the number-sanitization contract has zero test coverage) — the dial intent itself is correct but the owner's "investigate and fix the calling functionality" mandate demands the whole path be honest and verified
+
+- **Category:** CALL / platform integration (the owner's two-part directive, part 2) | **Severity:** MEDIUM (the feature works on dialer-equipped devices; the defects are the silent-failure sites and the unverifiable contract)
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-547)
+- **Repositories:** elimtiyaz-android
+- **Platforms affected:** Android
+- **Task:** T-547
+- **Registered:** 2026-10-15, the 181st session.
+- **Description (what is wrong):** (a) DebtDashboardScreen + FinancialsCreancesTab call `PhoneUtils.dial(context, phone)` with NO toast — the only two of fifteen call sites without the F-18 feedback channel, so a blank/invalid number is a silent no-op; (b) `PhoneUtils.dial`'s generic `catch (Exception)` renders `ActivityNotFoundException` as the raw system message ("No Activity found to handle Intent…") — the real case is a device with no dialer app at all (the Waydroid harness); (c) the manifest declares no `<queries>` element for the dialer intent (safe for bare startActivity on API 30+, but the undocumented-robustness gap); (d) zero unit tests pin the number sanitization (digits + leading `+`) or the WhatsApp 0→213 link build.
+- **What must change:** the dedicated ActivityNotFoundException branch with an honest French message; the two toast-less sites pass the DS toast; the manifest `<queries>` entry; the sanitization/link contracts extracted as pure functions and pinned by unit tests. The dial intent (ACTION_DIAL + tel: + NEW_TASK) is PRESERVED — the interface and intended behavior unchanged (the owner's explicit "opens the appropriate phone or dialer interface" = the dialer contract, NOT direct ACTION_CALL).
+- **Evidence:** the 15-site census (rg "PhoneUtils\." — 13 with toast, 2 without); PhoneUtils.kt catch block; AndroidManifest.xml (no queries); the empty ui/util test directory.
 
 
 ### UI-352 — The Clair Épuré light theme rides on dark-tuned constants at FOUR independent layers: invisible Recharts gridlines (white-on-white rgba), stale module-load token captures in the chart mirrors, static midnight hexes in the tailwind status/brand/surface utilities, and card-border color-mixes that wash the border toward the white panel — plus never-themed focus rings, white diagram backgrounds, and midnight-tuned tooltip shadows
