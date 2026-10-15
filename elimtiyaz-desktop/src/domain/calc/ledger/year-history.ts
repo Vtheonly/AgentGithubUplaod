@@ -471,6 +471,24 @@ function yearMetaOf(
       };
     }
   }
+  // A legacy charge can resolve to a year that has no row in
+  // `academic_years` yet. Give its generated history card a real historical
+  // cutoff instead of marking every unknown year as perpetually "en cours".
+  // These are display/calculation bounds only; nothing is written to the DB.
+  const codeYears = /^(\d{4})-(\d{4})$/.exec(code);
+  if (codeYears && Number(codeYears[2]) === Number(codeYears[1]) + 1) {
+    const startYear = Number(codeYears[1]);
+    const endYear = Number(codeYears[2]);
+    const startDate = `${startYear}-07-01`;
+    const endDate = `${endYear}-06-30`;
+    const start = new Date(startDate).getTime();
+    return {
+      start: Number.isFinite(start) ? start : academicYearStart(code),
+      startDate,
+      endDate,
+      id: null,
+    };
+  }
   return { start: academicYearStart(code), startDate: null, endDate: null, id: null };
 }
 

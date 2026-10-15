@@ -280,34 +280,43 @@ export interface DebtAgingAnalysis {
  * Attribute a date to an academic year.
  *
  * Priority (financial-rules §15, INV-14):
- *   1. a tenant `academic_years` row whose [start_date, end_date] contains
- *      the date → that row's code;
+ *   1. a tenant `academic_years` row whose date window contains the date
+ *      AND whose YYYY-YYYY code is consistent with the date's calendar year;
  *   2. otherwise the Algerian school-year calendar convention: July–December
  *      belongs to `YYYY-(YYYY+1)`, January–June to `(YYYY-1)-YYYY`.
  *
- * The live tenant carries only 2026-2027 — historical due dates (the legacy
- * corpus and any carried-forward debt) resolve through the convention, which
- * is deterministic and never rewrites history.
+ * The code/window consistency check prevents a stale or over-broad current-year
+ * window from absorbing historical charges (e.g. a 2024 due date into
+ * 2026-2027). A missing historical year is derived from the due date; no
+ * academic-year row is created or persisted by this frontend calculation.
  */
 export function resolveAcademicYearForDate(
   isoDate: string,
   years: readonly AcademicYearWindow[] = [],
 ): string {
   const t = new Date(isoDate).getTime();
-  if (Number.isFinite(t)) {
-    for (const y of years) {
-      const start = new Date(y.startDate).getTime();
-      const end = new Date(y.endDate).getTime();
-      if (Number.isFinite(start) && Number.isFinite(end) && t >= start && t <= end) {
-        return y.code;
-      }
-    }
-  }
   const d = Number.isFinite(t) ? new Date(t) : new Date(isoDate);
   const year = d.getUTCFullYear();
   const month = d.getUTCMonth() + 1; // 1..12
   // July(7)..December(12) → the school year STARTS this calendar year.
-  return month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+  const derivedCode = month >= 7 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+
+  if (Number.isFinite(t)) {
+    for (const y of years) {
+      const start = new Date(y.startDate).getTime();
+      const end = new Date(y.endDate).getTime();
+      if (!Number.isFinite(start) || !Number.isFinite(end) || t < start || t > end) continue;
+
+      // A configured date range must not let a row labelled 2026-2027 claim
+      // a calendar date from 2024. Keep custom/nonstandard codes compatible.
+      const codeYears = /^(\d{4})-(\d{4})$/.exec(y.code);
+      const codeMatchesDate =
+        !codeYears || (year >= Number(codeYears[1]) && year <= Number(codeYears[2]));
+      if (codeMatchesDate) return y.code;
+    }
+  }
+
+  return derivedCode;
 }
 
 /** Numeric sort key of a "YYYY-YYYY" code (the start year). */

@@ -366,6 +366,37 @@ describe("T-436 — the attribution precedence (INV-18a) and the freeze (INV-18b
     expect(h.years[0].charges[0].attribution.source).toBe("due_date");
   });
 
+  it("a 2024 due date gets its own closed year card instead of a stale broad 2026-2027 window", () => {
+    const ins = makeInstallment({
+      parentId: "p-2024",
+      id: "ins-legacy-2024",
+      amountDue: 2_222,
+      amountPaid: 0,
+      amountPending: 0,
+      dueDate: "2024-01-14",
+      academicYearId: null,
+    });
+    const h = computeParentYearHistory({
+      parentId: "p-2024",
+      installments: [ins],
+      ledgerEntries: [],
+      academicYears: [
+        { id: "ay-2026", code: "2026-2027", startDate: "2023-09-01", endDate: "2027-06-30" },
+      ],
+      now: NOW,
+    });
+
+    expect(h.years.map((y) => y.academicYear)).toEqual(["2023-2024"]);
+    expect(h.years[0].charges[0].attribution).toMatchObject({
+      code: "2023-2024",
+      id: null,
+      source: "due_date",
+    });
+    expect(h.years[0].endDate).toBe("2024-06-30");
+    expect(h.years[0].isOpen).toBe(false);
+    expect(h.years[0].yearEndOutstanding).toBe(2_222);
+  });
+
   it("an échéance edit NEVER re-attributes a persisted row (the DATA-051 freeze)", () => {
     const before = makeInstallment({
       ...baseCharge, id: "ins-freeze", dueDate: "2025-10-15",
