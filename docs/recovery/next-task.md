@@ -1,3 +1,18 @@
+# 2026-10-15 — The 180th session OPEN: the owner's five-part mandate (T-541..T-545 — renumbered after the concurrent 180th-session T-536/UI-349/UI-350 registration, eca9c1c1) supersedes the T-532 phases for this session. Next: T-541 (GPS Tournées complete removal) → T-542 (search RBAC) → T-543 (sidebar) → T-544 (attachment RLS + gates) → T-545 (Android scanner integration).
+
+**Session-opening state (measured):** the branch mandate arrived SATISFIED for the hub (git ls-remote --heads = 1 ref, main-only) and was COMPLETED for Android (the fix/restore-working-login-remove-demo ref — already an ancestor of main, rev-list count 0 — deleted per §15.59 after a fresh containment census; its commits remain reachable from main). Desktop typecheck 0 errors; RBAC suites 111/111 green at open. The Android baseline gate is running (toolchain re-provisioned after the container reset: Temurin JDK 21 at /home/z/my-project/jdk, SDK 35 at /home/z/my-project/android-sdk, root .env via scripts/setup-env.sh).
+
+**This session's queue (the owner's mandate, registered BEFORE any code change per §13):**
+1. **T-541 / OPS-324** — completely remove GPS Tournées/Tournee-Driver from desktop + Android + the exclusively-tournee server permission seeds (new migration 0157). Census recorded in the task entry.
+2. **T-542 / SEC-120** — the desktop Cmd+K search-index permission filter (worker must not see parents/students/payments/expenses/audit/personnel).
+3. **T-543 / UI-351** — hide inaccessible sidebar sections; Personnel node → authenticated (the ungated /personnel home); Android personnel-tab parity.
+4. **T-544 / UPLOAD-105** — migration 0157's companion policy fix (expense_attachments submitter visibility) + the desktop drawer attach gate for submitters.
+5. **T-545 / WORKFORCE-522** — the Android expense attachment surface (scan/gallery) + the standalone Scanner tab/route removal.
+
+**Previously queued (T-532 phases 4-6 — ACAD-516, ACAD-515, docs closeout):** deferred behind the owner's mandate; unchanged, not blocked.
+
+---
+
 # 2026-10-14 — The 179th session COMPLETE (the T-533/T-534 verification closeout + T-535 the owner's lost-credential recovery). Next: T-532's remaining phases — ACAD-516 (the N-section even-distribution + split engine) then ACAD-515 (the year-scoping fixes), then the T-532 docs closeout.
 
 **Done this session:** (1) T-534/UI-348 → RESOLVED-TESTED on the measured ladder (t-534 4/4 · typecheck 0 · eslint 0 · the full five-chunk census 5,247/0/5 across 320 files · Layer 2 equivalence matched) — the implementation was already on main (44d2ab32); (2) T-533/UI-347 → RESOLVED-TESTED on the same ladder, plus the dead-prop cleanup (b0526330's unused `onOpenStudent`/`onOpenParent` removed — zero behaviour change, warnings 994→993); (3) the test baseline moved to the measured state (5,247/319, the per-file +20 attributed to T-532/T-533/T-534); (4) T-535/OPS-323 → RESOLVED-VERIFIED-LIVE: the read-only auth census (6 users, bcrypt one-way proof), the owner-directed reset of exactly the 3 unrecoverable staff passwords (GoTrue admin API, sign-in-verified 200 ×3, values delivered in chat only per SEC-100; the owner-pinned admin credential NEVER touched; the Google identities untouched); (5) the §15.11 chain census: live 152 = local 151 + the documented stray 0118 — no new drift, head 0156 matches.

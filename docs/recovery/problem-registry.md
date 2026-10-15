@@ -8536,3 +8536,70 @@ The inspection confirms the gap with THREE structural facts:
 - **Root cause:** an unregistered AI-assisted rewrite optimized for visual polish without re-running the pinned suites (the REG-003 pattern: unregistered patch accepted as baseline without the detection net).
 - **What must be true of the fix:** (a) the T-247 assertions pass again (trio labels + real derivations, "—" degradation, unique donut total, "Garçons:"/"Filles:" legend, "Relance" severity); (b) each number appears once (totals live in table footers, not duplicate tiles); (c) ONE scroll surface (the modal body); (d) structure matches the 360° modal standard (summary strip → section cards with icon titles, consistent spacing); (e) all financial derivations byte-identical (no new math); (f) user-facing French labels only — no SQL/DB/technical identifiers; (g) presentation-only — no i18n key changes required beyond existing usage.
 - **Evidence (registration):** `npx vitest run src/tests/ui/ai-review-screens.test.tsx` → 4 failed / 15 passed at HEAD b4a441e; the duplicated-count/duplicate-sum inventory listed above read directly from the current source.
+
+*Renumber note (2026-10-15): drafted as T-536..T-540/UI-349, renumbered to T-541..T-545/UI-351 after the concurrent session took T-536/UI-349/UI-350 — no semantic change.*
+
+---
+
+### OPS-324 — The GPS Tournées / Tournee-Driver feature must be COMPLETELY removed from both clients (the owner's mandate: "This is a complete removal, not merely a UI change") — desktop stub + Android driver-routing subsystem + the exclusively-tournee server permission
+
+- **Category:** OPS / feature removal (the owner's mandate part 5) | **Severity:** MEDIUM (feature retirement, not a defect — but the mandate demands zero dead navigation, zero orphaned imports, zero orphaned code)
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-541 — census recorded in the task entry BEFORE any deletion per recovery-rule 9)
+- **Repositories:** AgentGithubUplaod (desktop + migration 0157) + elimtiyaz-android
+- **Platforms affected:** Desktop, Android, Backend (permission seed cleanup)
+- **Task:** T-541
+- **Registered:** 2026-10-15, the 180th session.
+- **Description (what is wrong):** the driver-routing feature exists as (a) a desktop ComingSoonCard stub (sidebar entry + feature node + /routing route + AccessDriverMode permission) and (b) a full Android subsystem (3 screens, GPS foreground service, Room tables vehicles/routing_stops/trip_logs, repository, seeder, Personnel-hub "Tournées" tab, routes) — the owner has retired the feature entirely.
+- **What must change:** everything exclusively-tournee goes (full census in T-541); the Driver ROLE and the deliveries dashboard STAY (verified NOT tournee); migration 0157 removes the `access_driver_mode` + `view_routing` permission seeds and the driver-role grants of exactly those two permissions (the ROLE row itself stays — live user_profiles may carry it).
+- **Preserved:** Role.Driver (staff role with standard worker permissions), driver-dashboard (deliveries workflow), every "extourne" financial code path (false-positive matches), FCM notification routing terminology/tests.
+
+### SEC-120 — The desktop Cmd+K search index performs UNAUTHORIZED cross-entity searches for restricted roles: `makeSearchIndex(repos)` carries NO permission context — a worker session types a name and the palette lists parents, students, payments (amounts + receipt numbers), expenses, audit entries and personnel from all six repositories (the owner's live report: "a restricted worker could still use the search bar to find people's names and payment-related information")
+
+- **Category:** SEC / RBAC client enforcement | **Severity:** HIGH (information disclosure across the search surface — the exact class the owner's mandate part 3 targets; mock mode leaks ALL entity types, Supabase mode still leaks personnel names/phones/emails to every staff role)
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-542)
+- **Repositories:** AgentGithubUplaod (desktop)
+- **Platforms affected:** Desktop (Android search is already route-gated: GlobalSearchScreen requires VIEW_ROSTER; in-hub search bars sit behind VIEW_FINANCIALS/VIEW_PERSONNEL hubs — audited, no equivalent leak found)
+- **Task:** T-542
+- **Registered:** 2026-10-15, the 180th session.
+- **Description (what is wrong):** `src/shared/search-index.ts` queries parents/students/payments/expenses/audit/personnel unconditionally for every signed-in session; the topbar renders the palette for everyone; the empty-state chips advertise all six types. Server RLS narrows Supabase-mode results (parents/payments exclude worker) but personnel_select includes ALL staff — and MOCK mode (the unconfigured default) leaks every entity type with the full demo dataset. The disclosure IS the result list (names + amounts + receipt numbers) — the route-guard redirect that follows a click does not un-disclose it.
+- **Root cause:** the search index was built (iteration 7 P3-R) before the restricted-staff accounts existed (WORKFORCE-521 created the worker accounts 2026-10-13); the palette was never re-audited against the RBAC matrix.
+- **What must change:** permission-aware index construction — each result type maps to its section's permission (parent/student → ViewRoster, payment/expense → ViewFinancials, audit → ViewAuditLog, personnel → ViewPersonnel); unpermitted types are never queried; the chips show only permitted types. RLS untouched (already correct).
+- **Evidence:** source read 2026-10-15 (search-index.ts lines 46–176 — no session reference); RLS census (0019 parents_select/payments_select/personnel_select role sets); the owner's live report.
+
+### UI-351 — The desktop staff sidebar renders permission-denied sections as cluttered lock rows (a worker sees seven "Permission insuffisante" rows) — and the worker's own workspace entry (Personnel — the UNGATED /personnel fallback home) renders LOCKED because the FeatureNode requires ViewPersonnel
+
+- **Category:** UI / RBAC presentation (the owner's mandate part 4) | **Severity:** MEDIUM (UX mandate: "Avoid cluttering the sidebar with unnecessary permission-denied items … Avoid making the interface look broken or filled with disabled elements")
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-543)
+- **Repositories:** AgentGithubUplaod (desktop) + elimtiyaz-android (HUB_TABS parity leg)
+- **Platforms affected:** Desktop, Android
+- **Task:** T-543
+- **Registered:** 2026-10-15, the 180th session.
+- **Description (what is wrong):** sidebar.tsx GatedContent disabledStyle="inline" renders a grey lock row for every section the role cannot enter; the Personnel node requires ViewPersonnel while route-access.ts deliberately leaves /personnel UNGATED (it is ROUTE_GUARD_REDIRECT — the restricted staff's destination), so the worker's OWN workspace shows as locked in the sidebar. The Android bottom bar already implements the hidden model (permission-filtered HUB_TABS) — the desktop is the inconsistent outlier; conversely the Android personnel TAB requires VIEW_PERSONNEL which teachers/workers lack — they cannot reach their workspace at all (the inverse inconsistency).
+- **What must change:** Personnel node → authenticated requirement (matches the ungated route + the documented Worker/Driver/Buyer hub tabs; the inner directory stays ViewPersonnel-gated); sidebar HIDES non-enabled sections; Android personnel tab drops the VIEW_PERSONNEL filter (every staff session reaches its workspace — the desktop /personnel parity).
+- **Evidence:** sidebar.tsx + gated-content.tsx read 2026-10-15; route-access.ts PROTECTED_ROUTE_PREFIXES (no /personnel entry); personnel-page.tsx header comment documents the Worker/Driver/Buyer tabs; MainScreen.kt HUB_TABS.
+
+### UPLOAD-105 — The submitter's expense attachments are INVISIBLE to the submitter: migration 0153's `expense_attachments_select` grants ONLY the privileged trio while `expense_attachments_insert` grants every staff role — a non-admin upload succeeds (200, row exists) and then NEVER appears for the account that uploaded it; compounding client-side, the desktop expense drawer passes `canManage={canSettle || canApprove}` so a non-privileged submitter has NO attach button at all (the owner's report: "uploading from Finance worked as admin, uploading from Staff did not for a non-admin account — the file did not appear")
+
+- **Category:** UPLOAD / RLS visibility + client gating | **Severity:** HIGH (the exact owner-reported symptom; "an upload appears successful but the file does not appear in the relevant interface")
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-544)
+- **Repositories:** AgentGithubUplaod (migration 0157 + desktop)
+- **Platforms affected:** Backend (RLS), Desktop (Staff + Finance surfaces); Android reads the same table in T-545
+- **Task:** T-544
+- **Registered:** 2026-10-15, the 180th session.
+- **Description (what is wrong):** the INSERT and SELECT policies of the SAME table were written against DIFFERENT audiences (insert: the 0018 upload role set — all staff; select: the 0018 expense_receipts_read set — the trio). The parent-ticket select (0019) already extends to `submitted_by = current_user_profile_id()`; the attachment policy forgot the submitter leg. The desktop drawer's gallery gate then hides the attach control from the same submitter (canManage = settle-or-approve).
+- **Root cause:** T-521 shipped the attachments table mirroring the 0018 STORAGE read policy instead of the 0019 PARENT-TICKET read policy — the storage bucket's read audience (trio) and the ticket's read audience (trio + submitter) differ, and the metadata table followed the wrong one.
+- **What must change:** migration 0157 replaces the select policy with the parent-ticket visibility rule (trio OR submitted_by OR responsible_profile_id = current_user_profile_id()); the drawer's gate allows the submitter/responsible to ATTACH to their own ticket (remove stays privileged); regression tests pin both legs; live application + probe.
+- **Evidence:** 0153 policy text read 2026-10-15; expense-detail-drawer.tsx line ~318; expense-attachments-gallery.tsx canAttach derivation; the owner's live report.
+
+### WORKFORCE-522 — The Android scanner is a STANDALONE feature (a "Scanner" tab in the Financials hub + a dedicated route) instead of an option inside the file-attachment workflow — and the mobile expense detail has NO multi-attachment surface at all (the domain Expense carries only the legacy single proofUrl) while the desktop reads the canonical `expense_attachments` table
+
+- **Category:** WORKFORCE / feature integration (the owner's mandate part 1) | **Severity:** MEDIUM (the mandate: "The scanner must not exist as a separate feature, screen, or section in the app")
+- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-545)
+- **Repositories:** elimtiyaz-android (+ the hub's canonical table it will now read)
+- **Platforms affected:** Android
+- **Task:** T-545
+- **Registered:** 2026-10-15, the 180th session.
+- **Description (what is wrong):** the Financials hub renders "Scanner" as tab 5 (a standalone section); Routes.ProofScanner exists as a standalone route with a dead MainScreen navigation param; meanwhile the expense detail screen offers no attachment gallery — the canonical expense_attachments system (migration 0153, T-521) has NO mobile consumer.
+- **What must change:** the mobile expense detail gains the canonical attachment surface (read expense_attachments; add via SCAN — the existing ProofScanner engine in-context — or GALLERY); the standalone tab + route + dead param are removed; the settle dialog's in-context scan action stays (it is already an attachment-workflow usage).
+- **Evidence:** FinancialsHubScreen tabs list + tab-5 inline render; Routes.kt ProofScanner + SETTLE_EXPENSE_PROOF mapping; MainScreen dead param; ExpenseApprovalScreen settle dialog; the owner's mandate.
+
