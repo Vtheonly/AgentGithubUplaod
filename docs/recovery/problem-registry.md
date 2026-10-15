@@ -8659,7 +8659,7 @@ The inspection confirms the gap with THREE structural facts:
 ### UI-355 — The shared AutoFormModal resets form state on EVERY `initialValues` reference change while open (every consumer passes an inline render-time object literal, so any parent re-render mid-edit silently reverts the user's edits) — the root cause of the school-year selection/persistence reports: a manually selected OLDER school year (or a previous-year date, or year-scoped form data) reverts to the current-default year before the user can save
 
 - **Category:** Form-state correctness (the mid-edit clobber family) | **Severity:** HIGH (silent data corruption at save time: the record persists the DEFAULT year instead of the user's explicit selection — the owner's reported symptom)
-- **Status:** OPEN → IN_PROGRESS (2026-10-15, T-548)
+- **Status:** RESOLVED — TESTED (T-548 Fix A, commit 87658d5f: the `wasOpenRef` rising-edge guard in the shared primitive — reset ONLY on the closed→open transition; the mid-edit-clobber regression pin proven RED against the pre-fix code then GREEN; the full ladder green [primitives 16/16 · tsc 0 · eslint 0 errors · the consumer battery 86/86 · the five-chunk census 320 files 5,250/0/5 · build green]. Was OPEN → IN_PROGRESS (2026-10-15, T-548).)
 - **Repositories:** AgentGithubUplaod (desktop)
 - **Platforms affected:** Desktop — every AutoFormModal consumer (25+ modals): the Finances Year-Tracking `ManualDebtModal` (the year select + the date the INV-14 inference reads), the Academics school-years create/edit modals, clubs, subjects, subject configurations, installment due-date editor, calendar-event creator, alert creator, task forms, secret editor.
 - **Task:** T-548
