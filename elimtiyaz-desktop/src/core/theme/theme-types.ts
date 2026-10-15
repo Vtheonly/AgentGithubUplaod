@@ -117,7 +117,12 @@ export const PRESET_THEMES: CustomThemePalette[] = [
       surfaceHover: "#e2e8f0",
       textForeground: "#0f172a",
       textMuted: "#64748b",
-      borderColor: "#cbd5e1",
+      // T-546 (UI-352): #cbd5e1 (slate-300) disappeared against the white
+      // panel — Clair Épuré's border token is strengthened to #94a3b8
+      // (slate-400): clearly visible at 1px on white/near-white surfaces
+      // without reading heavy. index.css `.light` carries the SAME value
+      // (the pre-JS flash fallback) — one source, two homes, keep aligned.
+      borderColor: "#94a3b8",
       statusSuccess: "#059669",
       statusWarning: "#d97706",
       statusDanger: "#dc2626",

@@ -20,6 +20,13 @@
  * TooltipProvider is mounted at the app shell — app.tsx). The tooltip body
  * renders the entry's fields with their section labels, all dictionary
  * strings (the labels themselves come from `statsTips._meta`).
+ *
+ * T-546 (UI-353/UI-354): the body gains the FORMULA block — the optional
+ * `formula` field (raw LaTeX) rendered through the shared <Latex display>
+ * primitive (KaTeX — real typeset math, currentColor, both themes) with the
+ * `vars` field documenting the symbols; the width grows to fit fractions
+ * without clipping (the shared TooltipContent lost its overflow-hidden and
+ * gained collisionPadding — see shared/ui/tooltip.tsx).
  */
 import { useTranslation } from "react-i18next";
 import { Info } from "lucide-react";
@@ -30,6 +37,7 @@ import {
   TooltipProvider,
 } from "../../../../shared/ui/tooltip";
 import { cn } from "../../../../shared/ui/cn";
+import { Latex, TextWithLatex } from "../../../../shared/ui/latex";
 
 /** The section labels (rendered from the dictionaries — never hardcoded). */
 const META_FIELDS = ["measures", "calc", "status"] as const;
@@ -49,6 +57,8 @@ export function InfoTip({ tip, className, size = 12 }: InfoTipProps) {
   // compile-time dictionary shape make this impossible in practice, but
   // the component never fabricates content).
   if (!title) return null;
+  const formula = t(`statsTips.${tip}.formula`, { defaultValue: "" });
+  const vars = t(`statsTips.${tip}.vars`, { defaultValue: "" });
   return (
     // Self-contained provider (nested safely inside the app-level one):
     // the tip mounts wherever a metric renders — including bare test
@@ -72,7 +82,7 @@ export function InfoTip({ tip, className, size = 12 }: InfoTipProps) {
         </TooltipTrigger>
         <TooltipContent
           side="top"
-          className="max-w-[300px] px-3 py-2.5 space-y-1.5 text-left leading-relaxed"
+          className="w-max max-w-[380px] px-3 py-2.5 space-y-1.5 text-left leading-relaxed"
         >
           <p className="text-xs font-semibold text-popover-foreground">{title}</p>
           {META_FIELDS.map((field) => {
@@ -86,10 +96,30 @@ export function InfoTip({ tip, className, size = 12 }: InfoTipProps) {
                     {label}
                   </span>
                 )}
-                {value}
+                <TextWithLatex text={value} />
               </p>
             );
           })}
+          {/* The formula block: typeset math (KaTeX) + the symbol legend. */}
+          {formula && (
+            <div
+              className="mt-1 rounded-md border border-border/70 bg-muted/40 px-2 py-1.5"
+              data-testid={`stat-tip-formula-${tip.replace(/\./g, "-")}`}
+            >
+              <span className="font-semibold uppercase tracking-wide text-[9px] text-muted-foreground mr-1">
+                {t(`statsTips._meta.formula`, { defaultValue: "" })}
+              </span>
+              <Latex tex={formula} display className="text-popover-foreground" />
+              {vars && (
+                <p className="text-[10px] text-popover-foreground/80 mt-1">
+                  <span className="font-semibold uppercase tracking-wide text-[9px] text-muted-foreground mr-1">
+                    {t(`statsTips._meta.vars`, { defaultValue: "" })}
+                  </span>
+                  <TextWithLatex text={vars} />
+                </p>
+              )}
+            </div>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

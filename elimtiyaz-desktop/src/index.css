@@ -14,41 +14,69 @@
  * (dark default / light fallback) without touching component code.
  * Per the plan's discipline rule: ALWAYS use tokens, never hard-code hex.
  *
- * PARITY CONTRACT (do not break): `tailwind.config.cjs` duplicates these
- * values as static hexes so opacity utilities (`bg-surface-panel/50`,
- * `bg-status-danger/10`) resolve at build time — Tailwind 3 cannot apply
- * alpha to `var()` colors. When a token value changes here, the twin value
- * in tailwind.config.cjs AND the TS hex fallbacks that mirror the tokens
- * (`src/shared/ui/dashboard-theme.ts` chartPalette,
- * `see-details-modal.tsx` useChartPalette, `tabs/types.ts` AGING_COLORS,
- * `sparkline-kpi-card.tsx` STROKE_BY_TONE) MUST change in the SAME commit.
+ * PARITY CONTRACT (do not break, T-546-amended): every brand/status/surface
+ * hex token below carries a `-rgb` channel twin ("r g b") consumed by
+ * tailwind.config.cjs via `rgb(var(--x-rgb) / <alpha-value>)` so EVERY
+ * compiled utility (text/bg/border/fill/stroke + opacity modifiers)
+ * follows the ACTIVE palette at runtime. The theme engine
+ * (src/core/theme/theme-engine.ts) sets the same pairs inline for custom
+ * palettes. When a token value changes here, the twin channel value, the
+ * .light overrides, the theme-types.ts palette, AND the TS hex fallbacks
+ * that mirror the tokens (`src/shared/ui/dashboard-theme.ts` chartPalette
+ * getters, `tabs/types.ts` AGING_COLORS, `sparkline-kpi-card.tsx` tone
+ * resolver) MUST change in the SAME commit.
  */
 @layer base {
   :root {
-    /* === Brand palette (plan §03.01, refreshed T-246) === */
+    /* === Brand palette (plan §03.01, refreshed T-246) — T-546: each hex
+       carries its `-rgb` channel twin for the tailwind alpha utilities === */
     --brand-blue: #349bd4;
+    --brand-blue-rgb: 52 155 212;
     --brand-blue-deep: #216d9b;
     --brand-blue-light: #52b6eb;
     --brand-cyan: #3dd6d0;
+    --brand-cyan-rgb: 61 214 208;
     --brand-violet: #8b5cf6;
+    --brand-violet-rgb: 139 92 246;
     --brand-coral: #f43f5e;
+    --brand-coral-rgb: 244 63 94;
     --brand-slate: #3b464c;
+    --brand-slate-rgb: 59 70 76;
     --brand-brown: #836c68;
+    --brand-brown-rgb: 131 108 104;
     --brand-gold: #eab308;
+    --brand-gold-rgb: 234 179 8;
 
     /* === Status palette (refreshed T-246 — crisper hues on midnight) === */
     --status-success: #10b981;
+    --status-success-rgb: 16 185 129;
     --status-warning: #f59e0b;
+    --status-warning-rgb: 245 158 11;
     --status-danger: #ef4444;
+    --status-danger-rgb: 239 68 68;
     --status-info: #0ea5e9;
+    --status-info-rgb: 14 165 233;
     --status-neutral: #3b464c;
+    --status-neutral-rgb: 59 70 76;
 
     /* === Dark theme (DEFAULT) — professional midnight (T-246) === */
     --surface-background: #0b0d14;
+    --surface-background-rgb: 11 13 20;
     --surface-panel: #111523;
+    --surface-panel-rgb: 17 21 35;
     --surface-elevated: #181d30;
+    --surface-elevated-rgb: 24 29 48;
     --surface-hover: #222842;
+    --surface-hover-rgb: 34 40 66;
     --foreground-bright: #f8fafc;
+
+    /* T-546 (UI-352): how much of the panel color washes the card border
+       (the .dashboard-card / .card-header-clean mixes). Dark keeps the
+       historical 60%/70% softening on midnight; light sets 0% — the border
+       token is used at FULL strength so cards never dissolve into the
+       white canvas (the "borders that disappear" root cause). */
+    --card-border-strength: 60%;
+    --card-header-border-strength: 70%;
 
     /* === shadcn/ui token mapping (dark theme default, midnight) === */
     --background: 226 39% 6%;
@@ -94,17 +122,45 @@
     /* Light theme — for daytime operation / low-glare environments.
        Dark is the platform default (set in index.html <html class="dark">).
        T-246: status accents get darker light-mode variants for text contrast
-       on white (the dark-mode values are tuned for the midnight canvas). */
-    --status-success: #0e9f6e;
+       on white (the dark-mode values are tuned for the midnight canvas).
+       T-546 (UI-352): the variants now match theme-types.ts Clair Épuré
+       EXACTLY (success #059669 — the old #0e9f6e never reached the tailwind
+       utilities anyway), the border token is strengthened to #94a3b8
+       (slate-400 — visible at 1px on white, not heavy), the channel twins
+       follow, the focus ring rides the themed --brand-blue, and the card
+       chrome stops washing borders toward the white panel. */
+    --status-success: #059669;
+    --status-success-rgb: 5 150 105;
     --status-warning: #d97706;
+    --status-warning-rgb: 217 119 6;
     --status-danger: #dc2626;
+    --status-danger-rgb: 220 38 38;
     --status-info: #0284c7;
+    --status-info-rgb: 2 132 199;
+
+    --brand-blue: #2563eb;
+    --brand-blue-rgb: 37 99 235;
+    --brand-cyan: #0891b2;
+    --brand-cyan-rgb: 8 145 178;
+    --brand-violet: #7c3aed;
+    --brand-violet-rgb: 124 58 237;
+    --brand-gold: #d97706;
+    --brand-gold-rgb: 217 119 6;
+    --brand-blue-light: #60a5fa;
 
     --surface-background: #f7f9fb;
+    --surface-background-rgb: 247 249 251;
     --surface-panel: #ffffff;
+    --surface-panel-rgb: 255 255 255;
     --surface-elevated: #f4f7fc;
+    --surface-elevated-rgb: 244 247 252;
     --surface-hover: #eef2f9;
+    --surface-hover-rgb: 238 242 249;
     --foreground-bright: #16233b;
+
+    /* T-546: light cards use the border token at full strength. */
+    --card-border-strength: 0%;
+    --card-header-border-strength: 0%;
 
     --background: 210 30% 98%;
     --foreground: 215 28% 17%;
@@ -130,8 +186,9 @@
     --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 222 20% 87%;
-    --input: 222 20% 87%;
+    /* #94a3b8 = hsl(215 20% 62%) — aligned with theme-types.ts borderColor. */
+    --border: 215 20% 62%;
+    --input: 215 20% 62%;
     --ring: 201 68% 42%;
   }
 
@@ -192,9 +249,11 @@
     color: var(--foreground-bright);
   }
 
-  /* Focus visibility */
+  /* Focus visibility — T-546 (UI-352): rides the THEMED --brand-blue
+     (light: #2563eb ≈ 4.9:1 on white) instead of the never-themed
+     --brand-blue-light (#52b6eb, 2.1:1 on white — invisible ring). */
   :focus-visible {
-    outline: 2px solid var(--brand-blue-light);
+    outline: 2px solid var(--brand-blue);
     outline-offset: 2px;
   }
 }
@@ -232,7 +291,10 @@
   /* T-246 (AI-review Part 2) — micro-glow border for professional chart
      containers: a 1px gradient rim (blue → transparent → violet) masked to
      the border ring only. Purely decorative; pointer-events none so it can
-     never intercept clicks. Inherit the element's border-radius. */
+     never intercept clicks. Inherit the element's border-radius.
+     T-546: the rim strengths lift slightly on light (25%/15% opacity of a
+     #2563eb-family blue is near-invisible on white) via the themed tokens —
+     the dark values are byte-preserved. */
   .glow-border {
     position: relative;
   }
@@ -279,169 +341,26 @@
 }
 
 /* ==================================================================== */
-/* DYNAMIC THEME ENGINE OVERRIDES (Fixes Light, Dark & Custom Themes)   */
+/* DYNAMIC THEME ENGINE OVERRIDES                                     */
 /* ==================================================================== */
 
-/* 1. Force all surface classes to dynamically follow CSS variables */
-.bg-surface-background {
-  background-color: var(--surface-background) !important;
-}
-.bg-surface-panel {
-  background-color: var(--surface-panel) !important;
-}
-.bg-surface-elevated {
-  background-color: var(--surface-elevated) !important;
-}
-.bg-surface-hover:hover {
-  background-color: var(--surface-hover) !important;
-}
+/* T-546 (UI-352) — RETIRED: the former `.bg-surface-*` !important and
+   color-mix opacity-override blocks (95/90/80/50/…/10) existed because
+   tailwind.config.cjs mapped surfaces to STATIC midnight hexes. The config
+   now maps brand/status/surface colors to `rgb(var(--x-rgb) /
+   <alpha-value>)` channel variables (set here AND by the theme engine),
+   so the compiled utilities follow the active palette natively — the
+   overrides were dead weight and were removed in the SAME commit as the
+   config rewiring. The custom classes below are NOT tailwind-generated
+   (no `foreground-bright`/`muted` color keys exist in the config) — they
+   stay hand-written. */
 
-/* 2. Text and Border color overrides */
+/* 2. Text and Border color overrides (custom classes, not tailwind output) */
 .text-foreground-bright {
   color: var(--foreground-bright) !important;
 }
 .text-muted {
   color: hsl(var(--muted-foreground)) !important;
-}
-.border-surface-panel {
-  border-color: var(--surface-panel) !important;
-}
-
-/* 3. Dynamic opacity support via color-mix */
-.bg-surface-background\/95 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-background) 95%,
-    transparent
-  ) !important;
-}
-.bg-surface-background\/90 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-background) 90%,
-    transparent
-  ) !important;
-}
-.bg-surface-background\/80 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-background) 80%,
-    transparent
-  ) !important;
-}
-.bg-surface-background\/50 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-background) 50%,
-    transparent
-  ) !important;
-}
-
-.bg-surface-panel\/95 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 95%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/90 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 90%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/80 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 80%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/50 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 50%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/40 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 40%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/30 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 30%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/20 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 20%,
-    transparent
-  ) !important;
-}
-.bg-surface-panel\/10 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-panel) 10%,
-    transparent
-  ) !important;
-}
-
-.bg-surface-elevated\/95 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 95%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/80 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 80%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/50 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 50%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/40 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 40%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/30 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 30%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/20 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 20%,
-    transparent
-  ) !important;
-}
-.bg-surface-elevated\/10 {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-elevated) 10%,
-    transparent
-  ) !important;
 }
 
 /* 4. Ensure Sidebar, Topbar, and Canvas background follow the theme */
@@ -469,8 +388,15 @@ body {
 /* Unified Card Sheen & Border Treatment */
 .dashboard-card {
   background-color: var(--surface-panel);
+  /* T-546 (UI-352): the wash ratio is the themed --card-border-strength
+     (60% on midnight — byte-preserved visuals; 0% in light — the border
+     token at full strength, so cards hold their edge on white). */
   border: 1px solid
-    color-mix(in srgb, var(--surface-panel) 60%, hsl(var(--border)));
+    color-mix(
+      in srgb,
+      var(--surface-panel) var(--card-border-strength),
+      hsl(var(--border))
+    );
   border-radius: var(--radius-xl);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
   transition:
@@ -487,7 +413,11 @@ body {
 .card-header-clean {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--surface-panel) 70%, hsl(var(--border)));
+    color-mix(
+      in srgb,
+      var(--surface-panel) var(--card-header-border-strength),
+      hsl(var(--border))
+    );
   display: flex;
   align-items: center;
   justify-content: space-between;

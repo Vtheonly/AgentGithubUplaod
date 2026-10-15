@@ -19,6 +19,10 @@ import {
   AlertTriangle,
   MessageCircle,
 } from "lucide-react";
+// T-546 (UI-352): the gauge track + gradient ride the LIVE palette tokens
+// (the old rgba(255,255,255,0.08) track was invisible in Clair Épuré; the
+// hardcoded #349bd4/#10b981 stops never followed the active theme).
+import { chartPalette } from "../../../shared/ui/dashboard-theme";
 import {
   Card,
   CardContent,
@@ -132,7 +136,9 @@ export function InsightsRail({
               cx="50"
               cy="50"
               r="38"
-              stroke="rgba(255, 255, 255, 0.08)"
+              /* T-546: themed track — stroke-border class follows the active
+                 palette (visible on white AND midnight). */
+              className="stroke-border"
               strokeWidth="9"
               fill="transparent"
             />
@@ -156,8 +162,10 @@ export function InsightsRail({
                 x2="100%"
                 y2="100%"
               >
-                <stop offset="0%" stopColor="#349bd4" />
-                <stop offset="100%" stopColor="#10b981" />
+                {/* T-546: live token getters — the recovery gradient follows
+                    the ACTIVE palette (light: #2563eb → #059669). */}
+                <stop offset="0%" stopColor={chartPalette.primary} />
+                <stop offset="100%" stopColor={chartPalette.success} />
               </linearGradient>
             </defs>
           </svg>

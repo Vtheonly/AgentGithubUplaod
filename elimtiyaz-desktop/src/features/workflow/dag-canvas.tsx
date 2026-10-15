@@ -915,7 +915,10 @@ export function DagCanvas({
               height={40}
               patternUnits="userSpaceOnUse"
             >
-              <circle cx="0" cy="0" r="1" fill="rgba(255,255,255,0.08)" />
+              {/* T-546 (UI-352): the dot-grid rides the themed border token
+                  (fill-border class) — the old rgba(255,255,255,0.08) was
+                  white-on-white in Clair Épuré (invisible canvas texture). */}
+              <circle cx="0" cy="0" r="1" className="fill-border opacity-70" />
             </pattern>
             <marker
               id="dag-arrow"

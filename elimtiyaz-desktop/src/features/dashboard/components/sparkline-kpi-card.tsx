@@ -15,15 +15,26 @@ import { cn } from "../../../shared/ui/cn";
 // T-468 (UI-329): the explainability tooltip — the SAME InfoTip + glossary
 // discipline the Statistics tab applies (the Overview KPIs pass their keys).
 import { InfoTip } from "./analytics/info-tip";
+// T-546 (UI-352): the tone stroke rides the ACTIVE palette (the old static
+// hex map froze Clair Épuré onto the midnight hues — #10b981 on white is
+// 2.3:1). Shared resolver, canonical fallbacks (the parity-contract twins).
+import { resolveToken } from "../../../shared/ui/dashboard-theme";
 
 export type SparklineTone = "primary" | "success" | "danger" | "warning";
 
-const STROKE_BY_TONE: Record<SparklineTone, string> = {
-  primary: "#349bd4",
-  success: "#10b981",
-  danger: "#ef4444",
-  warning: "#f59e0b",
-};
+/** Resolve the sparkline stroke for a tone from the live design tokens. */
+function toneStroke(tone: SparklineTone): string {
+  switch (tone) {
+    case "primary":
+      return resolveToken("--brand-blue", "#349bd4");
+    case "success":
+      return resolveToken("--status-success", "#10b981");
+    case "danger":
+      return resolveToken("--status-danger", "#ef4444");
+    case "warning":
+      return resolveToken("--status-warning", "#f59e0b");
+  }
+}
 
 export interface SparklineKpiCardProps {
   label: string;
@@ -85,7 +96,8 @@ export function SparklineKpiCard({
     typeof deltaPercent === "number" && Number.isFinite(deltaPercent);
   const isPositive = hasDelta && (deltaPercent as number) > 0;
   const isZero = hasDelta && deltaPercent === 0;
-  const color = STROKE_BY_TONE[tone];
+  // T-546: resolved per render — follows the active palette.
+  const color = toneStroke(tone);
   const hasSparkline = Array.isArray(trend) && trend.length >= 2;
 
   // Normalized geometry in a 92x36 viewBox

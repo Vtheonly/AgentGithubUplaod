@@ -37,11 +37,20 @@
  * documentation of record), then its translations.
  */
 
-/** One glossary entry — title + measures + calculation (+ status when the element renders a verdict). */
+/** One glossary entry — title + measures + calculation (+ the T-546 optional
+ *  formula block: `formula` is raw LaTeX rendered by KaTeX; `vars`
+ *  documents the symbols; `status` when the element renders a verdict). */
 export interface StatsTipEntry {
   readonly title: string;
   readonly measures: string;
   readonly calc: string;
+  /** T-546 (UI-354): raw LaTeX source (no delimiters) — rendered by the
+   *  shared <Latex display> primitive in InfoTip. Derived from the ACTUAL
+   *  canonical derivation (never invented); keep in sync with the code. */
+  readonly formula?: string;
+  /** T-546 (UI-354): what the formula's symbols represent (prose, may
+   *  carry inline $...$ LaTeX for the symbols themselves). */
+  readonly vars?: string;
   readonly status?: string;
 }
 
@@ -51,6 +60,8 @@ const FR = {
   _meta: {
     measures: "Mesure :",
     calc: "Calcul :",
+    formula: "Formule :",
+    vars: "Variables :",
     status: "Statut :",
   },
   viewMode: {
@@ -118,31 +129,43 @@ const FR = {
       title: "Total Encaissé",
       measures: "La somme des encaissements de la tranche filtrée (paiements réglés).",
       calc: "Σ payment.amount sur la tranche — la même définition que la KPI « Encaissé » du tableau de bord.",
+      formula: "T=\\sum_{i=1}^{N} a_i",
+      vars: "$a_i$ = montant du $i$-ème versement (DZD, arithmétique entière) · $N$ = nombre de versements de la tranche filtrée $S$.",
     },
     count: {
       title: "Volume Transactions",
       measures: "Le nombre d'opérations (versements) de la tranche filtrée.",
       calc: "Compte des paiements de la tranche ; les chèques/virements non compensés sont exclus (statut ≠ réglé).",
+      formula: "N=\\left|S\\right|",
+      vars: "$S$ = tranche filtrée : les paiements réglés dans la période, conformes aux slicers actifs (mode/pôle).",
     },
     mean: {
       title: "Panier Moyen",
       measures: "Le montant moyen par opération encaissée.",
       calc: "Σ montants ÷ nombre d'opérations, arrondi au dinar (moyenne arithmétique).",
+      formula: "\\bar{a}=\\operatorname{round}\\!\\left(\\frac{1}{N}\\sum_{i=1}^{N} a_i\\right)",
+      vars: "$a_i$ = montant du $i$-ème versement · $N$ = volume de la tranche · l'arrondi est au dinar entier (montants DZD entiers).",
     },
     median: {
       title: "Médiane",
       measures: "Le montant central de la distribution des encaissements (50 % au-dessus, 50 % en-dessous).",
       calc: "Tri des montants ; valeur centrale, ou moyenne des deux centraux si le compte est pair.",
+      formula: "\\tilde{a}=\\begin{cases}a_{\\left(\\frac{N+1}{2}\\right)} & N\\ \\text{impair}\\\\[2pt] \\tfrac{1}{2}\\left(a_{\\left(\\frac{N}{2}\\right)}+a_{\\left(\\frac{N}{2}+1\\right)}\\right) & N\\ \\text{pair}\\end{cases}",
+      vars: "$a_{(k)}$ = le $k$-ième montant après tri croissant (ordre statistique).",
     },
     bestMonth: {
       title: "Mois Record",
       measures: "Le mois calendaire avec le plus fort encaissement de la tranche.",
       calc: "Agrégation par mois calendaire de collectedAt ; le mois au Σ le plus élevé (étiquette + montant).",
+      formula: "m^{*}=\\arg\\max_{m\\in\\mathcal{M}}\\ \\sum_{i\\in m} a_i",
+      vars: "$\\mathcal{M}$ = les mois calendaires couverts par collectedAt · $\\sum_{i\\in m} a_i$ = le total encaissé du mois $m$.",
     },
     stdDev: {
       title: "Volatilité (σ)",
       measures: "La dispersion des montants autour du panier moyen.",
       calc: "Écart-type d'échantillon : √( Σ(x − moyenne)² ÷ (n − 1) ), arrondi au dinar. σ faible = montants homogènes (tranches fixes).",
+      formula: "\\sigma=\\operatorname{round}\\!\\left(\\sqrt{\\frac{1}{N-1}\\sum_{i=1}^{N}(a_i-\\bar{a})^{2}}\\right)",
+      vars: "$\\bar{a}$ = panier moyen · $N-1$ = correctif de Bessel (écart-type D'ÉCHANTILLON, non biaisé) · $N\\ge 2$ requis, sinon $\\sigma=0$.",
     },
   },
   waveVelocity: {
@@ -156,33 +179,45 @@ const FR = {
       title: "Taux de recouvrement",
       measures: "Le pourcentage du montant facturé déjà encaissé (fonds compensés) sur la vague.",
       calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — convention PARITY-001, jamais plafonné (une vague sur-couverte peut dépasser 100 %).",
+      formula: "\\%_{\\text{recouvré}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
+      vars: "$d_i$ = amountDue de la ligne $i$ · $p_i$ = amountPaid compensé · $W$ = lignes de la vague, TOUTES catégories (le pool canonique) · jamais plafonné : une vague sur-couverte dépasse 100 %.",
       status: "Le code couleur suit le statut de la vague, pas le pourcentage.",
     },
     dossiers: {
       title: "Dossiers (X/Y)",
       measures: "Les engagements soldés sur le total d'engagements de la vague, toutes catégories.",
       calc: "Comptage du prédicat canonique isInstallmentSettled (INV-4) : statut « payé » OU reste dû nul (les fonds en instance couvrent aussi).",
+      formula: "X=\\left|\\left\\{i\\in W:\\\ s_i=\\text{payé}\\ \\lor\\ R_i=0\\right\\}\\right|",
+      vars: "$s_i$ = statut de la ligne · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû INV-4 de la ligne.",
     },
     due: {
       title: "Facturé",
       measures: "Le total facturé de la vague, toutes catégories confondues.",
       calc: "Σ amountDue des lignes de la vague (arrondi par ligne, domaine DZD entier).",
+      formula: "D=\\sum_{i\\in W}\\operatorname{round}(d_i)",
+      vars: "Identité de contrôle de la carte : $D=P+\\Pi+R$ (facturé = encaissé + en cours + reste dû).",
     },
     paid: {
       title: "Encaissé",
       measures: "Les fonds compensés (espèces, chèques/virements débloqués) appliqués à la vague.",
       calc: "Σ amountPaid des lignes de la vague — les fonds en instance (non compensés) sont comptés dans « En cours ».",
+      formula: "P=\\sum_{i\\in W}\\operatorname{round}(p_i)",
+      vars: "$p_i$ = amountPaid de la ligne (uniquement les fonds compensés — statut réglé).",
     },
     pending: {
       title: "En cours",
       measures: "Les fonds NON compensés posés sur les tranches de la vague (chèques/virements en attente de validation bancaire).",
       calc: "Σ amountPending des lignes de la vague ; la ligne de contrôle de la carte prouve : Facturé = Encaissé + En cours + Reste dû.",
+      formula: "\\Pi=\\sum_{i\\in W}\\operatorname{round}(\\pi_i)",
+      vars: "$\\pi_i$ = amountPending de la ligne (chèques/virements non encore compensés).",
       status: "Ces fonds deviennent « Encaissé » quand le paiement passe réglé, ou sont annulés si le chèque est rejeté.",
     },
     remaining: {
       title: "Reste dû",
       measures: "Le solde encore à recouvrer sur la vague.",
       calc: "Σ INV-4 par ligne : max(0, amountDue − amountPaid − amountPending).",
+      formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "INV-4 — le reste dû par ligne est plancher à zéro : un surpaiement local ne compense JAMAIS le déficit d'une autre ligne.",
       status: "Rouge quand > 0 ; une vague à reste dû nul est « Clôturée ».",
     },
     families: {
@@ -426,6 +461,8 @@ const FR = {
       title: "Mix des méthodes de paiement",
       measures: "La répartition des encaissements par méthode (espèces, chèque, virement).",
       calc: "Σ des montants de la tranche filtrée groupée par payments.method ; parts = round(montant ÷ total × 100).",
+      formula: "t_k=\\operatorname{round}\\!\\left(\\frac{m_k}{\\sum_{j} m_j}\\times 100\\right)",
+      vars: "$m_k$ = Σ des montants de la méthode $k$ (espèces/chèque/virement) · le dénominateur porte sur TOUTES les méthodes de la tranche filtrée.",
     },
     donut: {
       title: "Anneau des méthodes",
@@ -462,6 +499,8 @@ const FR = {
       title: "Δ% mensuel",
       measures: "L'écart relatif du mois entre les deux années.",
       calc: "Par mois : round((actuel − précédent) ÷ précédent × 100) — affiché seulement si le précédent > 0.",
+      formula: "\\Delta_m=\\operatorname{round}\\!\\left(\\frac{c_m-\\ell_m}{\\ell_m}\\times 100\\right)",
+      vars: "$c_m$ = encaissé du mois $m$ cette année · $\\ell_m$ = le même mois l'année précédente · affiché seulement si $\\ell_m>0$ (jamais de $-100\\%$ fallacieux sur base nulle).",
     },
     totals: {
       title: "Totaux comparés",
@@ -474,6 +513,8 @@ const FR = {
       title: "Vieillissement des créances",
       measures: "La répartition de l'encours non recouvré par ancienneté (0–30, 31–60, 61–90, 91–180, > 180 jours).",
       calc: "Buckets du référentiel (debtByAagingForRange) : chaque tranche non soldée alimente le bucket de ses jours de retard ; la barre empilée = 100 % de l'encours.",
+      formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{et}\\quad \\sum_{b} V_b = V_{\\text{OUTSTetING}}",
+      vars: "$\\ell_i$ = jours de retard de la ligne $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû INV-4 · les 5 bandes : $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.",
       status: "Plus la bande est à droite, plus le recouvrement devient improbable — > 180 j = dette quasi-perdue.",
     },
     b0_30: {
@@ -507,6 +548,8 @@ const FR = {
       title: "Entonnoir de dérive des créances",
       measures: "L'escalade des foyers débiteurs : encours > 0 → en retard → au-delà du seuil jaune → critique.",
       calc: "Dérivé du triage canonique (deriveDebtTriage) sur les tranches de l'année : chaque famille est classée selon sa pire échéance (INV-4) contre les seuils CONFIGURÉS (Configuration des Créances — jamais des bornes codées en dur).",
+      formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
+      vars: "$\\operatorname{triage}(f)$ = le pire niveau de la famille $f$ (encours $>$ 0 $\\to$ en retard $\\to$ seuil jaune $\\to$ critique, bornes CONFIGURÉES) · les étages sont emboîtés : $F_{k+1}\\subseteq F_k$.",
       status: "Les libellés des étapes portent les seuils configurés (ex. « Retard 15-60 j ») : changer la configuration change l'entonnoir — la carte suit la même source que le Suivi des Dettes.",
     },
   },
@@ -521,18 +564,24 @@ const FR = {
       title: "Chiffre d'affaires mensuel",
       measures: "Les encaissements réglés du mois en cours (toutes catégories).",
       calc: "Σ des paiements statut « payé » du mois — la même définition « encaissé » que les KPI et la vue Flux Financiers.",
+      formula: "R_m=\\sum_{i\\in m} a_i",
+      vars: "$a_i$ = montant du versement réglé $i$ du mois calendaire courant (toutes catégories).",
       status: "La pastille de variation compare au mois précédent (null quand il vaut 0 — jamais de −100% fallacieux).",
     },
     debt: {
       title: "Encours total annuel",
       measures: "Ce que les familles doivent encore sur l'année scolaire sélectionnée.",
       calc: "Σ INV-4 (max(0, dû − payé − en attente)) sur les tranches non soldées de la fenêtre de facturation de l'année.",
+      formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "$A$ = tranches non soldées de la fenêtre de facturation de l'année sélectionnée (1er sept → 1er sept suivant) · INV-4 : plancher zéro par ligne.",
       status: "Le sous-texte énumère l'échéant (en retard) ou les urgents (au-delà du seuil rouge) ; les familles concernées sont comptées.",
     },
     attendance: {
       title: "Assiduité globale",
       measures: "Le taux de présence du jour (tous niveaux).",
       calc: "Présences ÷ (présences + absences) du jour — la même définition que le domaine académique.",
+      formula: "\\tau=\\frac{n_{\\text{présent}}}{n_{\\text{présent}}+n_{\\text{absent}}}",
+      vars: "Les relevés du JOUR courant, tous niveaux · même convention que le domaine académique.",
     },
   },
   rhythm: {
@@ -562,6 +611,8 @@ const FR = {
       title: "Courbe cumulée (%)",
       measures: "La part cumulative de l'encours captée en descendant le classement.",
       calc: "Σ glissante des encours ÷ Σ des familles affichées × 100.",
+      formula: "C_k=\\operatorname{round}\\!\\left(\\frac{\\sum_{j\\le k} r_j}{\\sum_{j} r_j}\\times 100\\right)",
+      vars: "$r_j$ = encours de la $j$-ième famille du classement décroissant · $C_k$ = part cumulée après $k$ familles · si $C_{20\\%}\\approx 80\\%$, le 80/20 s'applique.",
     },
     referenceMode: {
       title: "Population de référence des pourcentages",
@@ -581,11 +632,15 @@ const FR = {
       title: "Réalisé",
       measures: "Les coûts salariaux effectivement payés (historique).",
       calc: "Σ des paiements de salaires enregistrés (salaryPayments) par période.",
+      formula: "C^{réel}_m=\\sum_{s\\in m} \\operatorname{montant}(s)",
+      vars: "$s$ = paiements de salaires enregistrés de la période $m$ (historique réalisé).",
     },
     funding: {
       title: "Besoin de financement",
       measures: "Le trou de trésorerie projeté du mois (coûts projetés vs recettes attendues).",
       calc: "Projection du mois − encaissements attendus (la même convention que Finances).",
+      formula: "B_m=C^{proj}_m-\\hat{E}_m",
+      vars: "$C^{proj}_m$ = coûts salariaux projetés du mois (computePayrollForecast, ADR-024) · $\\hat{E}_m$ = encaissements attendus du mois · $B_m>0$ = besoin de financement.",
     },
   },
   console: {
@@ -638,6 +693,10 @@ export const STAT_TIPS_FR = FR;
 export interface StatsTipMeta {
   readonly measures: string;
   readonly calc: string;
+  /** T-546 (UI-354): the formula-block section label. */
+  readonly formula: string;
+  /** T-546 (UI-354): the variables legend section label. */
+  readonly vars: string;
   readonly status: string;
 }
 
@@ -655,6 +714,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
   _meta: {
     measures: "Measures:",
     calc: "Calculation:",
+    formula: "Formula:",
+    vars: "Variables:",
     status: "Status:",
   },
   viewMode: {
@@ -722,31 +783,43 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Total Collected",
       measures: "The sum of the collections in the filtered slice (paid payments).",
       calc: "Σ payment.amount over the slice — the same definition as the dashboard's “Collected” KPI.",
+      formula: "T=\\sum_{i=1}^{N} a_i",
+      vars: "$a_i$ = amount of the $i$-th payment (DZD, integer arithmetic) · $N$ = payment count of the filtered slice $S$.",
     },
     count: {
       title: "Transaction Volume",
       measures: "The number of operations (installment payments) in the filtered slice.",
       calc: "Count of the slice's payments; uncleared checks/transfers are excluded (status ≠ paid).",
+      formula: "N=\\left|S\\right|",
+      vars: "$S$ = the filtered slice: payments with status “paid” in range, matching the active slicers (method/category).",
     },
     mean: {
       title: "Average Payment",
       measures: "The average amount per collected operation.",
       calc: "Σ amounts ÷ operation count, rounded to the dinar (arithmetic mean).",
+      formula: "\\bar{a}=\\operatorname{round}\\!\\left(\\frac{1}{N}\\sum_{i=1}^{N} a_i\\right)",
+      vars: "$a_i$ = amount of the $i$-th payment · $N$ = the slice's volume · rounding is to whole dinars.",
     },
     median: {
       title: "Median",
       measures: "The central amount of the collections distribution (50% above, 50% below).",
       calc: "Amounts sorted; the central value, or the mean of the two central values when the count is even.",
+      formula: "\\tilde{a}=\\begin{cases}a_{\\left(\\frac{N+1}{2}\\right)} & N\\ \\text{odd}\\\\[2pt] \\tfrac{1}{2}\\left(a_{\\left(\\frac{N}{2}\\right)}+a_{\\left(\\frac{N}{2}+1\\right)}\\right) & N\\ \\text{even}\\end{cases}",
+      vars: "$a_{(k)}$ = the $k$-th amount after ascending sort (order statistic).",
     },
     bestMonth: {
       title: "Record Month",
       measures: "The calendar month with the highest collections in the slice.",
       calc: "Grouping by calendar month of collectedAt; the month with the highest Σ (label + amount).",
+      formula: "m^{*}=\\arg\\max_{m\\in\\mathcal{M}}\\ \\sum_{i\\in m} a_i",
+      vars: "$\\mathcal{M}$ = the calendar months covered by collectedAt · $\\sum_{i\\in m} a_i$ = month $m$'s collected total.",
     },
     stdDev: {
       title: "Volatility (σ)",
       measures: "The dispersion of the amounts around the average payment.",
       calc: "Sample standard deviation: √( Σ(x − mean)² ÷ (n − 1) ), rounded to the dinar. A low σ = homogeneous amounts (fixed tranches).",
+      formula: "\\sigma=\\operatorname{round}\\!\\left(\\sqrt{\\frac{1}{N-1}\\sum_{i=1}^{N}(a_i-\\bar{a})^{2}}\\right)",
+      vars: "$\\bar{a}$ = average payment · $N-1$ = Bessel's correction (SAMPLE standard deviation) · requires $N\\ge 2$, else $\\sigma=0$.",
     },
   },
   waveVelocity: {
@@ -760,33 +833,45 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Collection rate",
       measures: "The percentage of the billed amount already collected (cleared funds) on the wave.",
       calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — the PARITY-001 convention, never capped (an over-covered wave can exceed 100%).",
+      formula: "\\%_{\\text{collected}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
+      vars: "$d_i$ = row $i$'s amountDue · $p_i$ = cleared amountPaid · $W$ = the wave's rows, ALL categories (the canonical pool) · never capped: an over-covered wave exceeds 100%.",
       status: "The color follows the wave's status, not the percentage.",
     },
     dossiers: {
       title: "Files (X/Y)",
       measures: "The settled commitments over the wave's total commitments, all categories.",
       calc: "Counting by the canonical isInstallmentSettled predicate (INV-4): status “paid” OR zero remaining (pending funds also cover).",
+      formula: "X=\\left|\\left\\{i\\in W:\\ s_i=\\text{paid}\\ \\lor\\ R_i=0\\right\\}\\right|",
+      vars: "$s_i$ = the row's status · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = the row's INV-4 remaining.",
     },
     due: {
       title: "Billed",
       measures: "The wave's total billed amount across every category.",
       calc: "Σ amountDue of the wave's rows (rounded per row, the integer-DZD domain).",
+      formula: "D=\\sum_{i\\in W}\\operatorname{round}(d_i)",
+      vars: "The card's control identity: $D=P+\\Pi+R$ (billed = collected + pending + remaining).",
     },
     paid: {
       title: "Collected",
       measures: "The cleared funds (cash, released checks/transfers) applied to the wave.",
       calc: "Σ amountPaid of the wave's rows — the uncleared (pending) funds are counted in “Pending”.",
+      formula: "P=\\sum_{i\\in W}\\operatorname{round}(p_i)",
+      vars: "$p_i$ = the row's amountPaid (cleared funds only — status “paid”).",
     },
     pending: {
       title: "Pending",
       measures: "The UNCLEARED funds sitting on the wave's tranches (checks/transfers awaiting bank clearance).",
       calc: "Σ amountPending of the wave's rows; the card's control line proves: Billed = Collected + Pending + Remaining.",
+      formula: "\\Pi=\\sum_{i\\in W}\\operatorname{round}(\\pi_i)",
+      vars: "$\\pi_i$ = the row's amountPending (checks/transfers not yet cleared).",
       status: "These funds become “Collected” when the payment clears, or are voided if the check bounces.",
     },
     remaining: {
       title: "Still owed",
       measures: "The balance still to collect on the wave.",
       calc: "Σ INV-4 per row: max(0, amountDue − amountPaid − amountPending).",
+      formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "INV-4 — the per-row remaining is floored at zero: a local overpayment never subsidizes another row's deficit.",
       status: "Red when > 0; a wave with zero remaining is “Closed”.",
     },
     families: {
@@ -1030,6 +1115,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Payment-method mix",
       measures: "The collections split per method (cash, check, transfer).",
       calc: "Σ of the filtered slice's amounts grouped by payments.method; shares = round(amount ÷ total × 100).",
+      formula: "t_k=\\operatorname{round}\\!\\left(\\frac{m_k}{\\sum_{j} m_j}\\times 100\\right)",
+      vars: "$m_k$ = Σ of method $k$'s amounts (cash/check/transfer) · the denominator covers ALL methods in the filtered slice.",
     },
     donut: {
       title: "Method ring",
@@ -1066,6 +1153,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Monthly Δ%",
       measures: "The month's relative gap between the two years.",
       calc: "Per month: round((current − previous) ÷ previous × 100) — displayed only when the previous > 0.",
+      formula: "\\Delta_m=\\operatorname{round}\\!\\left(\\frac{c_m-\\ell_m}{\\ell_m}\\times 100\\right)",
+      vars: "$c_m$ = month $m$'s collected this year · $\\ell_m$ = the same month last year · displayed only if $\\ell_m>0$ (never a spurious $-100\\%$ on a zero base).",
     },
     totals: {
       title: "Compared totals",
@@ -1078,6 +1167,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Receivables aging",
       measures: "The uncollected outstanding split by age (0–30, 31–60, 61–90, 91–180, > 180 days).",
       calc: "The repository's buckets (debtByAgingForRange): every unsettled row feeds the bucket of its days overdue; the stacked bar = 100% of the outstanding.",
+      formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{and}\\quad \\sum_{b} V_b = V_{\\text{OUTSTandING}}",
+      vars: "$\\ell_i$ = row $i$'s days late · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = INV-4 remaining · the 5 bands: $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.",
       status: "The further right the band, the less likely the recovery — > 180 days = quasi-lost debt.",
     },
     b0_30: {
@@ -1111,6 +1202,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Debt drift funnel",
       measures: "The debtor families' escalation: outstanding > 0 → past due → beyond yellow → critical.",
       calc: "Derived from the canonical triage (deriveDebtTriage) over the year's tranches: each family is classified by its worst due date (INV-4) against the CONFIGURED thresholds (the Créances configuration — never hardcoded edges).",
+      formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
+      vars: "$\\operatorname{triage}(f)$ = family $f$'s worst level (outstanding $>$ 0 $\\to$ late $\\to$ yellow threshold $\\to$ critical, CONFIGURED bounds) · the tiers nest: $F_{k+1}\\subseteq F_k$.",
       status: "The stage labels carry the configured edges (e.g. « Retard 15-60 j »): changing the configuration changes the funnel — the card follows the same source as the debt-aging surface.",
     },
   },
@@ -1125,18 +1218,24 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Monthly revenue",
       measures: "The current month's cleared collections (all categories).",
       calc: "Σ of the month's status-“paid” payments — the SAME “encaissé” definition as the KPIs and the Financial Flows view.",
+      formula: "R_m=\\sum_{i\\in m} a_i",
+      vars: "$a_i$ = the settled payment's amount in the current calendar month (all categories).",
       status: "The delta pill compares to the previous month (null when it is 0 — never a spurious −100%).",
     },
     debt: {
       title: "Annual outstanding",
       measures: "What families still owe over the selected academic year.",
       calc: "Σ INV-4 (max(0, due − paid − pending)) over the year's billing-window unsettled tranches.",
+      formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "$A$ = the selected year's unsettled tranches in its billing window (Sept 1 → next Sept 1) · INV-4: zero floor per row.",
       status: "The sub-line enumerates the overdue or the urgent (beyond the red threshold) amounts; the affected families are counted.",
     },
     attendance: {
       title: "Overall attendance",
       measures: "Today's presence rate (all levels).",
       calc: "Present ÷ (present + absent) for the day — the academic domain's own definition.",
+      formula: "\\tau=\\frac{n_{\\text{present}}}{n_{\\text{present}}+n_{\\text{absent}}}",
+      vars: "The CURRENT day's records, every level · the academic domain's convention.",
     },
   },
   rhythm: {
@@ -1166,6 +1265,8 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Cumulative curve (%)",
       measures: "The cumulative share of the outstanding captured going down the ranking.",
       calc: "Running Σ of the outstanding ÷ Σ of the displayed families × 100.",
+      formula: "C_k=\\operatorname{round}\\!\\left(\\frac{\\sum_{j\\le k} r_j}{\\sum_{j} r_j}\\times 100\\right)",
+      vars: "$r_j$ = the $j$-th family's outstanding in the descending ranking · $C_k$ = the cumulative share after $k$ families · if $C_{20\\%}\\approx 80\\%$, the 80/20 rule applies.",
     },
     referenceMode: {
       title: "Reference population of the percentages",
@@ -1185,11 +1286,15 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       title: "Actual",
       measures: "The salary costs actually paid (history).",
       calc: "Σ of the recorded salary payments per period.",
+      formula: "C^{actual}_m=\\sum_{s\\in m} \\operatorname{amount}(s)",
+      vars: "$s$ = the recorded salary payments of period $m$ (actual history).",
     },
     funding: {
       title: "Funding requirement",
       measures: "The month's projected treasury hole (projected costs vs expected receipts).",
       calc: "The month's projection − the expected collections (the same convention as Finance).",
+      formula: "B_m=C^{proj}_m-\\hat{E}_m",
+      vars: "$C^{proj}_m$ = the month's projected payroll costs (computePayrollForecast, ADR-024) · $\\hat{E}_m$ = expected collections · $B_m>0$ = funding need.",
     },
   },
   console: {
@@ -1240,6 +1345,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
   _meta: {
     measures: "المقياس:",
     calc: "الحساب:",
+    formula: "الصيغة:",
+    vars: "المتغيرات:",
     status: "الحالة:",
   },
   viewMode: {
@@ -1307,31 +1414,43 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "إجمالي المحصَّل",
       measures: "مجموع تحصيلات الشريحة المُرشَّحة (مدفوعات مقاصة).",
       calc: "Σ payment.amount على الشريحة — نفس تعريف مؤشر «المُحصَّل» في اللوحة.",
+      formula: "T=\\sum_{i=1}^{N} a_i",
+      vars: "$a_i$ = مبلغ الدفعة $i$ (دينار، حساب صحيح) · $N$ = عدد الدفعات في الشريحة المُرشَّحة $S$.",
     },
     count: {
       title: "حجم المعاملات",
       measures: "عدد العمليات في الشريحة المُرشَّحة.",
       calc: "عدّ مدفوعات الشريحة؛ الشيكات/التحويلات غير المقاصة مستثناة (الحالة ≠ مقاصة).",
+      formula: "N=\\left|S\\right|",
+      vars: "$S$ = الشريحة المُرشَّحة: الدفعات بحالة «مدفوع» ضمن الفترة ومطابقة للمُرشِّحات النشطة.",
     },
     mean: {
       title: "متوسط الدفعة",
       measures: "المبلغ المتوسط لكل عملية محصَّلة.",
       calc: "Σ المبالغ ÷ عدد العمليات، مقرَّبًا للدينار (متوسط حسابي).",
+      formula: "\\bar{a}=\\operatorname{round}\\!\\left(\\frac{1}{N}\\sum_{i=1}^{N} a_i\\right)",
+      vars: "$a_i$ = مبلغ الدفعة $i$ · $N$ = حجم الشريحة · التقريب إلى الدينار الصحيح.",
     },
     median: {
       title: "الوسيط",
       measures: "المبلغ المركزي لتوزيع التحصيلات (50% فوق، 50% تحت).",
       calc: "ترتيب المبالغ؛ القيمة المركزية، أو متوسط القيمتين المركزيتين عند تعدد زوجي.",
+      formula: "\\tilde{a}=\\begin{cases}a_{\\left(\\frac{N+1}{2}\\right)} & N\\ \\text{فردي}\\\\[2pt] \\tfrac{1}{2}\\left(a_{\\left(\\frac{N}{2}\\right)}+a_{\\left(\\frac{N}{2}+1\\right)}\\right) & N\\ \\text{زوجي}\\end{cases}",
+      vars: "$a_{(k)}$ = المبلغ $k$ بعد الترتيب التصاعدي (رتبة إحصائية).",
     },
     bestMonth: {
       title: "الشهر القياسي",
       measures: "الشهر التقويمي الأعلى تحصيلًا في الشريحة.",
       calc: "تجميع حسب الشهر التقويمي لـ collectedAt؛ الشهر ذو الأعلى Σ (تسمية + مبلغ).",
+      formula: "m^{*}=\\arg\\max_{m\\in\\mathcal{M}}\\ \\sum_{i\\in m} a_i",
+      vars: "$\\mathcal{M}$ = الأشهر التقويمية التي يغطيها collectedAt · $\\sum_{i\\in m} a_i$ = مجموع الشهر $m$.",
     },
     stdDev: {
       title: "التقلّب (σ)",
       measures: "تشتت المبالغ حول متوسط الدفعة.",
       calc: "الانحراف المعياري للعيّنة: √( Σ(x − المتوسط)² ÷ (n − 1) )، مقرَّبًا للدينار. σ منخفض = مبالغ متجانسة (دفعات ثابتة).",
+      formula: "\\sigma=\\operatorname{round}\\!\\left(\\sqrt{\\frac{1}{N-1}\\sum_{i=1}^{N}(a_i-\\bar{a})^{2}}\\right)",
+      vars: "$\\bar{a}$ = متوسط الدفعة · $N-1$ = تصحيح بيسل (انحراف معياري للعيّنة) · يشترط $N\\ge 2$ وإلا $\\sigma=0$.",
     },
   },
   waveVelocity: {
@@ -1345,33 +1464,45 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "نسبة التحصيل",
       measures: "النسبة المئوية للمبلغ المُفوتر المحصَّلة (أموال مقاصة) على الموجة.",
       calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — اصطلاح PARITY-001، بلا سقف (موجة مغطاة زيادة قد تتجاوز 100%).",
+      formula: "\\%_{\\text{مُحصَّل}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
+      vars: "$d_i$ = amountDue للسطر $i$ · $p_i$ = amountPaid المصفّى · $W$ = أسطر الموجة بكل الفئات (التجميع المعياري) · بلا سقف أبداً.",
       status: "اللون يتبع حالة الموجة لا النسبة.",
     },
     dossiers: {
       title: "الملفات (X/Y)",
       measures: "الالتزامات المسدَّدة من إجمالي التزامات الموجة، كل الفئات.",
       calc: "العدّ بمقياس isInstallmentSettled المعياري (INV-4): حالة «مدفوع» أو متبقٍ صفري (الأموال المعلّقة تغطي أيضًا).",
+      formula: "X=\\left|\\left\\{i\\in W:\\ s_i=\\text{مدفوع}\\ \\lor\\ R_i=0\\right\\}\\right|",
+      vars: "$s_i$ = حالة السطر · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي INV-4 للسطر.",
     },
     due: {
       title: "المُفوتر",
       measures: "إجمالي المُفوتر للموجة عبر كل الفئات.",
       calc: "Σ amountDue لسطور الموجة (مقرَّبًا لكل سطر، مجال الدينار الصحيح).",
+      formula: "D=\\sum_{i\\in W}\\operatorname{round}(d_i)",
+      vars: "متطابقة ضبط البطاقة: $D=P+\\Pi+R$ (المفوتر = المُحصَّل + الجاري + الباقي).",
     },
     paid: {
       title: "المحصَّل",
       measures: "الأموال المقاصة (نقدي، شيكات/تحويلات محررة) المطبقة على الموجة.",
       calc: "Σ amountPaid لسطور الموجة — الأموال غير المقاصة تُحصى في «الجاري».",
+      formula: "P=\\sum_{i\\in W}\\operatorname{round}(p_i)",
+      vars: "$p_i$ = amountPaid للسطر (الأموال المصفّاة فقط).",
     },
     pending: {
       title: "الجاري",
       measures: "الأموال غير المقاصة الواقعة على دفعات الموجة (شيكات/تحويلات بانتظار المقاصة البنكية).",
       calc: "Σ amountPending لسطور الموجة؛ سطر الضبط يبرهن: المُفوتر = المحصَّل + الجاري + المتبقي.",
+      formula: "\\Pi=\\sum_{i\\in W}\\operatorname{round}(\\pi_i)",
+      vars: "$\\pi_i$ = amountPending للسطر (شيكات/تحويلات غير مصفّاة بعد).",
       status: "تصبح هذه الأموال «محصَّلة» عند مقاصة الدفعة، أو تُلغى إذا ارتدّ الشيك.",
     },
     remaining: {
       title: "المتبقي",
       measures: "الرصيد الواجب تحصيله بعد على الموجة.",
       calc: "Σ INV-4 لكل سطر: max(0, amountDue − amountPaid − amountPending).",
+      formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "INV-4 — الباقي لكل سطر له أرضية صفر: الدفع الزائد موضعياً لا يعوّض عجز سطر آخر أبداً.",
       status: "أحمر إذا > 0؛ الموجة ذات متبقٍ صفري «مُقفلة».",
     },
     families: {
@@ -1615,6 +1746,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "مزيج طرق الدفع",
       measures: "توزيع التحصيلات حسب الطريقة (نقدي، شيك، تحويل).",
       calc: "Σ مبالغ الشريحة المُرشَّحة مجمَّعة حسب payments.method؛ الحصص = round(مبلغ ÷ إجمالي × 100).",
+      formula: "t_k=\\operatorname{round}\\!\\left(\\frac{m_k}{\\sum_{j} m_j}\\times 100\\right)",
+      vars: "$m_k$ = Σ مبالغ الطريقة $k$ (نقدي/شيك/تحويل) · المقام يشمل كل الطرق في الشريحة.",
     },
     donut: {
       title: "حلقة الطرق",
@@ -1651,6 +1784,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "Δ% الشهري",
       measures: "الفارق النسبي للشهر بين السنتين.",
       calc: "لكل شهر: round((الحالي − السابق) ÷ السابق × 100) — يُعرض فقط إذا السابق > 0.",
+      formula: "\\Delta_m=\\operatorname{round}\\!\\left(\\frac{c_m-\\ell_m}{\\ell_m}\\times 100\\right)",
+      vars: "$c_m$ = محصَّل الشهر $m$ هذه السنة · $\\ell_m$ = الشهر نفسه السنة الماضية · يُعرض فقط إذا $\\ell_m>0$.",
     },
     totals: {
       title: "الإجماليات المتقارنة",
@@ -1663,6 +1798,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "تقادم الديون",
       measures: "توزيع الرصيد غير المحصَّل حسب العمر (0–30، 31–60، 61–90، 91–180، > 180 يومًا).",
       calc: "دلاء المستودع (debtByAgingForRange): كل سطر غير مسدَّد يغذّي دلو أيام تأخيره؛ الشريط المركَّب = 100% من الرصيد.",
+      formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{و}\\quad \\sum_{b} V_b = V_{\\text{OUTSTوING}}",
+      vars: "$\\ell_i$ = أيام تأخر السطر $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي INV-4 · النطاقات: $[1{,}30]$، $[31{,}60]$، $[61{,}90]$، $[91{,}180]$، $>180$.",
       status: "كلما اتجه الشريط يمينًا قلّ احتمال التحصيل — > 180 يومًا = دين شبه مفقود.",
     },
     b0_30: {
@@ -1696,6 +1833,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "قُمع انزلاق الذمم",
       measures: "تصاعد الأسر المدينة: رصيد > 0 → متأخر → ما وراء العتبة الصفراء → حرج.",
       calc: "مُشتق من الفرز القانوني (deriveDebtTriage) على دفعات السنة: تُصنَّف كل أسرة حسب أسوأ تاريخ استحقاق (INV-4) مقابل العتبات المُهيَّأة (إعداد الذمم — أبدًا لا حدود مُرمَّزة).",
+      formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
+      vars: "$\\operatorname{triage}(f)$ = أسوأ مستوى للعائلة $f$ (مستحق $>$ 0 $\\to$ متأخر $\\to$ عتبة صفراء $\\to$ حرج) · الطبقات متداخلة: $F_{k+1}\\subseteq F_k$.",
       status: "تحمل تسميات المراحل العتبات المُهيَّأة (مثل « Retard 15-60 j »): تغيير الإعداد يغيّر القُمع — تتبع البطاقة نفس مصدر متابعة الديون.",
     },
   },
@@ -1710,18 +1849,24 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "الإيراد الشهري",
       measures: "تحصيلات الشهر الحالي المُصفّاة (كل الفئات).",
       calc: "Σ مدفوعات الشهر بحالة «مدفوع» — نفس تعريف «المُحصَّل» في مؤشرات الأداء وعرض التدفقات المالية.",
+      formula: "R_m=\\sum_{i\\in m} a_i",
+      vars: "$a_i$ = مبلغ الدفعة المسدَّدة في الشهر التقويمي الجاري (كل الفئات).",
       status: "تشبه شريط المقارنة الشهر السابق (null إذا كان صفرًا — أبدًا ليس −100% زائفًا).",
     },
     debt: {
       title: "الرصيد السنوي المستحق",
       measures: "ما تدين به الأسر بعد على السنة الدراسية المختارة.",
       calc: "Σ INV-4 (max(0, المستحق − المدفوع − المعلّق)) على الدفعات غير المسدَّدة في نطاق فوترة السنة.",
+      formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
+      vars: "$A$ = الدفعات غير المسدَّدة ضمن نطاق فوترة السنة المختارة (1 سبتمبر → 1 سبتمبر التالي) · INV-4: أرضية صفر لكل سطر.",
       status: "السطر الفرعي يُعدّد المتأخر أو العاجل (ما وراء العتبة الحمراء)؛ وتُعَدّ الأسر المعنية.",
     },
     attendance: {
       title: "الحضور الإجمالي",
       measures: "معدل حضور اليوم (كل المستويات).",
       calc: "الحاضرون ÷ (الحاضرون + الغائبون) لليوم — نفس تعريف النطاق الأكاديمي.",
+      formula: "\\tau=\\frac{n_{\\text{حاضر}}}{n_{\\text{حاضر}}+n_{\\text{غائب}}}",
+      vars: "سجلات اليوم الجاري بكل المستويات · اصطلاح المجال الأكاديمي.",
     },
   },
   rhythm: {
@@ -1751,6 +1896,8 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "المنحنى التراكمي (%)",
       measures: "الحصة التراكمية للرصيد المُلتقطة نزولًا في الترتيب.",
       calc: "Σ جارٍ للرصيد ÷ Σ العائلات المعروضة × 100.",
+      formula: "C_k=\\operatorname{round}\\!\\left(\\frac{\\sum_{j\\le k} r_j}{\\sum_{j} r_j}\\times 100\\right)",
+      vars: "$r_j$ = مستحق العائلة $j$ في الترتيب التنازلي · $C_k$ = الحصة التراكمية بعد $k$ عائلة.",
     },
     referenceMode: {
       title: "مجموعة المرجع للنسب المئوية",
@@ -1770,11 +1917,15 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       title: "المحقَّق",
       measures: "التكاليف المدفوعة فعليًا (التاريخ).",
       calc: "Σ مدفوعات الرواتب المسجَّلة لكل فترة.",
+      formula: "C^{فعلي}_m=\\sum_{s\\in m} \\operatorname{المبلغ}(s)",
+      vars: "$s$ = مدفوعات الرواتب المسجَّلة للفترة $m$ (التاريخ الفعلي).",
     },
     funding: {
       title: "الحاجة التمويلية",
       measures: "ثقب الخزينة المتوقع للشهر (تكاليف متوقعة مقابل إيرادات منتظرة).",
       calc: "توقع الشهر − التحصيلات المنتظرة (نفس اصطلاح المالية).",
+      formula: "B_m=C^{متوقع}_m-\\hat{E}_m",
+      vars: "$C^{proj}_m$ = تكاليف الرواتب المتوقعة للشهر (computePayrollForecast، ADR-024) · $\\hat{E}_m$ = التحصيلات المتوقعة · $B_m>0$ = حاجة تمويل.",
     },
   },
   console: {

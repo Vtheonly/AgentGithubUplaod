@@ -61,35 +61,41 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
 
-        // Brand palette (plan §03.01, refreshed T-246 — mirrors src/index.css;
-        // hexes are duplicated so opacity modifiers resolve at build time)
+        // Brand palette (plan §03.01, refreshed T-246 — mirrors src/index.css).
+        // T-546 (UI-352): mapped to the `-rgb` CHANNEL variables so every
+        // utility (text/bg/border/fill/stroke + opacity modifiers) follows
+        // the ACTIVE palette at runtime — the channel twins are defined in
+        // index.css (:root dark + .light) AND set inline by the theme engine
+        // for custom palettes. The static-hex era (which froze Clair Épuré
+        // onto the midnight values) ended here.
         brand: {
-          blue: "#349bd4",
+          blue: "rgb(var(--brand-blue-rgb) / <alpha-value>)",
           "blue-deep": "#216d9b",
           "blue-light": "#52b6eb",
-          cyan: "#3dd6d0",
-          violet: "#8b5cf6",
-          coral: "#f43f5e",
-          slate: "#3b464c",
-          brown: "#836c68",
-          gold: "#eab308",
+          cyan: "rgb(var(--brand-cyan-rgb) / <alpha-value>)",
+          violet: "rgb(var(--brand-violet-rgb) / <alpha-value>)",
+          coral: "rgb(var(--brand-coral-rgb) / <alpha-value>)",
+          slate: "rgb(var(--brand-slate-rgb) / <alpha-value>)",
+          brown: "rgb(var(--brand-brown-rgb) / <alpha-value>)",
+          gold: "rgb(var(--brand-gold-rgb) / <alpha-value>)",
         },
 
-        // Status palette (T-246 — midnight-tuned hues)
+        // Status palette (T-246 — midnight-tuned hues; T-546: channel vars)
         status: {
-          success: "#10b981",
-          warning: "#f59e0b",
-          danger: "#ef4444",
-          info: "#0ea5e9",
-          neutral: "#3b464c",
+          success: "rgb(var(--status-success-rgb) / <alpha-value>)",
+          warning: "rgb(var(--status-warning-rgb) / <alpha-value>)",
+          danger: "rgb(var(--status-danger-rgb) / <alpha-value>)",
+          info: "rgb(var(--status-info-rgb) / <alpha-value>)",
+          neutral: "rgb(var(--status-neutral-rgb) / <alpha-value>)",
         },
 
-        // Surfaces (T-246 — midnight canvas)
+        // Surfaces (T-246 — midnight canvas; T-546: channel vars — the
+        // former index.css !important/color-mix override block retired)
         surface: {
-          background: "#0b0d14",
-          panel: "#111523",
-          elevated: "#181d30",
-          hover: "#222842",
+          background: "rgb(var(--surface-background-rgb) / <alpha-value>)",
+          panel: "rgb(var(--surface-panel-rgb) / <alpha-value>)",
+          elevated: "rgb(var(--surface-elevated-rgb) / <alpha-value>)",
+          hover: "rgb(var(--surface-hover-rgb) / <alpha-value>)",
         },
       },
       borderRadius: {

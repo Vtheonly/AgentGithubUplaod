@@ -10,6 +10,37 @@ import {
 
 const CUSTOM_THEMES_STORAGE_KEY = "el-imtiyaz:custom-themes";
 
+/**
+ * T-546 (UI-352): hex → "r g b" channel triplet for the Tailwind
+ * `rgb(var(--x-rgb) / <alpha-value>)` utilities. Every hex token the engine
+ * sets on :root gets a twin `-rgb` channel variable so the compiled
+ * status/brand/surface utilities follow the ACTIVE palette at runtime
+ * (opacity modifiers included) instead of the build-time midnight hexes.
+ */
+function hexToRgbChannels(hex: string): string {
+  let c = hex.replace("#", "").trim();
+  if (c.length === 3) c = c.split("").map((x) => x + x).join("");
+  const num = parseInt(c, 16);
+  if (Number.isNaN(num)) return "";
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `${r} ${g} ${b}`;
+}
+
+/** Set one hex token + its `-rgb` channel twin on the root element. */
+function setHexTokenPair(
+  root: HTMLElement,
+  hexName: string,
+  hexValue: string,
+): void {
+  root.style.setProperty(hexName, hexValue);
+  const channels = hexToRgbChannels(hexValue);
+  if (channels) {
+    root.style.setProperty(`${hexName}-rgb`, channels);
+  }
+}
+
 export function loadStoredCustomThemes(): CustomThemePalette[] {
   try {
     const raw = localStorage.getItem(CUSTOM_THEMES_STORAGE_KEY);
@@ -68,22 +99,24 @@ export function applyThemePaletteToDom(palette: CustomThemePalette): void {
     metaTheme.setAttribute("content", colors.surfaceBackground);
   }
 
-  // 4. Set Hex CSS variables
-  root.style.setProperty("--surface-background", colors.surfaceBackground);
-  root.style.setProperty("--surface-panel", colors.surfacePanel);
-  root.style.setProperty("--surface-elevated", colors.surfaceElevated);
-  root.style.setProperty("--surface-hover", colors.surfaceHover);
+  // 4. Set Hex CSS variables — T-546: each hex token now carries its
+  //    `-rgb` channel twin (consumed by the Tailwind utilities) so the
+  //    compiled classes follow the active palette, not the boot palette.
+  setHexTokenPair(root, "--surface-background", colors.surfaceBackground);
+  setHexTokenPair(root, "--surface-panel", colors.surfacePanel);
+  setHexTokenPair(root, "--surface-elevated", colors.surfaceElevated);
+  setHexTokenPair(root, "--surface-hover", colors.surfaceHover);
   root.style.setProperty("--foreground-bright", colors.textForeground);
 
-  root.style.setProperty("--brand-blue", colors.primary);
-  root.style.setProperty("--brand-gold", colors.brandGold);
-  root.style.setProperty("--brand-cyan", colors.brandCyan);
-  root.style.setProperty("--brand-violet", colors.brandViolet);
+  setHexTokenPair(root, "--brand-blue", colors.primary);
+  setHexTokenPair(root, "--brand-gold", colors.brandGold);
+  setHexTokenPair(root, "--brand-cyan", colors.brandCyan);
+  setHexTokenPair(root, "--brand-violet", colors.brandViolet);
 
-  root.style.setProperty("--status-success", colors.statusSuccess);
-  root.style.setProperty("--status-warning", colors.statusWarning);
-  root.style.setProperty("--status-danger", colors.statusDanger);
-  root.style.setProperty("--status-info", colors.statusInfo);
+  setHexTokenPair(root, "--status-success", colors.statusSuccess);
+  setHexTokenPair(root, "--status-warning", colors.statusWarning);
+  setHexTokenPair(root, "--status-danger", colors.statusDanger);
+  setHexTokenPair(root, "--status-info", colors.statusInfo);
 
   // 5. Set HSL CSS variables for Tailwind / Shadcn UI components
   root.style.setProperty(
