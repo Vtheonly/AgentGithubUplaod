@@ -3,11 +3,12 @@
 | # | Date | Scope | Key outputs | State |
 |---|---|---|---|---|
 | 1 | 2026-11-17 | Full-codebase first pass: baseline; 7 context reports verified claim-by-claim (8 parallel agents); governance docs summarized; static import-graph analysis (961 files); spot cross-verification of highest-risk findings; typecheck + partial vitest execution; findings register; unified architecture map; first version of `Refactoring Unified/` blueprint | BASELINE.md; reports 01-08; import-graph-analysis.md; FINDINGS_INDEX.md; unified-architecture-map.md; RUNTIME-EVIDENCE.md; session-01-report.md; handoff-session-01.md | **Complete** — see handoff for open items |
+| 2 | 2026-11-19 | Read-only deep sweep: (a) infrastructure token verification + migration-chain census (100 tables); (b) UI component & design-system redundancy audit (all overlay/panel categories, per-implementation comparison, unification plans, foundation spec); (c) core-logic unification audit (dashboard estate, import & fetching architecture, sections shared logic, settings duplication). Session 1 archive + all Session 2 docs published to GitHub (`main`, commits `4de31602`..). | LIVE-CENSUS-2026-11-19.md; UI Component Audit/00-05; Core Logic Unification/01-04; FINDINGS_INDEX +13 IDs (DUP-024..030, ARCH-018..021, BUG-031, OPS-011); session-02-report.md; handoff-session-02.md; BLUEPRINT/ROADMAP UI-unification sections | **Complete** — see handoff-session-02 |
 
-## Open questions carried forward (from Session 1)
+## Open questions carried forward
 
-1. Live-DB census vs migration chain (needs owner/DB access; AGENTS_supabase records 83 tables at 0099-era vs chain's 99).
-2. Android repo parity for student-code semantics, permission enum, `pull_*_for_sync`, workflow engine mirror.
-3. Root cause of the reproduced t-502 wave-meter parity failure (regression vs date-sensitivity).
-4. i18n T-388 codemod history: was the `apply` pass run and reverted?
-5. Product decisions: `/personnel` safe-harbor intent; Ctrl+O autofill in production; deliverables/ retention; DepartmentManagement wiring; mock-only feature slots (clubs/therapy/performanceReviews) staging vs oversight.
+1. **Live-DB census vs migration chain** — chain side RESOLVED (100 tables / 14 views / 5 matviews, comment-stripped census); LIVE side **BLOCKED**: project restricted (`exceed_egress_quota`, HTTP 402 everywhere; OPS-011); management token invalid; DB password not provided. Unblock: owner lifts spend cap → re-run sandbox `scripts/live_census.py` (GET-only) or the repo's `run_verify_sql_live.sh` ceremony.
+2. Android repo parity for student-code semantics, permission enum, `pull_*_for_sync`, workflow engine mirror. (Unchanged; requires the sibling repo.)
+3. Root cause of the reproduced t-502 wave-meter parity failure (regression vs date-sensitivity). (Unchanged; needs a full vitest run environment.)
+4. ~~i18n T-388 codemod history~~ **RESOLVED (Session 2, git evidence)**: the `apply` pass was NEVER run — commit `71d5c446` ("T-388 iteration 2 — the THIRD LOCALE") generated/enhanced the dictionaries and the work stopped there; no revert commit exists and current code has zero `.kNNN(` call sites. The gen dictionaries are safe to remove (DEAD-005) unless the owner chooses to complete the apply.
+5. Product decisions: `/personnel` safe-harbor intent; Ctrl+O autofill in production; deliverables/ retention; DepartmentManagement wiring; mock-only feature slots (clubs/therapy/performanceReviews) staging vs oversight. (Unchanged — all five still owner-gated; roadmap 0.3/0.8/3.7/4.4 wait on them.)

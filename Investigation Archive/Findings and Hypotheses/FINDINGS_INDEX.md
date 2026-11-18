@@ -1,6 +1,8 @@
-# Findings Index — Master Register (Session 1)
+# Findings Index — Master Register (Sessions 1-2)
 
 Stable IDs for every significant finding. Full evidence lives in the cited verification reports (`Initial Reports Analysis/01..08`) and analysis files. Classification legend: **V** = Verified (independently confirmed against source), **C** = Corrected (prior claim partially right), **R** = Rejected (prior claim wrong), **U** = Unresolved.
+
+> **Session 2 addendum (2026-11-19):** new IDs DUP-024..030, ARCH-018..021, BUG-031, OPS-011 registered from the UI-component/design-system audit and the core-logic unification audit (`UI Component Audit/00-05`, `Core Logic Unification/01-04`, `Database and Supabase/LIVE-CENSUS-2026-11-19.md`). Evidence is file:line-verified by direct sweep.
 
 ---
 
@@ -50,6 +52,13 @@ Stable IDs for every significant finding. Full evidence lives in the cited verif
 | DUP-021 | Legacy Mon–Fri teacher timetable stack (`calc/teacher/validation.ts` + `model/teacher.ts` SchoolDay) superseded by canonical Sun–Thu `calc/timetable`; legacy consumed only by mock teacher-repo | V | teacher.ts:135-139 vs algerian-profile.ts:29-39 | REMOVE legacy stack with mock migration | High |
 | DUP-022 | WhatsApp normalization duplicated: `ParentActionsMenu` hand-rolls phone cleaning + `window.open(wa.me/…)` vs canonical `shared/utils/whatsapp.ts`; app-root interceptor (`app.tsx:61-112`) mitigates the runtime breakage the Shared report claimed | **C** (Shared report's "broken link" REJECTED; duplication itself verified) | parent-actions-menu.tsx:54,139; whatsapp.ts:9-31; app.tsx:61-112 | CONSOLIDATE onto `openWhatsApp` | High |
 | DUP-023 | Badge/StatusChip overlap; two drawer animation utility families both defined (custom keyframes + tailwindcss-animate) — cosmetic inconsistency | V | badge.tsx/status-chip.tsx; modal-shell.tsx:51 vs entity-detail-drawer.tsx:63 | CONSOLIDATE (pick one family) | Medium |
+| DUP-024 | THREE drawer implementations coexist with divergent styling/behavior: `EntityDetailDrawer` (7 consumers), `UnifiedModal variant="drawer"` (10 consumers), hand-rolled `AICopilotDrawer` (no portal/scrim/Escape/focus-trap; physical right-0/border-l; bg-surface-panel); PLUS teacher-dashboard.tsx:335 fullscreen `role="dialog"` overlay | V | UI audit 01; copilot-drawer.tsx:91,101; teacher-dashboard.tsx:335-336; variant="drawer" grep = 10 sites | CONSOLIDATE all on ModalShell skeleton; EntityDetailDrawer becomes preset; port copilot + teacher overlay | High |
+| DUP-025 | FOUR Radix-Dialog modal shells with divergent surface styling: ModalShell (`shadow-2xl`, 88vh, entry fade+zoom, end-4) vs EntityDetailDrawer (scrim 70, slide-in-from-right) vs Wizard (no entry animation, `shadow-lg`, 60vh) vs AutoFormModal (no animation, `shadow-lg`, NO height cap, physical right-4) | V | UI audit 02; modal-shell.tsx:74-82 vs wizard.tsx:80-84 vs auto-form-modal.tsx:69-70 | CONSOLIDATE: Wizard + AutoFormModal render through ModalShell (props unchanged, 24 consumers) | High |
+| DUP-026 | Tooltip system split: native `title=` attribute is the de-facto system (90 occurrences / 40+ files) vs shared Radix Tooltip (4 importers) vs InfoTip (dashboard rich variant) — unstyled browser tooltips over a polished token system | V | UI audit 03; rg census `title="[^"]+"` | CONSOLIDATE onto shared Tooltip; mechanical eradication pass batched per feature | High |
+| DUP-027 | KPI/metric widget 5-way proliferation: KpiCard (50L, shared, canonical tones) vs SparklineKpiCard (225L) vs StatStrip (137L) vs ExecutiveCards (1,096L) vs MixCards (288L) | V | Core logic 01 §4; wc -l verified | CONSOLIDATE on KpiCard as composition root with slot props | Medium |
+| DUP-028 | Animation utility family split: custom keyframes (`slide-in-right`/`slide-out-right` modal-shell drawer; `animate-slide-up` toast) vs tailwindcss-animate verbs (`slide-in-from-right` entity-drawer) — extends DUP-023 | V | UI audit 00 §2.3; modal-shell.tsx:51 vs entity-detail-drawer.tsx:63 vs toast-viewport.tsx:35 | CONSOLIDATE on tailwindcss-animate; delete custom keyframes | Medium |
+| DUP-029 | Per-page subscription boilerplate with no view-model layer: 165 `useObservable` sites / 45+ files; 18-subscription pages (financials-page, academic-year-detail-drawer); dashboard tabs receive 8-12 drilled props; no-op memo at dashboard-page.tsx:322 | V | Core logic 01 §2-3, 02 §2.3; grep census | ADD per-tab view-model hooks (D-U1/F-U2) | Medium |
+| DUP-030 | Settings per-tab ceremony duplication: load/save/toast + card scaffolding + edit-modal idiom re-implemented across 14 tabs; `SettingsCard`/`SettingRow`/`buildCardCallbacks` exist but serve ONLY the Configuration tab | V | Core logic 04 §2; configuration-tab.tsx:43-99 vs other tabs | CONSOLIDATE via SET-U1/U2 (promote shared primitives + useSettingsSection hook) | Medium |
 
 ## ARCH — architectural placement / boundaries / structure
 
@@ -72,6 +81,10 @@ Stable IDs for every significant finding. Full evidence lives in the cited verif
 | ARCH-015 | Client `Permission` enum (71 codes) vs SQL seeds (54 active) share only ~30 codes — server returns vocabulary the client enum partially models | V (new) | permissions.ts vs 0023:49-119 | CONSOLIDATE vocabulary (single source or generated) | High |
 | ARCH-016 | Governance/documentation drift: AGENTS.md §2/§3 (0001-0057), system-map.md (0044 era), §17 counts, AGENTS_supabase unresolved refs + stale OPS-313, §15 numbering collisions | V | report 08 §5 | UPDATE docs (separate documentation task) | High |
 | ARCH-017 | Root repo structure carries non-code weight: 985 MB deliverables/, Excel/ provenance, .smartexport/, stub package-lock.json | V | report 05 §5 | RESTRUCTURE repo hygiene (owner decision on retention) | High |
+| ARCH-018 | Imperative modal stack (`ModalProvider`/`useModal()`/`ModalHost`, z-[90] portal layer) has ZERO feature consumers — dead abstraction beside the declarative UnifiedModal pattern (same class as DEAD-014's FeatureFlagProvider) | V | UI audit 02; rg 'useModal' → provider + host only | REMOVE (with ADR note) | High |
+| ARCH-019 | Repository-layer bypasses: 9 feature files import `infrastructure/supabase/supabase-client` directly, incl. `features/crm/parent-detail-drawer.tsx` (person drawer doing platform work); 6 of 9 are settings diagnostics/config surfaces | V | Core logic 02 §2.3; import grep list | ROUTE parent-detail-drawer through repos; introduce PlatformDiagnosticsPort for tooling | High |
+| ARCH-020 | TanStack Query is a phantom data-layer dependency: zero feature usage (only react-table in data-table.tsx + 1 main.tsx import); the repository+observable pattern IS the data layer but is undocumented as such | V | Core logic 02 §2.3-2.4 | DOCUMENT the data-layer ADR (fold into ARCH-005); prune unused query dep | Medium |
+| ARCH-021 | Hand-rolled overlays outside the modal system lack a11y/interaction semantics: copilot-drawer (no portal, no scrim, no Escape, no focus trap, no aria) and teacher-dashboard fullscreen `role="dialog"` (role claimed without dialog semantics) | V | UI audit 01 §C-D, 04 §3; copilot-drawer.tsx:91,101; teacher-dashboard.tsx:335-336 | PORT both onto ModalShell (or reclassify teacher overlay as a route) | High |
 
 ## BUG — verified behavioral defects / inconsistencies (business logic)
 
@@ -107,6 +120,7 @@ Stable IDs for every significant finding. Full evidence lives in the cited verif
 | BUG-028 | Mock `PaymentRepository.refund` `actorId` optional vs required in Supabase — parity pin candidate | V | financial-repository.ts:295 vs supabase-shared-repositories.ts:2547 | ALIGN signatures | High |
 | BUG-029 | `Personnel.children` registry lists 4 legacy nodes vs 22 workforce permissions; `PERMANENTLY_DISABLED` claims Supabase/RLS/realtime "not available" (they are live) | V | feature-registry.ts:115-120,171-186 vs migrations+EFs | UPDATE registry data | High |
 | BUG-030 | Stale `ParentActionsMenu`/`CounterPaymentModal` doc comments; `receipt-pdf/index.ts` "4 generators" vs 8; `aes-256.ts` "per-tenant salt" vs fixed salt; `supabase-shared-repositories.ts:2457` cites 0026 vs operative 0127 | V | various | FIX comments | High |
+| BUG-031 | Settings `?tab=` deep-link read only in the useState initializer (settings-page.tsx:101-106): same-page navigation (topbar quick-backup → `/settings?tab=backup`) does NOT switch tabs — same defect class as BUG-026; dashboard-page does the idiom correctly (effect, lines 135-154) | V | Core logic 04 §2.4; settings-page.tsx:101-106 vs dashboard-page.tsx:135-154 | FIX (mount/param-change effect idiom) | High |
 
 ## OPS — repository / tooling hygiene
 
@@ -122,6 +136,7 @@ Stable IDs for every significant finding. Full evidence lives in the cited verif
 | OPS-008 | `check-supabase.ts` stale (uses `.delete()` on parents, old RPC shapes); `.mjs` twin is current | V | report 05 §3B | REMOVE ts version | High |
 | OPS-009 | AGENTS.md references nonexistent `scripts/verify_t-122_mig_tokens.sh` | V (new) | report 05 §6.7 | FIX doc reference | High |
 | OPS-010 | 22 migration files modified after initial commit (0004, 0022, 0024–0036, 0039/0040, 0096, 0104, 0138…) + historically deleted files — append-only policy vs actual history | V | git log --diff-filter=M | DOCUMENT (no action possible; note for audits) | High |
+| OPS-011 | Live Supabase project `vebfehrpzajhstyhinnw` RESTRICTED (`exceed_egress_quota`, HTTP 402 on auth/PostgREST/Edge Functions, 2026-11-19); provided management access token INVALID (401); DB URLs carry `[YOUR-PASSWORD]` placeholder — owner must lift spend cap before ANY live verification; GitHub PAT verified working | V | LIVE-CENSUS-2026-11-19.md §1-2; curl evidence | OWNER ACTION (upgrade/remove spend cap; issue valid management token if programmatic ops desired) | High |
 
 ## Rejected / corrected prior-report claims (register)
 
