@@ -314,3 +314,37 @@ Phases are strictly ordered by risk/leverage; every item is a registered T-task 
 5. **`register_family_batch` reachability from Android** (BUG-006 severity) is unknown.
 6. **Bootstrap 9000** is broken for fresh clones; whether any environment still uses it (vs the migration chain) is unknown — replacement is cheap regardless.
 7. **Estimates** (e.g., "~60+ dead symbols", comment-volume percentages) are censuses from static analysis; final counts will shift ±small deltas as batches land.
+8. **(Session 2)** The live project is RESTRICTED (`exceed_egress_quota`, OPS-011) — every live-verification step (including the §15.11 diff in risk 1) is blocked until the owner lifts the spend cap. Chain side of risk 1 is now exact: **100 tables / 14 views / 5 matviews / 152 migrations / 0 re-declared** (`Investigation Archive/Database and Supabase/LIVE-CENSUS-2026-11-19.md`).
+9. **(Session 2)** The i18n question in risk 3 is settled historically: the T-388 apply pass never ran (commit `71d5c446` generated the dictionaries; zero `.kNNN(` call sites today) — removal (R-3.8a) is safe unless the owner elects to complete the migration.
+
+---
+
+## 12. UI Component Unification Plan (Session 2 addition)
+
+Full evidence and per-category detail: `Investigation Archive/UI Component Audit/00-05`. This section is the execution-ready summary; it extends C-6 (formatting batch) and closes DUP-023..028, ARCH-018/021.
+
+**Authoritative map (one primitive per category, everything else composes it):**
+
+| Category | Authoritative | Converts |
+|---|---|---|
+| Dialog/form modal | `UnifiedModal` (+ `AutoFormModal` preset rendering through `ModalShell`) | Wizard (3 consumers), AutoFormModal (21) |
+| Drawer (entity) | `EntityDetailDrawer` as a preset over `ModalShell` | internal only; 7 consumers unchanged |
+| Drawer (utility) | `UnifiedModal variant="drawer"` (responsive `DrawerSize` fix) | 10 consumers inherit responsiveness |
+| Hand-rolled overlays | n/a — ports | copilot-drawer (ARCH-021), teacher-dashboard:335 |
+| Pop-up menu | `DropdownMenu` + Parent/StudentActionsMenu | no change (keep category) |
+| Tooltip | shared Radix `Tooltip` (+ `InfoTip` rich variant) | native `title=` ×90 sites |
+| Expandable | NEW `shared/ui/collapsible.tsx` | ~10 hand-rolled sites |
+| KPI/metric | `KpiCard` composition root | Sparkline/StatStrip/ExecutiveCards/MixCards |
+| Toast | existing single toast system | animation token alignment only |
+
+**Execution steps (dependency-ordered; full migration-impact tables in the audit docs):**
+
+- **UI-U1 (XS)** z-index tokens (`z-overlay/z-tooltip/z-toast`) + animation-family consolidation on tailwindcss-animate (delete custom `slide-in-right`/`animate-slide-up` keyframes).
+- **UI-U2 (S)** Wizard + AutoFormModal render through ModalShell — gains entry animation, 88vh cap, `shadow-2xl`, `end-4`; props stable.
+- **UI-U3 (S)** EntityDetailDrawer → ModalShell internally (scrim 70→60, animation verb swap, shared close-button base).
+- **UI-U4 (M)** Copilot drawer port (keep streaming/scroll contracts) + teacher-overlay reclassification (route preferred).
+- **UI-U5 (M)** `title=` → Tooltip eradication (40+ files, batched per feature area).
+- **UI-U6 (S)** BUG-025 header-slot fix + remove the dead `useModal`/`ModalHost` stack (ARCH-018).
+- **UI-U7 (M, later)** Collapsible primitive + KPI composition refactor (pairs with dashboard view-model work).
+
+**Companion core-logic steps** (full plans in `Investigation Archive/Core Logic Unification/01-04`): D-U1..U5 (dashboard view-models, RoleDashboardTemplate), F-U1..U4 (data-layer ADR, repository-bypass routing), S-U1..U6 (person display/payment/attendance unification), SET-U1..U6 (settings ceremony + gating pass; SET-U4 = BUG-031 fix). These integrate into ROADMAP Phases 3-5 at execution time.
