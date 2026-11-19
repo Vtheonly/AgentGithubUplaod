@@ -8,7 +8,7 @@
 - **The plan of record (unchanged):** `Refactoring Unified/EXECUTION-PLAN.md` v1.0 + BLUEPRINT v1.2 + ROADMAP; the DS/07 §8 Phase 0-3 checklist queue beside T-549..T-560 and S13's BUG-059..063 truncation lane. **BUG-042/T-559+T-560 remains the top CRITICAL**; the OPS-015 sequencing constraint (cap lift MUST NOT precede T-559/T-560 + the BUG-058 fix) is unchanged.
 - **NEW — the pedagogy lane (S14):** P-U1..P-U8 (DS/10 §5) with its sequencing P-U1 → (P-U2 ∥ P-U3 ∥ P-U6 ∥ P-U7) → P-U4 → P-U5 → P-U8-ADR; fold them as T-numbers in the next execution-plan session (the S13 precedent). Register adds: **BUG-064, DUP-035, ARCH-041/042/043**.
 - **Registers:** FINDINGS_INDEX carries the S14 addendum. **Next free IDs: DEAD-020, DUP-036, ARCH-044, BUG-065, OPS-016; next correction C-23.** SESSION_LOG row 14 + open-question 1 at **12-run-stable**. README structure + current-state rows.
-- **Infra:** `01-INFRASTRUCTURE-STATUS.md` has the S14 run (OPS-011 **12-run-stable**; GitHub PAT 200+push; Vercel PAT still VALID; mgmt token still 401; the new `sb_secret_ls_…` key set recognized — the blocker is the plan/spend-cap layer).
+- **Infra:** `01-INFRASTRUCTURE-STATUS.md` has the S14 run (OPS-011 **12-run-stable**; GitHub PAT 200+push; Vercel PAT still VALID; mgmt token still 401; the new secret-key set recognized — the blocker is the plan/spend-cap layer).
 
 ## What Session 14 established (do not re-litigate without new evidence)
 
