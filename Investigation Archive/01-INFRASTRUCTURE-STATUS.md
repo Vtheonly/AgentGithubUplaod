@@ -132,3 +132,23 @@ P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this se
 ```
 
 **Verdict:** OPS-011 is now **9-run-stable** (S2→S11): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the pooler network path is open. The blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys are recognized; the fresh GitHub PAT is fully working). The live-DB lane — now carrying BOTH the S8 §8 re-verification ceremony AND the S11 ×10/legacy-row reconciliation (Deep Sweep/07 §A1.5: enumerate the pre-T-424 `amount_paid > amount_due` rows, per-student workbook-vs-books oracle) — stays owner-gated exactly as before. **Diagnostic for the owner (unchanged):** the missing piece is the spend-cap lift in the Supabase dashboard (Project Settings → spend cap / plan), not new keys.
+
+---
+
+## Session 12 probe run (2026-11-19) — the runtime spot-verification session (OPS-011 10-run-stable)
+
+**Context:** handoff-session-12 gate check — the GET-only probe set re-run (script outside the repo; live key values redacted from the script after the run — no token material remains in any file):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P5b GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit.googleapis.com (FB key) → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies the write path)
+```
+
+**Verdict:** OPS-011 is now **10-run-stable** (S2→S12): the identical restriction signature persists; the blocker remains the plan/spend-cap layer (both Supabase keys recognized; the GitHub PAT fully working). The three owner-gated ceremonies (live census; S8 §8 re-verification; S11 §A1.5 ×10/legacy-row reconciliation) wait on the same single cap lift. **Runtime corroboration this session:** the app's own traffic under the cap is now measured end-to-end — the one-time 11-REST warm-up + the NEW perpetual ~30 s health-probe drip (BUG-058, ~240 doomed requests/hour in any mode) — making the cap lift urgent for a THIRD independent reason (deployed-app stability, beyond the ceremonies and BUG-042's amplification).
