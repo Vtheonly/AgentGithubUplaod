@@ -1,0 +1,56 @@
+EL-IMTIYAZ                                                                                       RECU DE PAIEMENT
+Établissement Scolaire Privé
+
+
+
+
+    Recu N?:                     REC-2025-000002                           Statut:                       Paye
+    Date:                        04/09/2025 10:00                          Reference:                    PAY-002
+
+
+
+
+PAYEUR
+
+
+    Nom:                         Amina Cherif                              Telephone:                    +213 661 23 45 67
+    Code:                        PAR-2025-B7H2
+
+
+DÉTAIL DU PAIEMENT
+
+
+    Désignation                                                  Méthode                    Catégorie               Montant
+    Paiement comptoir                                            Cheque                     Transport               3 500
+
+
+
+                                                                                          TOTAL PAYÉ
+                                                                                                                     3 500
+
+NOTES
+
+    Cheque en attente de compensation
+
+JUSTIFICATIF
+
+
+    Fichier joint: mock://proof/scan.jpg
+
+
+
+
+    Statut: PAYE
+
+
+
+
+                                                                                             Signature & cachet
+
+
+
+
+El-Imtiyaz · Oran, Algérie · Téléphone: +213 41 XX XX XX · Email: contact@elimtiyaz.dz
+                                                                                 Généré le 19/11/2026 11:24
+                                                                                                                   Page 1/1
+

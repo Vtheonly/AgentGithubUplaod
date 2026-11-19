@@ -1,0 +1,26 @@
+# RUNTIME S12 NETWORK CENSUS — mock-mode session, 2026-11-19
+
+Method: S10 recipe (Deep Sweep/06 §8) — `npm ci --ignore-scripts` (931 pkgs, clean tree) → `npx vite --port 5173 --strictPort --host 127.0.0.1` → agent-browser (Chromium) → first load WITHOUT the mock toggle (the C-20 pre-toggle state) → `el-imtiyaz.local-config = {"supabase_use_supabase":false}` → reload → mock login as SuperAdmin (admin@elimtiyaz.dz) → walkthrough (dashboard → financials → debt tab → Encaissement modal → CRM → student drawer → payments tab → financials → payment drawers → receipt PDF → analytics tab → tooltip hover → copilot send). Network log read via `agent-browser network requests`; per-page corroboration via `performance.getEntriesByType('resource')`.
+
+## Totals at session end (single browser context, ~70 min)
+
+- 80 `vebfehrpzajhstyhinnw.supabase.co` request lines = 40 OPTIONS preflights + 40 actual GETs, ALL 402 `exceed_egress_quota`.
+- GET breakdown by endpoint: `auth/v1/health` 29→43 (grew during the session — see the interval finding) · `class_subjects` 2 · `academic_years`/`academic_levels`/`classes`/`students`/`subjects`/`subject_configurations`/`rooms`/`personnel`/`timetable_versions` 1 each.
+- ZERO `system_settings` requests (BUG-042 regression check PASS — the Configuration tab was never visited and the loop does not occur spontaneously).
+- ZERO non-supabase external requests (the copilot send fired NO network request at all).
+
+## The two traffic classes
+
+1. **One-time REST warm-up (C-20 class, S10-documented):** 11 REST table GETs at the pre-toggle first load (academic_years, academic_levels, classes, students, subjects, class_subjects ×2, subject_configurations, rooms, personnel, timetable_versions) + their OPTIONS. After the mock toggle + reload these did NOT repeat.
+2. **NEW — the perpetual health-probe drip:** `/auth/v1/health` fires CONTINUOUSLY every ~30 s regardless of the mock toggle, at the login screen and on every page, including mock mode. Measured: +2 lines/35 s, +3 GETs/65 s on the quiet mock dashboard. Over the ~70-min session the health count grew 29→43+. Per probe = 1 OPTIONS + 1 GET (402 under the cap) ≈ 4 requests/min ≈ **~240 doomed requests/hour whenever the app is open, in ANY mode**.
+
+## Corrections to this session's own intermediate readings (kept for honesty)
+
+- The `[5797.NNNN]` prefixes in the agent-browser network log are SEQUENCE IDs, not timestamps. An intermediate reading interpreted `.1750`–`.1784` as a "28-probe burst within 18 ms" — RETRACTED: those are consecutive sequence numbers of probes spaced by the 30 s interval. The static design (singleton + 5 s throttle + 30 s interval, online-detector.ts:67,90,119,175-182) is therefore NOT contradicted; the drip is exactly the designed interval running against a probeUrl that the mock toggle never gates.
+- An intermediate `performance.getEntriesByType('resource')` check reported "0 supabase resources on the current page" and was briefly read as "zero live traffic after the toggle" — RETRACTED: the Vite dev page's resource-timing buffer had filled (hundreds of module fetches), so later fetches were not recorded there. The network log is the authority (it shows the continuing drip).
+
+## Root-cause seam (static, file:line)
+
+`online-detector.ts:171-182` — `getOnlineDetector()` resolves `probeUrl = resolveProbeUrl(supabaseUrl)` from the module-scope `supabaseUrl` (the canonical-fallback chain, same family as C-20: `supabase-client.ts:33-38,120`). The t-050 design comment says "no probe at all when the Supabase URL is unconfigured (mock/dev mode)" — but with the canonical fallback the URL is never unconfigured, so the probe runs in mock mode. This is the THIRD member of the two-gates seam family (the data layer's `useSupabase` toggle vs the connectivity layer's canonical-URL resolution): C-20 (dev defaults live), BUG-042 (Configuration tab loop gate), and now the detector drip.
+
+Fix direction (plan only): resolve the probe URL from the same effective runtime config the data layer uses (respect `useSupabase=false` / local config), or expose an explicit offline/local-first mode that disables probing; keep the 5 s throttle + 30 s interval as-is.
