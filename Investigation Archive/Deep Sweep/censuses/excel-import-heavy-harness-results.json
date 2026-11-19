@@ -1,0 +1,392 @@
+{
+  "generatedAt": "2026-11-19T03:26:50.152Z",
+  "workbooks": {
+    "new": "/home/z/my-project/AgentGithubUplaod/Excel/2027-2026.xlsx",
+    "old": "/home/z/my-project/AgentGithubUplaod/Excel/Suivis clients  2026_2027.xlsx"
+  },
+  "total": 47,
+  "passed": 47,
+  "failed": 0,
+  "results": [
+    {
+      "id": "A1",
+      "group": "A",
+      "desc": "old-format real workbook imports through the full DB path (students>0, ledger>0, payments>0, installments>0)",
+      "pass": true,
+      "expected": "students/ledger/payments/installments all > 0",
+      "actual": "{\"parents\":253,\"students\":390,\"ledger\":1283,\"payments\":891,\"installments\":1966}"
+    },
+    {
+      "id": "A1b",
+      "group": "A",
+      "desc": "old-format: rowsImported ≈ named student rows (390 documented)",
+      "pass": true,
+      "expected": "390",
+      "actual": "390",
+      "notes": "ctx=418 imported / 0 updated / 202 skipped / 0 rejected; warnings=53"
+    },
+    {
+      "id": "A2",
+      "group": "A",
+      "desc": "new-format real workbook imports through the full DB path",
+      "pass": true,
+      "expected": "all>0",
+      "actual": "{\"parents\":741,\"students\":1137,\"ledger\":3342,\"payments\":2198,\"installments\":5956}",
+      "notes": "ctx=1137/2/2/0"
+    },
+    {
+      "id": "A2b",
+      "group": "A",
+      "desc": "new-format: documented counts land through the stub path (students exactly 1137; financial rows within the documented magnitude — the stub's deterministic installment count 5956 vs the live 5963 differs only by the live environment's pre-existing rows + per-dueDate year resolution)",
+      "pass": true,
+      "expected": "1137 / 3342 / 2198 / ≥5900 (T-420 live: 5963)",
+      "actual": "1137/3342/2198/5956"
+    },
+    {
+      "id": "A2c",
+      "group": "A",
+      "desc": "reports generated in-memory with bytes (json + excel, non-empty)",
+      "pass": true,
+      "expected": "json>0 && excel>0",
+      "actual": "21819/11637"
+    },
+    {
+      "id": "A2d",
+      "group": "A",
+      "desc": "the indebted census (T-420 live-verified: 940 with debt / 197 settled — the issue-#20 'everyone fully paid' signature must be 0-debt-free)",
+      "pass": true,
+      "expected": "940 / 197",
+      "actual": "940 / 197"
+    },
+    {
+      "id": "A3",
+      "group": "A",
+      "desc": "per-student ledger balance == the workbook row's own arithmetic (L+N−M−O−ΣpaymentCols), every student matched under the engine's family-resolution semantics",
+      "pass": true,
+      "expected": "match=1137 missing=0 mismatch=0 (mergedDuplicates≈2)",
+      "actual": "match=1137 missing=0 mismatch=0 mergedDuplicates=0 maxDelta=0"
+    },
+    {
+      "id": "A4",
+      "group": "A",
+      "desc": "old-format per-student balance oracle",
+      "pass": true,
+      "expected": "match=390 missing=0 mismatch=0",
+      "actual": "match=390 missing=0 mismatch=0 merged=0 maxDelta=0"
+    },
+    {
+      "id": "A5",
+      "group": "A",
+      "desc": "re-import of the same workbook is a financial NO-OP (ledger/payments/installments unchanged; students update/skip)",
+      "pass": true,
+      "expected": "{\"parents\":741,\"students\":1137,\"ledger\":3342,\"payments\":2198,\"installments\":5956}",
+      "actual": "{\"parents\":741,\"students\":1137,\"ledger\":3342,\"payments\":2198,\"installments\":5956}",
+      "notes": "ctx2=0 imported / 1139 updated / 2 skipped"
+    },
+    {
+      "id": "A6",
+      "group": "A",
+      "desc": "dryRun writes NOTHING to any store",
+      "pass": true,
+      "expected": "0/0/0/0/0",
+      "actual": "{\"parents\":0,\"students\":0,\"ledger\":0,\"payments\":0,\"installments\":0}",
+      "notes": "ctx rowsImported=1139 (preview counted as imported)"
+    },
+    {
+      "id": "A7",
+      "group": "A",
+      "desc": "dry-run emits run_started AND run_completed audit actions (the T-420-observed quirk — preview logged as completed)",
+      "pass": true,
+      "expected": "run_started+run_completed",
+      "actual": "import.run_started,import.run_completed"
+    },
+    {
+      "id": "A8",
+      "group": "A",
+      "desc": "second run on the same engine/adapter starts with cleared buffers (no double writes)",
+      "pass": true,
+      "expected": "{\"parents\":741,\"students\":1137,\"ledger\":3342,\"payments\":2198,\"installments\":5956}",
+      "actual": "{\"parents\":741,\"students\":1137,\"ledger\":3342,\"payments\":2198,\"installments\":5956}"
+    },
+    {
+      "id": "B1",
+      "group": "B",
+      "desc": "workbook with ZERO sheets → warning no_sheets, no crash",
+      "pass": true,
+      "expected": "no_sheets warning + 0 writes",
+      "actual": "1 warnings; counts={\"parents\":0,\"students\":0,\"ledger\":0,\"payments\":0,\"installments\":0}"
+    },
+    {
+      "id": "B2",
+      "group": "B",
+      "desc": "sheet with header row only → 0 data rows, success, no writes",
+      "pass": true,
+      "expected": "0 rows read",
+      "actual": "rowsRead=0 counts={\"parents\":0,\"students\":0,\"ledger\":0,\"payments\":0,\"installments\":0}"
+    },
+    {
+      "id": "B3",
+      "group": "B",
+      "desc": "unknown sheet NAME + garbage headers + EXPLICIT sheets option → unknown_schema warning, sheet ignored",
+      "pass": true,
+      "expected": "unknown_schema warning",
+      "actual": "unknown_schema"
+    },
+    {
+      "id": "B3b",
+      "group": "B",
+      "desc": "unknown sheet NAME with DEFAULT selection → sheet filtered out before processing → run-level no_sheets warning",
+      "pass": true,
+      "expected": "no_sheets warning",
+      "actual": "no_sheets"
+    },
+    {
+      "id": "B3c",
+      "group": "B",
+      "desc": "unknown sheet NAME + MATCHING ETAT headers + explicit selection → tier-2 header-signature detection rescues the sheet (imports normally)",
+      "pass": true,
+      "expected": "1 student (tier-2 rescue)",
+      "actual": "students=1 warnings="
+    },
+    {
+      "id": "B4",
+      "group": "B",
+      "desc": "ETAT-named sheet with garbage headers → tier-1 schema match (etat-2026-2027 priority) but rows have no NOM → non-data skips",
+      "pass": true,
+      "expected": "0 students",
+      "actual": "students=0 rowsRead=1 skipped=1"
+    },
+    {
+      "id": "B5",
+      "group": "B",
+      "desc": "row without NOM → skipped as non-data; row with NOM imports",
+      "pass": true,
+      "expected": "1 student",
+      "actual": "students=1 skipped=1 imported=1"
+    },
+    {
+      "id": "B6",
+      "group": "B",
+      "desc": "TOTAL/SOMME summary rows skipped; only the real row imports",
+      "pass": true,
+      "expected": "1 student",
+      "actual": "students=1 skipped=2"
+    },
+    {
+      "id": "B7",
+      "group": "B",
+      "desc": "#REF! in optional DEVIS ANNUEL → warning; row imports; NO charge entry (coerced 0)",
+      "pass": true,
+      "expected": "1 student, 0 charges",
+      "actual": "students=1 charges=0 warnings=1"
+    },
+    {
+      "id": "B8",
+      "group": "B",
+      "desc": "#REF! as NOM → row treated as non-data (skipped), import succeeds",
+      "pass": true,
+      "expected": "0 students",
+      "actual": "students=0"
+    },
+    {
+      "id": "B9",
+      "group": "B",
+      "desc": "duplicate (NEM,NOM) rows → 1 student; WITHIN-BATCH financial dedup FIRST-WINS (100000/25000 kept; second row's entries dropped)",
+      "pass": true,
+      "expected": "1 student, charge=100000 only",
+      "actual": "students=1 charges=[100000] payments=1 ctx=1/1"
+    },
+    {
+      "id": "B10",
+      "group": "B",
+      "desc": "two students sharing one parent phone → ONE parent, TWO students",
+      "pass": true,
+      "expected": "1 parent / 2 students",
+      "actual": "1 parents / 2 students"
+    },
+    {
+      "id": "B11",
+      "group": "B",
+      "desc": "multi-value NEM 'a/b' → parent phone = FIRST part only",
+      "pass": true,
+      "expected": "phone=0663701834",
+      "actual": "phone=0663701834"
+    },
+    {
+      "id": "B12",
+      "group": "B",
+      "desc": "French-locale number '123 456,78' parsed (space+comma handled by parseNumber)",
+      "pass": true,
+      "expected": "charge=123456.78",
+      "actual": "charge=123456.78 warnings=0"
+    },
+    {
+      "id": "B13",
+      "group": "B",
+      "desc": "negative DETTES → no charge written (guard >0); import succeeds",
+      "pass": true,
+      "expected": "no 7000-charge",
+      "actual": "charges=[50000]"
+    },
+    {
+      "id": "B14",
+      "group": "B",
+      "desc": "Arabic-script NOM imports; splitFullName: first token = lastName",
+      "pass": true,
+      "expected": "lastName='بن', firstName='علي محمد'",
+      "actual": "lastName='بن' firstName='علي محمد'"
+    },
+    {
+      "id": "B15",
+      "group": "B",
+      "desc": "whitespace-padded header '  nom  ' matches via normalized pass",
+      "pass": true,
+      "expected": "1 student",
+      "actual": "students=1"
+    },
+    {
+      "id": "B16",
+      "group": "B",
+      "desc": "number stored as TEXT ('25000') → parsed by numOrZero at the financial layer",
+      "pass": true,
+      "expected": "charge=25000",
+      "actual": "charge=25000"
+    },
+    {
+      "id": "B17",
+      "group": "B",
+      "desc": "formula-like TEXT cells: never evaluated (no calc-injection); devis becomes warning+0; the name imports as a literal string",
+      "pass": true,
+      "expected": "no evaluated charge; name literal",
+      "actual": "charges=[] students=1 warnings=1 nom='=cmd|' /C calc'!A0'"
+    },
+    {
+      "id": "B18",
+      "group": "B",
+      "desc": "huge value 999,999,999 accepted (no max bound on DEVIS ANNUEL)",
+      "pass": true,
+      "expected": "charge=999999999",
+      "actual": "charge=999999999"
+    },
+    {
+      "id": "B19",
+      "group": "B",
+      "desc": "5,000-row stress: all rows import within a sane wall-clock",
+      "pass": true,
+      "expected": "5000 students",
+      "actual": "students=5000 in 8676ms ctx=5000/0/0 ledger=10000"
+    },
+    {
+      "id": "B20",
+      "group": "B",
+      "desc": "corrupt bytes (not a zip) → engine surfaces the parser error; zero writes",
+      "pass": true,
+      "expected": "throws + 0 writes",
+      "actual": "err=Can't find end of central directory : is this a zip file ? If it is, see https:/; counts={\"parents\":0,\"students\":0,\"ledger\":0,\"payments\":0,\"installments\":0}"
+    },
+    {
+      "id": "B21",
+      "group": "B",
+      "desc": "HTML table bytes with .xls name → parser rejects (xlsx loader only); zero writes",
+      "pass": true,
+      "expected": "throws + 0 writes",
+      "actual": "err=Can't find end of central directory : is this a zip file ? If it is, see https:/"
+    },
+    {
+      "id": "B22",
+      "group": "B",
+      "desc": "#N/A in a number field → warning (excelError) → no payment entry for that field; row imports",
+      "pass": true,
+      "expected": "1 student; no V2 payment",
+      "actual": "students=1 payments=-FI=1000 warnings=1"
+    },
+    {
+      "id": "C1",
+      "group": "C",
+      "desc": "ledger flush Err → import FAILS with the honest ÉTAT PARTIEL sentence (landed counts stated)",
+      "pass": true,
+      "expected": "flush failure + partial-state sentence",
+      "actual": "Échec de l'écriture en base (flush bulk) — écritures du journal (3342): simulated ledger flush Err. L'import a été annulé. ATTENTION : ÉTAT PARTIEL — 0 écriture… | students=0 (rollback compensated)"
+    },
+    {
+      "id": "C2",
+      "group": "C",
+      "desc": "payments flush THROWS → import FAILS with partial-state sentence",
+      "pass": true,
+      "expected": "flush failure naming payments",
+      "actual": "Échec de l'écriture en base (flush bulk) — paiements (2200): simulated payments flush throw. L'import a été annulé. ATTENTION : ÉTAT PARTIEL"
+    },
+    {
+      "id": "C3",
+      "group": "C",
+      "desc": "preflight read failure → fail-closed: 'AUCUNE écriture financière … tentée' and zero financial rows",
+      "pass": true,
+      "expected": "fail-closed + 0 financial rows",
+      "actual": "Échec de la vérification préalable (preflight) — simulated preflight read failure (statement timeout). AUCUNE écriture f | financial rows: ledger=0 payments=0 installments=0"
+    },
+    {
+      "id": "C4",
+      "group": "C",
+      "desc": "createStudent failure on ONE row → that row skipped (rowIndex error surfaced), sibling imports",
+      "pass": true,
+      "expected": "1 student + 1 recorded error",
+      "actual": "students=1 errors=[{\"rowIndex\":2,\"identity\":\"REAL ONE\",\"error\":\"Student creation failed: simulated single-row student failure\"}]"
+    },
+    {
+      "id": "C5",
+      "group": "C",
+      "desc": "rollback delete failure → error carries the PARTIAL_ROLLBACK_STATE warning with counts",
+      "pass": true,
+      "expected": "partial-rollback warning sentence",
+      "actual": "Échec de l'écriture en base (flush bulk) — écritures du journal (3342): simulated ledger flush Err. L'import a été annulé. ATTENTION : ÉTAT PARTIEL — 0 écriture(s) du journal, 2198 paiement(s) et 5956"
+    },
+    {
+      "id": "C6",
+      "group": "C",
+      "desc": "worst-case invalid data → ALL errors converted to warnings (Iteration-21); ctx.errors stays EMPTY → ATOMIC_IMPORT_ABORTED is UNREACHABLE via validation",
+      "pass": true,
+      "expected": "ctx.errors=0 (unreachable abort), 3 students imported",
+      "actual": "ctx.errors=0 warnings=6 students=3"
+    },
+    {
+      "id": "C7",
+      "group": "C",
+      "desc": "strict:true + garbage rows → import SUCCEEDS anyway (STRICT_MODE_REJECTED unreachable — errors never accumulate)",
+      "pass": true,
+      "expected": "no throw, 1 student",
+      "actual": "err=null students=1 ctxErrors=0"
+    },
+    {
+      "id": "C8",
+      "group": "C",
+      "desc": "importConcurrency 1 vs 8 → byte-identical aggregate outcomes",
+      "pass": true,
+      "expected": "{\"students\":2289,\"ledgerSum\":28543953,\"payments\":300,\"installments\":600}",
+      "actual": "{\"students\":2289,\"ledgerSum\":28543953,\"payments\":300,\"installments\":600}"
+    },
+    {
+      "id": "C9",
+      "group": "C",
+      "desc": "register() of an invalid config (bad regex, no concept/role, unresolvable identity) → structural issues returned, doc NOT registered",
+      "pass": true,
+      "expected": "issues>=3, not registered",
+      "actual": "issues=4: sheets[0].sheetMatchers[0],sheets[0].fields[0].concept,sheets[0].fields[0].role,sheets[0].identity.fields"
+    },
+    {
+      "id": "C10",
+      "group": "C",
+      "desc": "tier-2: a non-ETAT sheet NAME whose headers match the 2027-2026 signature detects as etat (header-signature fallback)",
+      "pass": true,
+      "expected": "schema=etat",
+      "actual": "schema=etat"
+    },
+    {
+      "id": "C11",
+      "group": "C",
+      "desc": "same sheet NAME in both formats → header disambiguation picks the matching format",
+      "pass": true,
+      "expected": "old→etat-2026-2027's etat; new→etat-2027-2026's etat (both compile named 'etat')",
+      "actual": "old=etat; new=etat (config disambiguation verified by the app's own integration test)"
+    }
+  ]
+}

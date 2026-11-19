@@ -1,0 +1,83 @@
+# S8 Census — the Excel import engine tree (2026-11-19)
+
+HEAD: 9ad9fef2
+
+## Command: wc -l over the engine + config tree
+```
+$ cd elimtiyaz-desktop && wc -l $(find src/infrastructure/excel -name "*.ts" | sort)
+   185 src/infrastructure/excel/import-config/configs/etat-2027-2026.ts
+   163 src/infrastructure/excel/import-config/extensions.ts
+    41 src/infrastructure/excel/import-config/index.ts
+   159 src/infrastructure/excel/import-config/types.ts
+    83 src/infrastructure/excel/import-engine/dedupe/upsert-matcher.ts
+   264 src/infrastructure/excel/import-engine/er-matcher.ts
+   102 src/infrastructure/excel/import-engine/errors.ts
+   122 src/infrastructure/excel/import-engine/import-context.ts
+   613 src/infrastructure/excel/import-engine/import-engine.ts
+    83 src/infrastructure/excel/import-engine/index.ts
+    34 src/infrastructure/excel/import-engine/mappers/destination-mapper.ts
+    66 src/infrastructure/excel/import-engine/mappers/name-splitter.ts
+   148 src/infrastructure/excel/import-engine/mappers/niveau-mapper.ts
+   304 src/infrastructure/excel/import-engine/parsers/excel-parser.ts
+    35 src/infrastructure/excel/import-engine/parsers/sheet-detector.ts
+   133 src/infrastructure/excel/import-engine/reporters/excel-reporter.ts
+    70 src/infrastructure/excel/import-engine/reporters/json-reporter.ts
+    19 src/infrastructure/excel/import-engine/schemas/bon-schema.ts
+    19 src/infrastructure/excel/import-engine/schemas/devis-schema.ts
+    97 src/infrastructure/excel/import-engine/schemas/etat-schema.ts
+    33 src/infrastructure/excel/import-engine/schemas/index.ts
+    23 src/infrastructure/excel/import-engine/schemas/ref-schema.ts
+   221 src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts
+  2961 src/infrastructure/excel/import-engine/storage/repository-adapter.ts
+   186 src/infrastructure/excel/import-engine/storage/storage-adapter.ts
+   177 src/infrastructure/excel/import-engine/types.ts
+    57 src/infrastructure/excel/import-engine/utils/checksum.ts
+    31 src/infrastructure/excel/import-engine/utils/id.ts
+    57 src/infrastructure/excel/import-engine/utils/logger.ts
+   234 src/infrastructure/excel/import-engine/validators/field-coercer.ts
+   378 src/infrastructure/excel/import-engine/validators/row-validator.ts
+    30 src/infrastructure/excel/import-engine/validators/rules/email.ts
+    35 src/infrastructure/excel/import-engine/validators/rules/enum.ts
+    29 src/infrastructure/excel/import-engine/validators/rules/min-length.ts
+   113 src/infrastructure/excel/import-engine/validators/rules/phone.ts
+    87 src/infrastructure/excel/import-engine/validators/rules/positive-number.ts
+    36 src/infrastructure/excel/import-engine/validators/rules/required.ts
+    34 src/infrastructure/excel/import-engine/validators/rules/types.ts
+   257 src/infrastructure/excel/reports.ts
+  9371 total
+```
+
+## Command: the engine's consumers (rg -l over src, excluding tests)
+```
+$ rg -l "infrastructure/excel/import-engine" src/ --glob "!**/*.test.*"
+src/features/crm/excel-import-modal.tsx
+```
+
+## Command: the engine's test files
+```
+$ rg -l "import-engine|ImportEngine|excel-import|import-config" src/tests/ --glob "*.test.*"
+src/tests/features/crm/t-517-modal-financial-consistency.test.tsx
+src/tests/features/dashboard/t-357-honest-demographics.test.ts
+src/tests/features/t-381-remove-users-students.test.tsx
+src/tests/features/t-384-remove-parents.test.tsx
+src/tests/features/t-498-desktop-audit-regressions.test.ts
+src/tests/infrastructure/excel-import-mappers.test.ts
+src/tests/infrastructure/import-config-registry.test.ts
+src/tests/infrastructure/t-011-payment-atomicity.test.ts
+src/tests/infrastructure/t-012-bulkcollect-failfast.test.ts
+src/tests/infrastructure/t-364-import-flush-idempotency.test.ts
+src/tests/infrastructure/t-420-honest-bulk-errors.test.ts
+src/tests/infrastructure/t-420-partial-rollback-surfacing.test.ts
+src/tests/infrastructure/t-420-realtime-pause-seam.test.ts
+src/tests/infrastructure/t-421-reimport-idempotency.test.ts
+src/tests/infrastructure/t-438-er-gate-and-seam.test.ts
+src/tests/infrastructure/t-439-er-binding-scope.test.ts
+src/tests/infrastructure/t-439-import-year-identity.test.ts
+src/tests/integration/empty-state-excel-restore.test.ts
+src/tests/integration/real-excel-import-2027-2026.test.ts
+src/tests/integration/real-excel-import.test.ts
+src/tests/integration/sync-batch.test.ts
+src/tests/integration/t-105-import-shape.test.ts
+src/tests/integration/t-420-payment-state-regression.test.ts
+src/tests/performance/t-417-excel-import-perf.test.ts
+```
