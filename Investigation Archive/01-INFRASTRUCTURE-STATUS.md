@@ -54,3 +54,20 @@ P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 + push ver
 | Firebase web API key | format-valid, functionally unverified | unchanged (P8 non-mutating probe only) |
 
 **Standing note:** credential values are never stored in this archive; this file intentionally contains only masked references. OPS-012 (rotate all committed credentials) remains an open owner action. **Diagnostic for the owner:** if the intent of the S6 credential set was to restore live mode, the missing piece is the spend-cap lift in the Supabase dashboard (Project Settings → spend cap / plan) — not new keys.
+
+---
+
+## Session 8 probe run (2026-11-19) — the Excel-import live-lane gate
+
+**Context:** the owner's S8 mandate ("test it heavly on the excel import on the db") made the live Supabase import path the preferred heavy-test target. Probe set re-run (GET-only, keys in-memory only, masked):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                  → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1 → 402 exceed_egress_quota
+P4  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+```
+
+**Verdict:** OPS-011 is now **6-run-stable** (S2→S8). The live-DB import-flush lane stays owner-gated on the spend cap — exactly as in Sessions 2-6, the blocker is the plan layer, not the credentials (P1's key-type gate proves the publishable key is recognized; P2's quota body proves the secret key is recognized).
+
+**What was done instead (the full substitute for the live lane):** the heavy testing ran through the engine's REAL DB write path (`ImportEngine` + `RepositoryStorageAdapter` + the real domain calc modules) against instrumented in-memory stub repositories (the repo's own t-105 test convention — the same method that produced the T-420 live-verified forensics). Result: 197 tests green across two layers (150 repo regression tests + the 47-test S8 adversarial harness, incl. the independent per-student balance oracle 1137/1137 + 390/390 and the 940/197 indebted census). The only untested dimension is the wire itself — see `Deep Sweep/04-DEEP-EXCEL-IMPORT-ENGINE-AUDIT-2026-11-19.md` §8 for the one-time unblock ceremony (cap lift → re-run harness Group A against the Supabase repositories; expect 5,963 installments per the §7.4 note).
