@@ -1,4 +1,4 @@
-# Findings Index — Master Register (Sessions 1-4)
+# Findings Index — Master Register (Sessions 1-5)
 
 Stable IDs for every significant finding. Full evidence lives in the cited verification reports (`Initial Reports Analysis/01..08`) and analysis files. Classification legend: **V** = Verified (independently confirmed against source), **C** = Corrected (prior claim partially right), **R** = Rejected (prior claim wrong), **U** = Unresolved.
 
@@ -238,3 +238,21 @@ New IDs from the Supabase coupling map, the data-pipeline inventory/design, and 
 | BUG-037 phrasing: "only 8 of 15 entity kinds staged" | CORRECTED (C-6) | 8 kinds have PUSH PATHS (`default-push-handler.ts` case labels); only **5 kinds have enqueue producers** (mock-store staging + excel-import: parent, student, payment, installment, ledger_entry); attendance/grade/homework are push-path-only; expense/personnel restored-but-never-staged; 5 kinds enum-only. The queue is lossier than the S3 headline |
 | Coupling map §4 + blueprint §2: "14 bypass files" | CORRECTED (C-7) | **16 files to route through ports** (17 direct `supabase-client` importers outside the supabase tree, minus `repository-provider.tsx` which IS the seam): 9 features + tenant-switcher + sync-provider + system-config + media-vault + llm-adapter + 3 sync. LF-0 scope sizing updated in ROADMAP 7.0 |
 | S3 line-cite drifts (EF +90d header, backup tenantId, factory block range) | CORRECTED (C-5) | Substance verified at drifted lines: `purge-expired-backups/index.ts:12` (not 17-18); `backup-service.ts:179,249` (not 168,241); factory object literal `:423-486` (not 421-486) |
+
+---
+
+## Session 5 addendum (2026-11-19) — full vitest census, t-502 resolved, LF-0 prep censuses, ADR drafts
+
+### New findings (Session 5)
+
+| ID | Finding | Class | Evidence | Recommendation | Confidence |
+|---|---|---|---|---|---|
+| BUG-038 | The finance wave adapter evaluates overdue verdicts against the wall clock: `deriveTrancheWaves` (`src/features/financials/installment-schedule-tab.tsx:228-231`) has no clock parameter and hard-codes `Date.now()` at `:246` (`derivePooledTrancheWaves(rows, Date.now(), thresholds)`); unticketed wall reads also at `:330` and `:708`. The t-502 PARITY test pins a fixed clock (2026-10-11) → the test compares DIFFERENT instants across surfaces; green by accident through 2026-10-15, deterministically red from **2026-10-16 onward**. The three surfaces agree at a common instant (one shared predicate since T-502) — hermeticity defect, not predicate divergence. Full suite census: 321 files / 5,270 passed / 1 failed / 5 skipped — the ONLY failure | V | S5-VITEST-CENSUS-2026-11-19 §3-4 (reproduction 01:40 UTC; root cause read at source; onset arithmetic) | Execution task T-549 (drafted in LF0-TNUMBER-DRAFTS-2026-11-19): optional `nowEpochMs` param defaulting to `Date.now()`, pass the test clock in t-502's three finance calls; re-pin per the T-470 explicit-evaluation-clock discipline | High |
+
+### Corrections to prior session records (Session 5)
+
+| Prior record | Verdict | Correction |
+|---|---|---|
+| ARCH-035 supporting count: "89 `auth.uid()` refs" | CORRECTED (C-8) | **69 executable refs** at exact-tokenizer precision (41 static policy expressions + 28 function bodies incl. `$$`-tagged; 0 dynamic-SQL policy refs — all 324 policies are static code). The 89 was a comment-stripper artifact (21 non-executable occurrences: 18 in comments + 3 in `COMMENT ON FUNCTION` literals; raw text = 90). Shim conclusion unchanged and strengthened: zero policies read JWT beyond uid; the `service_role` branch points and the `request.jwt.claims` email readers (0120:537, 0121:486) live in 17 function-body files — see `Local-First Architecture/LF0-PREP-CENSUS-2026-11-19.md` Part B |
+| Session 1 RUNTIME-EVIDENCE §2 interpretation: the t-502 failure "corroborates the static DUP-016/BUG-012 family (parallel overdue predicates)" | CORRECTED (C-9) | Withdrawn: the runtime divergence is clock-injection asymmetry (BUG-038), not predicate divergence; the static DUP-016/BUG-012 findings stand on their own static evidence. Registered alongside the original per archive rules (RUNTIME-EVIDENCE carries the Session 5 addendum) |
+| C-1 (S4): untouched-set 27 incl. `receipts` | RE-VERIFIED EXACTLY (S5) | The 27-table list re-derived with a quote/comment/dollar-quote-aware tokenizer (100 static non-temp chain tables, 73 `.from()`-touched); `receipts` confirmed; the per-table writer map + RPC-read checklist now exist (LF0-PREP-CENSUS Part A) — census-method footnote: a strings-stripped regex admitting `CREATE TEMP TABLE` finds 28 (`_t105_corpus`, dropped in-migration 0063; not live chain) |

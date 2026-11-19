@@ -59,3 +59,9 @@ npx tsc --noEmit                       # expected: clean
 npx vitest run src/tests/domain/t-502-wave-meter-thresholds.test.ts   # observed: 1 failed | 7 passed
 npx vitest run                          # full suite (allow >10 min)
 ```
+
+---
+
+# Session 5 addendum (2026-11-19) — full suite completed; t-502 resolved
+
+**The Session 1 open item is closed.** The full vitest suite was completed this session via ten foreground shard runs (the sandbox's background processes do not survive tool-call boundaries; sharding is vitest-native and the union is the complete suite): **321 files / 5,270 passed / 1 failed / 5 skipped** — the single failure is the same t-502 assertion, now **root-caused at source** as the finance adapter's hard-coded wall clock (`installment-schedule-tab.tsx:246` `derivePooledTrancheWaves(rows, Date.now(), …)` vs the test's fixed `NOW = 2026-10-11`): the parity test compares different instants, green by accident through 2026-10-15, deterministically red from **2026-10-16 onward**. Registered as **BUG-038** (fix path documented there; execution scope, not investigation scope). Session 1's interpretation ("corroborates the DUP-016/BUG-012 parallel-predicate family") is **corrected** — the three surfaces agree at a common instant; the divergence is clock-injection asymmetry, not predicate divergence. Full detail: `S5-VITEST-CENSUS-2026-11-19.md` (per-shard results, baseline deviation ledger, failure-onset arithmetic).
