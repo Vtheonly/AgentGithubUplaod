@@ -176,3 +176,27 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200  ← NEW: the Vercel PAT is
 **Verdict:** OPS-011 is now **11-run-stable** (S2→S13): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys are recognized; the GitHub PAT is fully working). The three owner-gated ceremonies stay gated exactly as before. **Credential-scorecard update (OPS-013 / SESSION_LOG open question 8):** the Vercel PAT, invalid at S4, now tests **VALID (200)** — the owner rotated it; the management token is still invalid (a fresh non-expired token is wanted only if the management-API census ceremony is desired).
 
 **NEW this session — the cap-lift sequencing constraint (OPS-015, Deep Sweep/09 §3.1):** the S13 egress verification consolidated the app's four live-mode traffic classes (the 30 s/focus TTL re-seed volley ≈13k+ rows per cycle at current scale; the dashboard's uncached per-filter-change collection downloads ×2; BUG-042's amplification — suppressed today only because the 402 state trips the offline detector; BUG-058's drip). **Consequence: when the cap is lifted, the app will immediately re-burn the egress quota unless T-559/T-560 + the BUG-058 probe fix are executed FIRST** — the three staged ceremonies should then run in the same one-time window. The relocation runbook (Local-First Architecture/RELOCATION-RUNBOOK.md §Phase 0) lists the cap lift as a precondition of the transfer window on BOTH projects.
+
+---
+
+## Session 14 probe run (2026-11-20) — the school-Excel/pedagogy session (OPS-011 12-run-stable)
+
+**Context:** handoff-session-14 gate check — the owner supplied a fresh credential set with the instruction "test if it works make sure it works". GET-only probe set re-run at session start (keyless script outside the repo at `/home/z/my-project/scripts/infra_test.sh`; keys sourced via environment from a chmod-600 env file OUTSIDE the repo — never written into any repo file; no token material appears in any committed artifact):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P5b GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit (FB web key)         → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN (direct db.vebfehrpzajhstyhinnw.supabase.co:5432 — DNS does not resolve from the sandbox; the pooler is the operative path)
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies the write path)
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID — the S13 rotation holds)
+```
+
+**Verdict:** OPS-011 is now **12-run-stable** (S2→S14): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys — including the new secret-key set — are recognized; the GitHub PAT is fully working with push verified this session; the Vercel PAT remains valid). The three owner-gated ceremonies stay gated exactly as before, and the OPS-015 cap-lift sequencing constraint stands unchanged (T-559/T-560 + the BUG-058 probe fix MUST land before any live traffic).
+
+**Credential hygiene note (S14):** the full credential set was supplied in chat by the owner and is stored ONLY outside the repo (chmod-600 env file at `/home/z/my-project/scripts/credentials.env`, consumed via environment by the probe script and the git remote) — the token-hygiene grep over every changed file before every push ran clean. Since the tokens were pasted in plaintext chat, the standing recommendation to rotate them (OPS-012 family) is repeated in the session reply.
