@@ -1,0 +1,61 @@
+S10 RUNTIME UI INSPECTION — CONSOLE EVIDENCE SUMMARY
+=====================================================
+Session: S10 (2026-11-19). Captured via agent-browser console/errors during
+the walk; consolidated here (the live console was cleared twice mid-session
+for per-surface attribution, so this file is the curated transcript, not a
+raw dump).
+
+BOOT SEQUENCE (login screen, before sign-in):
+  [info]  React DevTools suggestion banner (dev-only)
+  [warn]  [SyncService] Already initialised — returning existing instance.
+          (fired 3× by the time the dashboard was reached — a re-entrant
+          init guard tripping on module re-eval/double provider mount;
+          benign but noisy — S10 §6.4)
+  [log]   structured app logs after login:
+          audit.log {action:"auth.login", id:"usr-adm-001"}
+          backup.scheduler.start  {mode:"dev", scheduledHour:2, enabled:true}
+          backup.scheduler.armed  {nextRunInMs:300000, nextRunAt:+5min}
+          backup.scheduler.stop   {}
+          backup.scheduler.start  (again) / armed (again)
+          → the start→armed→stop→start→armed sequence is the React dev
+          StrictMode double-effect (two mounts); in dev the 24h scheduler
+          arms a 5-minute interval instead of the 02:00 daily schedule
+          (S10 §6.5 — dev-only behavior, schedulerHour field confirms the
+          production value would be 2).
+
+THE LOOP (BUG-042, Paramètres → Configuration):
+  [error] Warning: Maximum update depth exceeded. This can happen when a
+          component calls setState inside useEffect, but useEffect either
+          doesn't have a dependency array, or one of the dependencies
+          changes on every render.
+          — fired continuously during the first Configuration visit
+          (dozens of times in the visible console window); after leaving
+          the tab the count was 2 in the retained buffer (React caps the
+          synchronous warning, but the async re-fetch cycle continued —
+          network evidence file records the 7,148-request total).
+          Component stack not captured (Playwright console capture drops
+          the follow-up lines); the root cause chain was instead derived
+          from source: toast-provider.tsx:57-70 (useMemo deps include
+          `toasts`) × configuration-tab.tsx:85-105 (loadSettings
+          useCallback deps [systemConfigService, showError] + useEffect
+          [loadSettings]) × supabase-client.ts:171-177
+          (isSupabaseConfigured() true via the hard-coded canonical key
+          even with useSupabase=false).
+
+AI COPILOT DRAWER (unconfigured, mock mode):
+  [error] Maximum update depth exceeded — fired ONCE on the FIRST send
+          (after conversation restore from localStorage); NOT reproduced
+          on the second send (0 occurrences with a cleared console).
+          Non-deterministic; origin not pinned (S10 §6.3 — follow-up).
+  No assistant reply in the unconfigured state; the user turn is persisted
+  anyway (two unanswered user messages visible after reload — T-268
+  persistence stores failed turns).
+
+TOAST FLOOD VISUAL: 10+ stacked identical red error toasts
+"Erreur chargement paramètres: Erreur interne du serveur." visible in
+07-config-loop-evidence.png (also 154 duplicated hidden banner copies
+counted in the DOM at the first visit).
+
+PAGE ERRORS (agent-browser errors channel): NONE across the whole walk —
+no uncaught exceptions reached the page error channel; every failure
+surfaced only as React console warnings + toasts.
