@@ -248,3 +248,30 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
 ```
 
 **Verdict:** OPS-011 is now **14-run-stable** (S2→S16): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (both Supabase keys recognized; GitHub PAT fully working incl. push; Vercel PAT still valid). The OPS-015 cap-lift sequencing constraint stands unchanged — now sharpened by DS/12 §2: with the cap lifted and the toast-churn family unfixed, a single failing tab visit re-burns egress through **five** request loops (BUG-042's proven one + the four newly censused sites), not one. Credential hygiene: unchanged posture — the token-hygiene grep over every changed file before push; the standing rotation recommendation (OPS-012 family) repeated in the session reply.
+
+---
+
+## Session 17 probe run (2026-11-20) — the owner-infrastructure-question session (OPS-011 15-run-stable)
+
+**Context:** handoff-session-17 gate check — the sandbox had recycled since S16 (repo re-cloned from `main` at `0bdb55dd`; the credentials env + keyless probe script survived at `/home/z/my-project/scripts/` and were reused, chmod-600 posture unchanged). The owner asked directly whether the audit is blocked by the Supabase restriction and what the plan is. GET-only probe set re-run at session start (keyless script `infra_test_s16.sh` outside the repo; keys via environment only — no token material in any committed artifact):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P5b GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit (FB web key)         → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P9c direct db host RESOLVES from the sandbox (S16 datum carries; login still untested per charter —
+    the password remains a [YOUR-PASSWORD] placeholder)
+P10 GET api.github.com/repos/… (PAT)         → 200; Issue #32 → 200 (open, 0 comments,
+    updated_at 2026-11-19T00:06:59Z — no owner activity; gates unchanged)
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
+```
+
+**Verdict:** OPS-011 is now **15-run-stable** (S2→S17): the identical restriction signature persists on REST root/table, JWKS, and auth-health; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (both Supabase keys recognized; GitHub PAT fully working; Vercel PAT still valid). The three owner-gated ceremonies (live census; S8 §8 re-verification; S11 §A1.5 ×10/legacy-row reconciliation) and the E7.9 final export remain staged, and the **OPS-015 sequencing constraint stands unchanged**: T-559/T-560 (now the five-site loop family) + the BUG-058 probe fix MUST land before the cap is lifted, else the app immediately re-burns egress through five request loops + the 30 s probe drip.
+
+**Session 17 note (the direct answer to the owner's question, recorded for the file):** the restriction does NOT block schema access — the complete schema is in-source (152 migration files under `elimtiyaz-desktop/supabase/migrations/`, censused at 100 tables in S2 from the migration chain) and every edge function/RPC/policy is in the repo. What the cap blocks is live runtime verification only (data reads, auth flows, the three staged ceremonies). The cap lift itself is exclusively an owner billing action (Supabase Dashboard → Project Settings → spend cap / plan upgrade) — the 402 body states it verbatim; no credential rotation can substitute (15-run-proven). Lane note: no new investigation lane was due this run — the S16 runtime-item backlog is EMPTY; this session is the standing gate check + the infrastructure-question reply.
