@@ -152,3 +152,27 @@ P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this se
 ```
 
 **Verdict:** OPS-011 is now **10-run-stable** (S2→S12): the identical restriction signature persists; the blocker remains the plan/spend-cap layer (both Supabase keys recognized; the GitHub PAT fully working). The three owner-gated ceremonies (live census; S8 §8 re-verification; S11 §A1.5 ×10/legacy-row reconciliation) wait on the same single cap lift. **Runtime corroboration this session:** the app's own traffic under the cap is now measured end-to-end — the one-time 11-REST warm-up + the NEW perpetual ~30 s health-probe drip (BUG-058, ~240 doomed requests/hour in any mode) — making the cap lift urgent for a THIRD independent reason (deployed-app stability, beyond the ceremonies and BUG-042's amplification).
+
+---
+
+## Session 13 probe run (2026-11-19) — the egress/truncation/relocation session (OPS-011 11-run-stable)
+
+**Context:** handoff-session-13 gate check — the owner re-issued the deep-audit mandate (egress/truncation/relocation) with a fresh credential set and the instruction "test if it works make sure it works". GET-only probe set re-run at session start (keyless script outside the repo at `/home/z/my-project/scripts/s13_infra_probe.sh`; keys passed via environment, never written to any file):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P5b GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit (FB web key)         → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies the write path)
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200  ← NEW: the Vercel PAT is VALID (S4's INVALID verdict was for the OLD token; the re-supplied token authenticates as the owner's Vercel account)
+```
+
+**Verdict:** OPS-011 is now **11-run-stable** (S2→S13): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys are recognized; the GitHub PAT is fully working). The three owner-gated ceremonies stay gated exactly as before. **Credential-scorecard update (OPS-013 / SESSION_LOG open question 8):** the Vercel PAT, invalid at S4, now tests **VALID (200)** — the owner rotated it; the management token is still invalid (a fresh non-expired token is wanted only if the management-API census ceremony is desired).
+
+**NEW this session — the cap-lift sequencing constraint (OPS-015, Deep Sweep/09 §3.1):** the S13 egress verification consolidated the app's four live-mode traffic classes (the 30 s/focus TTL re-seed volley ≈13k+ rows per cycle at current scale; the dashboard's uncached per-filter-change collection downloads ×2; BUG-042's amplification — suppressed today only because the 402 state trips the offline detector; BUG-058's drip). **Consequence: when the cap is lifted, the app will immediately re-burn the egress quota unless T-559/T-560 + the BUG-058 probe fix are executed FIRST** — the three staged ceremonies should then run in the same one-time window. The relocation runbook (Local-First Architecture/RELOCATION-RUNBOOK.md §Phase 0) lists the cap lift as a precondition of the transfer window on BOTH projects.
