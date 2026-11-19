@@ -103,4 +103,44 @@ These predate the architecture work and remain owner-gated; none block LF/P phas
 
 ---
 
+## Part E — Session 15 addendum (2026-11-20): the pedagogy-unification lane decisions (D-13..D-16)
+
+*Staged by the dedicated Pedagogy Unification, Relational Linking & Legacy Deletion mandate (Deep Sweep/11). None of the four blocks execution of the read-only investigation; all four gate their respective T-numbers in the folded lane (EXECUTION-PLAN v1.1, T-561..T-571).*
+
+### D-13 · Curriculum & assessment coverage — the recipe A/B (carried from S14; gates T-566)
+The school's real bulletin tracks 8 mark families (تقويم تشخيصي / الكراس / المشاركة / الواجبات / السلوك / استجوبات كتابية / شفاهية / غيابات) while the app models 4 components (D1/D2/EX/CC + attendance).
+| Options | Trade-off |
+|---|---|
+| (a) Adopt the official-bulletin composite: the 8 families become recipe components (per-dimension averages per subject, then coefficient-GPA) — matches the workbook layout | The GradingRecipe engine (Σ mark×weight / Σ weight) already supports arbitrary components; B stays a configuration via weight presets |
+| (b) Keep the current D1/D2/EX/CC recipe; treat the workbook's families as display groupings | Zero engine change; the bulletin PDFs understate the school's real dimensions (the current coverage gap ARCH-042 stays) |
+
+**⏵ DEFAULT: (a)** — staged as new recipe components with per-`SubjectConfiguration` weight presets so (b) remains a configuration, not a fork. *Blocks: T-566 (P-U4); the P-U5/T-567 importer's mark-mapping table.*
+
+### D-14 · `parent_student_links` — adopt the junction or drop it? (gates T-568)
+The multi-guardian junction is fully designed (relationship + is_primary + uniqueness + RLS, 0005:89-98) but has ZERO application consumers (DEAD-020); every guardian/sibling fact squeezes through the single `students.parent_id`.
+| Options | Trade-off |
+|---|---|
+| (a) Adopt as the canonical chain: backfill one is_primary link per live student from `students.parent_id`; `parents.relationship` migrates onto the link rows; guardians become first-class | One migration + the write-path invariant (trigger or service keeps parent_id = the primary link); zero data loss; multi-guardian families become operable |
+| (b) Drop the table; stay single-parent | Simplest; permanently loses the multi-guardian capability the schema already paid for; `parents.relationship` stays mis-scoped (per parent, not per link) |
+
+**⏵ DEFAULT: (a) adopt.** *Blocks: T-568 (M-U4); every parent-view surface that will render guardians.*
+### D-15 · The teacher year-scoped profile fields — delete the phantom or persist it? (gates T-569)
+`maxWeeklyHours`, `qualifiedSubjectIds`, teacher `code`, per-year `status` exist ONLY in the domain/mock layer — the Supabase repository rejects them ("have no personnel column"); teaching facts live on `class_subjects`/`homeroom`/`timetable_entries`/`homework` (all FK→personnel).
+| Options | Trade-off |
+|---|---|
+| (a) Delete the phantom write-surface: Teacher collapses to a personnel read-model; qualification = the derived class_subjects pairs | 47 references/10 files to rewire (mechanical); zero feature loss TODAY (nothing persisted them); matches the "Teachers ARE Workers" mandate exactly |
+| (b) Persist a minimal `teacher_profiles` table (year-scoped, FK personnel) and keep the fields | A real (small) migration + UI; preserves the option of per-year teaching contracts (hours ceilings for the timetable solver) at the cost of a second year-scoped entity the mandate is trying to eliminate |
+
+**⏵ DEFAULT: (a) delete.** If the timetable solver later needs hours ceilings, re-introduce them deliberately as solver constraints (on personnel), not as a second teacher entity. *Blocks: T-569 (M-U1/M-U3).*
+### D-16 · `service_enrollments` — portal seam or chain fold? (gates the T-570 documentation; non-blocking)
+The billing-side enrollment table is consumed only by the website portal (`useServiceEnrollments`); the desktop writes ledger+installments directly.
+| Options | Trade-off |
+|---|---|
+| (a) Keep as the PORTAL's documented billing seam | Zero migration; the divergence is documented + guarded; the portal keeps its contract |
+| (b) Fold into the canonical enrollment chain at LF-0 | One fewer representation; a portal migration the desktop program would own |
+
+**⏵ DEFAULT: (a) keep as the documented seam.** *Blocks: the T-570/M-U5 seam documentation only — a one-page note in the P-U8/M-U10 ADR batch.*
+
+---
+
 *End of packet. Decisions can be answered piecemeal in GitHub Issue #32; unanswered items follow the ⏵ DEFAULTs above from Session 5 onward. No application source, configuration, schema, or dependency was modified in producing this packet.*
