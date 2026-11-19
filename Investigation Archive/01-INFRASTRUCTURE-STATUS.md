@@ -91,3 +91,23 @@ P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this se
 **Verdict:** OPS-011 is now **7-run-stable** (S2→S9): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The spend cap is still in place — the live-DB lane (the S8 §8 one-time re-verification ceremony; the E7.9 final export) remains owner-gated exactly as before. The blocker is the plan layer, not the credentials (P1's key-type gate + P2's quota body prove both keys are recognized). No re-verification ceremony was due this run.
 
 **Session 9 note:** the Deep Sweep Lane-B census (05-DEEP-UNIFIEDMODAL-CONSUMER-CENSUS) was completed instead — static analysis only, no live interaction needed.
+
+---
+
+## Session 10 probe run (2026-11-19) — runtime-lane session (OPS-011 8-run-stable)
+
+**Context:** routine 6-hourly sweep (S10); the never-run runtime lane executed (mock-mode dev server UI inspection — Deep Sweep/06). GET-only probe set re-run at session start (keys in-memory only, masked):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies write path)
+```
+
+**Verdict:** OPS-011 is now **8-run-stable** (S2→S10): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The spend cap is still in place — the live-DB lane (Deep Sweep/04 §8 ceremony; the E7.9 final export) remains owner-gated. Blocker = plan layer, not credentials (P1 key-type gate + P2 quota body prove both keys recognized).
+
+**NEW this run — the runtime lane made the restriction CONCRETE:** inside the app itself, the renderer's live-wire callers all 402 too, and the Configuration tab's error-refetch loop (BUG-042, Deep Sweep/06 §3) amplified that into **7,148 doomed requests from two tab visits** (plus ~12 pre-login warm-up queries at the login screen). The deployed desktop build (production flags force the same canonical URL/key) would behave identically for end users. **The cap lift is now urgent for two independent reasons: the one-time census/export ceremonies AND the deployed app's own stability under BUG-042** (the T-559/T-560 fix removes the amplification but the 402 state itself only the owner can lift).

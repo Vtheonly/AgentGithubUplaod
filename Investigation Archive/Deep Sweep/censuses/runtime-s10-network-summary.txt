@@ -1,0 +1,60 @@
+S10 RUNTIME UI INSPECTION — NETWORK EVIDENCE SUMMARY
+=====================================================
+Session: S10 (2026-11-19, trace cron-agent-loop-202611191558)
+Environment: sandbox, Node v24.22.3, Vite 6.4.3 dev server (127.0.0.1:5173,
+mock mode forced via localStorage `el-imtiyaz.local-config`
+{"supabase_use_supabase":false}), Chromium via agent-browser, viewport 1440x900.
+Method lesson: agent-browser `network requests` output; counts derived with
+grep/uniq from the full log (10,360 lines, exported in-session).
+
+HEADLINE (BUG-042): 7,148 requests to rest/v1/system_settings, ALL HTTP 402
+(exceed_egress_quota), accumulated across TWO visits to
+Paramètres → Configuration (visit 1 ≈ 6,177; visit 2 ≈ +971 before
+navigation away). The loop is an UNBOUNDED async re-fetch cycle — React's
+"Maximum update depth exceeded" guard only limits synchronous render depth;
+every await boundary resets it, so the loop runs until component unmount.
+
+Full network log: 10,360 tracked requests; 7,224 total 402 responses
+(7,148 system_settings + the pre-login query set, below).
+
+PRE-LOGIN QUERY SET (before any session exists, at the /login screen —
+the renderer fires a full warm-up query sweep against the canonical
+production project):
+  rest/v1/academic_years          OPTIONS+GET (2 req)  → GET 402
+  rest/v1/academic_levels         OPTIONS+GET (2 req)  → GET 402
+  rest/v1/classes (+academic_years!inner) OPTIONS+GET  → GET 402
+  rest/v1/students (class_id not null)    OPTIONS+GET  → GET 402
+  rest/v1/subjects                OPTIONS+GET (2 req)  → GET 402
+  rest/v1/class_subjects          (2 queries) OPTIONS+GET → GET 402
+  rest/v1/subject_configurations  OPTIONS+GET (2 req)  → GET 402
+  rest/v1/rooms                   OPTIONS+GET (2 req)  → GET 402
+  rest/v1/personnel (staff_category=teaching) OPTIONS+GET → GET 402
+  rest/v1/timetable_versions (status=published) OPTIONS+GET → GET 402
+(Firewall note: the OPTIONS preflights return 200 — the restriction is
+readable only on the GETs.)
+
+POST-MOCK-TOGGLE: after the localStorage toggle + reload, ZERO Supabase
+requests fire on navigation (all surfaces render from mock repositories).
+The ONLY residual live-wire caller in mock mode is the Paramètres →
+Configuration tab (isSupabaseConfigured() gate — see BUG-042 write-up).
+
+REQUEST TOTALS BY ENDPOINT (top):
+   7148  rest/v1/system_settings        (BUG-042 loop, 402 ×7148)
+      4  rest/v1/class_subjects         (pre-login, 2×(OPTIONS+GET))
+      2  rest/v1/timetable_versions     (pre-login)
+      2  rest/v1/subjects               (pre-login)
+      2  rest/v1/subject_configurations (pre-login)
+      2  rest/v1/students               (pre-login)
+      2  rest/v1/rooms                  (pre-login)
+      2  rest/v1/personnel              (pre-login)
+      2  rest/v1/classes                (pre-login)
+      2  rest/v1/academic_years         (pre-login)
+      2  rest/v1/academic_levels        (pre-login)
+
+DOWNLOADS (runtime-verified working, mock data):
+  - Rapports tab → "Télécharger le Classeur (.xlsx)" (Master Workbook):
+    toast "Export complet généré" fired; Playwright download event
+    (no DOM anchor persists — the export path uses a click-through
+    `a.download` blob anchor, export-engine.ts:162-165).
+  - Reçus tab → per-receipt PDF button: no console errors, no failures
+    (download event path, downloadPdf).
