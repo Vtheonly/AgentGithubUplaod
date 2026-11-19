@@ -111,3 +111,24 @@ P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this se
 **Verdict:** OPS-011 is now **8-run-stable** (S2→S10): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The spend cap is still in place — the live-DB lane (Deep Sweep/04 §8 ceremony; the E7.9 final export) remains owner-gated. Blocker = plan layer, not credentials (P1 key-type gate + P2 quota body prove both keys recognized).
 
 **NEW this run — the runtime lane made the restriction CONCRETE:** inside the app itself, the renderer's live-wire callers all 402 too, and the Configuration tab's error-refetch loop (BUG-042, Deep Sweep/06 §3) amplified that into **7,148 doomed requests from two tab visits** (plus ~12 pre-login warm-up queries at the login screen). The deployed desktop build (production flags force the same canonical URL/key) would behave identically for end users. **The cap lift is now urgent for two independent reasons: the one-time census/export ceremonies AND the deployed app's own stability under BUG-042** (the T-559/T-560 fix removes the amplification but the 402 state itself only the owner can lift).
+
+---
+
+## Session 11 probe run (2026-11-19) — the 20-point checklist session (OPS-011 9-run-stable)
+
+**Context:** the owner's NEW sweep mandate (the 20-point Bug/UX/Architecture checklist appended to Issue #32, with a fresh credential set and the instruction "make sure it works"). GET-only probe set re-run at session start (keys in-memory only, masked; script outside the repo at `/home/z/my-project/scripts/s11_infra_probe.sh`):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P5b GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit.googleapis.com (FB key) → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies the write path)
+```
+
+**Verdict:** OPS-011 is now **9-run-stable** (S2→S11): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the pooler network path is open. The blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys are recognized; the fresh GitHub PAT is fully working). The live-DB lane — now carrying BOTH the S8 §8 re-verification ceremony AND the S11 ×10/legacy-row reconciliation (Deep Sweep/07 §A1.5: enumerate the pre-T-424 `amount_paid > amount_due` rows, per-student workbook-vs-books oracle) — stays owner-gated exactly as before. **Diagnostic for the owner (unchanged):** the missing piece is the spend-cap lift in the Supabase dashboard (Project Settings → spend cap / plan), not new keys.
