@@ -1,27 +1,29 @@
 # Infrastructure Status — per-run standing record
 
-**Session 5 probe run:** 2026-11-19T01:39Z (sandbox, GET-only protocol per S4-CROSS-VERIFICATION §3.2)
-**Probe script:** 10-probe set mirroring Session 2/3/4 methodology; tokens used in-memory only, masked in all output, never written to any file.
+**Session 6 probe run:** 2026-11-19 (sandbox, GET-only protocol per S4-CROSS-VERIFICATION §3.2; keys used in-memory only, masked in all output, never written to any file).
+**Session 6 special context:** the owner supplied a NEW credential set this session (publishable key, secret key, management access token, Firebase key, GitHub PAT) with the instruction to "make sure it works". Result recorded below — the new keys are RECOGNIZED (they clear the key-type/auth gates) but the project remains plan-restricted; the restriction is at the Supabase plan/spend-cap layer, not the credential layer.
+**Probe script:** 10-probe set mirroring the Session 2/3/4/5 methodology.
 
 ## Verdict at a glance
 
-| Asset | Status this run | Registered ID | Change vs Session 4 (01:20Z same day) |
+| Asset | Status this run (S6) | Registered ID | Change vs Session 5 |
 |---|---|---|---|
-| GitHub repo + PAT | **WORKING** — API 200, `push=True`, default branch `main` | — | none |
-| Supabase REST (secret key, root + table) | **RESTRICTED** — HTTP 402 `exceed_egress_quota` | OPS-011 | none (persists) |
-| Supabase REST (publishable key) | HTTP 401 `Secret API key required` (key-type gate before quota gate) | OPS-011 | none (same body as S4) |
+| GitHub repo + PAT | **WORKING** — API 200, push confirmed (session branch pushed) | — | none |
+| Supabase REST (secret key, root + table) | **RESTRICTED** — HTTP 402 `exceed_egress_quota` | OPS-011 | none (persists; now **5-run-stable**) |
+| Supabase REST (publishable key) | HTTP 401 `Secret API key required` (key-type gate before quota gate — the NEW publishable key is format-recognized) | OPS-011 | none (same body as S5) |
 | Supabase Auth JWKS | **RESTRICTED** — HTTP 402 `exceed_egress_quota` | OPS-011 | none |
 | Supabase Auth health (publishable AND secret key) | **RESTRICTED** — HTTP 402 `exceed_egress_quota` | OPS-011 | none |
-| Supabase management API (access token) | **INVALID** — HTTP 401 `Invalid access token` | OPS-013 | none (persists) |
-| Firebase GCIP endpoint (web API key) | HTTP 400 `CONFIGURATION_NOT_FOUND` — key format-accepted, config not exposed | OPS-013 | none (same as S4 first test) |
+| Supabase management API (**NEW** access token provided S6) | **INVALID** — HTTP 401 `Invalid access token` | OPS-013 | none (the new token replaces the old invalid one; it ALSO tests invalid — expired/revoked/mistyped at the Supabase side) |
+| Firebase GCIP endpoint (web API key) | HTTP 400 `CONFIGURATION_NOT_FOUND` — key format-accepted, config not exposed | OPS-013 | none |
 | Pooler TCP `aws-1-eu-west-1.pooler.supabase.com:6543 / :5432` | **OPEN** both ports | OPS-011 addendum | none |
 | Vercel PAT | not re-tested this run (S4 verdict: INVALID; no website-scope work in this session) | OPS-013 | carries forward |
-| Direct Postgres | never provided (owner sheet has `[YOUR-PASSWORD]` placeholder); no login attempted, per charter | — | — |
+| Direct Postgres | password still a `[YOUR-PASSWORD]` placeholder in the owner sheet; no login attempted, per charter | — | — |
 
-## Live-mode implication (unchanged, now 3-session-stable)
+## Live-mode implication (unchanged, now 5-run-stable)
 
-- The project has been quota-restricted on every probe run since Session 2 (2026-11-19 ~00:0xZ), through Session 3, Session 4 (01:20Z), and this run (01:39Z). **Live mode remains broken for the app** and the live-DB census (SESSION_LOG open question 1) remains blocked.
-- The one-time spend-cap lift remains the single owner action that unblocks (a) the live census and (b) the final full export required by the local-first migration (LOCAL-FIRST-BLUEPRINT §8; ROADMAP Phase 7 interlocks).
+- The project has been quota-restricted on every probe run since Session 2 (2026-11-19), through Sessions 3, 4, 5, and this run (S6). **Live mode remains broken for the app** and the live-DB census (SESSION_LOG open question 1) remains blocked.
+- **The newly provided keys do NOT change this verdict** — the 402 `exceed_egress_quota` body is returned after successful key recognition, which means the blocker is the plan's spend cap, not the credentials. No credential rotation can unblock it; the owner must lift the spend cap (or upgrade the plan) in the Supabase dashboard. This is exactly the failure mode the local-first migration exists to escape (OPS-011 → LOCAL-FIRST-BLUEPRINT INV-2/INV-5).
+- The one-time spend-cap lift remains the single owner action that unblocks (a) the live census and (b) the final full export required by the local-first migration (LOCAL-FIRST-BLUEPRINT §8; ROADMAP Phase 7 interlocks; EXECUTION-PLAN §1 gate G2 + §4 stage E7.9).
 - The network path (pooler) is open, so a cap lift would take effect without infra changes; untested-only dimension is Postgres auth, which requires the owner password.
 
 ## Probe detail (masked)
@@ -33,22 +35,22 @@ P3  GET /rest/v1/students?limit=1 (secret) → 402 exceed_egress_quota
 P4  GET /auth/v1/.well-known/jwks.json → 402 exceed_egress_quota
 P5  GET /auth/v1/health (publishable)  → 402 exceed_egress_quota
 P5b GET /auth/v1/health (secret)       → 402 exceed_egress_quota
-P6  GET /rest/v1/?apikey= (publishable)→ 401 Secret API key required
-P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P6  (superseded by P1 with the new publishable key — same 401 key-type gate)
+P7  GET api.supabase.com/v1/projects/… (NEW mgmt token) → 401 Invalid access token
 P8  GET identitytoolkit.googleapis.com/v1/projects?name=projects/elimtiyaz-android (FB key) → 400 CONFIGURATION_NOT_FOUND
 P9  TCP pooler :6543 OPEN, :5432 OPEN
-P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200, permissions.push=true
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 + push verified by this session's branch push
 ```
 
-## Cumulative credential scorecard (OPS-013, unchanged)
+## Cumulative credential scorecard (OPS-013, updated S6)
 
-| Credential | S4 verdict | S5 re-test |
+| Credential | S5 verdict | S6 re-test (new key set where provided) |
 |---|---|---|
-| Supabase publishable key | recognized; project restricted | re-confirmed (P1/P5) |
-| Supabase secret key | recognized; project restricted | re-confirmed (P2/P3/P5b) |
-| Supabase management token | invalid 401 | re-confirmed invalid (P7) |
-| GitHub PAT | working, full push | re-confirmed working (P10) |
+| Supabase publishable key | recognized; project restricted | NEW key recognized (401 key-type gate on root); project still restricted |
+| Supabase secret key | recognized; project restricted | NEW key recognized; project still restricted (402 quota) |
+| Supabase management token | invalid 401 | NEW token **also invalid** (401) — owner action: issue a fresh non-expired token if the census ceremony is wanted |
+| GitHub PAT | working, full push | re-confirmed working (200 + this session's push) |
 | Vercel PAT | invalid | not re-tested (out of session scope) |
 | Firebase web API key | format-valid, functionally unverified | unchanged (P8 non-mutating probe only) |
 
-**Standing note:** credential values are never stored in this archive; this file intentionally contains only masked references. OPS-012 (rotate all committed credentials) remains an open owner action.
+**Standing note:** credential values are never stored in this archive; this file intentionally contains only masked references. OPS-012 (rotate all committed credentials) remains an open owner action. **Diagnostic for the owner:** if the intent of the S6 credential set was to restore live mode, the missing piece is the spend-cap lift in the Supabase dashboard (Project Settings → spend cap / plan) — not new keys.
