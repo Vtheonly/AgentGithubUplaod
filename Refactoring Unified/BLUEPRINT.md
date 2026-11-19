@@ -1,6 +1,6 @@
 # Refactoring Unified — Blueprint for the El-Imtiyaz Platform (Desktop Hub Repository)
 
-**Version:** 1.0 (Session 1 cross-verified baseline) · **Evidence base:** `Investigation Archive/` (see README for the full record) · **Repository:** `Vtheonly/AgentGithubUplaod` @ `ff2c4d19`
+**Version:** 1.2 (Session 1 baseline; Session 2 UI unification §12; Session 3→4 local-first + pipeline graduation §13, cross-verified S4) · **Evidence base:** `Investigation Archive/` (see README for the full record) · **Repository:** `Vtheonly/AgentGithubUplaod` @ `ff2c4d19`
 
 > **How to use this blueprint.** Every recommendation cites a finding ID from `Investigation Archive/Findings and Hypotheses/FINDINGS_INDEX.md`, which in turn cites exact file paths and line numbers. Nothing here is speculative; where evidence is insufficient the item is explicitly marked **UNRESOLVED**. Implementation must follow the repository's own governance (AGENTS.md): task registration before code (§13), one task per commit with the five-question body (§14), append-only migrations (ADR-001), evidence-gated statuses, and the cross-platform rule (§10) — desktop changes that touch shared behavior must be mirrored on Android/website or registered as divergences.
 
@@ -301,6 +301,9 @@ Phases are strictly ordered by risk/leverage; every item is a registered T-task 
 - **Phase 2 — Verified defect repair (SQL/EF):** BUG-001/002 (client) first (small, test-pinned), then BUG-006/007/008 + C-4/C-5 under live-verify ceremony; bootstrap-9000 replacement (BUG-006) documented as a fresh-clone concern only.
 - **Phase 3 — Structure:** L-1 (price injection) → C-3 → ADD-1 → L-7 → L-2/3/4/5 → L-9 → ARCH-006 quarantine decisions.
 - **Phase 4 — Platform hygiene:** ADD-2/ADD-6/ADD-7, OPS-001/005/006 decisions, R-3.8 i18n decision, AGENTS/architecture doc refresh (ARCH-016), C-8 scripts consolidation.
+- **Phase 5 — UI component unification (Session 2):** z-tokens → ModalShell presets → drawer ports → tooltip eradication → collapsible/KPI composition (UI-U1..U7).
+- **Phase 6 — Unified data pipeline (Session 4):** PipelineCore + 8 services; the ONE commit path; RestoreService 10-step contract; 13-stream perimeter; archive v2 (closes R-1..R-5, ARCH-026..030, BUG-032..037).
+- **Phase 7 — Local-first migration (Session 4):** LF-0 hard-lock removal → LF-1 PGlite engine → LF-2 local auth → LF-3 EF/storage ports → LF-4 relay sync → LF-5 Supabase demotion (closes ARCH-023, OPS-011 escape). Interlocks with Phase 6 in `ROADMAP.md`.
 - **Continuous:** every phase updates the findings register and moves newly verified items out of UNRESOLVED.
 
 ---
@@ -316,6 +319,7 @@ Phases are strictly ordered by risk/leverage; every item is a registered T-task 
 7. **Estimates** (e.g., "~60+ dead symbols", comment-volume percentages) are censuses from static analysis; final counts will shift ±small deltas as batches land.
 8. **(Session 2)** The live project is RESTRICTED (`exceed_egress_quota`, OPS-011) — every live-verification step (including the §15.11 diff in risk 1) is blocked until the owner lifts the spend cap. Chain side of risk 1 is now exact: **100 tables / 14 views / 5 matviews / 152 migrations / 0 re-declared** (`Investigation Archive/Database and Supabase/LIVE-CENSUS-2026-11-19.md`).
 9. **(Session 2)** The i18n question in risk 3 is settled historically: the T-388 apply pass never ran (commit `71d5c446` generated the dictionaries; zero `.kNNN(` call sites today) — removal (R-3.8a) is safe unless the owner elects to complete the migration.
+10. **(Session 4)** Runtime claims of the graduated §13 designs remain spike-gated: PGlite performance/bundle/RLS-parse (LF-1), relay operational characteristics (LF-4). Twelve owner decisions (D-1..D-12) gate parts of Phases 6-7; two (D-1 sync topology, D-8 live-restore) block LF-4 and P-2.2 starts. Defaults proposed in `Investigation Archive/OWNER-DECISION-PACKET.md`. The final Supabase extraction waits on the one-time spend-cap lift (risk 8 / OPS-011, re-verified restricted S4).
 
 ---
 
@@ -348,3 +352,42 @@ Full evidence and per-category detail: `Investigation Archive/UI Component Audit
 - **UI-U7 (M, later)** Collapsible primitive + KPI composition refactor (pairs with dashboard view-model work).
 
 **Companion core-logic steps** (full plans in `Investigation Archive/Core Logic Unification/01-04`): D-U1..U5 (dashboard view-models, RoleDashboardTemplate), F-U1..U4 (data-layer ADR, repository-bypass routing), S-U1..U6 (person display/payment/attendance unification), SET-U1..U6 (settings ceremony + gating pass; SET-U4 = BUG-031 fix). These integrate into ROADMAP Phases 3-5 at execution time.
+
+---
+
+## 13. Local-First Architecture & Unified Data Pipeline (Session 3→4 graduation)
+
+Full evidence and design detail: `Investigation Archive/Local-First Architecture/LOCAL-FIRST-BLUEPRINT.md`, `Investigation Archive/Data Pipeline Unification/01-PIPELINE-INVENTORY.md` + `02-UNIFIED-PIPELINE-DESIGN.md`, `Investigation Archive/Database and Supabase/SUPABASE-COUPLING-MAP.md`. This section is the execution-ready summary. **Graduation status:** cross-verified Session 4 (21 load-bearing claims re-derived exactly; 7 corrections folded in — `Investigation Archive/Testing and Runtime Evidence/S4-CROSS-VERIFICATION-2026-11-19.md`). Runtime claims (PGlite perf/bundle, relay ops) remain spike-gated in LF-1/LF-4 and are NOT graduated as facts.
+
+**Why this is the recovery path, not an option:** the live Supabase project is restricted (`exceed_egress_quota`, OPS-011; re-verified 2026-11-19 — REST-with-secret-key 402, JWKS 402, auth-health 402). The app's live mode is broken today; the production build is hard-locked to that backend (ARCH-023). Local-first restores function without any vendor.
+
+### 13.1 Target architecture (graduated)
+
+- **Local primary store in the Electron main process: PGlite (WASM Postgres)** running the EXISTING 100-table schema (the 152-migration chain replays nearly verbatim) and the EXISTING SQL RPC bodies (ADR-002's authority relocates server → main process; the TS mirrors stay mirrors). Decision matrix scored PGlite 4.4 vs SQLite-translate 2.0 / RxDB 1.7 / snapshots 2.3; the decisive criteria are the 56 SQL RPCs (incl. `collect_and_allocate_payment` ×8 redefinitions) and the 21 academic `fn_*` state machines with **no TS mirrors** — only PGlite runs them without a rewrite.
+- **Engine gates (Session 4 evidence-backed):** extension census over the chain is DONE — pgcrypto (100 `gen_random_uuid` refs via the `public.gen_uuid()` wrapper) and pg_trgm (19 `gin_trgm_ops` refs, 7 files) are loadable in PGlite; uuid-ossp and pgjwt are declared-but-never-called and absent from PGlite's set → the replay prologue needs exactly two skip-guards; pg_stat_statements is already exception-guarded in 0001 (skips harmlessly); 89 `auth.uid()` refs make the auth-schema/GUC shim mandatory (ARCH-035). Remaining LF-1 spike gates: Windows packaging, perf at t-368-scale corpus, RLS 324/324 policy parse.
+- **Formal decoupling boundary — five ports** under the existing 54-slot `Repositories` seam: `DataBackendPort` (read/observe/execute-rpc/upsert/transaction/changes), `AuthPort` (local identity + activation codes + admin account lifecycle), `SyncTransportPort` (push/pull keyset + status — replaces the Supabase-REST online probe, ARCH-024), `NotificationPort` (in-app local; push optional), `DiagnosticsPort` (generalizes the Settings tooling, F-U3).
+- **Migration step zero (LF-0):** remove the production hard-lock (`supabase-client.ts:35-38,148-157,171-172` + storageKey pin `:205`), replace the `.supabase.co`-only `validateConnection` check (`system-config.ts:431-433`), route the **16** bypass files (S4-corrected count; was "~14") through ports, draft the ADR-002/004 supersessions, and add the `satisfies`-based factory exhaustiveness check (ARCH-033, T-498 precedent).
+- **Auth goes local:** scrypt password hashes + RBAC tables inside the local DB (the schema already models them, 0003/0023/0053); client RBAC (`src/core/rbac/*`) becomes the enforcement point — the mock already proves the `AuthRepository` contract works without GoTrue. Session shape keeps its token fields as opaque strings (ARCH-031 disposition) or gains a local variant at LF-2.
+- **Edge functions → main-process services:** 4 of 15 callable EFs have existing local counterparts (ai-proxy→BYOK, workflow-execute→desktop dry-run engine, run-overdue-scan→desktop INV-4 generator, update-server-secret→obsolete); cron family → scheduled tasks; **3 are platform-irreplaceable** (create/delete-user-account → LocalAuthService; send-push-notification → relay-or-drop, owner decision D-3).
+- **Storage → local filesystem** (`userData/media/<bucket>/<tenant>/<entity>/`; the media-vault interface and 0018 path convention survive; the mock registry already proves the shape). **Realtime → local change notifications** over IPC poking the same `CacheFreshness` invalidation (all 165 `useObservable` sites unchanged); the 30s poll + focus re-seed already suffice single-user.
+
+### 13.2 Multi-user sync (graduated recommendation)
+
+**A tiny self-hosted relay** (Node + Postgres, owner installs once, zero end-user config): a dumb sequencer — authenticated clients POST operations, the relay assigns the global order, clients pull by the existing 0143 `(updated_at, id)` keyset cursor. The app's own sync machinery is reused (IndexedDB queue, backoff, 3-way conflict guard, tenant/actor safety). If the relay dies, only cross-machine sync pauses — the school runs (INV-2/INV-5 satisfied by construction). Conflict model: financial ops converge by **deterministic replay** of the relay-ordered log through the same local RPCs (no row merges on money data); entity edits use the existing 3-way detector; append-only streams union-merge. Alternatives scored and rejected: CRDT (forces the SQLite switch + merge-unsafe for finance), ElectricSQL (product discontinued — vendor trap rebranded), PowerSync (platform + licensing), shared-folder DB (SMB corruption roulette), Supabase-as-relay (kept only as the transition adapter, LF-5 demotion). **Owner decisions D-1..D-4 gate the final shape** (`Investigation Archive/OWNER-DECISION-PACKET.md`).
+
+### 13.3 Unified data pipeline (graduated)
+
+One architectural spine — `PipelineCore` (StreamRegistry / SchemaVersionRegistry / FormatRegistry / ChecksumService / AuditBus) + 8 services (Backup, Restore, Export, Import, Sync, Retention, Warmup, DownloadHelper) — consolidating the S3-inventoried estate: 4 backup producers + 3 purge layers, 5 restore variants, 8 sync mechanisms, 6 XLSX + 2 CSV + 2 PDF stacks + 2 ZIP formats + 3 download helpers, 6 ingestion paths + 3 re-import drivers, 6 offload mechanisms. **Every format survives** (read-compatibility rules for the vault blob, entire-archive ZIP, excel-zip, 13-sheet workbook, ETAT/BON/DEVIS/REF schemas, both CSV dialects, JSON v1, PDF documents, Android pull RPCs).
+
+- **ONE data perimeter = 13 canonical streams** (resolves ARCH-026's 8-vs-13-vs-import-schemas split): parents, students, payments, installments, ledger, expenses, personnel, workflows, assessments, attendance, subjects, classes, pricing + RBAC/ER state sections; `debtSummaries` derived (D-11 default).
+- **The two critical durability fixes:** R-1 — `RestoreService` with the 10-step contract (pick→verify→migrate→preview→safety-backup→dry-run→staged apply→verify→commit→report) replaying into the REAL store through the one commit path (today restore only swaps the mock store, ARCH-029); R-2 — therapy attachment bytes actually stored via the media-vault port + `storagePath` + honest legacy labels (today the bytes are discarded, BUG-032).
+- **Standing durability principles** P-1..P-11 (single writer per concern; atomic write-then-rename; SHA-256 manifests on every archive; versioned formats with fail-closed reads; idempotent commit with compensating rollback; restore as first-class citizen with round-trip TESTS; uniform audit events — closing ARCH-030; ONE retention definition — fixing the 365-vs-90 drift BUG-034; fail-closed defaults; Excel-for-humans/archive-for-recovery; one-click safe-by-default UX).
+- **Sync coverage made explicit** (BUG-037, S4-refined): 8 of 15 kinds have push paths, only 5 kinds ever enter the queue, 5 kinds are enum-only — the declarative `SYNC_POLICY` table (P-1.2) forces the per-kind choice.
+
+### 13.4 Sequencing (graduated into ROADMAP Phases 6-7)
+
+Pipeline P-0..P-4 → ROADMAP Phase 6; local-first LF-0..LF-5 → ROADMAP Phase 7, interlocked: LF-0 can start immediately and in parallel with Phase 6; LF-1 rides P-1.1's commit path; LF-3 supersedes P-4.1 (therapy bucket → local folder) and shrinks Phase 2's EF-repair scope; LF-4 consumes P-1.2's policy table; LF-5 demotes Supabase to an optional relay and archives the 292+52 script estate. Standing gates at every boundary: typecheck + full vitest; the **INV-2 gate** (packaged Windows build boots, signs in, reads, writes, backs up, restores with the network fully blocked — the definition of success); mock↔local parity; chain-census equality (100/14/5; 324/324 policies parse); money-parity suites unchanged; kill-switch rollback to the previous backend.
+
+### 13.5 What is deliberately NOT graduated
+
+Runtime performance/bundle claims for PGlite (LF-1 spike); relay operational characteristics (LF-4); anything blocked on the 12 owner decisions (D-1..D-12, `Investigation Archive/OWNER-DECISION-PACKET.md`) — two of which (D-1 sync topology, D-8 live-restore) gate LF-4/P-2.2 starts; Android-repo cross-checks (open question 2 — the sibling repo was never provided); the live-DB census and final extraction (OPS-011 — the owner lifts the spend cap once; blueprint §8).
