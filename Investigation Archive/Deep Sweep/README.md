@@ -15,6 +15,8 @@
 | `01-DEEP-UI-CENSUS-2026-11-19.md` | The UI-overlay/surface census analysis: complete implementation + consumer tables for all 12 mandate categories, with corrections to the Session 2 UI audit and new findings. |
 | `02-DEEP-TOKEN-CENSUS-2026-11-19.md` | The design-token layer census — the evidence the foundation spec lacked: the complete token inventory (index.css + tailwind.config.cjs), the measured utility-class vocabulary (surfaces, shadows, radii, z, animations, durations, transitions, widths, height caps), and the token-layer defects (BUG-039, ARCH-036). |
 | `03-DEEP-LOGIC-CENSUS-2026-11-19.md` | The logic-side census: the complete `useObservable` call-site table (359 sites / 105 files), repository-consumer map, the Supabase `.from()` precision correction (413 real vs 496 loose), the settings ceremony table, and the estate/impact map at file granularity. |
+| `04-DEEP-EXCEL-IMPORT-ENGINE-AUDIT-2026-11-19.md` | **Session 8**: the Excel import engine deep audit + heavy-test sweep (the full engine inventory, the verified pipeline/DB-write-path architecture, two heavy-test layers all green incl. the independent balance oracle 1137/1137 + 390/390, BUG-040, the DEAD-013 empirical confirmation, the live-DB lane). |
+| `05-DEEP-UNIFIEDMODAL-CONSUMER-CENSUS-2026-11-19.md` | **Session 9**: the per-consumer UnifiedModal/ConfirmModal census (the S7 Lane-B closure): 70 external consumer files / 114 usages parsed at prop granularity with a drift-zero tokenizer; the complete class-string inventory (2 `bodyClassName` injections total — the consumer class layer is fully conformant), per-prop vocabularies, the 70-row per-consumer table, C-19 (importer-count scope: 67 barrel + 3 subpath) and BUG-041 (`data-testid` silently dropped — no rest-prop forwarding). |
 
 ## Method (reproducible)
 
@@ -30,7 +32,9 @@
 
 **Logic raw:** logic-useobservable · logic-useeffect · logic-localstorage · logic-repository-consumers · logic-supabase-from · logic-supabase-rpc · logic-excel-export · logic-json-io · logic-window-open · logic-isloading-state · logic-setinterval · logic-notify-toast.
 
-**Aggregations (agg-):** useobservable · title-attribute · handrolled-tables · native-selects · zindex · fixed-surfaces · physical-positioning · logical-positioning · surface-bg · shadow · animations · width-literals · toast-usage · dropdown-usage · tooltip-usage · page-tabs · repository-consumers · supabase-from · aria · portals · height-caps · native-dialogs · kpi-widgets.
+**Aggregations (agg-):** useobservable · title-attribute · handrolled-tables · native-selects · zindex · fixed-surfaces · physical-positioning · logical-positioning · surface-bg · shadow · animations · width-literals · toast-usage · dropdown-usage · tooltip-usage · page-tabs · repository-consumers · supabase-from · aria · portals · height-caps · native-dialogs · kpi-widgets · modal-consumers.
+
+**S8-S9 additions:** excel-import-heavy-harness-results.json (the 47-test machine evidence) · excel-import-engine-tree-census.txt · ui-modal-consumer-extraction.txt (S9: 114 usages × full prop dump) · vocab-modal-props.txt (S9: per-prop value distributions incl. the class-string inventories).
 
 **Vocabularies (vocab-):** zindex · shadow · surface · radius · border-sides · animations · widths · height-caps · durations · transitions · toasts.
 
