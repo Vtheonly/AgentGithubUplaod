@@ -221,3 +221,30 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
 ```
 
 **Verdict:** OPS-011 is now **13-run-stable** (S2→S15): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials**. GitHub PAT fully working (repo + Issue #32 reads); Vercel PAT still valid. The OPS-015 cap-lift sequencing constraint stands unchanged (T-559/T-560 + the BUG-058 probe fix MUST land before any live traffic). Credential hygiene: unchanged posture — the token-hygiene grep over every changed file before push; the standing rotation recommendation repeated in the session reply.
+
+---
+
+## Session 16 probe run (2026-11-20) — the BUG-044-origin + [S-A]/[S-B] verification session (OPS-011 14-run-stable)
+
+**Context:** handoff-session-16 gate check — Lane B depth session (BUG-044's loop origin, the last open runtime item + the DS/11 §8 subagent-claim re-verification), read-only. GET-only probe set re-run at session start (keyless script `infra_test_s16.sh` outside the repo; keys via environment from the chmod-600 env file OUTSIDE the repo — no token material in any committed artifact):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P5b GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit (FB web key)         → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P9c direct db host db.vebfehrpzajhstyhinnw.supabase.co — NOW RESOLVES from the sandbox
+    (S15 recorded it unresolvable; a sandbox-side DNS change, not a project change —
+    login still untested per charter: the password remains a [YOUR-PASSWORD] placeholder)
+P10 GET api.github.com/repos/… (PAT)         → 200; Issue #32 → 200 (open, 0 comments,
+    updated_at 2026-11-19T00:06:59Z — no owner activity; gates unchanged) + this
+    session's branch push verifies the write path
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
+```
+
+**Verdict:** OPS-011 is now **14-run-stable** (S2→S16): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (both Supabase keys recognized; GitHub PAT fully working incl. push; Vercel PAT still valid). The OPS-015 cap-lift sequencing constraint stands unchanged — now sharpened by DS/12 §2: with the cap lifted and the toast-churn family unfixed, a single failing tab visit re-burns egress through **five** request loops (BUG-042's proven one + the four newly censused sites), not one. Credential hygiene: unchanged posture — the token-hygiene grep over every changed file before push; the standing rotation recommendation (OPS-012 family) repeated in the session reply.
