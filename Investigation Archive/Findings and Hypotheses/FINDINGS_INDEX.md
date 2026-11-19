@@ -1,8 +1,10 @@
-# Findings Index — Master Register (Sessions 1-2)
+# Findings Index — Master Register (Sessions 1-3)
 
 Stable IDs for every significant finding. Full evidence lives in the cited verification reports (`Initial Reports Analysis/01..08`) and analysis files. Classification legend: **V** = Verified (independently confirmed against source), **C** = Corrected (prior claim partially right), **R** = Rejected (prior claim wrong), **U** = Unresolved.
 
 > **Session 2 addendum (2026-11-19):** new IDs DUP-024..030, ARCH-018..021, BUG-031, OPS-011 registered from the UI-component/design-system audit and the core-logic unification audit (`UI Component Audit/00-05`, `Core Logic Unification/01-04`, `Database and Supabase/LIVE-CENSUS-2026-11-19.md`). Evidence is file:line-verified by direct sweep.
+>
+> **Session 3 addendum (2026-11-19):** new IDs DEAD-015, DUP-031..032, ARCH-022..034, BUG-032..037, OPS-012 registered from the architecture audit (Supabase coupling map, data-pipeline inventory + unified design, local-first blueprint). See the "Session 3 addendum" section at the end of this file. Next free IDs: DEAD-016, DUP-033, ARCH-035, BUG-038, OPS-013.
 
 ---
 
@@ -159,3 +161,57 @@ Stable IDs for every significant finding. Full evidence lives in the cited verif
 | Feature report: "shared UI reused uniformly" | CORRECTED | DataTable used by 12 vs 39 hand-rolled tables; 9 native selects |
 | Scripts report: "260 files, ~12 keep" | CORRECTED | 302 tracked files; ~20 active incl. .mjs family + i18n toolchain (export filter artifact) |
 | Scripts report: `policy_census.sh` old ref "at line 58" | CORRECTED | Line 46 |
+
+---
+
+## Session 3 addendum (2026-11-19) — architecture audit
+
+New IDs from the Supabase coupling map, the data-pipeline inventory/design, and the local-first blueprint (`Database and Supabase/SUPABASE-COUPLING-MAP.md`, `Data Pipeline Unification/01-PIPELINE-INVENTORY.md`, `Data Pipeline Unification/02-UNIFIED-PIPELINE-DESIGN.md`, `Local-First Architecture/LOCAL-FIRST-BLUEPRINT.md`). "R-n" refers to the corruption-risk matrix in `01-PIPELINE-INVENTORY.md` §5.
+
+### ARCH — architecture / coupling (Session 3)
+
+| ID | Finding | Class | Evidence | Recommendation | Confidence |
+|---|---|---|---|---|---|
+| ARCH-022 | `shared/layout/tenant-switcher.tsx` issues a direct PostgREST query — a repository-layer bypass beyond ARCH-019's features-scoped census | V | SUPABASE-COUPLING-MAP §3h | Route through the repository seam (with ARCH-019/F-U3) | High |
+| ARCH-023 | `supabase-client.ts` production hard-lock: `VITE_DESKTOP_PRODUCTION=true` pins URL+key and ignores local config; `validateConnection` rejects non-`supabase.co` URLs — a local backend is unreachable without editing this file | V | SUPABASE-COUPLING-MAP §3a/§5 row 1 | Migration step-zero: unlock + configurable backend origin (LF-0 scope) | High |
+| ARCH-024 | `sync/online-detector.ts` equates "online" with Supabase REST-root reachability — a local-first backend would be reported "offline" | V | SUPABASE-COUPLING-MAP §3a/§5 | Replace with backend-agnostic health check | High |
+| ARCH-025 | 26 chain tables are RPC/EF/trigger-only — invisible to client `.from()` analysis; any backend port must census them separately (coupling-visibility asymmetry) | V | SUPABASE-COUPLING-MAP §3g | Include RPC-only tables in LF extraction/migration design | High |
+| ARCH-026 | Three competing "full data" perimeters: vault snapshot = 8 streams ≠ full-export = 13 streams ≠ import schemas — no single definition of the complete dataset | V | 01-PIPELINE-INVENTORY §5 (R-4) | ONE perimeter definition in the unified design (13-stream registry) | High |
+| ARCH-027 | Dual warm-up implementations: `warmSnapshotSources` (8 sources) vs `warmExportSources` (13) with different degrade reporting | V | 01-PIPELINE-INVENTORY §2/§4 | Merge into one WarmupService (02-DESIGN §3) | High |
+| ARCH-028 | `data-inspector-core.tsx` carries a private ExcelJS + pdf-lib + downloadBlob stack — a rogue second export stack outside `export-engine`/`receipt-pdf` | V | 01-PIPELINE-INVENTORY §2/§4 | Retire; route through ExportService adapters (02-DESIGN §6) | High |
+| ARCH-029 | Restore is mock-store-only: nothing ever replays an archive to the live store, and the restore UI is not scoped to offline mode — no backup→live round-trip guarantee exists (R-1, R-3) | V | 01-PIPELINE-INVENTORY §5; 02-UNIFIED-PIPELINE-DESIGN §5 | RestoreService targeting the real store via the one commit path | High |
+| ARCH-030 | Exports are not uniformly audited: checkpoint path writes audit events; archive-export/reports/CRM export trio do not | V | 02-UNIFIED-PIPELINE-DESIGN §9 | Audit-bus event on every pipeline operation | High |
+| ARCH-031 | `core/rbac/session.ts:43-45` hard-couples the RBAC `Session` type to GoTrue token-exchange fields; the mock must mint fake JWTs to satisfy it | V | LOCAL-FIRST-BLUEPRINT §12 | Introduce an AuthPort session shape (LF-2 scope) | High |
+| ARCH-032 | The backup vault is renderer-authoritative — the only data store the Electron main process cannot see; blocks main-process local-first ownership of backups | V | LOCAL-FIRST-BLUEPRINT §12 | Move vault ownership into main process (LF-1/LF-3 scope) | High |
+| ARCH-033 | The 49-key repository factory override list is unaudited by the compiler — T-498 proved a completed repository can sit un-wired with silent data loss | V | LOCAL-FIRST-BLUEPRINT §12 | `satisfies`-based exhaustiveness check on the factory map | High |
+| ARCH-034 | `vite-env.d.ts:15-41` declares `config`/`app`/`fs` Electron members `preload.cts` never exposes — the documented `userData/config.json` local-config layer is dead at runtime; localStorage is the only working persistence (extends the S1 rejected-register row on the phantom typed shape) | V | LOCAL-FIRST-BLUEPRINT §12 | Either expose the API in preload (LF-1 prerequisite) or delete the declarations | High |
+
+### BUG — defects (Session 3)
+
+| ID | Finding | Class | Evidence | Recommendation | Confidence |
+|---|---|---|---|---|---|
+| BUG-032 | Therapy medical attachments store metadata only and DISCARD the file bytes — "attached" documents are unrecoverable (R-2) | V | 01-PIPELINE-INVENTORY §5 | `storagePath` + media-vault storage; honest legacy label (02-DESIGN §6) | High |
+| BUG-033 | excel-zip/checkpoint documents Excel import as its recovery path, but the 13-sheet workbook layout has NO import schema (engine covers ETAT/BON/DEVIS/REF only) | V | 02-UNIFIED-PIPELINE-DESIGN §9 | Either add a workbook import schema or relabel checkpoint as non-restorable | High |
+| BUG-034 | Retention drift: `purge-expired-backups` EF header says +90 days while the client retention constant is 365 days | V | 01-PIPELINE-INVENTORY §2/§4 | ONE RetentionPolicy definition (02-DESIGN §3) | High |
+| BUG-035 | excel-zip manifest records file sizes but no checksums — no tamper/corruption detection on the exchange format | V | 02-UNIFIED-PIPELINE-DESIGN §9 | Add SHA-256 per entry (canonical archive v2 already specifies it) | High |
+| BUG-036 | Vault `schemaVersion` handled asymmetrically between write and read paths | V | 01-PIPELINE-INVENTORY §8 | Single versioned-format contract (02-DESIGN §4) | Medium |
+| BUG-037 | Sync queue is lossy: only 8 of 15 entity kinds staged; 5 `SyncEntityKind`s (`invoice`, `audit_log`, `notification`, `calendar_event`, `other`) have zero producers (R-6) | V | 01-PIPELINE-INVENTORY §5; 02-UNIFIED-PIPELINE-DESIGN §9 | Extend queue coverage or prune enum kinds; per-entity policy table | High |
+
+### DEAD / DUP / OPS (Session 3)
+
+| ID | Finding | Class | Evidence | Recommendation | Confidence |
+|---|---|---|---|---|---|
+| DEAD-015 | `infrastructure/supabase/types.ts` `Database` interface is never used as a client generic (dead) AND stale (covers 23 of 100 tables) | V | SUPABASE-COUPLING-MAP §3k | Regenerate from schema in LF-0 or delete | High |
+| DUP-031 | CSV dialect split (`,`+BOM vs `;`+BOM) plus 3 separate download helpers | V | 01-PIPELINE-INVENTORY §2/§4 | Single dialect config + one DownloadHelper (02-DESIGN §3) | High |
+| DUP-032 | Three-layer purge/retention stack: vault sweep + service wrapper + SQL RPC `purge_expired_backups`/EF | V | 01-PIPELINE-INVENTORY §2/§4 | ONE RetentionPolicy + single purge executor | High |
+| OPS-012 | `docs/operations/credentials.md` commits an owner-pinned admin credential inside the repository, violating this archive's own no-credentials guardrail (S2 guardrail 6) | V | SUPABASE-COUPLING-MAP §3k | OWNER ACTION: rotate the credential and remove it from the repo (history purge decision per OPS-001 precedent) | High |
+
+### Corrections to prior session records (Session 3)
+
+| Prior record | Verdict | Correction |
+|---|---|---|
+| S2 core-logic audit: import-engine "29 files" | CORRECTED | 27 files by `ls` (the 29 count included two non-engine paths) |
+| 07-Supabase verification: "54 distinct `.rpc()` names" | CORRECTED | 56 by S3 re-census; the S2 table itself enumerated ~56 |
+| S1/S2 RLS census: 331 CREATE POLICY / 106 ENABLE RLS | CORRECTED (method-dependent) | 324 / 108 by S3 comment-aware census — counts differ by comment-stripping method; both methods documented |
+| ARCH-019 framing: "6 settings-diagnostics offenders of 9" | CORRECTED | 7 of 9 are settings files by file count |
+| S3 pipeline-design candidate: hardcoded backup `tenantId` | DUPLICATE | Already registered as BUG-015 (backup-service/scheduler facet) — no new ID |
