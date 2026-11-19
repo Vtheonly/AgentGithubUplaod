@@ -1,0 +1,109 @@
+# VOCABULARY: vocab-modal-props (S9)
+# per-prop value distributions over real JSX usages
+
+
+## variant (string literals) — 49 usages
+
+   39  "dialog"
+    9  "drawer"
+    1  "command-palette"
+
+## size (string literals) — 75 usages
+
+   39  "md"
+   17  "lg"
+    9  "sm"
+    6  "xl"
+    3  "2xl"
+    1  "full"
+
+## iconTone (string literals) — 58 usages
+
+   52  "primary"
+    4  "warning"
+    1  "danger"
+    1  "success"
+
+## submitVariant (string literals) — 3 usages
+
+    3  "destructive"
+
+## cancelLabel (string literals) — 12 usages, 3 distinct
+
+    6  "Fermer"
+    5  "Annuler"
+    1  "Retour"
+
+## confirmLabel (string literals) — 30 usages, 20 distinct
+
+    9  "Supprimer"
+    3  "Supprimer définitivement"
+    1  "Archiver"
+    1  "Archiver la matière"
+    1  "Enregistrer la décision"
+    1  "Figer définitivement"
+    1  "Ouvrir WhatsApp"
+    1  "Rejeter la demande"
+    1  "Décaisser"
+    1  "Diffuser maintenant"
+    1  "Verrouiller"
+    1  "Envoyer le rappel"
+    1  "Lancer le scan"
+    1  "Confirmer"
+    1  "Rejeter"
+    1  "Confirmer le remboursement"
+    1  "Oui, purger définitivement"
+    1  "Activer"
+    1  "Vider"
+    1  "Déployer"
+
+## submitLabel (string literals) — 39 usages, 30 distinct
+
+    6  "Enregistrer"
+    2  "Clôturer"
+    2  "Ouvrir le suivi"
+    2  "Créer"
+    2  "Fermer"
+    1  "Confirmer l'affectation"
+    1  "Activer l'enseignant"
+    1  "Enregistrer les modifications"
+    1  "Ajouter l'élève"
+    1  "Assigner"
+    1  "Inscrire"
+    1  "Créer la classe"
+    1  "Valider l'affectation"
+    1  "Créer le profil enseignant"
+    1  "Enregistrer l'évaluation"
+    1  "Enregistrer la séance"
+    1  "Créer le rapport"
+    1  "Appliquer"
+    1  "Clôturer la dépense"
+    1  "Soumettre la dépense"
+    1  "Enregistrer le montant"
+    1  "Valider l'ajustement"
+    1  "Confirmer le versement"
+    1  "Soumettre"
+    1  "Envoyer la question"
+    1  "Transmettre ma réponse"
+    1  "Enregistrer l'absence"
+    1  "Envoyer la demande"
+    1  "Transmettre à l'administration"
+    1  "Enregistrer et appliquer"
+
+## bodyClassName — 2 injection sites, 2 distinct strings
+
+    1x  p-0
+    1x  space-y-3
+
+## headerClassName — 0 injection sites, 0 distinct strings
+
+
+## footerClassName — 0 injection sites, 0 distinct strings
+
+
+## contentClassName — 0 injection sites, 0 distinct strings
+
+
+## unknown props (divergence vs contract) — 1 sites
+
+    1x  data-testid @ src/features/settings/export-dialog.tsx:163
