@@ -1,10 +1,12 @@
-# Findings Index — Master Register (Sessions 1-3)
+# Findings Index — Master Register (Sessions 1-4)
 
 Stable IDs for every significant finding. Full evidence lives in the cited verification reports (`Initial Reports Analysis/01..08`) and analysis files. Classification legend: **V** = Verified (independently confirmed against source), **C** = Corrected (prior claim partially right), **R** = Rejected (prior claim wrong), **U** = Unresolved.
 
 > **Session 2 addendum (2026-11-19):** new IDs DUP-024..030, ARCH-018..021, BUG-031, OPS-011 registered from the UI-component/design-system audit and the core-logic unification audit (`UI Component Audit/00-05`, `Core Logic Unification/01-04`, `Database and Supabase/LIVE-CENSUS-2026-11-19.md`). Evidence is file:line-verified by direct sweep.
 >
 > **Session 3 addendum (2026-11-19):** new IDs DEAD-015, DUP-031..032, ARCH-022..034, BUG-032..037, OPS-012 registered from the architecture audit (Supabase coupling map, data-pipeline inventory + unified design, local-first blueprint). See the "Session 3 addendum" section at the end of this file. Next free IDs: DEAD-016, DUP-033, ARCH-035, BUG-038, OPS-013.
+>
+> **Session 4 addendum (2026-11-19):** new IDs ARCH-035, OPS-013 registered from the S3 cross-verification + live infra re-test; 7 corrections (C-1..C-7) recorded against the S3 record — none invalidating a disposition. See the "Session 4 addendum" section at the end of this file. Next free IDs: DEAD-016, DUP-033, ARCH-036, BUG-038, OPS-014.
 
 ---
 
@@ -215,3 +217,24 @@ New IDs from the Supabase coupling map, the data-pipeline inventory/design, and 
 | S1/S2 RLS census: 331 CREATE POLICY / 106 ENABLE RLS | CORRECTED (method-dependent) | 324 / 108 by S3 comment-aware census — counts differ by comment-stripping method; both methods documented |
 | ARCH-019 framing: "6 settings-diagnostics offenders of 9" | CORRECTED | 7 of 9 are settings files by file count |
 | S3 pipeline-design candidate: hardcoded backup `tenantId` | DUPLICATE | Already registered as BUG-015 (backup-service/scheduler facet) — no new ID |
+
+## Session 4 addendum (2026-11-19) — S3 cross-verification + infra re-test
+
+### New findings (Session 4)
+
+| ID | Finding | Class | Evidence | Recommendation | Confidence |
+|---|---|---|---|---|---|
+| ARCH-035 | Migration-chain extension census (the LF-0 PGlite gate) is now pre-computed: pgcrypto (100 `gen_random_uuid` refs via `public.gen_uuid()` wrapper) and pg_trgm (19 `extensions.gin_trgm_ops` refs, 7 files) are loadable in PGlite and actually used; btree_gist declared-only; **uuid-ossp and pgjwt are declared-but-never-called and absent from PGlite's extension set** — an unguarded `CREATE EXTENSION "uuid-ossp"` failure would roll back all of migration 0001; pg_stat_statements is already exception-guarded (skips); 89 `auth.uid()` refs confirm the auth-schema GUC shim is mandatory for chain replay | V | S4-CROSS-VERIFICATION §3.1 (census over `0001_extensions.sql` + usage greps) | LF-1 replay prologue needs exactly two skip-guards (uuid-ossp, pgjwt) + the auth GUC shim; no extension blocker to PGlite exists | High |
+| OPS-013 | Owner-provided infrastructure credential scorecard (first full test, S4): GitHub PAT working (repo admin; all session pushes); Supabase publishable+secret keys recognized but project restricted (OPS-011); Supabase management token invalid; **Vercel PAT invalid** (`403 invalidToken:true`); Firebase web API key processed/valid-format but functionally unverified (GCIP endpoint returns CONFIGURATION_NOT_FOUND; deeper probes would be mutating). No DB password provided (pooler TCP reachable, auth untested) | V | S4-CROSS-VERIFICATION §3.2 (GET-only probes, 2026-11-19) | OWNER ACTION: rotate the Vercel PAT if the website workflow needs it; provide a fresh Supabase management token if the census ceremony is wanted; rotate the committed credential (OPS-012) | High |
+
+### Corrections to prior session records (Session 4)
+
+| Prior record | Verdict | Correction |
+|---|---|---|
+| ARCH-025 + coupling map §1 + blueprint §2: "26 of 99 chain tables RPC/EF/trigger-only", "73 of 99" | CORRECTED (C-1) | **27 of 100** — the untouched list is the S3 list of 26 **plus `receipts`** (written only by receipt-numbering RPCs/triggers 0034/0058 — a pointed omission given ADR-004's server-authoritative receipts). Substance unchanged and strengthened |
+| Coupling map §1/§3j: "Test files touching Supabase: 188 of 321" | CORRECTED (C-2) | **158 of 321** by `grep -li` over all 321 test files (also 158/325 for the whole `src/tests` tree). Sub-counts 107/74/19/77 verify exactly; the 188 was a method artifact of the "rg -L complement" approach. Conclusion (largest hidden migration cost) unaffected |
+| Coupling map §3i: root-scripts "54 files / 41 tNNN-build-zips"; "75 `apply_*_live.sh`" | CORRECTED (C-3/C-4) | 52 files / 42 tNNN-prefixed (39 build-zip*); 72 files match `*apply*live*` (75 total `apply_*`). Category conclusion unchanged |
+| Coupling map §3k: "30 ADRs, 19 referencing Supabase" | CORRECTED (C-4) | 35 ADR files exist; the 19 Supabase-referencing count verifies exactly |
+| BUG-037 phrasing: "only 8 of 15 entity kinds staged" | CORRECTED (C-6) | 8 kinds have PUSH PATHS (`default-push-handler.ts` case labels); only **5 kinds have enqueue producers** (mock-store staging + excel-import: parent, student, payment, installment, ledger_entry); attendance/grade/homework are push-path-only; expense/personnel restored-but-never-staged; 5 kinds enum-only. The queue is lossier than the S3 headline |
+| Coupling map §4 + blueprint §2: "14 bypass files" | CORRECTED (C-7) | **16 files to route through ports** (17 direct `supabase-client` importers outside the supabase tree, minus `repository-provider.tsx` which IS the seam): 9 features + tenant-switcher + sync-provider + system-config + media-vault + llm-adapter + 3 sync. LF-0 scope sizing updated in ROADMAP 7.0 |
+| S3 line-cite drifts (EF +90d header, backup tenantId, factory block range) | CORRECTED (C-5) | Substance verified at drifted lines: `purge-expired-backups/index.ts:12` (not 17-18); `backup-service.ts:179,249` (not 168,241); factory object literal `:423-486` (not 421-486) |
