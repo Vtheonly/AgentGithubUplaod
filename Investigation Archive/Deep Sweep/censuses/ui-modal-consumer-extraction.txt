@@ -1,0 +1,1295 @@
+# CENSUS: ui-modal-consumer-extraction (S9)
+# repo: Vtheonly/AgentGithubUplaod @ 5af33c9403588c688575965a0f43c142c3fedd15  (recorded 2026-11-19, Session 9)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test, family-internal files excluded
+# method: string-aware comment strip → depth/quote-aware JSX prop tokenizer (v2:
+#   string states open only at token boundaries — the JSX-text apostrophe lesson)
+#   over every <UnifiedModal / <ConfirmModal opening in the 70 consumer files
+#   (67 strict root-barrel + 3 subpath-only)
+# class strings recorded VERBATIM (untruncated) — the Lane B deliverable
+# --- COMPLETE PER-USAGE DUMP ---
+src/features/academics/academic-year-detail-drawer.tsx:84 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={onOpenChange}
+  size="xl"
+  variant="drawer"
+  icon={Calendar}
+  iconTone="primary"
+  title={year.label}
+  description={`${year.code} · ${TERM_STRUCTURE_LABELS[year.termStructure] ?? year.termStructure} · ${ye…
+  hideSubmit
+  cancelLabel="Fermer"
+  header={ <div className="flex items-center gap-2 flex-wrap"> {year.isCurrent && ( <Badge classNam…
+
+src/features/academics/academic-year-detail-drawer.tsx:907 tag=UnifiedModal props=9
+  open={!!assignClassTarget}
+  onOpenChange={(o) => !o && setAssignClassTarget(null)}
+  size="md"
+  icon={UserCheck}
+  iconTone="primary"
+  title={`Assigner ${assignClassTarget.firstName} ${assignClassTarget.lastName} à une classe`}
+  description={`Année scolaire ${year.code} · Choisissez la classe et le rôle pédagogique.`}
+  submitLabel="Confirmer l'affectation"
+  onSubmit={handleAssignToClassSubmit}
+
+src/features/academics/academic-year-detail-drawer.tsx:982 tag=UnifiedModal props=9
+  open={addTeacherOpen}
+  onOpenChange={setAddTeacherOpen}
+  size="md"
+  icon={Plus}
+  iconTone="primary"
+  title="Ajouter un enseignant pour cette année"
+  description={`Active un enseignant du personnel pour l'année scolaire ${year.code}.`}
+  submitLabel="Activer l'enseignant"
+  onSubmit={handleRegisterTeacher}
+
+src/features/academics/class-detail-page.tsx:720 tag=UnifiedModal props=9
+  open={assignHomeroomOpen}
+  onOpenChange={setAssignHomeroomOpen}
+  size="md"
+  icon={UserCheck}
+  iconTone="primary"
+  title={`Assigner l'enseignant principal — ${cls.name}`}
+  description="Désignez l'enseignant responsable de la classe et modifiez la salle attribuée."
+  submitLabel="Enregistrer"
+  onSubmit={handleSaveHomeroom}
+
+src/features/academics/class-detail-page.tsx:764 tag=UnifiedModal props=10
+  open={editClassOpen}
+  onOpenChange={setEditClassOpen}
+  size="md"
+  icon={Pencil}
+  iconTone="primary"
+  title={`Modifier les détails — ${cls.name}`}
+  description="Modifiez le nom, la salle, les notes pédagogiques, ou la composition de la classe (cochez/décochez les élèves)."
+  submitLabel="Enregistrer les modifications"
+  submitLoading={submittingClassEdit}
+  onSubmit={handleSaveClassDetails}
+
+src/features/academics/class-detail-page.tsx:821 tag=UnifiedModal props=9
+  open={addStudentOpen}
+  onOpenChange={setAddStudentOpen}
+  size="md"
+  icon={UserPlus}
+  iconTone="primary"
+  title={`Ajouter un élève à ${cls.name}`}
+  description="Affectez un élève inscrit dans l'établissement à cette classe."
+  submitLabel="Ajouter l'élève"
+  onSubmit={handleAddStudentToClass}
+
+src/features/academics/class-subjects-tab.tsx:244 tag=UnifiedModal props=12
+  open={assignOpen}
+  onOpenChange={setAssignOpen}
+  size="md"
+  icon={BookOpen}
+  iconTone="primary"
+  title="Assigner une matière à la classe"
+  description="Associe une matière à cette classe avec un enseignant, des heures hebdomadaires et un coefficient."
+  submitLabel="Assigner"
+  submitIcon={Plus}
+  onSubmit={assign}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/clubs/club-detail-drawer.tsx:77 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  size="lg"
+  variant="drawer"
+  icon={Users}
+  iconTone="primary"
+  title={club.name}
+  description={`${club.code} · ${club.academicYearCode} · ${activeMemberships.length} membre(s) actif(s)…
+  hideSubmit
+  cancelLabel="Fermer"
+
+src/features/academics/clubs/club-detail-drawer.tsx:510 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  size="sm"
+  variant="dialog"
+  icon={UserPlus}
+  iconTone="primary"
+  title={`Inscrire un élève dans ${club.name}`}
+  submitLabel="Inscrire"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+  footer={ <div className="flex items-center gap-2 w-full"> <Button variant="outline" onClick={() =…
+
+src/features/academics/clubs/club-detail-drawer.tsx:659 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={Calendar}
+  iconTone="primary"
+  title={`Loguer une activité — ${club.name}`}
+  submitLabel="Enregistrer"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/clubs/clubs-tab.tsx:263 tag=ConfirmModal self-closing props=7
+  open={archiveTarget !== null}
+  onOpenChange={(o) => !o && setArchiveTarget(null)}
+  title={`Archiver ${archiveTarget?.name ?? ""}`}
+  description="Les adhésions actives seront clôturées. Le club sera masqué des vues par défaut."
+  confirmLabel="Archiver"
+  destructive
+  onConfirm={() => { if (archiveTarget) void handleArchive(archiveTarget); }}
+
+src/features/academics/clubs/clubs-tab.tsx:273 tag=ConfirmModal self-closing props=7
+  open={deleteTarget !== null}
+  onOpenChange={(o) => !o && setDeleteTarget(null)}
+  title={`Supprimer ${deleteTarget?.name ?? ""}`}
+  description="Cette action est irréversible. Toutes les données du club seront perdues."
+  confirmLabel="Supprimer définitivement"
+  destructive
+  onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget); }}
+
+src/features/academics/exam-scheduling-modal.tsx:134 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={GraduationCap}
+  iconTone="primary"
+  title={exam ? "Modifier l'examen" : "Programmer un examen"}
+  description={ exam ? "La modification met à jour l'entrée existante du calendrier (aucun doublon créé)…
+  submitLabel={saving ? "Enregistrement…" : exam ? "Enregistrer les modifications" : "Programmer l'exame…
+  submitIcon={saving ? Loader2 : Send}
+  submitLoading={saving}
+  onSubmit={submit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/exams-tab.tsx:142 tag=ConfirmModal self-closing props=7
+  open={!!deleteTarget}
+  onOpenChange={(o) => !o && setDeleteTarget(null)}
+  title="Supprimer l'examen ?"
+  description={ deleteTarget ? `« ${deleteTarget.title} » sera retiré du calendrier du portail web.` : "…
+  destructive
+  confirmLabel="Supprimer"
+  onConfirm={confirmDelete}
+
+src/features/academics/grade-levels-class-view.tsx:547 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={School}
+  iconTone="primary"
+  title="Créer une nouvelle classe"
+  description="Ajoutez une classe indépendante sous le niveau scolaire de votre choix. Aucune limite de nombre d'élèves ou de classes."
+  submitLabel="Créer la classe"
+  submitIcon={CheckCircle2}
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/homework-push-modal.tsx:149 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={BookOpen}
+  iconTone="primary"
+  title="Diffuser un devoir"
+  description="Le devoir sera publié sur le portail web des élèves et notifié aux parents."
+  submitLabel={uploading ? "Téléversement des pièces jointes…" : "Diffuser au portail"}
+  submitIcon={uploading ? Loader2 : Send}
+  submitLoading={uploading}
+  onSubmit={submit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/narrative-generator-modal.tsx:318 tag=UnifiedModal props=8
+  open={open}
+  onOpenChange={onOpenChange}
+  size="lg"
+  icon={FileText}
+  iconTone="primary"
+  title={t("ai.narrative.title")}
+  description={`${student.firstName} ${student.lastName} · ${student.code}`}
+  hideFooter
+
+src/features/academics/narrative-generator-modal.tsx:452 tag=UnifiedModal props=11
+  open={rejectOpen}
+  onOpenChange={setRejectOpen}
+  size="sm"
+  icon={XCircle}
+  iconTone="danger"
+  title={t("ai.narrative.reject")}
+  description={t("ai.narrative.rejectReason")}
+  submitLabel={t("ai.narrative.reject")}
+  submitVariant="destructive"
+  submitDisabled={!rejectReason.trim()}
+  onSubmit={handleReject}
+
+src/features/academics/placement/class-placement-studio-modal.tsx:142 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={onOpenChange}
+  size="full"
+  variant="dialog"
+  icon={GraduationCap}
+  iconTone="primary"
+  title="Constitution des Classes & Répartition des Élèves"
+  description={`Préparation de la rentrée scolaire ${studio.targetYearCode} · Organisation modulaire des…
+  hideSubmit
+  cancelLabel="Fermer"
+  header={ <div className="flex items-center gap-2 flex-wrap"> { } <Select value={studio.targetYear…
+
+src/features/academics/placement/create-section-dialog.tsx:127 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={School}
+  iconTone="primary"
+  title={initialDraft ? `Modifier : ${initialDraft.name}` : `Créer une Section — ${GRADE_LEVEL_LAB…
+  description="Configurez la nouvelle section de classe pour la répartition des élèves."
+  submitLabel={initialDraft ? "Enregistrer" : "Créer la section"}
+  onSubmit={handleSubmit}
+  submitDisabled={!section.trim()}
+
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:186 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="xl"
+  icon={GraduationCap}
+  iconTone="primary"
+  title={`Examen de la classe — ${cycleClass.className}`}
+  description={`Cycle de promotion ${sourceAcademicYear} → ${targetAcademicYear} · ${candidates.length} …
+  submitLabel={isProcessed ? "Classe déjà traitée" : "Confirmer la classe"}
+  submitIcon={GraduationCap}
+  onSubmit={() => confirm(false)}
+  submitLoading={confirming}
+  submitDisabled={confirming || isProcessed}
+
+src/features/academics/school-years-tab.tsx:341 tag=ConfirmModal self-closing props=7
+  open={deleteTarget !== null}
+  onOpenChange={(o) => !o && setDeleteTarget(null)}
+  title={`Supprimer ${deleteTarget?.code ?? ""} ?`}
+  description="Cette action est irréversible. L'année ne peut être supprimée que si elle n'est pas courante et qu'aucune classe / élève n'y est rattaché."
+  confirmLabel="Supprimer définitivement"
+  destructive
+  onConfirm={handleDeleteConfirmed}
+
+src/features/academics/subjects-directory-tab.tsx:323 tag=ConfirmModal self-closing props=7
+  open={archivingSubject !== null}
+  onOpenChange={(o) => !o && setArchivingSubject(null)}
+  title={`Archiver la matière ${archivingSubject?.name ?? ""}`}
+  description="Cette matière sera masquée pour les futures saisies. L'historique des notes passées reste intact."
+  confirmLabel="Archiver la matière"
+  destructive
+  onConfirm={handleArchive}
+
+src/features/academics/teachers-tab.tsx:347 tag=UnifiedModal props=9
+  open={!!assignModalTarget}
+  onOpenChange={(o) => !o && setAssignModalTarget(null)}
+  size="md"
+  icon={UserCheck}
+  iconTone="primary"
+  title={`Assigner ${assignModalTarget.firstName} ${assignModalTarget.lastName} à une classe`}
+  description="Désignez cet enseignant comme responsable principal ou enseignant de matière."
+  submitLabel="Valider l'affectation"
+  onSubmit={handleAssignSubmit}
+
+src/features/academics/teachers-tab.tsx:422 tag=UnifiedModal props=9
+  open={addTeacherModalOpen}
+  onOpenChange={setAddTeacherModalOpen}
+  size="md"
+  icon={Plus}
+  iconTone="primary"
+  title="Ajouter un enseignant"
+  description="Sélectionnez un membre du personnel pour lui créer un profil enseignant."
+  submitLabel="Créer le profil enseignant"
+  onSubmit={handleAddTeacherSubmit}
+
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:85 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  size="lg"
+  variant="drawer"
+  icon={Stethoscope}
+  iconTone="primary"
+  title={followUp.studentName}
+  description={`Suivi orthophonique · ${SPEECH_THERAPY_FOLLOWUP_STATUS_LABELS_FR[followUp.status]}`}
+  hideSubmit
+  cancelLabel="Fermer"
+
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:503 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={ClipboardCheck}
+  iconTone="primary"
+  title="Nouvelle évaluation orthophonique"
+  description={`Pour ${followUp.studentName} · ${followUp.therapistName}`}
+  submitLabel="Enregistrer l'évaluation"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:661 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={Calendar}
+  iconTone="primary"
+  title="Nouvelle séance orthophonique"
+  description={`Pour ${followUp.studentName}`}
+  submitLabel="Enregistrer"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:781 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={onOpenChange}
+  size="sm"
+  variant="dialog"
+  icon={XCircle}
+  iconTone="warning"
+  title="Clôturer le suivi ?"
+  submitLabel="Clôturer"
+  submitLoading={submitting}
+  submitVariant="destructive"
+  onSubmit={handleSubmit}
+
+src/features/academics/therapy/orthophonie-tab.tsx:432 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={Stethoscope}
+  iconTone="primary"
+  title="Ouvrir un suivi orthophonique"
+  description="Données sensibles — accès restreint. Consentement parental OBLIGATOIRE."
+  submitLabel="Ouvrir le suivi"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+  footer={ <div className="flex items-center gap-2 w-full"> <Button variant="outline" onClick={() =…
+
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:85 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  size="lg"
+  variant="drawer"
+  icon={Brain}
+  iconTone="primary"
+  title={followUp.studentName}
+  description={`Suivi psychologique · ${PSYCHOLOGICAL_FOLLOWUP_STATUS_LABELS_FR[followUp.status]}`}
+  hideSubmit
+  cancelLabel="Fermer"
+
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:482 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={Calendar}
+  iconTone="primary"
+  title="Nouvelle séance psychologique"
+  description={`Pour ${followUp.studentName} · ${followUp.psychologistName}`}
+  submitLabel="Enregistrer la séance"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:611 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={FileText}
+  iconTone="primary"
+  title="Nouveau rapport psychologique"
+  description={`Pour ${followUp.studentName}`}
+  submitLabel="Créer le rapport"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:720 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  size="sm"
+  variant="dialog"
+  icon={XCircle}
+  iconTone="warning"
+  title="Clôturer le suivi ?"
+  description="Le suivi sera marqué comme clôturé. Aucune nouvelle séance ne pourra être ajoutée. Les rapports existants sont conservés."
+  submitLabel="Clôturer"
+  submitLoading={submitting}
+  submitVariant="destructive"
+  onSubmit={handleSubmit}
+
+src/features/academics/therapy/psychology-tab.tsx:475 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  variant="dialog"
+  icon={Brain}
+  iconTone="primary"
+  title="Ouvrir un suivi psychologique"
+  description="Données sensibles — accès restreint. Le consentement parental est OBLIGATOIRE."
+  submitLabel="Ouvrir le suivi"
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+  footer={ <div className="flex items-center gap-2 w-full"> <Button variant="outline" onClick={() =…
+
+src/features/academics/timetable/timetable-entry-dialog.tsx:257 tag=ConfirmModal self-closing props=7
+  open={confirmDelete}
+  title="Supprimer ce cours ?"
+  description={`Le cours de ${subjectLabel} (${TIMETABLE_DAY_LABELS_FR[day]} p${periodIndex}) sera retir…
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={() => void remove()}
+  onOpenChange={(open) => !open && setConfirmDelete(false)}
+
+src/features/academics/timetable/timetable-tab.tsx:1188 tag=ConfirmModal self-closing props=7
+  open={roomToDelete != null}
+  title="Supprimer la salle ?"
+  description={ roomToDelete ? `La salle « ${roomToDelete.code} — ${roomToDelete.name} » sera retirée du…
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={async () => { if (!roomToDelete) return; const result = await repos.timetable.deleteRoom(…
+  onOpenChange={(open) => !open && setRoomToDelete(null)}
+
+src/features/academics/timetable/timetable-tab.tsx:1209 tag=ConfirmModal self-closing props=7
+  open={constraintToDelete != null}
+  title="Supprimer la contrainte ?"
+  description={ constraintToDelete ? `La contrainte « ${CONSTRAINT_KIND_LABELS[constraintToDelete.kind] …
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={async () => { if (!constraintToDelete) return; const result = await repos.timetable.delet…
+  onOpenChange={(open) => !open && setConstraintToDelete(null)}
+
+src/features/crm/activation-code-modal.tsx:50 tag=UnifiedModal props=9
+  open={open && code !== null}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="sm"
+  icon={KeyRound}
+  iconTone="primary"
+  title="Code d'activation portail"
+  description="Communiquez ce code au parent : il le saisira sur le portail web après connexion Google pour lier son compte au profil de la famille (usage unique)."
+  hideFooter
+
+src/features/crm/crm-page.tsx:572 tag=ConfirmModal self-closing props=7
+  open={pendingDelete !== null}
+  onOpenChange={(o) => !o && setPendingDelete(null)}
+  title="Supprimer ce parent ?"
+  description="Cette action est irréversible."
+  confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+  destructive
+  onConfirm={handleDeleteParent}
+
+src/features/crm/crm-page.tsx:743 tag=ConfirmModal self-closing props=7
+  open={pendingDelete !== null}
+  onOpenChange={(o) => !o && setPendingDelete(null)}
+  title="Supprimer cet élève ?"
+  description={ pendingDelete ? `${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.c…
+  confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+  destructive
+  onConfirm={handleDeleteStudent}
+
+src/features/crm/edit-parent-modal.tsx:132 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="md"
+  icon={Pencil}
+  iconTone="primary"
+  title="Modifier le parent"
+  description="Les changements sont tracés dans le journal d'audit."
+  submitLabel="Enregistrer"
+  submitIcon={Pencil}
+  onSubmit={submit}
+  submitLoading={saving}
+  submitDisabled={saving}
+
+src/features/crm/edit-student-modal.tsx:187 tag=UnifiedModal props=13
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="md"
+  icon={Pencil}
+  iconTone="primary"
+  title="Modifier l'élève"
+  description="Les changements sont tracés dans le journal d'audit."
+  submitLabel="Enregistrer"
+  submitIcon={Pencil}
+  onSubmit={submit}
+  submitLoading={saving}
+  submitDisabled={saving}
+
+src/features/crm/excel-import-modal.tsx:555 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={(o) => { if (!o && stage === "committing") return; onOpenChange(o); if (!o) setTimeout(re…
+  size="lg"
+  variant="dialog"
+  icon={FileSpreadsheet}
+  iconTone="primary"
+  title="Import Excel — Suivis clients"
+  description="Pipeline 5 étapes: sélection → parse → mapping → validation → insertion atomique. Moteur intégré avec audit log + rapports JSON/Excel."
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+  footer={ showFooter ? ( <> <Button variant="outline" onClick={() => onOpenChange(false)}> {stage …
+
+src/features/crm/parent-detail-drawer.tsx:1642 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="sm"
+  icon={Wallet}
+  iconTone="primary"
+  title="Ajustement de compte"
+  description="Crédit ou débit discrétionnaire sur le compte du parent."
+  submitLabel="Appliquer"
+  submitIcon={Wallet}
+  onSubmit={submit}
+  submitDisabled={amount === 0 || !adminNote.trim()}
+
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:500 tag=ConfirmModal self-closing props=6
+  open={pendingNotContinuing !== null}
+  onOpenChange={(o) => !o && setPendingNotContinuing(null)}
+  title="Confirmer la non-continuation"
+  description={ pendingNotContinuing ? `${pendingNotContinuing.studentFirstName} ${pendingNotContinuing.…
+  confirmLabel="Enregistrer la décision"
+  onConfirm={() => pendingNotContinuing ? handleDecision(pendingNotContinuing, "not_continuing") : Pro…
+
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:516 tag=ConfirmModal self-closing props=7
+  open={pendingFreeze}
+  onOpenChange={(o) => !o && setPendingFreeze(false)}
+  title="Figer la liste de réinscription ?"
+  description="Une fois figée, plus aucune décision ni réinscription ne sera possible pour cette année cible. Assurez-vous que chaque élève a une décision enregistrée."
+  confirmLabel="Figer définitivement"
+  destructive
+  onConfirm={handleFreeze}
+
+src/features/dashboard/alert-detail-modal.tsx:263 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="drawer"
+  size="md"
+  icon={Bell}
+  iconTone={ priorityTone === "danger" ? "danger" : priorityTone === "warning" ? "warning" : "primary…
+  title={alert.title}
+  description={NOTIFICATION_TYPE_LABELS_FR[alert.type]}
+  badge={ <Badge variant="outline" className="text-[10px]"> {ALERT_PRIORITY_LABELS_FR[alert.priori…
+  footer={ <div className="flex items-center gap-2 w-full justify-between"> <Button variant="ghost"…
+
+src/features/dashboard/components/analytics/data-inspector-core.tsx:365 tag=UnifiedModal props=9
+  open={Boolean(request && expanded)}
+  onOpenChange={(open) => { if (!open) setExpanded(false); }}
+  variant="drawer"
+  size="xl"
+  icon={Search}
+  iconTone="primary"
+  title={resolved?.request.title ?? "Inspection de données"}
+  description="Vue forensique — définition, formule, contributeurs, enregistrements sources et rapprochement mathématique"
+  hideFooter
+
+src/features/dashboard/components/analytics/operational-query-console.tsx:413 tag=UnifiedModal props=9
+  open={Boolean(profile)}
+  onOpenChange={(open) => { if (!open) onClose(); }}
+  size="2xl"
+  variant="dialog"
+  icon={UserRound}
+  iconTone="primary"
+  title={student?.displayName || profile?.studentName || "Profil élève"}
+  description="Vue 360° — état actuel, historique académique, présence et situation financière"
+  hideFooter
+
+src/features/dashboard/components/recovery-funnel-card.tsx:585 tag=UnifiedModal props=6
+  open={stageDialogOpen}
+  onOpenChange={setStageDialogOpen}
+  title={ selectedStageIndex === null ? "Détail de l'étape" : "Étape " + (selectedStageIndex + 1) …
+  description={ households ? "Foyers réels de cette étape · montants et retards issus des données financ…
+  size="xl"
+  hideFooter
+
+src/features/dashboard/components/recovery-funnel-card.tsx:805 tag=UnifiedModal props=6
+  open={messagePreviewOpen}
+  onOpenChange={(open) => { setMessagePreviewOpen(open); if (!open) setMessageTarget(null); }}
+  title="Prévisualiser le message"
+  description="Aperçu sur les données réelles du foyer · la confirmation ouvre WhatsApp (remise en main propre, aucun envoi automatique)."
+  size="lg"
+  hideFooter
+
+src/features/dashboard/components/recovery-funnel-card.tsx:894 tag=ConfirmModal self-closing props=7
+  open={messageConfirmOpen}
+  onOpenChange={(open) => { if (!open && handoffFailedRef.current) { // A FAILED handoff keeps the dialog…
+  title="Ouvrir WhatsApp avec ce message"
+  description={ <span className="block space-y-2"> <span className="block"> WhatsApp s'ouvrira avec ce m…
+  confirmLabel="Ouvrir WhatsApp"
+  cancelLabel="Retour"
+  onConfirm={confirmWhatsAppHandoff}
+
+src/features/dashboard/dashboard-calendar.tsx:515 tag=ConfirmModal self-closing props=7
+  open={!!deleteTarget}
+  onOpenChange={(o) => !o && setDeleteTarget(null)}
+  title="Supprimer l'événement ?"
+  description={ deleteTarget ? `« ${deleteTarget.title} » sera retiré du calendrier.` : "" }
+  destructive
+  confirmLabel="Supprimer"
+  onConfirm={handleDelete}
+
+src/features/dashboard/see-details-modal.tsx:305 tag=UnifiedModal props=9
+  open={open}
+  onOpenChange={onOpenChange}
+  size="2xl"
+  variant="dialog"
+  icon={BarChart3}
+  iconTone="primary"
+  title={t("dashboard.seeDetails")}
+  description="Synthèse analytique globale — performances financières, effectifs et créances"
+  hideFooter
+
+src/features/financials/anomaly-explainer-modal.tsx:202 tag=UnifiedModal props=9
+  open={open}
+  onOpenChange={onOpenChange}
+  size="md"
+  icon={AlertTriangle}
+  iconTone="warning"
+  title={t("ai.anomaly.title")}
+  description={`Dépense ${expense.requestCode} · ${expense.title}`}
+  alert={{ tone: "info", title: t("ai.anomaly.signalNotVerdict"), }}
+  hideFooter
+
+src/features/financials/anomaly-explainer-modal.tsx:290 tag=UnifiedModal props=10
+  open={justificationOpen}
+  onOpenChange={setJustificationOpen}
+  size="sm"
+  icon={MessageSquarePlus}
+  iconTone="primary"
+  title={t("ai.anomaly.requestJustification")}
+  description={t("ai.anomaly.justificationComment")}
+  submitLabel={t("ai.anomaly.requestJustification")}
+  submitDisabled={!justificationComment.trim()}
+  onSubmit={handleRequestJustification}
+
+src/features/financials/expense-detail-drawer.tsx:353 tag=ConfirmModal self-closing props=7
+  open={rejectOpen}
+  onOpenChange={setRejectOpen}
+  title="Rejeter la dépense"
+  description={ <div className="space-y-2"> <p> Confirmez-vous le rejet de cette demande de fonds ? Le d…
+  confirmLabel="Rejeter la demande"
+  destructive
+  onConfirm={handleReject}
+
+src/features/financials/expense-detail-drawer.tsx:379 tag=ConfirmModal self-closing props=6
+  open={disburseOpen}
+  onOpenChange={setDisburseOpen}
+  title="Décaisser les fonds"
+  description={`Confirmez-vous le décaissement de ${formatDzd(expense.amount)} au profit de ${expense.pa…
+  confirmLabel="Décaisser"
+  onConfirm={handleDisburse}
+
+src/features/financials/expense-detail-drawer.tsx:389 tag=UnifiedModal props=12
+  open={proofOpen}
+  onOpenChange={setProofOpen}
+  variant="dialog"
+  size="md"
+  icon={Upload}
+  iconTone="primary"
+  title="Justificatif et montant final"
+  description="Téléversez le reçu du fournisseur et saisissez le montant réellement dépensé. L'officier financier vérifiera le reçu contre les fonds décaissés."
+  submitLabel="Clôturer la dépense"
+  submitIcon={CheckCircle2}
+  onSubmit={handleSettleProof}
+  submitDisabled={!proofFile || settling}
+
+src/features/financials/expense-submit-modal.tsx:201 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}
+  variant="dialog"
+  size="lg"
+  icon={Paperclip}
+  iconTone="primary"
+  title="Nouvelle demande de dépense"
+  description="Soumettez une dépense pour validation par l'administration. Les justificatifs (reçus, factures) peuvent être joints dès la création."
+  submitLabel="Soumettre la dépense"
+  onSubmit={handleSubmit}
+  submitDisabled={submitting}
+
+src/features/financials/financials-page.tsx:1299 tag=ConfirmModal self-closing props=6
+  open={confirmBroadcast}
+  onOpenChange={setConfirmBroadcast}
+  title="Diffuser les rappels de paiement"
+  description={ <> Un rappel sera envoyé à <b>chaque débiteur</b> de la liste (notification portail + jo…
+  confirmLabel="Diffuser maintenant"
+  onConfirm={broadcastReminders}
+
+src/features/financials/financials-page.tsx:1313 tag=ConfirmModal self-closing props=7
+  open={confirmLock}
+  onOpenChange={setConfirmLock}
+  destructive
+  title="Verrouiller les comptes délinquants"
+  description={ <> Tous les comptes avec plus de <b>90 jours</b> de retard seront marqués FINANCIALLY_RE…
+  confirmLabel="Verrouiller"
+  onConfirm={lockDelinquent}
+
+src/features/financials/financials-page.tsx:1327 tag=ConfirmModal self-closing props=6
+  open={!!confirmReminderFor}
+  onOpenChange={(o) => !o && setConfirmReminderFor(null)}
+  title={`Envoyer un rappel à ${confirmReminderFor?.parentName ?? ""}`}
+  description={ <> Un rappel WhatsApp sera préparé et un événement d'audit sera enregistré pour la créan…
+  confirmLabel="Envoyer le rappel"
+  onConfirm={() => { if (!confirmReminderFor) return; void sendReminder(confirmReminderFor.parentId, c…
+
+src/features/financials/installment-schedule-tab.tsx:882 tag=ConfirmModal self-closing props=6
+  open={confirmScanOpen}
+  onOpenChange={setConfirmScanOpen}
+  title="Scanner les retards maintenant"
+  description={ <> Le scan parcourt toutes les tranches et génère une alerte pour chaque tranche en reta…
+  confirmLabel="Lancer le scan"
+  onConfirm={handleRunOverdueScan}
+
+src/features/financials/manual-debt-modal.tsx:266 tag=UnifiedModal props=5
+  open={open}
+  onOpenChange={(o) => { if (!o) onOpenChange(false); }}
+  title="Nouvelle dette manuelle — choisir la famille"
+  description="La créance sera rattachée à la famille choisie (le débiteur), ancrée sur un de ses élèves, avec son motif exact."
+  hideFooter
+
+src/features/financials/payment-detail-drawer.tsx:334 tag=ConfirmModal self-closing props=6
+  open={confirmClear}
+  onOpenChange={setConfirmClear}
+  title="Confirmer la compensation bancaire"
+  description="Les fonds seront considérés comme acquis définitivement sur les tranches."
+  confirmLabel="Confirmer"
+  onConfirm={handleMarkCleared}
+
+src/features/financials/payment-detail-drawer.tsx:343 tag=ConfirmModal self-closing props=7
+  open={confirmBounce}
+  onOpenChange={setConfirmBounce}
+  destructive
+  title="Marquer le paiement comme rejeté"
+  description={ <div className="space-y-2"> <p>La dette correspondante sera immédiatement rouverte.</p> …
+  confirmLabel="Rejeter"
+  onConfirm={handleMarkBounced}
+
+src/features/financials/payment-detail-drawer.tsx:363 tag=ConfirmModal self-closing props=7
+  open={confirmRefund}
+  onOpenChange={setConfirmRefund}
+  destructive
+  title="Rembourser ce paiement"
+  description={ <div className="space-y-2"> { } <p> Le paiement {entity?.receiptNumber} ({entity ? forma…
+  confirmLabel="Confirmer le remboursement"
+  onConfirm={handleRefund}
+
+src/features/financials/tranche-amount-edit-modal.tsx:184 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="sm"
+  icon={Wallet}
+  iconTone="primary"
+  title={`Modifier le montant — ${installment.label}`}
+  description={ parentName ? `${parentName} · ${PAYMENT_CATEGORY_LABELS_FR[installment.category] ?? inst…
+  submitLabel="Enregistrer le montant"
+  submitIcon={Wallet}
+  onSubmit={submit}
+  submitDisabled={!canSubmit}
+
+src/features/financials/unified-payment-modal.tsx:602 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  size="2xl"
+  variant="dialog"
+  icon={Wallet}
+  iconTone="success"
+  title={stage === "form" ? `Encaissement — ${modeLabel}` : "Paiement encaissé"}
+  description={ stage === "form" ? `${itemTitle} · saisie en temps réel et affectation comptable (plan §…
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+  footer={footerNode}
+  hideFooter={false}
+
+src/features/personnel/dashboards/teacher-dashboard.tsx:292 tag=UnifiedModal props=7
+  open
+  onOpenChange={(open: boolean) => { if (!open) setOverlay(null); }}
+  title={`Saisie des notes — ${overlayClass?.name ?? "Classe"}`}
+  description="Choisissez la matière à évaluer. La saisie reste dans votre espace Personnel."
+  hideSubmit
+  hideCancel
+  size="md"
+
+src/features/personnel/management/chat-panel.tsx:807 tag=UnifiedModal props=13
+  open={formOpen}
+  onOpenChange={setFormOpen}
+  variant="dialog"
+  size="md"
+  icon={Plus}
+  iconTone="primary"
+  title="Nouveau canal"
+  description="Créez un canal de discussion pour votre équipe."
+  submitLabel="Créer"
+  submitLoading={formSubmitting}
+  onSubmit={handleCreateChannel}
+  alert={formError ? { tone: "error", title: "Erreur", description: formError } : null}
+  onDismissAlert={() => setFormError(null)}
+
+src/features/personnel/management/chat-panel.tsx:928 tag=ConfirmModal self-closing props=7
+  open={!!deleteId}
+  onOpenChange={(o) => !o && setDeleteId(null)}
+  title="Supprimer le message ?"
+  description="Cette action est irréversible."
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={handleDelete}
+
+src/features/personnel/management/department-management.tsx:244 tag=UnifiedModal props=13
+  open={formOpen}
+  onOpenChange={setFormOpen}
+  variant="dialog"
+  size="md"
+  icon={editingId ? Pencil : Plus}
+  iconTone="primary"
+  title={editingId ? "Modifier le département" : "Nouveau département"}
+  description="Les départements regroupent le personnel et les canaux de discussion."
+  submitLabel={editingId ? "Enregistrer" : "Créer"}
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+  alert={error ? { tone: "error", title: "Erreur", description: error } : null}
+  onDismissAlert={() => setError(null)}
+
+src/features/personnel/management/department-management.tsx:313 tag=ConfirmModal self-closing props=7
+  open={!!archiveTarget}
+  onOpenChange={(o) => !o && setArchiveTarget(null)}
+  title={archiveTarget?.archivedAt ? "Restaurer le département ?" : "Archiver le département ?"}
+  description={ archiveTarget?.archivedAt ? `« ${archiveTarget.name} » sera à nouveau visible et actif.`…
+  confirmLabel={archiveTarget?.archivedAt ? "Restaurer" : "Archiver"}
+  destructive={!archiveTarget?.archivedAt}
+  onConfirm={() => { if (archiveTarget) void handleArchive(archiveTarget); }}
+
+src/features/personnel/management/department-management.tsx:328 tag=ConfirmModal self-closing props=7
+  open={!!deleteTarget}
+  onOpenChange={(o) => !o && setDeleteTarget(null)}
+  title="Supprimer définitivement ?"
+  description={`« ${deleteTarget?.name} » sera supprimé. Cette action est irréversible.`}
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget); }}
+
+src/features/personnel/management/payroll-management.tsx:525 tag=UnifiedModal props=8
+  open={!!adjustModalWorker}
+  onOpenChange={(o) => !o && setAdjustModalWorker(null)}
+  title={`Ajustement de rémunération — ${adjustModalWorker.firstName} ${adjustModalWorker.lastName…
+  description={`Salaire actuel : ${formatDzd(adjustModalWorker.salary ?? 0)}. Tout changement sera tracé…
+  submitLabel="Valider l'ajustement"
+  onSubmit={handleConfirmSalaryAdjustment}
+  submitDisabled={!adjustReason.trim() || adjustAmount <= 0}
+  size="md"
+
+src/features/personnel/management/payroll-management.tsx:572 tag=UnifiedModal props=7
+  open={!!payModalWorker}
+  onOpenChange={(o) => !o && setPayModalWorker(null)}
+  title={`Enregistrer le versement du salaire — ${payModalWorker.firstName} ${payModalWorker.lastN…
+  description={`Période : ${period} · Montant net : ${formatDzd(payModalWorker.salary ?? 0)}`}
+  submitLabel="Confirmer le versement"
+  onSubmit={handleRecordDisbursement}
+  size="sm"
+
+src/features/personnel/management/payroll-management.tsx:608 tag=UnifiedModal props=7
+  open={!!historyModalWorker}
+  onOpenChange={(o) => !o && setHistoryModalWorker(null)}
+  title={`Historique des modifications de salaire — ${historyModalWorker.firstName} ${historyModal…
+  description="Traçabilité complète des augmentations, retenues et primes avec leurs motifs."
+  hideSubmit
+  cancelLabel="Fermer"
+  size="md"
+
+src/features/personnel/management/requests-management.tsx:410 tag=UnifiedModal props=8
+  open={createModalOpen}
+  onOpenChange={setCreateModalOpen}
+  title="Soumettre une demande"
+  description="Votre demande sera transmise pour arbitrage administratif."
+  submitLabel="Soumettre"
+  onSubmit={handleCreateRequest}
+  submitDisabled={!reqReason.trim()}
+  size="md"
+
+src/features/personnel/management/requests-management.tsx:479 tag=UnifiedModal props=8
+  open={!!clarifyTarget}
+  onOpenChange={(o) => !o && setClarifyTarget(null)}
+  title={`Demande de précisions — ${clarifyTarget.personnelName}`}
+  description="Posez une question au collaborateur avant de statuer sur sa demande."
+  submitLabel="Envoyer la question"
+  onSubmit={handleSendClarification}
+  submitDisabled={!clarifyQuestion.trim()}
+  size="md"
+
+src/features/personnel/management/requests-management.tsx:504 tag=UnifiedModal props=8
+  open={!!respondTarget}
+  onOpenChange={(o) => !o && setRespondTarget(null)}
+  title="Répondre à la demande de précisions"
+  description={`Question de l'administration : « ${respondTarget.clarificationRequest} »`}
+  submitLabel="Transmettre ma réponse"
+  onSubmit={handleRespondClarification}
+  submitDisabled={!clarifyResponse.trim()}
+  size="md"
+
+src/features/personnel/management/staff-attendance-center.tsx:594 tag=UnifiedModal props=8
+  open={recordOpen}
+  onOpenChange={(o) => !o && setRecordOpen(false)}
+  title="Enregistrer une absence constatée"
+  description="Crée la ligne d'absence (statut initial : non justifiée). Vous pourrez ensuite demander une justification à l'employé."
+  submitLabel="Enregistrer l'absence"
+  onSubmit={handleRecordAbsence}
+  submitDisabled={ !recordPersonnelId || !recordDate || !(Number(recordHours.replace(",", ".")) > 0) || rec…
+  size="md"
+
+src/features/personnel/management/staff-attendance-center.tsx:661 tag=UnifiedModal props=8
+  open={!!requestModalAbsence}
+  onOpenChange={(o) => !o && setRequestModalAbsence(null)}
+  title={`Demande de justification — ${requestModalAbsence.personnelName}`}
+  description={`Absence du ${formatDate(requestModalAbsence.date)} (${requestModalAbsence.durationHours}…
+  submitLabel="Envoyer la demande"
+  onSubmit={handleSendJustificationRequest}
+  submitDisabled={!requestNote.trim()}
+  size="md"
+
+src/features/personnel/management/staff-attendance-center.tsx:686 tag=UnifiedModal props=8
+  open={!!submitModalAbsence}
+  onOpenChange={(o) => !o && setSubmitModalAbsence(null)}
+  title="Soumettre votre justification d'absence"
+  description={`Absence du ${formatDate(submitModalAbsence.date)}. Votre réponse sera examinée par la di…
+  submitLabel="Transmettre à l'administration"
+  onSubmit={handleSubmitWorkerJustification}
+  submitDisabled={!workerExplanation.trim()}
+  size="md"
+
+src/features/personnel/management/staff-attendance-center.tsx:718 tag=UnifiedModal props=8
+  open={!!reviewModalAbsence}
+  onOpenChange={(o) => !o && setReviewModalAbsence(null)}
+  title={`Examen de la justification — ${reviewModalAbsence.personnelName}`}
+  description={`Absence du ${formatDate(reviewModalAbsence.date)} · Motif fourni : « ${reviewModalAbsenc…
+  submitLabel={ reviewDecision === "accepted" ? "Accepter la justification" : "Rejeter la justification"…
+  submitVariant={ reviewDecision === "accepted" ? "default" : "destructive" }
+  onSubmit={handleReviewDecision}
+  size="md"
+
+src/features/personnel/management/task-detail-drawer.tsx:297 tag=UnifiedModal props=7
+  open={completionModalOpen}
+  onOpenChange={setCompletionModalOpen}
+  title="Validation de la réalisation"
+  description="Indiquez vos remarques ou livrables pour l'administration."
+  submitLabel={ isSuperAdmin ? "Clôturer la tâche" : "Transmettre pour validation" }
+  onSubmit={handleCompleteSubmit}
+  size="md"
+
+src/features/personnel/management/task-detail-drawer.tsx:323 tag=UnifiedModal props=8
+  open={reviewModalOpen}
+  onOpenChange={setReviewModalOpen}
+  title="Arbitrage et validation de la tâche"
+  description={`Éxaminer le livrable transmis : « ${task.completionNote || "Aucune note transmise"} »`}
+  submitLabel={ reviewApproved ? "Valider & Clôturer" : "Demander une reprise" }
+  submitVariant={reviewApproved ? "default" : "destructive"}
+  onSubmit={handleReviewSubmit}
+  size="md"
+
+src/features/personnel/management/task-detail-drawer.tsx:385 tag=ConfirmModal self-closing props=7
+  open={confirmDelete}
+  onOpenChange={setConfirmDelete}
+  title="Supprimer la tâche"
+  description="Cette action est irréversible. Confirmez-vous la suppression définitive de cette tâche ?"
+  confirmLabel="Supprimer définitivement"
+  destructive
+  onConfirm={handleDelete}
+
+src/features/settings/accounts-tab.tsx:345 tag=ConfirmModal self-closing props=7
+  open={pendingDelete !== null}
+  onOpenChange={(o) => !o && setPendingDelete(null)}
+  title="Supprimer ce compte ?"
+  description={ pendingDelete ? `Le compte ${pendingDelete.email} (${ pendingDelete.role ? ROLE_LABELS_F…
+  confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+  destructive
+  onConfirm={handleDeleteAccount}
+
+src/features/settings/approvals-tab.tsx:780 tag=UnifiedModal props=14
+  open={true}
+  onOpenChange={(open) => !open && onCancel()}
+  variant="dialog"
+  size={isApproveNew || isStudentNew ? "lg" : "md"}
+  title={title}
+  icon={isReject ? UserX : isStudentNew || isStudentExisting ? GraduationCap : UserCheck}
+  iconTone={isReject ? "danger" : "success"}
+  submitLoading={isSubmitting}
+  onSubmit={onSubmit}
+  submitLabel={isReject ? "Rejeter" : "Confirmer l'approbation"}
+  submitVariant={isReject ? "destructive" : "default"}
+  submitDisabled={ (isApproveExisting && (selectedParentBound || !decision.targetParentId)) || (isStudentEx…
+  cancelLabel="Annuler"
+  alert={ isReject ? { tone: "warning", title: "Le compte utilisateur sera suspendu", description:…
+
+src/features/settings/audit-log-tab.tsx:391 tag=UnifiedModal props=11
+  open={!!entry}
+  onOpenChange={(o) => !o && onClose()}
+  variant="dialog"
+  size="lg"
+  icon={ScrollText}
+  iconTone="primary"
+  title={ <span className="flex items-center gap-2 text-base"> <code className="font-mono text-pri…
+  description={ <> {entry?.actorName} • {entry ? formatDateTime(entry.at) : ""} • IP {entry?.ipAddress ?…
+  hideCancel
+  submitLabel="Fermer"
+  onSubmit={onClose}
+
+src/features/settings/backup-tab.tsx:1134 tag=ConfirmModal self-closing props=7
+  open={pendingRestore !== null}
+  onOpenChange={(o) => !o && setPendingRestore(null)}
+  title="Restaurer la sauvegarde ?"
+  description={ pendingRestore ? `Cette action remplacera l'état opérationnel local par le contenu de l'…
+  confirmLabel={restoring ? "Restauration…" : "Restaurer"}
+  destructive
+  onConfirm={handleRestore}
+
+src/features/settings/backup-tab.tsx:1151 tag=UnifiedModal props=11
+  open={inspection !== null}
+  onOpenChange={(o) => !o && setInspection(null)}
+  variant="dialog"
+  size="lg"
+  icon={Download}
+  iconTone="primary"
+  title={ <span className="flex items-center gap-2 text-base"> Inspection — <code className="font-…
+  description={ inspection ? `Instantané du ${formatDateTime(inspection.snapshotAt)} — contenu déchiffré…
+  hideCancel
+  submitLabel="Fermer"
+  onSubmit={() => setInspection(null)}
+
+src/features/settings/backup-tab.tsx:1216 tag=ConfirmModal self-closing props=7
+  open={pendingDelete !== null}
+  onOpenChange={(o) => !o && setPendingDelete(null)}
+  title="Supprimer l'archive ?"
+  description={ pendingDelete ? `L'archive ${pendingDelete.id} sera définitivement supprimée du coffre. …
+  confirmLabel={deleting ? "Suppression…" : "Supprimer"}
+  destructive
+  onConfirm={handleDelete}
+
+src/features/settings/backup-tab.tsx:1244 tag=UnifiedModal props=11
+  open={fileInspection !== null}
+  onOpenChange={(o) => { if (!o) { setFileInspection(null); setSelectedFileArchive(null); } }}
+  variant="dialog"
+  size="lg"
+  icon={FileUp}
+  iconTone="primary"
+  title={ <span className="flex items-center gap-2 text-base"> Fichier de sauvegarde — <code class…
+  description={ fileInspection ? `${fileInspection.filePath} · ${formatBytes(fileInspection.sizeBytes)}$…
+  submitLabel={ fileRestoring ? ( <> <Loader2 className="size-4 animate-spin" /> Restauration… </> ) : s…
+  submitDisabled={!selectedFileArchive || fileRestoring}
+  onSubmit={() => setConfirmFileRestore(true)}
+
+src/features/settings/backup-tab.tsx:1361 tag=ConfirmModal self-closing props=7
+  open={confirmFileRestore}
+  onOpenChange={(o) => !o && setConfirmFileRestore(false)}
+  title="Restaurer depuis le fichier ?"
+  description={ selectedFileArchive ? `L'état opérationnel local sera remplacé par l'archive ${selectedF…
+  confirmLabel={fileRestoring ? "Restauration…" : "Restaurer"}
+  destructive
+  onConfirm={handleFileRestore}
+
+src/features/settings/conflict-resolver-modal.tsx:98 tag=UnifiedModal props=13
+  open={!!entry}
+  onOpenChange={(o) => { if (!o) { setChoices({}); setManualDrafts({}); } onOpenChange(o); }}
+  variant="dialog"
+  size="xl"
+  icon={GitMerge}
+  iconTone="warning"
+  title={ <span className="flex items-center gap-2 text-base"> <code className="font-mono text-pri…
+  description={`Détecté le ${new Date(entry.conflict.detectedAt).toLocaleString()} — l'autre opérateur a…
+  submitLabel={`Appliquer la résolution${unchosen.length > 0 ? ` (${unchosen.length} restant)` : ""}`}
+  onSubmit={handleApply}
+  submitDisabled={unchosen.length > 0 || applying}
+  submitLoading={applying}
+  closeOnBackdropClick={false}
+
+src/features/settings/contextual-thresholds-config.tsx:444 tag=UnifiedModal props=15
+  open={open}
+  onOpenChange={(next) => { if (!next) onClose(); }}
+  variant="dialog"
+  size="md"
+  icon={Settings2}
+  iconTone="primary"
+  title={scope ? `${scope.title} — seuils appliqués` : "Seuils"}
+  description={ scope?.hint ?? "Les paramètres ci-dessous alimentent les calculs de ce composant." }
+  alert={alert}
+  submitLabel="Enregistrer"
+  cancelLabel="Annuler"
+  onSubmit={onSave}
+  submitDisabled={readOnly || saving || hasError || !hasChanges}
+  submitLoading={saving}
+  bodyClassName=space-y-3
+
+src/features/settings/create-account-modal.tsx:260 tag=UnifiedModal props=11
+  open={open}
+  onOpenChange={(next) => { if (next) reset(); onOpenChange(next); }}
+  size="lg"
+  variant="dialog"
+  icon={UserPlus}
+  iconTone="primary"
+  title="Créer un compte"
+  description="Le compte est actif immédiatement. L'utilisateur change son mot de passe à la première connexion."
+  submitLabel={submitting ? "Création…" : "Créer le compte"}
+  submitLoading={submitting}
+  onSubmit={handleSubmit}
+
+src/features/settings/danger-zone-card.tsx:311 tag=ConfirmModal self-closing props=8
+  open={confirmOpen}
+  onOpenChange={(o) => !executing && setConfirmOpen(o)}
+  title="Purger TOUTES les données élèves/parents ?"
+  description={ preview ? ( <span> Cette action est <strong>irréversible</strong> :{" "} <strong>{format…
+  confirmLabel="Oui, purger définitivement"
+  cancelLabel="Annuler"
+  destructive
+  onConfirm={handleExecute}
+
+src/features/settings/export-dialog.tsx:163 tag=UnifiedModal props=12
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="dialog"
+  size="lg"
+  icon={Archive}
+  iconTone="primary"
+  title="Exporter — destination et format"
+  description={`${ORIGIN_LABELS_FR[origin]} — choisissez le format maintenant ; l'emplacement sera chois…
+  submitLabel={ exporting ? ( <> <Loader2 className="size-4 animate-spin" /> Export en cours… </> ) : ( …
+  onSubmit={() => void handleExport()}
+  submitDisabled={exporting}
+  data-testid="export-dialog"
+
+src/features/settings/pricing-tab.tsx:80 tag=ConfirmModal self-closing props=8
+  open={pendingRemoval !== null}
+  onOpenChange={(open) => { if (!open) setPendingRemoval(null); }}
+  title="Confirmer la suppression"
+  description={`Voulez-vous vraiment supprimer « ${pendingRemoval?.label ?? ""} » ? Cette action est irr…
+  confirmLabel="Supprimer"
+  cancelLabel="Annuler"
+  destructive
+  onConfirm={() => { if (!pendingRemoval) return; const removal = pendingRemoval; setPendingRemoval(nu…
+
+src/features/settings/pricing/pricing-year-config-bar.tsx:315 tag=ConfirmModal self-closing props=7
+  open={activateTarget !== null}
+  onOpenChange={(open) => { if (!open) setActivateTarget(null); }}
+  title="Activer cette configuration ?"
+  description={`La configuration « ${activateTarget?.label ?? ""} » (${activateTarget?.academicYearLabel…
+  confirmLabel="Activer"
+  cancelLabel="Annuler"
+  onConfirm={handleActivate}
+
+src/features/settings/sync-tab.tsx:361 tag=ConfirmModal self-closing props=7
+  open={confirmClear}
+  onOpenChange={setConfirmClear}
+  title="Vider la file d'attente ?"
+  description="Toutes les entrées en attente, synchronisées et en échec seront supprimées. Cette action est irréversible."
+  confirmLabel="Vider"
+  destructive
+  onConfirm={handleClear}
+
+src/features/settings/sync-tab.tsx:373 tag=ConfirmModal self-closing props=7
+  open={confirmDiscard}
+  onOpenChange={setConfirmDiscard}
+  title="Supprimer les entrées en échec ?"
+  description={`${status.failedCount} entrée(s) en échec seront supprimées de la file locale (les entrée…
+  confirmLabel="Supprimer"
+  destructive
+  onConfirm={handleDiscardFailed}
+
+src/features/settings/theme-editor-modal.tsx:65 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  size="xl"
+  variant="dialog"
+  icon={Palette}
+  iconTone="primary"
+  title={ initialPalette ? `Modifier : ${initialPalette.name}` : "Créateur de Thème Personnalisé" …
+  description="Personnalisez l'intégralité des couleurs de l'application : boutons, surfaces, textes et alertes."
+  submitLabel="Enregistrer et appliquer"
+  onSubmit={handleSubmit}
+
+src/features/workflow/dag-canvas.tsx:1364 tag=ConfirmModal self-closing props=6
+  open={deployOpen}
+  onOpenChange={setDeployOpen}
+  title="Déployer ce workflow"
+  description="Le workflow sera figé et exécutable en production."
+  confirmLabel="Déployer"
+  onConfirm={handleDeployConfirm}
+
+src/features/workflow/node-inspector-drawer.tsx:260 tag=UnifiedModal props=10
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="drawer"
+  size="lg"
+  icon={Settings2}
+  iconTone="primary"
+  title={`Configurer — ${WORKFLOW_NODE_SUBTYPE_LABELS_FR[node.subtype] ?? node.subtype}`}
+  description={NODE_SUBTYPE_DESCRIPTIONS_FR[node.subtype] ?? ""}
+  badge={ <StatusChip label={WORKFLOW_NODE_TYPE_LABELS_FR[node.type]} tone={ node.type === "trigge…
+  footer={ <div className="flex items-center gap-2 w-full justify-between"> {onDelete && canEdit ? …
+
+src/features/workflow/test-studio-drawer.tsx:188 tag=UnifiedModal props=9
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="drawer"
+  size="lg"
+  icon={FlaskConical}
+  iconTone="primary"
+  title="Studio de test — entités réelles"
+  description="Simulez le workflow sur de vraies familles, suivez le chemin d'exécution en direct, inspectez chaque nœud."
+  hideFooter
+
+src/features/workflow/workflow-page.tsx:531 tag=UnifiedModal props=14
+  open={open}
+  onOpenChange={onOpenChange}
+  size="lg"
+  variant="dialog"
+  icon={Plus}
+  iconTone="primary"
+  title={t("workflow.new")}
+  description="Partir d'un modèle métier prêt à l'emploi ou d'un brouillon vide."
+  submitLabel="Créer"
+  submitIcon={Send}
+  submitLoading={creating}
+  onSubmit={submit}
+  alert={alert}
+  onDismissAlert={() => setAlert(null)}
+
+src/features/workflow/workflow-run-detail-drawer.tsx:95 tag=UnifiedModal props=9
+  open={open}
+  onOpenChange={onOpenChange}
+  variant="drawer"
+  size="lg"
+  icon={Activity}
+  iconTone="primary"
+  title={run ? `Exécution — ${run.workflowName}` : "Exécution"}
+  description={run ? `Déclenché par ${run.actorName}` : undefined}
+  hideFooter
+
+src/shared/layout/topbar.tsx:428 tag=UnifiedModal props=9
+  open={searchOpen}
+  onOpenChange={(o) => { setSearchOpen(o); if (!o) setSearchQuery(""); }}
+  variant="command-palette"
+  size="lg"
+  title={<span className="sr-only">{t("common.search")}</span>}
+  header={ <div className="flex items-center gap-2 p-4"> <Search className="h-4 w-4 text-muted-fore…
+  bodyClassName=p-0
+  hideFooter
+  hideCloseButton
+

@@ -71,3 +71,23 @@ P4  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
 **Verdict:** OPS-011 is now **6-run-stable** (S2→S8). The live-DB import-flush lane stays owner-gated on the spend cap — exactly as in Sessions 2-6, the blocker is the plan layer, not the credentials (P1's key-type gate proves the publishable key is recognized; P2's quota body proves the secret key is recognized).
 
 **What was done instead (the full substitute for the live lane):** the heavy testing ran through the engine's REAL DB write path (`ImportEngine` + `RepositoryStorageAdapter` + the real domain calc modules) against instrumented in-memory stub repositories (the repo's own t-105 test convention — the same method that produced the T-420 live-verified forensics). Result: 197 tests green across two layers (150 repo regression tests + the 47-test S8 adversarial harness, incl. the independent per-student balance oracle 1137/1137 + 390/390 and the 940/197 indebted census). The only untested dimension is the wire itself — see `Deep Sweep/04-DEEP-EXCEL-IMPORT-ENGINE-AUDIT-2026-11-19.md` §8 for the one-time unblock ceremony (cap lift → re-run harness Group A against the Supabase repositories; expect 5,963 installments per the §7.4 note).
+
+---
+
+## Session 9 probe run (2026-11-19) — Lane-B census session
+
+**Context:** routine 6-hourly sweep (S9); the S8 handoff's gate check + the Lane-B UnifiedModal consumer census. GET-only probe set re-run (keys in-memory only, masked):
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (secret)             → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P10 GET api.github.com/repos/Vtheonly/AgentGithubUplaod (PAT) → 200 (+ this session's push verifies write path)
+```
+
+**Verdict:** OPS-011 is now **7-run-stable** (S2→S9): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid. The spend cap is still in place — the live-DB lane (the S8 §8 one-time re-verification ceremony; the E7.9 final export) remains owner-gated exactly as before. The blocker is the plan layer, not the credentials (P1's key-type gate + P2's quota body prove both keys are recognized). No re-verification ceremony was due this run.
+
+**Session 9 note:** the Deep Sweep Lane-B census (05-DEEP-UNIFIEDMODAL-CONSUMER-CENSUS) was completed instead — static analysis only, no live interaction needed.
