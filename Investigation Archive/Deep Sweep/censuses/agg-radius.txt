@@ -1,0 +1,5 @@
+# AGGREGATION: radius (from censuses/ui-radius)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# per-file match counts, sorted by count desc; file paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+

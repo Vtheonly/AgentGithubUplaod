@@ -1,0 +1,11 @@
+# VOCABULARY: distinct values of border-sides
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+    160 border-b
+     90 border-t
+     15 border-l
+      7 border-r
+      3 border-s
+      1 border-e
+
+# --- DISTINCT: 6 values ---

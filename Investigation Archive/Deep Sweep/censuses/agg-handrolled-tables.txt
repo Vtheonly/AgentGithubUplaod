@@ -1,0 +1,46 @@
+# AGGREGATION: handrolled-tables (from censuses/ui-handrolled-tables)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+      3 src/features/dashboard/see-details-modal.tsx
+      2 src/features/personnel/management/upcoming-payroll-payments.tsx
+      2 src/features/personnel/management/expense-review-section.tsx
+      2 src/features/dashboard/components/analytics/operational-query-console.tsx
+      2 src/features/crm/student-detail/academic-tab.tsx
+      1 src/shared/ui/markdown-view.tsx
+      1 src/shared/ui/data-table/data-table.tsx
+      1 src/features/workflow/workflow-page.tsx
+      1 src/features/settings/sync-tab.tsx
+      1 src/features/settings/rbac-matrix-editor.tsx
+      1 src/features/settings/pricing/tuition-card.tsx
+      1 src/features/settings/pricing/pricing-year-config-bar.tsx
+      1 src/features/settings/danger-zone-card.tsx
+      1 src/features/settings/backup-tab.tsx
+      1 src/features/settings/audit-log-tab.tsx
+      1 src/features/settings/accounts-tab.tsx
+      1 src/features/personnel/workflow-monitor-tab.tsx
+      1 src/features/personnel/management/staff-attendance-center.tsx
+      1 src/features/personnel/management/requests-management.tsx
+      1 src/features/personnel/management/payroll-management.tsx
+      1 src/features/financials/webhook-diagnostics-card.tsx
+      1 src/features/financials/financial-query-console.tsx
+      1 src/features/financials/cross-service-matrix.tsx
+      1 src/features/dashboard/components/recovery-funnel-card.tsx
+      1 src/features/dashboard/components/analytics/pivot-matrix-card.tsx
+      1 src/features/dashboard/components/analytics/executive-cards.tsx
+      1 src/features/dashboard/components/analytics/data-inspector-core.tsx
+      1 src/features/dashboard/components/analytics/aging-composition-card.tsx
+      1 src/features/crm/excel-import-modal.tsx
+      1 src/features/academics/timetable/timetable-tab.tsx
+      1 src/features/academics/timetable/timetable-grid.tsx
+      1 src/features/academics/subject-configurations-panel.tsx
+      1 src/features/academics/students-directory-tab.tsx
+      1 src/features/academics/promotion-cycles/promotion-cycles-tab.tsx
+      1 src/features/academics/promotion-cycles/promotion-cycle-detail.tsx
+      1 src/features/academics/promotion-cycles/promotion-class-review-modal.tsx
+      1 src/features/academics/placement/class-placement-studio-modal.tsx
+      1 src/features/academics/grade-entry-screen.tsx
+      1 src/features/academics/class-subjects-tab.tsx
+      1 src/features/academics/class-grades-tab.tsx
+
+# --- FILES: 40 ---

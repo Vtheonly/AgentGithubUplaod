@@ -1,0 +1,8 @@
+# AGGREGATION: portals (from censuses/ui-portals)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+      2 src/shared/layout/modal-host.tsx
+      1 src/main.tsx
+
+# --- FILES: 2 ---

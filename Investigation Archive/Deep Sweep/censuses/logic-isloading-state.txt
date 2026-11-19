@@ -1,0 +1,48 @@
+# CENSUS: logic-isloading-state
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading useState.*(isLoading|loading)|setLoading|setIsLoading -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/providers/auth-provider.tsx:81:  const [isLoading, setIsLoading] = useState<boolean>(() => {
+src/app/providers/auth-provider.tsx:92:        setIsLoading(false);
+src/app/providers/auth-provider.tsx:145:        if (!cancelled) setIsLoading(false);
+src/app/providers/auth-provider.tsx:180:      setIsLoading(true);
+src/app/providers/auth-provider.tsx:191:        setIsLoading(false);
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:62:  const [loading, setLoading] = useState(false);
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:119:    setLoading(true);
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:129:      setLoading(false);
+src/features/financials/anomaly-explainer-modal.tsx:102:  const [loading, setLoading] = useState(false);
+src/features/financials/anomaly-explainer-modal.tsx:123:    setLoading(true);
+src/features/financials/anomaly-explainer-modal.tsx:166:      setLoading(false);
+src/features/academics/narrative-generator-modal.tsx:117:  const [loading, setLoading] = useState(false);
+src/features/academics/narrative-generator-modal.tsx:165:    setLoading(true);
+src/features/academics/narrative-generator-modal.tsx:233:      setLoading(false);
+src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:64:  const [loading, setLoading] = useState(true);
+src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:69:    setLoading(true);
+src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:73:    setLoading(false);
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:48:  const [loading, setLoading] = useState(true);
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:53:    setLoading(true);
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:57:    setLoading(false);
+src/features/profile/profile-page.tsx:56:  const [loading, setLoading] = useState(true);
+src/features/profile/profile-page.tsx:117:      setLoading(true);
+src/features/profile/profile-page.tsx:130:      setLoading(false);
+src/features/settings/audit-log-tab.tsx:45:  const [isLoading, setIsLoading] = useState(true);
+src/features/settings/audit-log-tab.tsx:67:      setIsLoading(true);
+src/features/settings/audit-log-tab.tsx:70:      setIsLoading(false);
+src/infrastructure/sync/sync-indicator.tsx:38:  const [loadingConflicts, setLoadingConflicts] = useState(false);
+src/infrastructure/sync/sync-indicator.tsx:74:    setLoadingConflicts(true);
+src/infrastructure/sync/sync-indicator.tsx:79:      setLoadingConflicts(false);
+src/features/settings/approvals-tab.tsx:121:  const [isLoading, setIsLoading] = useState(true);
+src/features/settings/approvals-tab.tsx:134:      setIsLoading(false);
+src/features/settings/approvals-tab.tsx:137:    setIsLoading(true);
+src/features/settings/approvals-tab.tsx:145:    setIsLoading(false);
+src/features/settings/accounts-tab.tsx:55:  const [loadingAccounts, setLoadingAccounts] = useState(false);
+src/features/settings/accounts-tab.tsx:61:    setLoadingAccounts(true);
+src/features/settings/accounts-tab.tsx:72:    setLoadingAccounts(false);
+src/features/settings/configuration-tab.tsx:44:  const [isLoading, setIsLoading] = useState(false);
+src/features/settings/configuration-tab.tsx:50:  const [isLoadingLocal, setIsLoadingLocal] = useState(true);
+src/features/settings/configuration-tab.tsx:67:      setIsLoadingLocal(false);
+src/features/settings/configuration-tab.tsx:73:    setIsLoading(true);
+src/features/settings/configuration-tab.tsx:80:    setIsLoading(false);
+
+# --- COUNT: 41 matching lines ---

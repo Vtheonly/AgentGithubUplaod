@@ -1,0 +1,12 @@
+# VOCABULARY: distinct values of zindex
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+     24 z-50
+     13 z-10
+      3 z-[70]
+      3 z-40
+      1 z-[90]
+      1 z-[200]
+      1 z-[100]
+
+# --- DISTINCT: 7 values ---

@@ -1,0 +1,18 @@
+# VOCABULARY: distinct values of height-caps
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+      3 max-h-[88vh]
+      3 max-h-[40vh]
+      3 max-h-[400px]
+      2 max-h-[85vh]
+      2 max-h-[60vh]
+      2 max-h-[45vh]
+      2 max-h-[380px]
+      1 max-h-[540px]
+      1 max-h-[50vh]
+      1 max-h-[500px]
+      1 max-h-[460px]
+      1 max-h-[420px]
+      1 max-h-[260px]
+
+# --- DISTINCT: 13 values ---

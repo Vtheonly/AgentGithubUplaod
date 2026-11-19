@@ -1,0 +1,15 @@
+# CENSUS: ui-radix-overlay-imports
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading @radix-ui/react-(dialog|dropdown-menu|tooltip|popover|hover-card|context-menu|accordion|collapsible|alert-dialog|toast|navigation-menu|menubar) -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/shared/ui/tooltip.tsx:2:import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+src/shared/ui/dropdown-menu.tsx:2:import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+src/shared/ui/auto-form/auto-form-modal.tsx:17:import * as Dialog from "@radix-ui/react-dialog";
+src/shared/ui/unified-modal/parts.tsx:8:import * as DialogPrimitive from "@radix-ui/react-dialog";
+src/shared/ui/unified-modal/modal-shell.tsx:10:import * as DialogPrimitive from "@radix-ui/react-dialog";
+src/shared/ui/unified-modal.tsx:16:import * as DialogPrimitive from "@radix-ui/react-dialog";
+src/shared/ui/wizard/wizard.tsx:6:import * as Dialog from "@radix-ui/react-dialog";
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:16:import * as Dialog from "@radix-ui/react-dialog";
+
+# --- COUNT: 8 matching lines ---

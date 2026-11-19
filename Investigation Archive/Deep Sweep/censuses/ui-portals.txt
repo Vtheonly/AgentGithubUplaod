@@ -1,0 +1,10 @@
+# CENSUS: ui-portals
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading createPortal|react-dom -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/shared/layout/modal-host.tsx:11:import { createPortal } from "react-dom";
+src/shared/layout/modal-host.tsx:17:  return createPortal(
+src/main.tsx:2:import { createRoot } from "react-dom/client";
+
+# --- COUNT: 3 matching lines ---

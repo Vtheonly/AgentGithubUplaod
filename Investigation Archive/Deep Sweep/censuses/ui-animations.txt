@@ -1,0 +1,83 @@
+# CENSUS: ui-animations
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading animate-in|animate-out|fade-in|fade-out|zoom-in|zoom-out|slide-in|slide-out|animate-slide-up|animate-pulse|animate-spin|animate-bounce|animate-ping -g *.tsx -g *.ts -g *.css (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:625:              {parsing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
+src/features/crm/excel-import-modal.tsx:835:          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:403:              <RefreshCw className={generating ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+src/features/ai/copilot-drawer.tsx:216:              <div className="flex animate-pulse items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary">
+src/features/ai/copilot-drawer.tsx:217:                <Wrench className="h-3 w-3 animate-spin" />
+src/features/ai/copilot-drawer.tsx:228:                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+src/features/ai/artifact-renderer.tsx:113:          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+src/features/financials/unified-payment-modal.tsx:566:              <Loader2 className="h-4 w-4 animate-spin" /> Encaissement…
+src/features/financials/unified-payment-modal.tsx:636:                    <Loader2 className="h-3 w-3 animate-spin" /> Recherche…
+src/features/financials/unified-payment-modal.tsx:1193:                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+src/features/financials/receipts-tab.tsx:188:              <><Loader2 className="h-4 w-4 animate-spin" /> Génération…</>
+src/features/financials/receipts-tab.tsx:227:          <Loader2 className="inline size-3.5 mr-1.5 animate-spin" />
+src/features/financials/anomaly-explainer-modal.tsx:267:                <Loader2 className="h-4 w-4 animate-spin" />
+src/features/academics/narrative-generator-modal.tsx:400:                  <Loader2 className="h-4 w-4 animate-spin" />
+src/features/financials/installment-schedule-tab.tsx:832:              <><RefreshCw className="size-3.5 animate-spin" /> Scan…</>
+src/features/academics/timetable/timetable-tab.tsx:450:                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+src/features/academics/timetable/timetable-tab.tsx:470:                    genProgress.total <= 0 ? "animate-pulse" : ""
+src/features/academics/timetable/timetable-tab.tsx:636:                    <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+src/features/academics/roll-call-screen.tsx:349:            <Loader2 className="h-4 w-4 animate-spin" />
+src/features/dashboard/components/insights-rail.tsx:72:              <Sparkles className="h-4 w-4 shrink-0 animate-pulse" />
+src/features/dashboard/components/insights-rail.tsx:204:              <span className="h-2 w-2 rounded-full bg-status-danger animate-pulse" />
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:90:            className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border bg-status-warning/15 text-status-warning border-status-warning/40 animate-pulse"
+src/features/academics/grade-entry-screen.tsx:695:            <Loader2 className="h-4 w-4 animate-spin" />
+src/features/dashboard/tabs/alerts-tab.tsx:277:                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+src/features/dashboard/tabs/reports-tab.tsx:398:              <Loader2 className="h-4 w-4 animate-spin" />
+src/features/dashboard/tabs/reports-tab.tsx:473:                            <Loader2 className="h-3 w-3 animate-spin" />
+src/features/workflow/workflow-run-detail-drawer.tsx:53:      return <Loader2 className="h-4 w-4 text-status-info animate-spin shrink-0" />;
+src/features/workflow/dag-canvas.tsx:999:                      isTaken && dryRun && "animate-pulse",
+src/infrastructure/sync/sync-indicator.tsx:160:              (isServiceSyncing || syncing) && "animate-spin",
+src/infrastructure/sync/sync-indicator.tsx:216:              <RefreshCw className={cn("h-3 w-3", (syncing || isServiceSyncing) && "animate-spin")} />
+src/infrastructure/sync/sync-indicator.tsx:229:              <RotateCcw className={cn("h-3 w-3", retrying && "animate-spin")} />
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:185:                  <Loader2 className="h-4 w-4 animate-spin" />
+src/features/settings/approvals-tab.tsx:393:                className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+src/features/settings/accounts-tab.tsx:252:              <RefreshCw className={"h-4 w-4" + (loadingAccounts ? " animate-spin" : "")} />
+src/features/settings/danger-zone-card.tsx:240:                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+src/features/settings/backup-tab.tsx:596:                  <Loader2 className="size-4 animate-spin" />
+src/features/settings/backup-tab.tsx:878:                  <Loader2 className="size-4 animate-spin" />
+src/features/settings/backup-tab.tsx:902:                  <Loader2 className="size-4 animate-spin" />
+src/features/settings/backup-tab.tsx:1111:                  <Loader2 className="size-4 animate-spin" />
+src/features/settings/backup-tab.tsx:1271:              <Loader2 className="size-4 animate-spin" />
+src/features/settings/sync-tab.tsx:204:              <RefreshCw className={`h-3.5 w-3.5 ${syncing || status.syncing ? "animate-spin" : ""}`} />
+src/features/settings/sync-tab.tsx:213:              {probing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}
+src/features/settings/sync-tab.tsx:293:                  <RotateCcw className={`h-3.5 w-3.5 ${retrying ? "animate-spin" : ""}`} />
+src/features/settings/ai-config-tab.tsx:439:              {fetchingModels && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+src/features/settings/ai-config-tab.tsx:532:            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+src/features/settings/ai-config-tab.tsx:541:              <Loader2 className="h-4 w-4 animate-spin" />
+src/features/settings/ai-config-tab.tsx:728:            <Loader2 className="h-4 w-4 animate-spin" />
+src/features/settings/export-dialog.tsx:175:            <Loader2 className="size-4 animate-spin" />
+src/features/settings/configuration/connection-card.tsx:100:            {isTesting ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Plug className="h-4 w-4 mr-2" />}
+src/features/settings/configuration-tab.tsx:325:          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+src/features/personnel/onboarding/onboarding-wizard.tsx:92:          <Sparkles className="h-8 w-8 mx-auto text-primary animate-pulse" />
+src/features/personnel/releve-tab.tsx:208:                    <Loader2 className="h-4 w-4 animate-spin" /> Enregistrement…
+src/features/personnel/management/chat-panel.tsx:788:                      <span className="h-4 w-4 animate-pulse">…</span>
+src/features/auth/splash-screen.tsx:255:      <div className="absolute bottom-16 flex flex-col items-center gap-2 animate-fade-in pointer-events-none">
+src/shared/layout/state-views.tsx:18:      <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+src/shared/layout/toast-viewport.tsx:35:              "flex items-start gap-3 rounded-md border p-3 shadow-lg backdrop-blur-sm animate-slide-up",
+src/shared/layout/page-tabs.tsx:471:              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+src/shared/ui/particle-canvas.tsx:9: * mode-sequence + fade-out orchestration.
+src/shared/ui/tooltip.tsx:32:      "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+src/shared/ui/dropdown-menu.tsx:23:        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+src/shared/ui/auto-form/auto-form-modal.tsx:69:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/auto-form/auto-form-modal.tsx:106:                {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+src/shared/ui/unified-modal/modal-shell.tsx:40:    "data-[state=open]:animate-in data-[state=closed]:animate-out",
+src/shared/ui/unified-modal/modal-shell.tsx:41:    "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+src/shared/ui/unified-modal/modal-shell.tsx:47:  const base = "data-[state=open]:animate-in data-[state=closed]:animate-out";
+src/shared/ui/unified-modal/modal-shell.tsx:51:      "data-[state=open]:slide-in-right data-[state=closed]:slide-out-right",
+src/shared/ui/unified-modal/modal-shell.tsx:59:      "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+src/shared/ui/unified-modal/modal-shell.tsx:60:      "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+src/shared/ui/unified-modal/modal-shell.tsx:77:    "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+src/shared/ui/unified-modal/modal-shell.tsx:78:    "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+src/shared/ui/unified-modal.tsx:281:              <Loader2 className="h-4 w-4 animate-spin" />
+src/shared/ui/wizard/wizard.tsx:80:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/wizard/wizard.tsx:133:              {busy && <Loader2 className="size-4 animate-spin" />}
+src/shared/ui/select.tsx:42:        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:58:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:63:            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+
+# --- COUNT: 76 matching lines ---

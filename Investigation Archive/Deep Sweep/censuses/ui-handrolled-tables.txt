@@ -1,0 +1,53 @@
+# CENSUS: ui-handrolled-tables
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading <table -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:766:              <table className="w-full text-xs">
+src/features/crm/student-detail/academic-tab.tsx:284:                <table className="w-full text-sm">
+src/features/crm/student-detail/academic-tab.tsx:438:                  <table className="w-full text-xs">
+src/features/financials/cross-service-matrix.tsx:42:        <table className="w-full text-xs">
+src/features/financials/financial-query-console.tsx:289:              <table className="w-full text-xs">
+src/features/financials/webhook-diagnostics-card.tsx:281:              <table className="w-full text-xs">
+src/features/dashboard/see-details-modal.tsx:455:                  <table className="w-full text-xs">
+src/features/dashboard/see-details-modal.tsx:722:                    <table className="w-full text-xs">
+src/features/dashboard/see-details-modal.tsx:789:                      <table className="w-full text-xs">
+src/features/dashboard/components/recovery-funnel-card.tsx:671:                <table className="w-full min-w-[760px] border-collapse text-sm">
+src/features/dashboard/components/analytics/aging-composition-card.tsx:106:              <table className="w-full text-xs" data-testid="aging-table">
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:115:        <table className="w-full text-xs">
+src/features/dashboard/components/analytics/operational-query-console.tsx:779:                <table className="w-full text-xs">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1172:                <table className="w-full text-xs">
+src/features/dashboard/components/analytics/executive-cards.tsx:772:            <table className="w-full text-xs">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:499:              <table className="w-full text-xs" data-testid="inspector-records-table">
+src/features/workflow/workflow-page.tsx:745:        <table className="w-full text-sm">
+src/features/settings/rbac-matrix-editor.tsx:279:          <table className="w-full text-sm">
+src/features/settings/audit-log-tab.tsx:470:              <table data-testid="audit-diff-table" className="w-full text-xs border-collapse">
+src/features/settings/accounts-tab.tsx:267:              <table className="w-full text-sm">
+src/features/settings/danger-zone-card.tsx:108:      <table className="w-full text-xs">
+src/shared/ui/data-table/data-table.tsx:114:        <table className="w-full text-sm">
+src/features/settings/pricing/tuition-card.tsx:117:          <table className="w-full text-xs">
+src/features/settings/pricing/pricing-year-config-bar.tsx:231:                  <table className="w-full text-xs">
+src/features/settings/backup-tab.tsx:983:              <table className="w-full text-sm">
+src/features/settings/sync-tab.tsx:314:              <table className="w-full text-xs">
+src/shared/ui/markdown-view.tsx:272:            <table className="w-full text-[11px] text-left">
+src/features/personnel/workflow-monitor-tab.tsx:60:        <table className="w-full text-sm">
+src/features/personnel/management/expense-review-section.tsx:206:                <table className="w-full text-xs">
+src/features/personnel/management/expense-review-section.tsx:344:              <table className="w-full text-xs">
+src/features/personnel/management/staff-attendance-center.tsx:472:              <table className="w-full text-xs">
+src/features/personnel/management/requests-management.tsx:290:              <table className="w-full text-xs">
+src/features/personnel/management/payroll-management.tsx:420:            <table className="w-full text-xs">
+src/features/personnel/management/upcoming-payroll-payments.tsx:157:          <table className="w-full text-xs">
+src/features/personnel/management/upcoming-payroll-payments.tsx:372:            <table className="w-full text-xs">
+src/features/academics/timetable/timetable-grid.tsx:233:      <table className="w-full min-w-[720px] border-collapse text-xs">
+src/features/academics/timetable/timetable-tab.tsx:930:                              <table className="w-full text-[11px]">
+src/features/academics/placement/class-placement-studio-modal.tsx:468:              <table className="w-full text-xs">
+src/features/academics/class-subjects-tab.tsx:183:            <table className="w-full text-sm">
+src/features/academics/students-directory-tab.tsx:283:            <table className="w-full text-sm">
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:265:          <table className="w-full text-xs">
+src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:192:            <table className="w-full text-xs">
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:156:            <table className="w-full text-xs">
+src/features/academics/class-grades-tab.tsx:179:              <table className="w-full text-sm">
+src/features/academics/grade-entry-screen.tsx:564:            <table className="w-full text-sm">
+src/features/academics/subject-configurations-panel.tsx:249:          <table className="w-full text-xs">
+
+# --- COUNT: 46 matching lines ---

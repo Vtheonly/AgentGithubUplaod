@@ -1,0 +1,86 @@
+# CENSUS: logic-excel-export
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading XLSX|exceljs|toXLSX|fromXLSX|writeFileSync|saveAs|FileSaver|application/vnd\.openxmlformats -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/providers/ai-copilot-provider.tsx:90:   * generators, XLSX/CSV from the embedded rows). */
+src/app/providers/ai-copilot-provider.tsx:290:   * report builders for class/debt/payment-plan). XLSX/CSV: the rows
+src/app/providers/ai-copilot-provider.tsx:430:      // XLSX / CSV — the rows are embedded (self-contained artifact).
+src/app/providers/ai-copilot-provider.tsx:454:        downloadBlob(bytes, artifact.fileName, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+src/app/providers/ai-copilot-provider.tsx:630:/** Column key slug for the XLSX record rows (accents stripped, unique). */
+src/features/crm/excel-import-modal.tsx:934:                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+src/features/crm/crm-page.tsx:177:        "Export XLSX réussi",
+src/features/crm/crm-page.tsx:182:        "Échec de l'export XLSX",
+src/features/crm/crm-page.tsx:226:              {/* T-444/UI-324 restored: the export dropdown (XLSX / JSON /
+src/features/ai/artifact-renderer.tsx:15: * refetches canonical data and builds the PDF/XLSX/CSV through the
+src/features/personnel/management/employee-directory.tsx:111:    toast.showSuccess("Export XLSX", `${filtered.length} employé(s) exporté(s).`);
+src/features/personnel/management/chat-panel.tsx:365:          `« ${f.name} » dépasse les limites du canal (10 Mo max ; images JPEG/PNG/WebP, PDF, XLSX ou texte).`,
+src/features/dashboard/components/analytics/data-inspector-core.tsx:38:import ExcelJS from "exceljs";
+src/features/dashboard/components/analytics/data-inspector-core.tsx:332:    downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "elimtiyaz-lineage-audit.xlsx");
+src/features/dashboard/tabs/reports-tab.tsx:81:      formats: ["XLSX", "PDF"] as const,
+src/features/dashboard/tabs/reports-tab.tsx:89:      formats: ["XLSX", "PDF"] as const,
+src/features/dashboard/tabs/reports-tab.tsx:97:      formats: ["XLSX", "PDF"] as const,
+src/features/dashboard/tabs/reports-tab.tsx:105:      formats: ["XLSX", "PDF"] as const,
+src/features/dashboard/tabs/reports-tab.tsx:113:      formats: ["XLSX", "PDF"] as const,
+src/features/dashboard/tabs/reports-tab.tsx:128:    format: "XLSX" | "PDF" | "Voir Settings",
+src/features/dashboard/tabs/reports-tab.tsx:137:      if (code === "export-complet" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:161:      } else if (code === "revenu-mensuel" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:182:      } else if (code === "creances-agees" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:224:      } else if (code === "effectifs-niveau" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:233:      } else if (code === "annuaire-personnel" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:284:          "Export XLSX",
+src/features/dashboard/tabs/reports-tab.tsx:298:      } else if (code === "depenses-categorie" && format === "XLSX") {
+src/features/dashboard/tabs/reports-tab.tsx:323:          "Export XLSX",
+src/features/dashboard/tabs/reports-tab.tsx:394:            disabled={exporting === "export-complet-XLSX"}
+src/features/dashboard/tabs/reports-tab.tsx:395:            onClick={() => handleExport("export-complet", "XLSX")}
+src/features/dashboard/tabs/reports-tab.tsx:397:            {exporting === "export-complet-XLSX" ? (
+src/features/settings/audit-log-tab.tsx:5: * diff drawer, real-time stream, CSV/XLSX export.
+src/features/settings/audit-log-tab.tsx:177:                Export XLSX (Excel)
+src/infrastructure/export/zip-writer.ts:5: * exceljs produces xlsx only, pdf-lib PDFs only), and adding a runtime
+src/infrastructure/storage/media-vault.ts:55:  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+src/infrastructure/receipt-pdf/global-reports.ts:7: * The PDF twins of the five global XLSX exports (`excel/reports.ts`):
+src/infrastructure/receipt-pdf/global-reports.ts:8: * thin `ReportSpec` adapters over the SAME data the XLSX functions consume
+src/infrastructure/receipt-pdf/global-reports.ts:16: *   - generatePersonnelDirectoryPdf    ↔ the tab's inline annuaire XLSX
+src/infrastructure/receipt-pdf/global-reports.ts:17: *   - generateExpensesByCategoryPdf    ↔ the tab's inline dépenses XLSX
+src/infrastructure/receipt-pdf/global-reports.ts:256:/*  4. Personnel directory (PDF twin of the tab's annuaire XLSX)       */
+src/infrastructure/receipt-pdf/global-reports.ts:290:/*  5. Expenses by category (PDF twin of the tab's dépenses XLSX)      */
+src/infrastructure/excel/reports.ts:5: *   1. Revenue Report — multi-sheet XLSX (monthly + by method + by category)
+src/infrastructure/excel/reports.ts:6: *   2. Outstanding Debt Report — XLSX or CSV (per-parent breakdown)
+src/infrastructure/excel/reports.ts:7: *   3. Student Roster Export — XLSX (per-class + per-level)
+src/infrastructure/excel/reports.ts:13: * for RLS filtering) and produce downloadable XLSX/CSV files using
+src/infrastructure/excel/import-engine/import-engine.ts:21:import type ExcelJS from "exceljs";
+src/infrastructure/excel/import-engine/parsers/excel-parser.ts:1:import ExcelJS from "exceljs";
+src/infrastructure/excel/import-engine/reporters/excel-reporter.ts:2: * Excel reporter — produces a 3-sheet XLSX import-report file.
+src/infrastructure/excel/import-engine/reporters/excel-reporter.ts:19: * Now the XLSX bytes are returned in-memory (as a Uint8Array) and the
+src/infrastructure/excel/import-engine/reporters/excel-reporter.ts:31:  /** Raw XLSX bytes. The caller decides whether to download them. */
+src/infrastructure/excel/export-engine.ts:5: *   - Audit log CSV/XLSX export (Settings → Audit tab)
+src/infrastructure/excel/export-engine.ts:14: *   1. exportToXlsx(sheets, filename) — multi-sheet XLSX
+src/infrastructure/excel/export-engine.ts:18:import ExcelJS from "exceljs";
+src/infrastructure/excel/export-engine.ts:47:/*  XLSX export                                                        */
+src/infrastructure/excel/export-engine.ts:52:  downloadBlob(bytes, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+src/infrastructure/excel/export-engine.ts:56: * Build an XLSX workbook in memory and return the raw bytes.
+src/infrastructure/excel/full-export.ts:658: * Export the full workbook as a downloadable XLSX file. Returns the file
+src/infrastructure/excel/full-export.ts:672:    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+src/infrastructure/excel/data-export.ts:2: * Data export pipeline — produces JSON + XLSX exports of all parents,
+src/infrastructure/excel/data-export.ts:13: * The XLSX shape mirrors the original `Suivis clients AAAA_AAAA.xlsx`
+src/infrastructure/excel/data-export.ts:68:/*  XLSX export — mirrors the ETAT sheet layout                        */
+src/infrastructure/excel/data-export.ts:255: * Export all data to a multi-sheet XLSX file. The default file name
+src/infrastructure/excel/data-export.ts:282: * quick imports into other systems that don't support multi-sheet XLSX.
+src/i18n/gen/en.ts:913:        k1: "XLSX export successful",
+src/i18n/gen/en.ts:917:        k5: "XLSX export failed",
+src/i18n/gen/en.ts:1140:          k5: "Export XLSX",
+src/i18n/gen/fr.ts:913:        k1: "Export XLSX réussi",
+src/i18n/gen/fr.ts:917:        k5: "Échec de l'export XLSX",
+src/i18n/gen/fr.ts:1140:          k5: "Export XLSX",
+src/i18n/gen/ar.ts:913:        k1: "تم تصدير XLSX بنجاح",
+src/i18n/gen/ar.ts:917:        k5: "فشل تصدير XLSX",
+src/i18n/gen/ar.ts:1140:          k5: "تصدير XLSX",
+src/core/ai/artifacts.ts:21: *      document card (PDF/XLSX/CSV download) BELOW the tool indicator.
+src/core/ai/artifacts.ts:25: *      row payload (XLSX/CSV exports, capped at MAX_EXPORT_ROWS).
+src/core/ai/artifacts.ts:116: *   - XLSX / CSV: `columns` + `rows` are embedded (capped) so the export
+src/core/ai/artifacts.ts:271: * params record; XLSX/CSV MUST carry aligned `columns`/`rows`.
+src/core/ai/tools/document-tools.ts:14: *   - export_data               → XLSX/CSV export of a named dataset
+src/core/ai/tools/document-tools.ts:20: * (XLSX/CSV, capped at MAX_EXPORT_ROWS). The PDF BYTES never travel
+src/core/audit-actions.ts:31:  /** VAULT §12.01 — system exports (PDF / XLSX / CSV) are tracked events. */
+
+# --- COUNT: 79 matching lines ---

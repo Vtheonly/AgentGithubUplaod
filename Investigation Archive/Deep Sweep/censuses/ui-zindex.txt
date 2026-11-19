@@ -1,0 +1,51 @@
+# CENSUS: ui-zindex
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading z-\[[0-9]+\]|z-[0-9]+ -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/crm-page.tsx:244:                      className="fixed inset-0 z-40"
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/ai/copilot-drawer.tsx:101:    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-border bg-surface-panel shadow-2xl">
+src/features/auth/splash-screen.tsx:220:      className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-surface-background transition-opacity duration-400"
+src/features/financials/financial-query-console.tsx:290:                <thead className="bg-muted/30 text-muted-foreground sticky top-0 bg-surface-panel z-10">
+src/features/financials/webhook-diagnostics-card.tsx:282:                <thead className="bg-muted/30 text-muted-foreground sticky top-0 bg-surface-panel z-10">
+src/features/academics/timetable/timetable-grid.tsx:236:            <th className="sticky left-0 z-10 w-24 border-b border-border bg-surface-panel px-2 py-2 text-left font-medium text-muted-foreground">
+src/features/academics/timetable/timetable-grid.tsx:255:              <td className="sticky left-0 z-10 border-b border-border bg-surface-panel px-2 py-2">
+src/features/dashboard/dashboard-layout-editor.tsx:332:        isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10",
+src/features/dashboard/dashboard-layout-editor.tsx:355:            className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
+src/features/dashboard/dashboard-layout-editor.tsx:364:            className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
+src/features/dashboard/dashboard-layout-editor.tsx:368:          <div className="absolute right-2 top-2 z-40 flex items-center gap-1.5">
+src/features/academics/timetable/timetable-tab.tsx:1324:        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+src/features/academics/timetable/timetable-tab.tsx:1468:        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+src/features/academics/timetable/timetable-entry-dialog.tsx:141:    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:254:            <div key={item.id} className="pointer-events-none absolute z-50" style={{ left: rect.left - hostRect.left, top: rect.top - hostRect.top, width: rect.width, height: rect.height } as CSSProperties}>
+src/features/academics/placement/class-placement-studio-modal.tsx:469:                <thead className="bg-muted/30 text-muted-foreground border-b border-border text-left sticky top-0 bg-card z-10">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1173:                  <thead className="text-muted-foreground sticky top-0 bg-surface-panel z-10 text-left">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/academics/grade-entry-screen.tsx:565:              <thead className="sticky top-0 bg-popover border-b border-border z-10">
+src/features/settings/rbac-matrix-editor.tsx:282:                <th className="text-left p-3 sticky left-0 bg-muted/30 z-10 min-w-[200px]">Permission</th>
+src/features/settings/rbac-matrix-editor.tsx:305:                      <td className="p-3 sticky left-0 bg-popover z-10">
+src/features/settings/audit-log-tab.tsx:471:                <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm">
+src/features/personnel/dashboards/teacher-dashboard.tsx:335:          className="fixed inset-0 z-50 flex flex-col bg-surface-background"
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/shared/ui/parent-actions-menu.tsx:70:      <DropdownMenuContent align={align} className="w-60 z-50">
+src/shared/ui/tooltip.tsx:18: * - z-[70]: one layer ABOVE the modal surface (unified-modal is z-50) —
+src/shared/ui/tooltip.tsx:31:      "z-[70] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:58:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:61:            "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl transition-transform duration-300 ease-out",
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/shared/ui/student-actions-menu.tsx:51:      <DropdownMenuContent align={align} className="w-60 z-50">
+src/shared/ui/auto-form/auto-form-modal.tsx:69:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/auto-form/auto-form-modal.tsx:70:        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-6 shadow-lg">
+src/shared/ui/unified-modal/modal-shell.tsx:38:    "fixed inset-0 z-50 backdrop-blur-sm",
+src/shared/ui/unified-modal/modal-shell.tsx:50:      "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl",
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/layout/modal-host.tsx:18:    <div className="z-[90]">
+src/shared/ui/wizard/wizard.tsx:80:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/wizard/wizard.tsx:82:          "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover shadow-lg",
+src/shared/layout/toast-viewport.tsx:27:    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+src/shared/layout/page-tabs.tsx:408:      "relative z-10 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg",
+src/shared/layout/page-tabs.tsx:424:      "relative z-10 inline-flex items-center gap-1.5 whitespace-nowrap px-3 pb-2 pt-1.5",
+
+# --- COUNT: 44 matching lines ---

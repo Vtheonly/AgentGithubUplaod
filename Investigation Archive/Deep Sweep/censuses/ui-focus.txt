@@ -1,0 +1,46 @@
+# CENSUS: ui-focus
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading onEscape|Escape|onKeyDown.*[Ee]scape|focus-visible|focus-trap|autoFocus -g *.tsx (baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/financials/unified-payment-modal.tsx:629:                  autoFocus
+src/features/financials/financials-page.tsx:388:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:402:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:415:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:433:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/debt-aging-tab.tsx:409:            "text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5",
+src/features/dashboard/dashboard-calendar.tsx:340:                    className={`flex min-h-[34px] flex-col gap-1 p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${skin}`}
+src/features/dashboard/components/recovery-funnel-card.tsx:540:                className="group relative flex w-full flex-col justify-between space-y-2 rounded-xl border border-border/70 bg-surface-elevated/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+src/features/dashboard/components/recovery-funnel-card.tsx:576:                <span className="flex items-center justify-end gap-1 text-[10px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:637: * set (hover bg+border emphasis, focus-visible ring, active press,
+src/features/dashboard/components/analytics/data-inspector-core.tsx:644:  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 " +
+src/shared/ui/slider.tsx:32:        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+src/features/settings/approvals-tab.tsx:849:                    autoFocus
+src/features/settings/approvals-tab.tsx:1074:                    autoFocus
+src/shared/ui/textarea.tsx:12:        "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+src/shared/ui/button.tsx:7:  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+src/shared/ui/unified-modal/modal-shell.tsx:26:  onEscapeKeyDown: (e: KeyboardEvent) => void;
+src/shared/ui/unified-modal/modal-shell.tsx:88:  onEscapeKeyDown,
+src/shared/ui/unified-modal/modal-shell.tsx:101:          onEscapeKeyDown={onEscapeKeyDown}
+src/shared/ui/switch.tsx:34:      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+src/shared/ui/unified-modal.tsx:65:    closeOnEscape = true,
+src/shared/ui/unified-modal.tsx:95:  const handleEscapeKeyDown = React.useCallback(
+src/shared/ui/unified-modal.tsx:97:      if (!closeOnEscape || locked || loading) e.preventDefault();
+src/shared/ui/unified-modal.tsx:99:    [closeOnEscape, locked, loading],
+src/shared/ui/unified-modal.tsx:160:      onEscapeKeyDown={handleEscapeKeyDown}
+src/shared/ui/input.tsx:14:        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+src/features/settings/contextual-thresholds-config.tsx:195:  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 " +
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:99:                className="absolute end-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-surface-elevated/70 text-muted-foreground transition-all hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+src/shared/layout/window-frame.tsx:54:          <button type="button" aria-label="Minimize window" title="Minimize" onClick={minimize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:57:          <button type="button" aria-label={maximized ? "Restore window" : "Maximize window"} title={maximized ? "Restore" : "Maximize"} onClick={toggleMaximize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:60:          <button type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:63:          <button type="button" aria-label="Close window" title="Close" onClick={close} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/topbar.tsx:441:              autoFocus
+src/shared/layout/topbar.tsx:454:              className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+src/shared/layout/page-tabs.tsx:414:      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+src/shared/layout/page-tabs.tsx:428:      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+src/shared/layout/page-tabs.tsx:443:      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+src/shared/layout/page-tabs.tsx:504:        "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+src/features/personnel/management/staff-attendance-center.tsx:614:                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+src/features/academics/grade-entry-screen.tsx:724:        invalid && "border-status-danger focus-visible:ring-status-danger",
+

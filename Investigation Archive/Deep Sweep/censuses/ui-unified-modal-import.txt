@@ -1,0 +1,390 @@
+# CENSUS: ui-unified-modal-import
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading unified-modal|UnifiedModal|ConfirmModal -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:23: * Built on UnifiedModal so the visual language matches every other modal
+src/features/crm/excel-import-modal.tsx:40:import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
+src/features/crm/excel-import-modal.tsx:77:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/crm/excel-import-modal.tsx:555:    <UnifiedModal
+src/features/crm/excel-import-modal.tsx:970:    </UnifiedModal>
+src/features/crm/crm-page.tsx:53:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/crm/crm-page.tsx:572:      <ConfirmModal
+src/features/crm/crm-page.tsx:743:      <ConfirmModal
+src/features/crm/activation-code-modal.tsx:18:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/crm/activation-code-modal.tsx:50:    <UnifiedModal
+src/features/crm/activation-code-modal.tsx:102:    </UnifiedModal>
+src/features/crm/parent-detail-drawer.tsx:64:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/crm/parent-detail-drawer.tsx:1642:    <UnifiedModal
+src/features/crm/parent-detail-drawer.tsx:1721:    </UnifiedModal>
+src/features/crm/edit-parent-modal.tsx:17:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/crm/edit-parent-modal.tsx:132:    <UnifiedModal
+src/features/crm/edit-parent-modal.tsx:222:    </UnifiedModal>
+src/features/crm/edit-student-modal.tsx:19:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/crm/edit-student-modal.tsx:187:    <UnifiedModal
+src/features/crm/edit-student-modal.tsx:334:    </UnifiedModal>
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:32:import { ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:500:      <ConfirmModal
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:516:      <ConfirmModal
+src/features/financials/manual-debt-modal.tsx:37:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/financials/manual-debt-modal.tsx:266:      <UnifiedModal
+src/features/financials/manual-debt-modal.tsx:295:      </UnifiedModal>
+src/features/financials/unified-payment-modal.tsx:44:import { UnifiedModal, type UnifiedModalProps } from "../../shared/ui/unified-modal";
+src/features/financials/unified-payment-modal.tsx:77:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/financials/unified-payment-modal.tsx:602:    <UnifiedModal
+src/features/financials/unified-payment-modal.tsx:1225:    </UnifiedModal>
+src/features/personnel/workflow-monitor-tab.tsx:5: * Click a row → opens a UnifiedModal variant="drawer" with the full run
+src/features/financials/tranche-amount-edit-modal.tsx:45:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/financials/tranche-amount-edit-modal.tsx:184:    <UnifiedModal
+src/features/financials/tranche-amount-edit-modal.tsx:329:    </UnifiedModal>
+src/features/financials/expense-submit-modal.tsx:5: * UnifiedModal body so it can carry the TWO unification additions the shared
+src/features/financials/expense-submit-modal.tsx:28:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/financials/expense-submit-modal.tsx:201:    <UnifiedModal
+src/features/financials/expense-submit-modal.tsx:357:    </UnifiedModal>
+src/features/personnel/dashboards/teacher-dashboard.tsx:45:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/dashboards/teacher-dashboard.tsx:292:        <UnifiedModal
+src/features/personnel/dashboards/teacher-dashboard.tsx:330:        </UnifiedModal>
+src/features/financials/expense-detail-drawer.tsx:9: * primitive. The reject confirmation uses `<ConfirmModal>` with a MANDATORY
+src/features/financials/expense-detail-drawer.tsx:11: * reason"). The disburse step uses `<ConfirmModal>` too (one-click action
+src/features/financials/expense-detail-drawer.tsx:37:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/financials/expense-detail-drawer.tsx:38:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/financials/expense-detail-drawer.tsx:353:      <ConfirmModal
+src/features/financials/expense-detail-drawer.tsx:379:      <ConfirmModal
+src/features/financials/expense-detail-drawer.tsx:389:      <UnifiedModal
+src/features/financials/expense-detail-drawer.tsx:443:      </UnifiedModal>
+src/features/financials/anomaly-explainer-modal.tsx:30:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/financials/anomaly-explainer-modal.tsx:202:      <UnifiedModal
+src/features/financials/anomaly-explainer-modal.tsx:287:      </UnifiedModal>
+src/features/financials/anomaly-explainer-modal.tsx:290:      <UnifiedModal
+src/features/financials/anomaly-explainer-modal.tsx:308:      </UnifiedModal>
+src/features/financials/financials-page.tsx:70:import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
+src/features/financials/financials-page.tsx:1299:      <ConfirmModal
+src/features/financials/financials-page.tsx:1313:      <ConfirmModal
+src/features/financials/financials-page.tsx:1327:      <ConfirmModal
+src/features/financials/installment-schedule-tab.tsx:7: * (instead of the bespoke `EditDueDateModal` UnifiedModal). The cycle-based
+src/features/financials/installment-schedule-tab.tsx:104:import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
+src/features/financials/installment-schedule-tab.tsx:882:      <ConfirmModal
+src/features/financials/payment-detail-drawer.tsx:18:import { ConfirmModal } from "../../shared/ui/unified-modal/confirm-modal";
+src/features/financials/payment-detail-drawer.tsx:334:      <ConfirmModal
+src/features/financials/payment-detail-drawer.tsx:343:      <ConfirmModal
+src/features/financials/payment-detail-drawer.tsx:363:      <ConfirmModal
+src/features/dashboard/dashboard-calendar.tsx:34:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/dashboard/dashboard-calendar.tsx:515:      <ConfirmModal
+src/features/personnel/management/task-form-modal.tsx:6: * rolled `useState` + bespoke `<UnifiedModal>` form. Tags are kept as a
+src/features/dashboard/calendar-event-creator-modal.tsx:7: * hand-rolled `useState` + bespoke `<UnifiedModal>` form. Captures the
+src/features/personnel/management/employee-form-modal.tsx:6: * rolled `useState` + manual validate() + bespoke `<UnifiedModal>` form.
+src/features/dashboard/alert-creator-modal.tsx:14: * hand-rolled `useState` + bespoke `<UnifiedModal>` form. The original
+src/features/personnel/management/chat-panel.tsx:23: *   - New channel button (internal only) → <UnifiedModal> with type / name / description / members form
+src/features/personnel/management/chat-panel.tsx:43:import { UnifiedModal, ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/chat-panel.tsx:807:      <UnifiedModal
+src/features/personnel/management/chat-panel.tsx:926:      </UnifiedModal>
+src/features/personnel/management/chat-panel.tsx:928:      <ConfirmModal
+src/features/dashboard/see-details-modal.tsx:63:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/dashboard/see-details-modal.tsx:305:    <UnifiedModal
+src/features/dashboard/see-details-modal.tsx:829:    </UnifiedModal>
+src/features/personnel/management/task-detail-drawer.tsx:31:import { ConfirmModal, UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/task-detail-drawer.tsx:297:        <UnifiedModal
+src/features/personnel/management/task-detail-drawer.tsx:318:        </UnifiedModal>
+src/features/personnel/management/task-detail-drawer.tsx:323:        <UnifiedModal
+src/features/personnel/management/task-detail-drawer.tsx:382:        </UnifiedModal>
+src/features/personnel/management/task-detail-drawer.tsx:385:      <ConfirmModal
+src/features/dashboard/alert-detail-modal.tsx:21:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/dashboard/alert-detail-modal.tsx:263:      <UnifiedModal
+src/features/dashboard/alert-detail-modal.tsx:443:      </UnifiedModal>
+src/features/personnel/management/department-management.tsx:7: * "New department" button opens a <UnifiedModal> form with name, description,
+src/features/personnel/management/department-management.tsx:10: * All confirmations use <UnifiedModal> via ConfirmModal presets.
+src/features/personnel/management/department-management.tsx:23:import { UnifiedModal, ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/department-management.tsx:244:      <UnifiedModal
+src/features/personnel/management/department-management.tsx:310:      </UnifiedModal>
+src/features/personnel/management/department-management.tsx:313:      <ConfirmModal
+src/features/personnel/management/department-management.tsx:328:      <ConfirmModal
+src/features/personnel/management/staff-attendance-center.tsx:50:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/staff-attendance-center.tsx:594:        <UnifiedModal
+src/features/personnel/management/staff-attendance-center.tsx:656:        </UnifiedModal>
+src/features/personnel/management/staff-attendance-center.tsx:661:        <UnifiedModal
+src/features/personnel/management/staff-attendance-center.tsx:681:        </UnifiedModal>
+src/features/personnel/management/staff-attendance-center.tsx:686:        <UnifiedModal
+src/features/personnel/management/staff-attendance-center.tsx:713:        </UnifiedModal>
+src/features/personnel/management/staff-attendance-center.tsx:718:        <UnifiedModal
+src/features/personnel/management/staff-attendance-center.tsx:781:        </UnifiedModal>
+src/features/personnel/management/requests-management.tsx:48:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/requests-management.tsx:410:        <UnifiedModal
+src/features/personnel/management/requests-management.tsx:474:        </UnifiedModal>
+src/features/personnel/management/requests-management.tsx:479:        <UnifiedModal
+src/features/personnel/management/requests-management.tsx:499:        </UnifiedModal>
+src/features/personnel/management/requests-management.tsx:504:        <UnifiedModal
+src/features/personnel/management/requests-management.tsx:524:        </UnifiedModal>
+src/features/dashboard/components/recovery-funnel-card.tsx:48:import { UnifiedModal, ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/dashboard/components/recovery-funnel-card.tsx:585:      <UnifiedModal
+src/features/dashboard/components/recovery-funnel-card.tsx:804:      </UnifiedModal>
+src/features/dashboard/components/recovery-funnel-card.tsx:805:      <UnifiedModal
+src/features/dashboard/components/recovery-funnel-card.tsx:892:      </UnifiedModal>
+src/features/dashboard/components/recovery-funnel-card.tsx:894:      <ConfirmModal
+src/features/personnel/management/payroll-management.tsx:48:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/personnel/management/payroll-management.tsx:525:        <UnifiedModal
+src/features/personnel/management/payroll-management.tsx:567:        </UnifiedModal>
+src/features/personnel/management/payroll-management.tsx:572:        <UnifiedModal
+src/features/personnel/management/payroll-management.tsx:603:        </UnifiedModal>
+src/features/personnel/management/payroll-management.tsx:608:        <UnifiedModal
+src/features/personnel/management/payroll-management.tsx:648:        </UnifiedModal>
+src/features/academics/exams-tab.tsx:9:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/academics/exams-tab.tsx:142:      <ConfirmModal
+src/features/academics/narrative-generator-modal.tsx:24:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/academics/narrative-generator-modal.tsx:318:      <UnifiedModal
+src/features/academics/narrative-generator-modal.tsx:450:      </UnifiedModal>
+src/features/academics/narrative-generator-modal.tsx:452:      <UnifiedModal
+src/features/academics/narrative-generator-modal.tsx:471:      </UnifiedModal>
+src/features/dashboard/components/analytics/operational-query-console.tsx:32:import { UnifiedModal } from "../../../../shared/ui/unified-modal";
+src/features/dashboard/components/analytics/operational-query-console.tsx:413:    <UnifiedModal
+src/features/dashboard/components/analytics/operational-query-console.tsx:862:    </UnifiedModal>
+src/features/academics/timetable/timetable-tab.tsx:49:import { ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/academics/timetable/timetable-tab.tsx:1188:      <ConfirmModal
+src/features/academics/timetable/timetable-tab.tsx:1209:      <ConfirmModal
+src/features/academics/timetable/timetable-entry-dialog.tsx:18:import { ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/academics/timetable/timetable-entry-dialog.tsx:257:      <ConfirmModal
+src/features/dashboard/components/analytics/data-inspector-core.tsx:40:import { UnifiedModal } from "../../../../shared/ui/unified-modal";
+src/features/dashboard/components/analytics/data-inspector-core.tsx:365:      <UnifiedModal
+src/features/dashboard/components/analytics/data-inspector-core.tsx:559:      </UnifiedModal>
+src/features/academics/subjects-directory-tab.tsx:13:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/academics/subjects-directory-tab.tsx:323:      <ConfirmModal
+src/features/academics/placement/class-placement-studio-modal.tsx:32:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/academics/placement/class-placement-studio-modal.tsx:142:    <UnifiedModal
+src/features/academics/placement/class-placement-studio-modal.tsx:701:    </UnifiedModal>
+src/features/academics/placement/create-section-dialog.tsx:6:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/academics/placement/create-section-dialog.tsx:127:    <UnifiedModal
+src/features/academics/placement/create-section-dialog.tsx:254:    </UnifiedModal>
+src/features/academics/grade-levels-class-view.tsx:33:  UnifiedModal,
+src/features/academics/grade-levels-class-view.tsx:34:  type UnifiedModalProps,
+src/features/academics/grade-levels-class-view.tsx:35:} from "../../shared/ui/unified-modal";
+src/features/academics/grade-levels-class-view.tsx:53:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/grade-levels-class-view.tsx:547:    <UnifiedModal
+src/features/academics/grade-levels-class-view.tsx:700:    </UnifiedModal>
+src/features/academics/homework-push-modal.tsx:9:  UnifiedModal,
+src/features/academics/homework-push-modal.tsx:10:  type UnifiedModalProps,
+src/features/academics/homework-push-modal.tsx:11:} from "../../shared/ui/unified-modal";
+src/features/academics/homework-push-modal.tsx:24:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/homework-push-modal.tsx:149:    <UnifiedModal
+src/features/academics/homework-push-modal.tsx:271:    </UnifiedModal>
+src/features/profile/profile-page.tsx:16: * Uses UnifiedModal-style cards and the standard PageHeader so the
+src/features/academics/academic-year-detail-drawer.tsx:38:  UnifiedModal,
+src/features/academics/academic-year-detail-drawer.tsx:39:  type UnifiedModalProps,
+src/features/academics/academic-year-detail-drawer.tsx:40:} from "../../shared/ui/unified-modal";
+src/features/academics/academic-year-detail-drawer.tsx:61:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/academic-year-detail-drawer.tsx:84:    <UnifiedModal
+src/features/academics/academic-year-detail-drawer.tsx:149:    </UnifiedModal>
+src/features/academics/academic-year-detail-drawer.tsx:907:        <UnifiedModal
+src/features/academics/academic-year-detail-drawer.tsx:977:        </UnifiedModal>
+src/features/academics/academic-year-detail-drawer.tsx:982:        <UnifiedModal
+src/features/academics/academic-year-detail-drawer.tsx:1013:        </UnifiedModal>
+src/features/academics/class-subjects-tab.tsx:30:  UnifiedModal,
+src/features/academics/class-subjects-tab.tsx:31:  type UnifiedModalProps,
+src/features/academics/class-subjects-tab.tsx:32:} from "../../shared/ui/unified-modal";
+src/features/academics/class-subjects-tab.tsx:35:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/class-subjects-tab.tsx:244:      <UnifiedModal
+src/features/academics/class-subjects-tab.tsx:323:      </UnifiedModal>
+src/features/workflow/test-studio-drawer.tsx:37:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/workflow/test-studio-drawer.tsx:188:    <UnifiedModal
+src/features/workflow/test-studio-drawer.tsx:468:    </UnifiedModal>
+src/features/academics/teachers-tab.tsx:18:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/academics/teachers-tab.tsx:347:        <UnifiedModal
+src/features/academics/teachers-tab.tsx:417:        </UnifiedModal>
+src/features/academics/teachers-tab.tsx:422:        <UnifiedModal
+src/features/academics/teachers-tab.tsx:453:        </UnifiedModal>
+src/features/workflow/workflow-page.tsx:40:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/workflow/workflow-page.tsx:531:    <UnifiedModal
+src/features/workflow/workflow-page.tsx:614:    </UnifiedModal>
+src/features/academics/exam-scheduling-modal.tsx:8:  UnifiedModal,
+src/features/academics/exam-scheduling-modal.tsx:9:  type UnifiedModalProps,
+src/features/academics/exam-scheduling-modal.tsx:10:} from "../../shared/ui/unified-modal";
+src/features/academics/exam-scheduling-modal.tsx:23:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/exam-scheduling-modal.tsx:134:    <UnifiedModal
+src/features/academics/exam-scheduling-modal.tsx:215:    </UnifiedModal>
+src/features/workflow/workflow-run-detail-drawer.tsx:2: * WorkflowRunDetailDrawer — UnifiedModal "drawer" variant showing the full
+src/features/workflow/workflow-run-detail-drawer.tsx:10:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/workflow/workflow-run-detail-drawer.tsx:95:    <UnifiedModal
+src/features/workflow/workflow-run-detail-drawer.tsx:149:    </UnifiedModal>
+src/features/academics/class-detail-page.tsx:51:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/academics/class-detail-page.tsx:720:      <UnifiedModal
+src/features/academics/class-detail-page.tsx:761:      </UnifiedModal>
+src/features/academics/class-detail-page.tsx:764:      <UnifiedModal
+src/features/academics/class-detail-page.tsx:818:      </UnifiedModal>
+src/features/academics/class-detail-page.tsx:821:      <UnifiedModal
+src/features/academics/class-detail-page.tsx:851:      </UnifiedModal>
+src/features/workflow/dag-canvas.tsx:55:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/workflow/dag-canvas.tsx:1364:      <ConfirmModal
+src/features/workflow/node-inspector-drawer.tsx:6: * menu → "Configurer"). A UnifiedModal drawer with:
+src/features/workflow/node-inspector-drawer.tsx:37:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/workflow/node-inspector-drawer.tsx:260:    <UnifiedModal
+src/features/workflow/node-inspector-drawer.tsx:496:    </UnifiedModal>
+src/features/academics/school-years-tab.tsx:2: * SchoolYearsTab — refactored to use <AutoFormModal> + <ConfirmModal>.
+src/features/academics/school-years-tab.tsx:20:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/academics/school-years-tab.tsx:341:      <ConfirmModal
+src/features/settings/create-account-modal.tsx:51:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/create-account-modal.tsx:244:      onOpenChange(false); // UnifiedModal closes through its own footer flow
+src/features/settings/create-account-modal.tsx:260:    <UnifiedModal
+src/features/settings/create-account-modal.tsx:485:    </UnifiedModal>
+src/features/settings/pricing-tab.tsx:21: * `ConfirmModal` + the three `repos.pricing.removeX` async handlers) and
+src/features/settings/pricing-tab.tsx:28:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/settings/pricing-tab.tsx:80:      <ConfirmModal
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:17:import { UnifiedModal } from "../../../shared/ui/unified-modal";
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:186:    <UnifiedModal
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:346:    </UnifiedModal>
+src/features/settings/audit-log-tab.tsx:32:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/audit-log-tab.tsx:391:    <UnifiedModal
+src/features/settings/audit-log-tab.tsx:528:    </UnifiedModal>
+src/features/academics/therapy/psychology-tab.tsx:38:  UnifiedModal,
+src/features/academics/therapy/psychology-tab.tsx:39:  type UnifiedModalProps,
+src/features/academics/therapy/psychology-tab.tsx:40:} from "../../../shared/ui/unified-modal";
+src/features/academics/therapy/psychology-tab.tsx:57:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/therapy/psychology-tab.tsx:475:    <UnifiedModal
+src/features/academics/therapy/psychology-tab.tsx:612:    </UnifiedModal>
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:37:  UnifiedModal,
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:38:  type UnifiedModalProps,
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:39:} from "../../../shared/ui/unified-modal";
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:58:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:85:    <UnifiedModal
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:202:    </UnifiedModal>
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:503:    <UnifiedModal
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:600:    </UnifiedModal>
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:661:    <UnifiedModal
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:743:    </UnifiedModal>
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:781:    <UnifiedModal
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:801:    </UnifiedModal>
+src/features/settings/approvals-tab.tsx:47:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/approvals-tab.tsx:780:    <UnifiedModal
+src/features/settings/approvals-tab.tsx:1480:    </UnifiedModal>
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:38:  UnifiedModal,
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:39:  type UnifiedModalProps,
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:40:} from "../../../shared/ui/unified-modal";
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:58:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:85:    <UnifiedModal
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:214:    </UnifiedModal>
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:482:    <UnifiedModal
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:557:    </UnifiedModal>
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:611:    <UnifiedModal
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:679:    </UnifiedModal>
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:720:    <UnifiedModal
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:741:    </UnifiedModal>
+src/features/settings/accounts-tab.tsx:37:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/settings/accounts-tab.tsx:56:  // T-381 — the pending account removal (ConfirmModal-guarded).
+src/features/settings/accounts-tab.tsx:312:                          {/* T-381 — remove the login account (ConfirmModal
+src/features/settings/accounts-tab.tsx:345:      <ConfirmModal
+src/features/academics/therapy/orthophonie-tab.tsx:35:  UnifiedModal,
+src/features/academics/therapy/orthophonie-tab.tsx:36:  type UnifiedModalProps,
+src/features/academics/therapy/orthophonie-tab.tsx:37:} from "../../../shared/ui/unified-modal";
+src/features/academics/therapy/orthophonie-tab.tsx:53:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/therapy/orthophonie-tab.tsx:432:    <UnifiedModal
+src/features/academics/therapy/orthophonie-tab.tsx:547:    </UnifiedModal>
+src/features/settings/danger-zone-card.tsx:12://      operator TYPES the phrase "PURGER" → a destructive ConfirmModal
+src/features/settings/danger-zone-card.tsx:38:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/settings/danger-zone-card.tsx:311:      <ConfirmModal
+src/features/academics/clubs/club-detail-drawer.tsx:36:  UnifiedModal,
+src/features/academics/clubs/club-detail-drawer.tsx:37:  type UnifiedModalProps,
+src/features/academics/clubs/club-detail-drawer.tsx:38:} from "../../../shared/ui/unified-modal";
+src/features/academics/clubs/club-detail-drawer.tsx:48:type Alert = NonNullable<UnifiedModalProps["alert"]>;
+src/features/academics/clubs/club-detail-drawer.tsx:77:    <UnifiedModal
+src/features/academics/clubs/club-detail-drawer.tsx:129:    </UnifiedModal>
+src/features/academics/clubs/club-detail-drawer.tsx:510:    <UnifiedModal
+src/features/academics/clubs/club-detail-drawer.tsx:578:    </UnifiedModal>
+src/features/academics/clubs/club-detail-drawer.tsx:659:    <UnifiedModal
+src/features/academics/clubs/club-detail-drawer.tsx:733:    </UnifiedModal>
+src/features/academics/clubs/clubs-tab.tsx:16:import { ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/academics/clubs/clubs-tab.tsx:263:      <ConfirmModal
+src/features/academics/clubs/clubs-tab.tsx:273:      <ConfirmModal
+src/features/settings/pricing/additional-services-card.tsx:5: * `onRequestRemoval` (which opens the ConfirmModal).
+src/features/settings/pricing/types.ts:8: * orchestrator; the orchestrator then opens the ConfirmModal and, on
+src/features/settings/pricing/complementary-services-card.tsx:6: * `onRequestRemoval` (which opens the ConfirmModal).
+src/features/settings/pricing/discounts-card.tsx:5: * `onRequestRemoval` (which opens the ConfirmModal).
+src/features/settings/pricing/pricing-year-config-bar.tsx:39:import { ConfirmModal } from "../../../shared/ui/unified-modal";
+src/features/settings/pricing/pricing-year-config-bar.tsx:315:        <ConfirmModal
+src/features/settings/theme-editor-modal.tsx:7:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/theme-editor-modal.tsx:65:    <UnifiedModal
+src/features/settings/theme-editor-modal.tsx:332:    </UnifiedModal>
+src/features/settings/backup-tab.tsx:9: *      ConfirmModal (destructive variant) — the user must confirm before
+src/features/settings/backup-tab.tsx:98:import { ConfirmModal, UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/backup-tab.tsx:1134:      <ConfirmModal
+src/features/settings/backup-tab.tsx:1151:      <UnifiedModal
+src/features/settings/backup-tab.tsx:1215:      </UnifiedModal>
+src/features/settings/backup-tab.tsx:1216:      <ConfirmModal
+src/features/settings/backup-tab.tsx:1244:      <UnifiedModal
+src/features/settings/backup-tab.tsx:1358:      </UnifiedModal>
+src/features/settings/backup-tab.tsx:1361:      <ConfirmModal
+src/features/settings/sync-tab.tsx:34:import { ConfirmModal } from "../../shared/ui/unified-modal";
+src/features/settings/sync-tab.tsx:361:      <ConfirmModal
+src/features/settings/sync-tab.tsx:373:      <ConfirmModal
+src/features/settings/conflict-resolver-modal.tsx:20:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/conflict-resolver-modal.tsx:98:    <UnifiedModal
+src/features/settings/conflict-resolver-modal.tsx:280:    </UnifiedModal>
+src/features/settings/export-dialog.tsx:36:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/export-dialog.tsx:163:    <UnifiedModal
+src/features/settings/export-dialog.tsx:249:    </UnifiedModal>
+src/features/settings/contextual-thresholds-config.tsx:68:import { UnifiedModal } from "../../shared/ui/unified-modal";
+src/features/settings/contextual-thresholds-config.tsx:444:    <UnifiedModal
+src/features/settings/contextual-thresholds-config.tsx:554:    </UnifiedModal>
+src/shared/ui/tooltip.tsx:18: * - z-[70]: one layer ABOVE the modal surface (unified-modal is z-50) —
+src/shared/ui/unified-modal/types.ts:2: * Shared types + constants for UnifiedModal.
+src/shared/ui/unified-modal/types.ts:4: * Extracted from `unified-modal.tsx` (iteration 20) so sub-components
+src/shared/ui/unified-modal/types.ts:29:export interface UnifiedModalProps {
+src/shared/ui/unified-modal/parts.tsx:2: * UnifiedModal sub-components — Header, Body, Footer, Alert.
+src/shared/ui/unified-modal/parts.tsx:4: * Extracted from `unified-modal.tsx` (iteration 20) for size + clarity.
+src/shared/ui/unified-modal/parts.tsx:17:export interface UnifiedModalHeaderProps {
+src/shared/ui/unified-modal/parts.tsx:27:export function UnifiedModalHeader({
+src/shared/ui/unified-modal/parts.tsx:35:}: UnifiedModalHeaderProps) {
+src/shared/ui/unified-modal/parts.tsx:76:export interface UnifiedModalBodyProps {
+src/shared/ui/unified-modal/parts.tsx:85:export function UnifiedModalBody({
+src/shared/ui/unified-modal/parts.tsx:91:}: UnifiedModalBodyProps) {
+src/shared/ui/unified-modal/parts.tsx:102:        <UnifiedModalAlert
+src/shared/ui/unified-modal/parts.tsx:114:export interface UnifiedModalFooterProps {
+src/shared/ui/unified-modal/parts.tsx:121:export function UnifiedModalFooter({
+src/shared/ui/unified-modal/parts.tsx:125:}: UnifiedModalFooterProps) {
+src/shared/ui/unified-modal/parts.tsx:144:export interface UnifiedModalAlertProps {
+src/shared/ui/unified-modal/parts.tsx:151:export function UnifiedModalAlert({
+src/shared/ui/unified-modal/parts.tsx:156:}: UnifiedModalAlertProps) {
+src/shared/ui/unified-modal/modal-shell.tsx:2: * ModalShell — shared render skeleton for all 3 UnifiedModal variants.
+src/shared/ui/unified-modal/modal-shell.tsx:4: * Extracted from `unified-modal.tsx` (iteration 20) to eliminate the
+src/shared/ui/unified-modal/modal-shell.tsx:70:  // flex column capped at 88vh makes `UnifiedModalBody`'s existing
+src/shared/ui/unified-modal/confirm-modal.tsx:2: * ConfirmModal — convenience preset for simple confirm dialogs.
+src/shared/ui/unified-modal/confirm-modal.tsx:4: * Extracted from `unified-modal.tsx` (iteration 20). Behavior unchanged.
+src/shared/ui/unified-modal/confirm-modal.tsx:8:import { UnifiedModal } from "../unified-modal";
+src/shared/ui/unified-modal/confirm-modal.tsx:10:export interface ConfirmModalProps {
+src/shared/ui/unified-modal/confirm-modal.tsx:21:export function ConfirmModal({
+src/shared/ui/unified-modal/confirm-modal.tsx:30:}: ConfirmModalProps) {
+src/shared/ui/unified-modal/confirm-modal.tsx:32:    <UnifiedModal
+src/shared/ui/unified-modal.tsx:2: * UnifiedModal — single source of truth for ALL modal-style interactions.
+src/shared/ui/unified-modal.tsx:4: * Iteration 20 refactor: extracted types into `./unified-modal/types.ts`,
+src/shared/ui/unified-modal.tsx:5: * sub-components (Header/Body/Footer/Alert) into `./unified-modal/parts.tsx`,
+src/shared/ui/unified-modal.tsx:6: * the shared render skeleton into `./unified-modal/modal-shell.tsx`, and
+src/shared/ui/unified-modal.tsx:7: * the ConfirmModal preset into `./unified-modal/confirm-modal.tsx`.
+src/shared/ui/unified-modal.tsx:10: * contains the `UnifiedModal` orchestrator that wires props → shell +
+src/shared/ui/unified-modal.tsx:13: * See `./unified-modal/types.ts` for the full props documentation.
+src/shared/ui/unified-modal.tsx:20:import { ModalShell } from "./unified-modal/modal-shell";
+src/shared/ui/unified-modal.tsx:22:  UnifiedModalHeader,
+src/shared/ui/unified-modal.tsx:23:  UnifiedModalBody,
+src/shared/ui/unified-modal.tsx:24:  UnifiedModalFooter,
+src/shared/ui/unified-modal.tsx:25:} from "./unified-modal/parts";
+src/shared/ui/unified-modal.tsx:27:  type UnifiedModalProps,
+src/shared/ui/unified-modal.tsx:28:} from "./unified-modal/types";
+src/shared/ui/unified-modal.tsx:30:export { UnifiedModalHeader, UnifiedModalBody, UnifiedModalFooter } from "./unified-modal/parts";
+src/shared/ui/unified-modal.tsx:31:export { UnifiedModalAlert } from "./unified-modal/parts";
+src/shared/ui/unified-modal.tsx:32:export { ConfirmModal } from "./unified-modal/confirm-modal";
+src/shared/ui/unified-modal.tsx:33:export type { UnifiedModalProps, ModalAlert, ModalVariant, ModalSize, IconTone } from "./unified-modal/types";
+src/shared/ui/unified-modal.tsx:35:export function UnifiedModal(props: UnifiedModalProps) {
+src/shared/ui/unified-modal.tsx:126:    <UnifiedModalBody
+src/shared/ui/unified-modal.tsx:134:    </UnifiedModalBody>
+src/shared/ui/unified-modal.tsx:180:  icon?: UnifiedModalProps["icon"];
+src/shared/ui/unified-modal.tsx:181:  iconTone: NonNullable<UnifiedModalProps["iconTone"]>;
+src/shared/ui/unified-modal.tsx:211:      <UnifiedModalHeader
+src/shared/ui/unified-modal.tsx:238:  submitVariant: NonNullable<UnifiedModalProps["submitVariant"]>;
+src/shared/ui/unified-modal.tsx:241:  SubmitIcon?: UnifiedModalProps["submitIcon"];
+src/shared/ui/unified-modal.tsx:253:      <UnifiedModalFooter isDrawer={isDrawer} className={footerClassName}>
+src/shared/ui/unified-modal.tsx:255:      </UnifiedModalFooter>
+src/shared/ui/unified-modal.tsx:261:    <UnifiedModalFooter
+src/shared/ui/unified-modal.tsx:292:    </UnifiedModalFooter>
+src/shared/layout/topbar.tsx:10: *   - The Cmd+K palette now uses UnifiedModal variant="command-palette",
+src/shared/layout/topbar.tsx:73:import { UnifiedModal } from "../ui/unified-modal";
+src/shared/layout/topbar.tsx:423:      {/* Command palette — iteration 7: now uses UnifiedModal variant="command-palette".
+src/shared/layout/topbar.tsx:426:          is now provided by UnifiedModal — the only call-site-specific code is
+src/shared/layout/topbar.tsx:428:      <UnifiedModal
+src/shared/layout/topbar.tsx:543:      </UnifiedModal>
+
+# --- COUNT: 383 matching lines ---

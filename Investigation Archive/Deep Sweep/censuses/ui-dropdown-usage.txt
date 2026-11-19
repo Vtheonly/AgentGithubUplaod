@@ -1,0 +1,139 @@
+# CENSUS: ui-dropdown-usage
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading <DropdownMenu|DropdownMenuTrigger|DropdownMenuContent -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/dashboard/academic-year-selector.tsx:19:  DropdownMenuContent,
+src/features/dashboard/academic-year-selector.tsx:23:  DropdownMenuTrigger,
+src/features/dashboard/academic-year-selector.tsx:166:      <DropdownMenu>
+src/features/dashboard/academic-year-selector.tsx:167:        <DropdownMenuTrigger asChild>
+src/features/dashboard/academic-year-selector.tsx:175:        </DropdownMenuTrigger>
+src/features/dashboard/academic-year-selector.tsx:176:        <DropdownMenuContent align="end" className="w-64">
+src/features/dashboard/academic-year-selector.tsx:177:          <DropdownMenuLabel>Année académique</DropdownMenuLabel>
+src/features/dashboard/academic-year-selector.tsx:179:            <DropdownMenuItem
+src/features/dashboard/academic-year-selector.tsx:192:          <DropdownMenuSeparator />
+src/features/dashboard/academic-year-selector.tsx:193:          <DropdownMenuLabel>Filtrer par période</DropdownMenuLabel>
+src/features/dashboard/academic-year-selector.tsx:195:            <DropdownMenuItem
+src/features/dashboard/academic-year-selector.tsx:208:          <DropdownMenuSeparator />
+src/features/dashboard/academic-year-selector.tsx:209:          <DropdownMenuLabel>Plage personnalisée</DropdownMenuLabel>
+src/features/dashboard/academic-year-selector.tsx:233:        </DropdownMenuContent>
+src/features/workflow/dag-canvas.tsx:44:  DropdownMenuContent,
+src/features/workflow/dag-canvas.tsx:46:  DropdownMenuTrigger,
+src/features/workflow/dag-canvas.tsx:1261:                      <DropdownMenu>
+src/features/workflow/dag-canvas.tsx:1262:                        <DropdownMenuTrigger asChild>
+src/features/workflow/dag-canvas.tsx:1281:                        </DropdownMenuTrigger>
+src/features/workflow/dag-canvas.tsx:1282:                        <DropdownMenuContent align="end">
+src/features/workflow/dag-canvas.tsx:1283:                          <DropdownMenuItem onClick={() => onInspectNode(node)}>
+src/features/workflow/dag-canvas.tsx:1286:                          <DropdownMenuItem onClick={() => deleteNode(node.id)}>
+src/features/workflow/dag-canvas.tsx:1289:                        </DropdownMenuContent>
+src/features/settings/audit-log-tab.tsx:34:  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+src/features/settings/audit-log-tab.tsx:167:          <DropdownMenu>
+src/features/settings/audit-log-tab.tsx:168:            <DropdownMenuTrigger asChild>
+src/features/settings/audit-log-tab.tsx:174:            </DropdownMenuTrigger>
+src/features/settings/audit-log-tab.tsx:175:            <DropdownMenuContent align="end">
+src/features/settings/audit-log-tab.tsx:176:              <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+src/features/settings/audit-log-tab.tsx:179:              <DropdownMenuItem onClick={() => handleExport("csv")}>
+src/features/settings/audit-log-tab.tsx:182:            </DropdownMenuContent>
+src/shared/ui/dropdown-menu.tsx:7:export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+src/shared/ui/dropdown-menu.tsx:13:export const DropdownMenuContent = React.forwardRef<
+src/shared/ui/dropdown-menu.tsx:17:  <DropdownMenuPrimitive.Portal>
+src/shared/ui/dropdown-menu.tsx:18:    <DropdownMenuPrimitive.Content
+src/shared/ui/dropdown-menu.tsx:30:DropdownMenuContent.displayName = "DropdownMenuContent";
+src/shared/ui/dropdown-menu.tsx:36:  <DropdownMenuPrimitive.Item
+src/shared/ui/dropdown-menu.tsx:54:  <DropdownMenuPrimitive.Label
+src/shared/ui/dropdown-menu.tsx:66:  <DropdownMenuPrimitive.Separator
+src/shared/ui/student-actions-menu.tsx:9:  DropdownMenuContent,
+src/shared/ui/student-actions-menu.tsx:13:  DropdownMenuTrigger,
+src/shared/ui/student-actions-menu.tsx:38:    <DropdownMenu>
+src/shared/ui/student-actions-menu.tsx:39:      <DropdownMenuTrigger asChild>
+src/shared/ui/student-actions-menu.tsx:50:      </DropdownMenuTrigger>
+src/shared/ui/student-actions-menu.tsx:51:      <DropdownMenuContent align={align} className="w-60 z-50">
+src/shared/ui/student-actions-menu.tsx:52:        <DropdownMenuLabel className="text-xs">
+src/shared/ui/student-actions-menu.tsx:56:        <DropdownMenuSeparator />
+src/shared/ui/student-actions-menu.tsx:58:        <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:72:        <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:86:        <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:102:            <DropdownMenuSeparator />
+src/shared/ui/student-actions-menu.tsx:103:            <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:119:            <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:136:          <DropdownMenuItem
+src/shared/ui/student-actions-menu.tsx:150:      </DropdownMenuContent>
+src/shared/ui/parent-actions-menu.tsx:12:  DropdownMenuContent,
+src/shared/ui/parent-actions-menu.tsx:16:  DropdownMenuTrigger,
+src/shared/ui/parent-actions-menu.tsx:57:    <DropdownMenu>
+src/shared/ui/parent-actions-menu.tsx:58:      <DropdownMenuTrigger asChild>
+src/shared/ui/parent-actions-menu.tsx:69:      </DropdownMenuTrigger>
+src/shared/ui/parent-actions-menu.tsx:70:      <DropdownMenuContent align={align} className="w-60 z-50">
+src/shared/ui/parent-actions-menu.tsx:71:        <DropdownMenuLabel className="text-xs">
+src/shared/ui/parent-actions-menu.tsx:75:        <DropdownMenuSeparator />
+src/shared/ui/parent-actions-menu.tsx:77:        <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:91:        <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:105:        <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:119:        <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:133:        {(cleanPhone || parent.phone) && <DropdownMenuSeparator />}
+src/shared/ui/parent-actions-menu.tsx:136:          <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:149:          <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:164:          <DropdownMenuItem
+src/shared/ui/parent-actions-menu.tsx:175:      </DropdownMenuContent>
+src/shared/layout/topbar.tsx:65:  DropdownMenuContent,
+src/shared/layout/topbar.tsx:69:  DropdownMenuTrigger,
+src/shared/layout/topbar.tsx:290:        <DropdownMenu open={alertsOpen} onOpenChange={setAlertsOpen}>
+src/shared/layout/topbar.tsx:291:          <DropdownMenuTrigger asChild>
+src/shared/layout/topbar.tsx:304:          </DropdownMenuTrigger>
+src/shared/layout/topbar.tsx:305:          <DropdownMenuContent align="end" className="w-96">
+src/shared/layout/topbar.tsx:306:            <DropdownMenuLabel className="flex items-center justify-between">
+src/shared/layout/topbar.tsx:310:            <DropdownMenuSeparator />
+src/shared/layout/topbar.tsx:317:                <DropdownMenuItem
+src/shared/layout/topbar.tsx:340:            <DropdownMenuSeparator />
+src/shared/layout/topbar.tsx:341:            <DropdownMenuItem
+src/shared/layout/topbar.tsx:350:          </DropdownMenuContent>
+src/shared/layout/topbar.tsx:372:        <DropdownMenu>
+src/shared/layout/topbar.tsx:373:          <DropdownMenuTrigger asChild>
+src/shared/layout/topbar.tsx:388:          </DropdownMenuTrigger>
+src/shared/layout/topbar.tsx:389:          <DropdownMenuContent align="end" className="w-56">
+src/shared/layout/topbar.tsx:390:            <DropdownMenuLabel>
+src/shared/layout/topbar.tsx:402:            <DropdownMenuSeparator />
+src/shared/layout/topbar.tsx:403:            <DropdownMenuItem onClick={() => navigate("/profile")}>
+src/shared/layout/topbar.tsx:406:            <DropdownMenuItem onClick={() => navigate("/settings")}>
+src/shared/layout/topbar.tsx:409:            <DropdownMenuSeparator />
+src/shared/layout/topbar.tsx:410:            <DropdownMenuItem
+src/shared/layout/topbar.tsx:419:          </DropdownMenuContent>
+src/shared/layout/tenant-switcher.tsx:30:  DropdownMenuContent,
+src/shared/layout/tenant-switcher.tsx:33:  DropdownMenuTrigger,
+src/shared/layout/tenant-switcher.tsx:84:    <DropdownMenu>
+src/shared/layout/tenant-switcher.tsx:85:      <DropdownMenuTrigger asChild>
+src/shared/layout/tenant-switcher.tsx:98:      </DropdownMenuTrigger>
+src/shared/layout/tenant-switcher.tsx:99:      <DropdownMenuContent align="end" className="w-64">
+src/shared/layout/tenant-switcher.tsx:100:        <DropdownMenuLabel>Établissement actif</DropdownMenuLabel>
+src/shared/layout/tenant-switcher.tsx:113:            <DropdownMenuItem
+src/shared/layout/tenant-switcher.tsx:125:      </DropdownMenuContent>
+src/features/academics/placement/student-placement-card.tsx:18:  DropdownMenuContent,
+src/features/academics/placement/student-placement-card.tsx:22:  DropdownMenuTrigger,
+src/features/academics/placement/student-placement-card.tsx:123:          <DropdownMenu>
+src/features/academics/placement/student-placement-card.tsx:124:            <DropdownMenuTrigger asChild>
+src/features/academics/placement/student-placement-card.tsx:131:            </DropdownMenuTrigger>
+src/features/academics/placement/student-placement-card.tsx:132:            <DropdownMenuContent align="end" className="w-48">
+src/features/academics/placement/student-placement-card.tsx:133:              <DropdownMenuLabel className="text-xs">Changer de classe</DropdownMenuLabel>
+src/features/academics/placement/student-placement-card.tsx:137:                  <DropdownMenuItem
+src/features/academics/placement/student-placement-card.tsx:146:              <DropdownMenuSeparator />
+src/features/academics/placement/student-placement-card.tsx:147:              <DropdownMenuItem
+src/features/academics/placement/student-placement-card.tsx:154:            </DropdownMenuContent>
+src/features/academics/placement/student-placement-card.tsx:157:          <DropdownMenu>
+src/features/academics/placement/student-placement-card.tsx:158:            <DropdownMenuTrigger asChild>
+src/features/academics/placement/student-placement-card.tsx:162:            </DropdownMenuTrigger>
+src/features/academics/placement/student-placement-card.tsx:163:            <DropdownMenuContent align="end" className="w-52">
+src/features/academics/placement/student-placement-card.tsx:164:              <DropdownMenuLabel className="text-xs">Affecter à une section</DropdownMenuLabel>
+src/features/academics/placement/student-placement-card.tsx:169:                  <DropdownMenuItem
+src/features/academics/placement/student-placement-card.tsx:181:            </DropdownMenuContent>
+src/i18n/language-switcher.tsx:24:  DropdownMenuContent,
+src/i18n/language-switcher.tsx:28:  DropdownMenuTrigger,
+src/i18n/language-switcher.tsx:51:    <DropdownMenu open={open} onOpenChange={setOpen}>
+src/i18n/language-switcher.tsx:52:      <DropdownMenuTrigger asChild>
+src/i18n/language-switcher.tsx:64:      </DropdownMenuTrigger>
+src/i18n/language-switcher.tsx:65:      <DropdownMenuContent align="end" className="w-48">
+src/i18n/language-switcher.tsx:66:        <DropdownMenuLabel>{t("language.label")}</DropdownMenuLabel>
+src/i18n/language-switcher.tsx:67:        <DropdownMenuSeparator />
+src/i18n/language-switcher.tsx:69:          <DropdownMenuItem
+src/i18n/language-switcher.tsx:83:      </DropdownMenuContent>
+
+# --- COUNT: 132 matching lines ---

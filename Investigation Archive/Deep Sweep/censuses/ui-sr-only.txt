@@ -1,0 +1,12 @@
+# CENSUS: ui-sr-only
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading sr-only -g *.tsx (baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/shared/ui/data-table/data-table.tsx:54:        header: () => <span className="sr-only">Actions</span>,
+src/shared/ui/unified-modal.tsx:194:          <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+src/shared/ui/unified-modal.tsx:202:          <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+src/shared/ui/unified-modal.tsx:206:    return <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>;
+src/shared/ui/unified-modal.tsx:223:  return <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>;
+src/shared/layout/topbar.tsx:436:        title={<span className="sr-only">{t("common.search")}</span>}
+

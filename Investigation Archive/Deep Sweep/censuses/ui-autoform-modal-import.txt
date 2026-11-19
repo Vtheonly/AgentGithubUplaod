@@ -1,0 +1,75 @@
+# CENSUS: ui-autoform-modal-import
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading auto-form-modal|AutoFormModal -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/financials/manual-debt-modal.tsx:36:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/financials/manual-debt-modal.tsx:110:  // The UNLOCKED flow's step 0 — the picked family (the AutoFormModal's
+src/features/financials/manual-debt-modal.tsx:308:    <AutoFormModal
+src/features/financials/expense-submit-modal.tsx:4: * T-521 (issue #29) converts the AutoFormModal form into a custom
+src/features/academics/subjects-directory-tab.tsx:15:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/academics/subjects-directory-tab.tsx:300:      <AutoFormModal
+src/features/financials/installment-schedule-tab.tsx:6: * + hand-rolled filter state) and `<AutoFormModal>` for the due-date editor
+src/features/financials/installment-schedule-tab.tsx:8: * regeneration modal is kept as a small `AutoFormModal` too.
+src/features/financials/installment-schedule-tab.tsx:103:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/financials/installment-schedule-tab.tsx:897:      <AutoFormModal
+src/features/financials/installment-schedule-tab.tsx:921:      <AutoFormModal
+src/features/dashboard/calendar-event-creator-modal.tsx:5: * Refactored to consume `<AutoFormModal<T>>` so form-state, Zod validation,
+src/features/dashboard/calendar-event-creator-modal.tsx:16:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/dashboard/calendar-event-creator-modal.tsx:101:    <AutoFormModal
+src/features/dashboard/alert-creator-modal.tsx:12: * Refactored to consume `<AutoFormModal<T>>` so form-state, Zod validation,
+src/features/dashboard/alert-creator-modal.tsx:24:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/dashboard/alert-creator-modal.tsx:122:    <AutoFormModal
+src/features/academics/school-years-tab.tsx:2: * SchoolYearsTab — refactored to use <AutoFormModal> + <ConfirmModal>.
+src/features/academics/school-years-tab.tsx:19:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/academics/school-years-tab.tsx:317:      <AutoFormModal
+src/features/academics/school-years-tab.tsx:329:      <AutoFormModal
+src/features/academics/clubs/clubs-tab.tsx:2: * ClubsTab — refactored to use <AutoFormModal> for create/edit.
+src/features/academics/clubs/clubs-tab.tsx:15:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/academics/clubs/clubs-tab.tsx:236:      <AutoFormModal
+src/features/academics/clubs/clubs-tab.tsx:247:      <AutoFormModal
+src/features/academics/subject-configurations-panel.tsx:23:  AutoFormModal,
+src/features/academics/subject-configurations-panel.tsx:329:      <AutoFormModal
+src/features/profile/change-password-modal.tsx:4: * Refactored to consume `<AutoFormModal<T>>` with the new `"password"` field
+src/features/profile/change-password-modal.tsx:17:import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+src/features/profile/change-password-modal.tsx:64:    <AutoFormModal
+src/features/settings/pricing/pricing-year-config-bar.tsx:38:import { AutoFormModal } from "../../../shared/ui/auto-form";
+src/features/settings/pricing/pricing-year-config-bar.tsx:277:        <AutoFormModal
+src/features/settings/configuration/secret-edit-modal.tsx:4: * Refactored to consume `<AutoFormModal<T>>` with the `"password"` field type
+src/features/settings/configuration/secret-edit-modal.tsx:10:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/settings/configuration/secret-edit-modal.tsx:52:    <AutoFormModal
+src/features/personnel/dashboards/manager-dashboard.tsx:9: *   - "Create task" modal routed through `<AutoFormModal>`
+src/features/personnel/dashboards/manager-dashboard.tsx:11: * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` so the
+src/features/personnel/dashboards/manager-dashboard.tsx:25:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/dashboards/manager-dashboard.tsx:357:      <AutoFormModal
+src/features/personnel/dashboards/driver-dashboard.tsx:7: * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` so the
+src/features/personnel/dashboards/driver-dashboard.tsx:19:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/dashboards/driver-dashboard.tsx:192:      <AutoFormModal
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:7: * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` — the two
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:9: * inline as Zod schemas + AutoFormModal fields, eliminating the helper file.
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:21:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:303:      <AutoFormModal
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:314:      <AutoFormModal
+src/features/personnel/dashboards/teacher-dashboard.tsx:40:  AutoFormModal,
+src/features/personnel/dashboards/teacher-dashboard.tsx:280:      <AutoFormModal
+src/features/personnel/dashboards/buyer-dashboard.tsx:7: * Refactored to consume `<RoleDashboardLayout>` + `<AutoFormModal>` so the
+src/features/personnel/dashboards/buyer-dashboard.tsx:19:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/dashboards/buyer-dashboard.tsx:219:      <AutoFormModal
+src/features/personnel/dashboards/worker-dashboard.tsx:8: * feed) and `<AutoFormModal>` (leave-request form). The clock-in/out card is
+src/features/personnel/dashboards/worker-dashboard.tsx:23:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/dashboards/worker-dashboard.tsx:385:      <AutoFormModal
+src/features/personnel/management/task-form-modal.tsx:4: * Refactored to consume `<AutoFormModal<T>>` so form-state, validation, and
+src/features/personnel/management/task-form-modal.tsx:21:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/management/task-form-modal.tsx:131:    <AutoFormModal
+src/features/personnel/management/employee-form-modal.tsx:4: * Refactored to consume `<AutoFormModal<T>>` so form-state, validation, and
+src/features/personnel/management/employee-form-modal.tsx:21:import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+src/features/personnel/management/employee-form-modal.tsx:256:    <AutoFormModal
+src/shared/devtools/test-data/autofill-engine.ts:7: * (AutoFormModal zod-driven + handwritten useState forms) plus the 4-step
+src/shared/ui/auto-form/types.ts:28:export interface AutoFormModalProps<T extends ZodType> {
+src/shared/ui/auto-form/auto-form-modal.tsx:2: * <AutoFormModal<T>> — schema-driven modal form primitive.
+src/shared/ui/auto-form/auto-form-modal.tsx:30:import type { AutoFormModalProps, AutoFormField } from "./types";
+src/shared/ui/auto-form/auto-form-modal.tsx:32:export function AutoFormModal<T extends ZodType>(props: AutoFormModalProps<T>): ReactNode {
+src/shared/ui/auto-form/index.ts:1:export { AutoFormModal } from "./auto-form-modal";
+src/shared/ui/auto-form/index.ts:2:export type { AutoFormModalProps, AutoFormField, AutoFormFieldType, AutoFormFieldOption } from "./types";
+
+# --- COUNT: 68 matching lines ---

@@ -1,0 +1,49 @@
+# CENSUS: ui-tooltip-usage
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading <Tooltip|TooltipTrigger|TooltipContent|TooltipProvider -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/app.tsx:10: *   6. TooltipProvider           — radix tooltip context
+src/app/app.tsx:32:import { TooltipProvider } from "../shared/ui/tooltip";
+src/app/app.tsx:129:                  <TooltipProvider delayDuration={300}>
+src/app/app.tsx:138:                  </TooltipProvider>
+src/infrastructure/sync/sync-indicator.tsx:23:import { Tooltip, TooltipContent, TooltipTrigger } from "../../shared/ui/tooltip";
+src/infrastructure/sync/sync-indicator.tsx:148:      <Tooltip>
+src/infrastructure/sync/sync-indicator.tsx:149:      <TooltipTrigger asChild>
+src/infrastructure/sync/sync-indicator.tsx:174:      </TooltipTrigger>
+src/infrastructure/sync/sync-indicator.tsx:175:      <TooltipContent side="bottom" align="end" className="w-72">
+src/infrastructure/sync/sync-indicator.tsx:234:      </TooltipContent>
+src/features/dashboard/components/weekly-operating-rhythm.tsx:164:                <Tooltip
+src/features/dashboard/components/analytics/mix-cards.tsx:116:                  <Tooltip
+src/features/dashboard/components/analytics/mix-cards.tsx:264:                <Tooltip
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:186:                <Tooltip
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:117:                  <Tooltip
+src/features/dashboard/components/analytics/debtors-pareto-card.tsx:164:                <Tooltip
+src/features/dashboard/components/analytics/info-tip.tsx:20: * TooltipProvider is mounted at the app shell — app.tsx). The tooltip body
+src/features/dashboard/components/analytics/info-tip.tsx:28: * without clipping (the shared TooltipContent lost its overflow-hidden and
+src/features/dashboard/components/analytics/info-tip.tsx:35:  TooltipTrigger,
+src/features/dashboard/components/analytics/info-tip.tsx:36:  TooltipContent,
+src/features/dashboard/components/analytics/info-tip.tsx:37:  TooltipProvider,
+src/features/dashboard/components/analytics/info-tip.tsx:65:    // mounts — without requiring an ancestor TooltipProvider.
+src/features/dashboard/components/analytics/info-tip.tsx:66:    <TooltipProvider delayDuration={200}>
+src/features/dashboard/components/analytics/info-tip.tsx:67:      <Tooltip>
+src/features/dashboard/components/analytics/info-tip.tsx:68:        <TooltipTrigger asChild>
+src/features/dashboard/components/analytics/info-tip.tsx:82:        </TooltipTrigger>
+src/features/dashboard/components/analytics/info-tip.tsx:83:        <TooltipContent
+src/features/dashboard/components/analytics/info-tip.tsx:123:        </TooltipContent>
+src/features/dashboard/components/analytics/info-tip.tsx:125:    </TooltipProvider>
+src/shared/ui/tooltip.tsx:5:export const TooltipProvider = TooltipPrimitive.Provider;
+src/shared/ui/tooltip.tsx:7:export const TooltipTrigger = TooltipPrimitive.Trigger;
+src/shared/ui/tooltip.tsx:10: * TooltipContent — T-546 (UI-353) contract:
+src/shared/ui/tooltip.tsx:22:export const TooltipContent = React.forwardRef<
+src/shared/ui/tooltip.tsx:26:  <TooltipPrimitive.Content
+src/shared/ui/tooltip.tsx:38:TooltipContent.displayName = "TooltipContent";
+src/shared/layout/sidebar.tsx:37:import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "../ui/tooltip";
+src/shared/layout/sidebar.tsx:91:                  <TooltipProvider>
+src/shared/layout/sidebar.tsx:92:                    <Tooltip>
+src/shared/layout/sidebar.tsx:93:                      <TooltipTrigger asChild>
+src/shared/layout/sidebar.tsx:108:                      </TooltipTrigger>
+src/shared/layout/sidebar.tsx:110:                        <TooltipContent side="right">{label}</TooltipContent>
+src/shared/layout/sidebar.tsx:113:                  </TooltipProvider>
+
+# --- COUNT: 42 matching lines ---

@@ -1,0 +1,11 @@
+# VOCABULARY: distinct values of surface
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+    127 bg-surface-panel
+     98 bg-surface-elevated
+     56 bg-background
+     52 bg-card
+     19 bg-popover
+     10 bg-surface-background
+
+# --- DISTINCT: 6 values ---

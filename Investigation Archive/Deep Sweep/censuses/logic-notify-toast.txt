@@ -1,0 +1,17 @@
+# CENSUS: logic-notify-toast
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading notify\(|showToast|pushToast -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:61:function notify(): void {
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:74:  notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:157:    notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:240:      notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:307:    notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:404:    notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:522:    notify();
+src/infrastructure/mock/repositories/identity-resolution-repository.ts:579:  notify();
+src/infrastructure/mock/repositories/mock-store.ts:335:      notify();
+src/infrastructure/mock/repositories/mock-store.ts:364:    notify();
+
+# --- COUNT: 10 matching lines ---

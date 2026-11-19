@@ -1,0 +1,8 @@
+# CENSUS: logic-json-io
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading JSON\.parse\(.*(backup|export|import)|JSON\.stringify\(.*(backup|export|import) -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/core/ai/tools/document-tools.ts:350:        return JSON.stringify({ error: "Aucune donnée à exporter pour ce jeu." });
+
+# --- COUNT: 1 matching lines ---

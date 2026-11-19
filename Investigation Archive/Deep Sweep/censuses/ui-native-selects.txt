@@ -1,0 +1,26 @@
+# CENSUS: ui-native-selects
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading <select -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/parent-detail-drawer.tsx:1694:          <select
+src/features/crm/student-detail/documents-tab.tsx:206:                <select
+src/features/financials/unified-payment-modal.tsx:721:                <select
+src/features/financials/unified-payment-modal.tsx:739:                <select
+src/features/personnel/onboarding/steps/managers-step.tsx:48:                    <select
+src/features/personnel/onboarding/steps/departments-step.tsx:90:              <select
+src/features/personnel/management/staff-attendance-center.tsx:611:              <select
+src/features/academics/timetable/timetable-tab.tsx:1360:                <select
+src/features/academics/timetable/timetable-tab.tsx:1475:                  <select
+src/features/academics/timetable/timetable-tab.tsx:1491:                  <select
+src/features/academics/timetable/timetable-tab.tsx:1507:                  <select
+src/features/academics/timetable/timetable-tab.tsx:1523:                <select
+src/features/academics/timetable/timetable-tab.tsx:1535:                  <select
+src/features/academics/timetable/timetable-tab.tsx:1551:                  <select
+src/features/academics/timetable/timetable-entry-dialog.tsx:155:            <select
+src/features/academics/timetable/timetable-entry-dialog.tsx:169:            <select
+src/features/academics/timetable/timetable-entry-dialog.tsx:183:            <select
+src/features/academics/timetable/timetable-entry-dialog.tsx:198:            <select
+src/features/academics/therapy/therapy-attachments-card.tsx:93:              <select
+
+# --- COUNT: 19 matching lines ---

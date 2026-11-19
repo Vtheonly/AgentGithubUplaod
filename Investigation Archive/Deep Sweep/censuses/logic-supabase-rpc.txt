@@ -1,0 +1,96 @@
+# CENSUS: logic-supabase-rpc
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading \.rpc\( -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/infrastructure/sync/default-push-handler.ts:123:        const { error } = await client.rpc("upsert_parent_from_import", {
+src/infrastructure/sync/default-push-handler.ts:150:        const { error } = await client.rpc("upsert_student_from_import", {
+src/infrastructure/sync/default-push-handler.ts:190:        const { error } = await client.rpc("upsert_payment_from_import", {
+src/infrastructure/sync/default-push-handler.ts:214:        const { error } = await client.rpc("upsert_ledger_entry_from_import", {
+src/infrastructure/sync/default-push-handler.ts:244:        const { error } = await client.rpc("upsert_installment_from_import", {
+src/infrastructure/sync/default-push-handler.ts:266:        const { error } = await client.rpc("upsert_attendance_from_import", {
+src/infrastructure/sync/default-push-handler.ts:283:        const { error } = await client.rpc("upsert_assessment_from_import", {
+src/infrastructure/sync/default-push-handler.ts:351:    await client.rpc("mark_sync_queue_processed", {
+src/infrastructure/sync/default-push-handler.ts:360:      await client.rpc("mark_sync_queue_processed", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:199:      client.rpc("current_tenant_id", {}) as PromiseLike<{ data: unknown }>,
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:253:      client.rpc("upsert_parent_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:333:      client.rpc("upsert_student_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:413:      client.rpc("upsert_parent_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:810:      client.rpc("upsert_student_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:861:      client.rpc("upsert_ledger_entry_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:907:      client.rpc("upsert_ledger_entry_from_import", {
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:953:      client.rpc("soft_delete_student", { p_student_id: studentId }) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:1003:      client.rpc("soft_delete_parent", { p_parent_id: parentId }) as PromiseLike<{
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:357:  const tenantRes = (await timed(() => client.rpc("current_tenant_id"))) as unknown as {
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:406:  const profileIdRes = (await timed(() => client.rpc("current_user_profile_id"))) as unknown as {
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:446:  const rolesRes = (await timed(() => client.rpc("current_user_roles"))) as unknown as {
+src/infrastructure/supabase/repositories/auto-releve-bridge.ts:43:    const { error } = await client.rpc("record_auto_releve_entry", {
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:639:    const { data, error } = await this.client.rpc("adjust_personnel_salary", {
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:688:    const { data, error } = await this.client.rpc("record_salary_disbursement", {
+src/infrastructure/supabase/repositories/supabase-auth-repository.ts:116:    const { data: rolesData } = await this.client.rpc("current_user_roles");
+src/infrastructure/supabase/repositories/supabase-auth-repository.ts:120:    const { data: permsData } = await this.client.rpc("current_user_permissions");
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:688:    await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:146:    const { data, error } = await this.client.rpc("set_current_academic_year", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1464:          const { data: notifId, error: rpcErr } = await this.client.rpc(
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1491:        await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1514:      await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1734:    const { error: rpcErr } = await this.client.rpc("execute_batch_promotion", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1800:    const { data, error } = await this.client.rpc("fn_finalize_class_placements", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2251:      const { data, error } = await this.client.rpc("fn_get_promotion_cycles", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2265:      const { data, error } = await this.client.rpc("fn_get_promotion_cycle_classes", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2290:      const { data, error } = await this.client.rpc("fn_create_promotion_cycle", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2315:      const { data, error } = await this.client.rpc("fn_confirm_promotion_cycle_class", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2354:      const { error } = await this.client.rpc("fn_reopen_promotion_cycle_class", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2371:      const { error } = await this.client.rpc("fn_complete_promotion_cycle", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2386:      const { error } = await this.client.rpc("fn_cancel_promotion_cycle", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2492:      const { data, error } = await this.client.rpc("fn_generate_re_enrollment_candidates", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2522:      const { data, error } = await this.client.rpc("fn_get_re_enrollment_candidates", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2545:      const { error } = await this.client.rpc("fn_set_re_enrollment_decision", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2565:      const { data, error } = await this.client.rpc("fn_re_enroll_student", {
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2609:      const { data, error } = await this.client.rpc("fn_freeze_re_enrollments", {
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:343:          (await this.client.rpc("current_user_profile_id")).data ?? null;
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:841:    await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:548:    const { data: tenantId, error: tenantErr } = await this.client.rpc("current_tenant_id");
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:558:    const { data, error } = await this.client.rpc("generate_activation_code", {
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:566:    const { data: issuerProfileId } = await this.client.rpc("current_user_profile_id");
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:300:      const { error } = await this.client.rpc("fn_er_decide_proposal", {
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:346:      const { data, error } = await this.client.rpc("fn_er_merge_parents", {
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:375:      const { error } = await this.client.rpc("fn_er_unmerge_parents", {
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:392:      const { data, error } = await this.client.rpc("fn_er_has_aggregation_state", {
+src/infrastructure/supabase/repositories/supabase-dashboard-layout-repository.ts:73:      const { data, error } = await this.client.rpc("save_dashboard_layout", {
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:526:      const { data: newId, error } = await this.client.rpc(
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:550:      const { error } = await this.client.rpc("set_active_pricing_config", {
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:631:      const { error } = await this.client.rpc("upsert_setting", {
+src/infrastructure/supabase/repositories/supabase-purge-repository.ts:92:  const reply = (await client.rpc("purge_student_parent_domain", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:246:    await client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:323:  const first = (await client.rpc(name, args)) as {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:328:  const second = (await client.rpc(name, args)) as {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:817:      res = await runGatedCollectionRead(async () => await client.rpc(fn));
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1424:      const { data, error } = await this.client.rpc("soft_delete_parent", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1948:      const { data, error } = await this.client.rpc("soft_delete_student", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2265:    const { error: rpcErr } = await this.client.rpc("execute_batch_promotion", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2505:      const { data: atomicData, error: atomicErr } = await this.client.rpc(
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2557:      const { error } = await this.client.rpc("revert_payment_allocation", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2601:      const { error: rpcErr } = await this.client.rpc("mark_payment_cleared", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2635:      const { error: rpcErr } = await this.client.rpc("mark_payment_bounced", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2714:        const { data: allocatedRows, error: allocError } = await this.client.rpc(
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2884:      const { error } = await this.client.rpc("upsert_ledger_entry_from_import", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2990:      const { error } = await this.client.rpc("upsert_ledger_entry_from_import", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3094:      const { error } = await this.client.rpc("upsert_ledger_entry_from_import", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4266:      const { data, error } = await this.client.rpc("create_manual_debt", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4321:      const { data, error } = await this.client.rpc("adjust_installment_amount", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4638:      const { data, error } = await this.client.rpc("read_debt_aging_thresholds");
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4683:        async () => await this.client.rpc("compute_debt_aging_summary"),
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5056:      const { data, error } = await this.client.rpc("notify_parent_user", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5104:        const { data, error } = await this.client.rpc("notify_parent_user", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5128:      await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5171:      await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:405:      const { data, error } = await this.client.rpc("create_direct_channel", {
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:637:    const { data, error } = await this.client.rpc("create_direct_channel", {
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:390:    const { data: rpcId, error: rpcError } = await this.client.rpc(
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:347:    const { error } = await this.client.rpc("respond_leave_clarification", {
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:282:    await this.client.rpc("write_audit_log", {
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1192:    const { data, error } = await this.client.rpc("fn_timetable_publish", {
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:327:          await this.client.rpc("write_audit_log", {
+
+# --- COUNT: 89 matching lines ---

@@ -1,0 +1,9 @@
+# AGGREGATION: aria (from censuses/ui-aria)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+      2 src/features/personnel/dashboards/teacher-dashboard.tsx
+      1 src/features/crm/student-detail/academic-tab.tsx
+      1 src/features/crm/parent-year-history-section.tsx
+
+# --- FILES: 3 ---

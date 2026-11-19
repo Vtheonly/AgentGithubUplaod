@@ -1,0 +1,123 @@
+# CENSUS: ui-shadow
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading shadow-(sm|md|lg|xl|2xl|none) -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/crm/parent-detail-drawer.tsx:397:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:485:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:575:                    className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/40 transition-all shadow-sm"
+src/features/crm/parent-detail-drawer.tsx:1096:      <Card className="rounded-xl border border-border/80 bg-surface-panel overflow-hidden shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:1122:                  ? "bg-primary text-primary-foreground shadow-sm"
+src/features/crm/parent-detail-drawer.tsx:1134:                  ? "bg-primary text-primary-foreground shadow-sm"
+src/features/crm/parent-detail-drawer.tsx:1223:                            "rounded-xl border p-2.5 text-xs space-y-1.5 transition-all shadow-sm",
+src/features/crm/parent-detail-drawer.tsx:1841:    <div className="rounded-xl border border-border/80 p-3 text-center bg-card shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:76:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:132:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:220:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:262:        <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/ai/copilot-drawer.tsx:101:    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-border bg-surface-panel shadow-2xl">
+src/features/ai/copilot-drawer.tsx:198:                <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+src/features/ai/copilot-drawer.tsx:222:              <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+src/features/ai/artifact-renderer.tsx:38:        <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-border/60 bg-surface-elevated p-3 shadow-sm">
+src/features/ai/artifact-renderer.tsx:51:        <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-border/60 bg-surface-elevated p-3 shadow-sm">
+src/features/ai/artifact-renderer.tsx:94:    <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3 shadow-sm">
+src/features/financials/receipts-tab.tsx:226:        <div className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-2 text-xs text-muted-foreground shadow-lg">
+src/features/financials/financial-query-console.tsx:148:    <Card className="border-border bg-surface-panel shadow-sm">
+src/features/financials/financial-query-console.tsx:186:                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+src/features/financials/installment-schedule-tab.tsx:339:              ? "border-primary/50 bg-primary/5 shadow-sm"
+src/features/financials/webhook-diagnostics-card.tsx:197:    <Card className="border-border bg-surface-panel shadow-sm" data-testid="webhook-diagnostics-card">
+src/features/financials/payment-detail-drawer.tsx:196:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/financials/payment-detail-drawer.tsx:228:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/academics/timetable/timetable-grid.tsx:284:                                    ? "cursor-pointer hover:brightness-95 hover:shadow-sm"
+src/features/academics/timetable/timetable-tab.tsx:1325:          <div className="w-full max-w-md rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/timetable/timetable-tab.tsx:1469:          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/dashboard/dashboard-calendar.tsx:253:    <Card className="h-full flex flex-col rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
+src/features/academics/timetable/timetable-entry-dialog.tsx:142:      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/dashboard/dashboard-layout-editor.tsx:332:        isActive ? "z-40 ring-2 ring-primary shadow-xl" : "z-10",
+src/features/dashboard/dashboard-layout-editor.tsx:355:            className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
+src/features/dashboard/dashboard-layout-editor.tsx:364:            className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
+src/features/dashboard/dashboard-layout-editor.tsx:377:              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-surface-panel/95 text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/see-details-modal.tsx:368:            <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/see-details-modal.tsx:433:            <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/see-details-modal.tsx:530:                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+src/features/dashboard/see-details-modal.tsx:581:                <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/see-details-modal.tsx:641:                <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/see-details-modal.tsx:712:                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+src/features/dashboard/see-details-modal.tsx:772:                <Card className="border-border/70 bg-surface-panel shadow-sm h-full">
+src/features/dashboard/see-details-modal.tsx:854:      <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/see-details-modal.tsx:893:            <Card key={u.key} className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:255:              <button type="button" aria-label={`Déplacer la section ${item.id}`} onPointerDown={(event) => startMove(item.id, event)} className="pointer-events-auto absolute left-2 top-2 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing" title="Déplacer">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:258:              <button type="button" aria-label={`Redimensionner la section ${item.id}`} onPointerDown={(event) => startResize(item.id, event)} className="pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 w-7 cursor-nwse-resize items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm" title="Redimensionner">
+src/features/academics/placement/student-placement-card.tsx:63:          ? "border-primary bg-primary/10 shadow-sm"
+src/features/dashboard/components/recovery-funnel-card.tsx:497:    <Card className="flex h-full flex-col justify-between border-border/70 bg-surface-panel shadow-sm">
+src/features/academics/placement/class-placement-studio-modal.tsx:234:                    ? "bg-primary text-primary-foreground font-bold shadow-sm"
+src/features/dashboard/components/insights-rail.tsx:67:      <Card className="relative overflow-hidden rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-surface-panel shadow-sm">
+src/features/dashboard/components/insights-rail.tsx:118:              className="w-full h-8 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+src/features/dashboard/components/insights-rail.tsx:199:      <Card className="rounded-xl border border-border/70 bg-surface-panel shadow-sm">
+src/features/academics/placement/class-card-dropzone.tsx:57:    <Card className="flex flex-col h-full border-border bg-card shadow-sm overflow-hidden">
+src/features/dashboard/components/analytics/cross-risk-card.tsx:188:    <Card className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between">
+src/features/dashboard/components/analytics/mix-cards.tsx:66:      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+src/features/dashboard/components/analytics/mix-cards.tsx:184:      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+src/features/dashboard/components/analytics/aging-composition-card.tsx:40:      className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col justify-between"
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:72:      className="border-border/70 bg-surface-panel shadow-sm h-full flex flex-col justify-between"
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:221:    <Card className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col justify-between">
+src/features/dashboard/components/analytics/operational-query-console.tsx:184:    <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1003:      <Card className="border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1052:                      ? "bg-primary text-primary-foreground border-primary shadow-sm font-semibold"
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:47:      className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col"
+src/features/dashboard/components/analytics/executive-cards.tsx:88:      className="border-border/70 bg-surface-panel shadow-sm flex flex-col min-h-full"
+src/features/dashboard/components/analytics/debtors-pareto-card.tsx:87:      className="border-border/70 bg-surface-panel shadow-sm min-h-full flex flex-col justify-between"
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/dashboard/components/analytics/analytics-slicers.tsx:51:          ? "bg-primary text-primary-foreground border-primary shadow-sm font-semibold"
+src/features/dashboard/components/analytics/analytics-slicers.tsx:76:      className="rounded-xl border border-border/70 bg-surface-panel p-3.5 space-y-2.5 shadow-sm"
+src/features/dashboard/components/analytics/stat-strip.tsx:40:    <div className="rounded-xl border border-border/70 bg-surface-panel p-3 flex flex-col justify-between space-y-1 shadow-sm">
+src/features/dashboard/components/sparkline-kpi-card.tsx:134:          "cursor-pointer hover:border-primary/40 hover:bg-surface-elevated/50 hover:shadow-lg hover:shadow-black/20",
+src/features/dashboard/tabs/analytics-tab.tsx:754:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "pilotage" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:762:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "diagnostic" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:770:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "charts" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/alerts-tab.tsx:117:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:131:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:145:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:159:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:175:      <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-border/70 bg-surface-panel p-3 shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:236:            className="h-8 text-xs gap-1.5 shadow-sm"
+src/features/dashboard/tabs/alerts-tab.tsx:266:                className={`cursor-pointer border-border/70 bg-surface-panel hover:bg-surface-elevated/40 transition-all shadow-sm ${
+src/features/dashboard/tabs/reports-tab.tsx:367:      <Card className="rounded-xl border border-primary/40 bg-gradient-to-r from-primary/15 via-primary/5 to-surface-panel p-0 overflow-hidden shadow-sm">
+src/features/dashboard/tabs/reports-tab.tsx:393:            className="gap-2 font-bold shadow-sm whitespace-nowrap self-start md:self-center"
+src/features/dashboard/tabs/reports-tab.tsx:414:              className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/30 transition-all shadow-sm"
+src/features/dashboard/dashboard-page.tsx:351:                className="gap-1 shadow-sm text-xs"
+src/features/dashboard/dashboard-page.tsx:370:                className="gap-1 shadow-sm text-xs"
+src/features/workflow/dag-canvas.tsx:1313:          <div className="absolute bottom-3 right-3 rounded-md border border-border bg-popover/95 shadow-lg p-1.5">
+src/features/settings/general-tab.tsx:135:                      ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
+src/features/settings/theme-editor-modal.tsx:136:          className="rounded-xl border p-4 space-y-3 transition-colors shadow-sm"
+src/features/settings/theme-editor-modal.tsx:163:              className="px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-opacity hover:opacity-90"
+src/features/personnel/management/employee-profile-drawer.tsx:206:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/personnel/management/employee-profile-drawer.tsx:275:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/personnel/management/employee-profile-drawer.tsx:321:              <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-surface-panel shadow-sm">
+src/features/personnel/management/staff-attendance-center.tsx:614:                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+src/shared/layout/window-frame.tsx:42:    <div className="flex h-screen w-screen flex-col overflow-hidden border border-border/80 bg-background text-foreground shadow-2xl">
+src/shared/layout/topbar.tsx:454:              className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+src/shared/layout/toast-viewport.tsx:35:              "flex items-start gap-3 rounded-md border p-3 shadow-lg backdrop-blur-sm animate-slide-up",
+src/shared/layout/page-tabs.tsx:336:          "absolute top-1 bottom-1 rounded-lg bg-popover shadow-sm ring-1 ring-border/50",
+src/shared/ui/slider.tsx:30:        "block h-5 w-5 rounded-full border-2 border-primary bg-background shadow-md",
+src/shared/ui/textarea.tsx:11:        "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm",
+src/shared/ui/tooltip.tsx:31:      "z-[70] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md",
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/shared/ui/auto-form/auto-form-modal.tsx:70:        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-6 shadow-lg">
+src/shared/ui/unified-modal/modal-shell.tsx:50:      "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl",
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/switch.tsx:43:        "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+src/shared/ui/input.tsx:11:        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors",
+src/shared/ui/wizard/wizard.tsx:82:          "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover shadow-lg",
+src/shared/ui/select.tsx:17:      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm",
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/shared/ui/markdown-view.tsx:270:        <div className="my-2.5 overflow-hidden rounded-lg border border-border bg-surface-panel shadow-sm">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:61:            "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl transition-transform duration-300 ease-out",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:74:              <Avatar className="h-13 w-13 rounded-2xl ring-2 ring-primary/20 shadow-md shrink-0">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:113:                  className="rounded-xl border border-border/60 bg-card/90 p-2.5 shadow-sm transition-all hover:border-border"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:143:                        ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:181:                  className="h-8 text-xs font-semibold shadow-sm gap-1.5"
+
+# --- COUNT: 116 matching lines ---

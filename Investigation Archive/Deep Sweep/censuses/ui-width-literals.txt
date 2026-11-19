@@ -1,0 +1,78 @@
+# CENSUS: ui-width-literals
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading w-\[[0-9]+px\]|max-w-\[[0-9]+px\]|w-\[[0-9]+rem\]|max-w-\[[0-9]+rem\] -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:712:                        <span className="text-xs font-medium truncate max-w-[180px]">
+src/features/crm/excel-import-modal.tsx:716:                        <span className="text-xs font-medium truncate max-w-[220px]">
+src/features/settings/rbac-matrix-editor.tsx:282:                <th className="text-left p-3 sticky left-0 bg-muted/30 z-10 min-w-[200px]">Permission</th>
+src/features/settings/rbac-matrix-editor.tsx:284:                  <th key={role} className="p-3 text-center min-w-[120px]">
+src/features/financials/financial-query-console.tsx:200:          <div className="relative flex-1 min-w-[240px]">
+src/features/financials/financial-query-console.tsx:351:                      <td className="py-2.5 px-3 max-w-[260px]">
+src/features/financials/financials-page.tsx:745:        <div className="flex flex-col max-w-[170px]">
+src/features/financials/debt-aging-tab.tsx:361:          className="text-xs text-muted-foreground max-w-[26rem] line-clamp-2"
+src/features/financials/debt-aging-tab.tsx:492:                <SelectTrigger className="w-[190px]" aria-label="Filtrer par statut">
+src/features/financials/debt-aging-tab.tsx:505:                <SelectTrigger className="w-[170px]" aria-label="Filtrer par année d'origine">
+src/features/financials/installment-schedule-tab.tsx:768:              <span className="max-w-[180px] truncate">
+src/features/settings/pricing/additional-services-card.tsx:63:              <div className="flex-1 min-w-[200px]">
+src/features/settings/pricing/complementary-services-card.tsx:70:              <div className="flex-1 min-w-[200px]">
+src/features/settings/pricing/discounts-card.tsx:75:              <div className="flex-1 min-w-[200px]">
+src/features/settings/pricing/transport-card.tsx:91:                <div className="flex-1 min-w-[200px]">
+src/features/dashboard/dashboard-calendar.tsx:344:                        className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] leading-none ${
+src/features/settings/backup-tab.tsx:592:              className="min-w-[180px]"
+src/features/settings/backup-tab.tsx:837:            className="min-w-[260px]"
+src/features/settings/sync-tab.tsx:337:                      <td className="p-2 truncate max-w-[160px]" title={e.sourceFile ?? ""}>
+src/features/dashboard/see-details-modal.tsx:588:                    <div className="relative flex h-[130px] w-[130px] items-center justify-center shrink-0">
+src/features/dashboard/see-details-modal.tsx:805:                              <td className="px-3 py-2 font-medium text-foreground truncate max-w-[150px]">
+src/features/settings/conflict-resolver-modal.tsx:240:                      className="h-6 flex-1 min-w-[120px] rounded border border-input bg-background px-2 text-[11px] font-mono"
+src/features/dashboard/components/recovery-funnel-card.tsx:671:                <table className="w-full min-w-[760px] border-collapse text-sm">
+src/features/dashboard/components/recovery-funnel-card.tsx:686:                          <div className="max-w-[220px] truncate font-medium text-foreground">
+src/features/dashboard/components/recovery-funnel-card.tsx:693:                        <td className="max-w-[180px] px-3 py-2.5 text-xs text-muted-foreground">
+src/features/personnel/workflow-monitor-tab.tsx:87:                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[220px]">{r.workflowName}</td>
+src/features/personnel/workflow-monitor-tab.tsx:93:                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">{r.actorName}</td>
+src/features/dashboard/components/analytics/operational-query-console.tsx:1065:            <div className="relative flex-1 min-w-[240px]">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1242:                              className="text-foreground font-medium hover:text-primary hover:underline truncate max-w-[130px] text-left"
+src/features/dashboard/components/analytics/operational-query-console.tsx:1302:                        <td className="py-2.5 px-3 max-w-[200px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:698:                      <span className="font-medium truncate max-w-[170px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:784:                    <td className="py-2 px-1 font-medium truncate max-w-[140px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:846:                  <span className="font-medium truncate max-w-[180px]">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:491:              <div className="relative min-w-[260px] flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 text-xs" placeholder="Rechercher famille, élève, référence, catégorie…" /></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/dashboard/components/analytics/info-tip.tsx:85:          className="w-max max-w-[380px] px-3 py-2.5 space-y-1.5 text-left leading-relaxed"
+src/features/dashboard/components/sparkline-kpi-card.tsx:202:          <div className="w-[92px] h-[36px] shrink-0 mb-1" aria-hidden="true">
+src/features/personnel/management/employee-directory.tsx:206:                <SelectTrigger className="w-[200px] h-9">
+src/features/personnel/management/employee-directory.tsx:217:                <SelectTrigger className="w-[160px] h-9">
+src/features/personnel/management/chat-panel.tsx:588:                              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-status-danger text-status-danger-foreground text-[10px] font-semibold">
+src/features/personnel/management/chat-panel.tsx:737:                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 pl-2 pr-1 py-0.5 text-[11px] max-w-[220px]"
+src/features/personnel/management/chat-panel.tsx:1011:            className="max-h-44 max-w-[260px] object-cover"
+src/features/personnel/management/chat-panel.tsx:1030:    <div className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-background/60 px-2 py-1.5 max-w-[280px]">
+src/features/personnel/management/expense-review-section.tsx:382:                      <td className="py-2.5 px-3 max-w-[220px] text-muted-foreground">
+src/features/workflow/workflow-page.tsx:776:                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[200px]">
+src/features/workflow/workflow-page.tsx:791:                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">
+src/features/personnel/management/staff-attendance-center.tsx:508:                      <td className="py-2.5 px-3 max-w-[280px]">
+src/features/personnel/management/requests-management.tsx:330:                      <td className="py-2.5 px-3 max-w-[280px]">
+src/features/workflow/node-inspector-drawer.tsx:339:                <SelectTrigger className="h-7 w-[170px] text-xs">
+src/features/workflow/node-inspector-drawer.tsx:543:        <SelectTrigger className={`${h} w-[72px] text-xs`}>
+src/features/personnel/management/task-management.tsx:301:                <SelectTrigger className="w-[170px] h-9">
+src/features/personnel/management/task-management.tsx:318:                <SelectTrigger className="w-[160px] h-9">
+src/features/personnel/management/task-management.tsx:337:                  <SelectTrigger className="w-[180px] h-9">
+src/features/academics/timetable/timetable-grid.tsx:233:      <table className="w-full min-w-[720px] border-collapse text-xs">
+src/features/academics/timetable/timetable-grid.tsx:269:                    className="border-b border-l border-border p-1 min-w-[120px]"
+src/features/academics/timetable/timetable-tab.tsx:615:                    <SelectTrigger className="h-8 w-[150px] text-xs">
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/features/academics/placement/student-placement-card.tsx:126:                <span className="truncate max-w-[100px] text-foreground font-semibold">
+src/shared/ui/separator.tsx:15:      orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
+src/features/academics/academic-year-detail-drawer.tsx:490:        <div className="relative flex-1 min-w-[200px]">
+src/features/academics/academic-year-detail-drawer.tsx:798:        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+src/features/academics/academic-year-detail-drawer.tsx:1070:        <div className="relative flex-1 min-w-[200px]">
+src/shared/ui/unified-modal/types.ts:76:  sm: "w-[400px]",
+src/shared/ui/unified-modal/types.ts:77:  md: "w-[560px]",
+src/shared/ui/unified-modal/types.ts:78:  lg: "w-[820px]",
+src/features/academics/teachers-tab.tsx:246:          <div className="relative flex-1 min-w-[240px]">
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/features/academics/students-directory-tab.tsx:166:            <SelectTrigger className="w-[170px]">
+src/features/academics/students-directory-tab.tsx:179:            <SelectTrigger className="w-[170px]">
+src/shared/layout/page-tabs.tsx:320:            "inline-flex flex-col items-stretch gap-1 w-[200px] shrink-0",
+src/shared/layout/page-tabs.tsx:529:        "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none",
+
+# --- COUNT: 71 matching lines ---

@@ -1,0 +1,12 @@
+# CENSUS: ui-native-dialogs
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading window\.confirm|window\.alert|[^.a-zA-Z]confirm\(|[^.a-zA-Z]alert\( -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/settings/configuration-tab.tsx:149:          if (!confirm("Réinitialiser la configuration? L'application redémarrera en mode mock.")) return;
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:500:      console.info(`[SupabaseOverdueAlerts] resolved ${staleIds.length} stale installment alert(s).`);
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:135:  async function confirm(ackIncompleteNotes: boolean) {
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:197:      onSubmit={() => confirm(false)}
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:251:                onClick={() => confirm(true)}
+
+# --- COUNT: 5 matching lines ---

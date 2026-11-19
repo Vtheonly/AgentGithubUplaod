@@ -1,0 +1,10 @@
+# VOCABULARY: distinct values of transitions
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+    109 transition-colors
+     63 transition-all
+     15 transition-transform
+      8 transition-opacity
+      1 transition-oriented
+
+# --- DISTINCT: 5 values ---

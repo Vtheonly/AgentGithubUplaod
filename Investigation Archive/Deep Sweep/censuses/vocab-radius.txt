@@ -1,0 +1,11 @@
+# VOCABULARY: distinct values of radius
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+    305 rounded-md
+    204 rounded-lg
+    145 rounded-full
+     78 rounded-xl
+      9 rounded-sm
+      3 rounded-2xl
+
+# --- DISTINCT: 6 values ---

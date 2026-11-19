@@ -1,0 +1,26 @@
+# AGGREGATION: fixed-surfaces (from censuses/ui-fixed-better)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+      4 src/shared/ui/unified-modal/modal-shell.tsx
+      2 src/shared/ui/wizard/wizard.tsx
+      2 src/shared/ui/entity-drawer/entity-detail-drawer.tsx
+      2 src/shared/ui/auto-form/auto-form-modal.tsx
+      2 src/features/ai/chart-svg.tsx
+      2 src/features/academics/timetable/timetable-tab.tsx
+      1 src/shared/layout/toast-viewport.tsx
+      1 src/features/personnel/management/upcoming-payroll-payments.tsx
+      1 src/features/personnel/management/task-detail-drawer.tsx
+      1 src/features/personnel/management/payroll-management.tsx
+      1 src/features/personnel/dashboards/teacher-dashboard.tsx
+      1 src/features/financials/receipts-tab.tsx
+      1 src/features/financials/manual-debt-modal.tsx
+      1 src/features/financials/installment-schedule-tab.tsx
+      1 src/features/dashboard/components/analytics/data-inspector-core.tsx
+      1 src/features/crm/parent-year-history-section.tsx
+      1 src/features/crm/crm-page.tsx
+      1 src/features/auth/splash-screen.tsx
+      1 src/features/ai/copilot-drawer.tsx
+      1 src/features/academics/timetable/timetable-entry-dialog.tsx
+
+# --- FILES: 20 ---

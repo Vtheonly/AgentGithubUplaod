@@ -1,0 +1,190 @@
+# CENSUS: ui-overflow-scroll
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading overflow-(y-auto|y-scroll|x-auto|x-scroll|auto|hidden) -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/app-shell.tsx:48:          <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+src/app/app-shell.tsx:52:              <main className="min-h-0 flex-1 overflow-y-auto">
+src/app/app-shell.tsx:68:        <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+src/app/app-shell.tsx:72:            <main className="min-h-0 flex-1 overflow-y-auto">
+src/features/crm/excel-import-modal.tsx:698:              <ul className="space-y-2 max-h-64 overflow-y-auto">
+src/features/crm/excel-import-modal.tsx:765:            <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/excel-import-modal.tsx:797:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 max-h-32 overflow-y-auto">
+src/features/crm/excel-import-modal.tsx:844:            <div className="w-full max-w-md h-2 rounded-full bg-muted overflow-hidden">
+src/features/crm/excel-import-modal.tsx:876:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 max-h-48 overflow-y-auto">
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/crm/parent-detail-drawer.tsx:1043:          <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex" aria-hidden="true">
+src/features/crm/parent-detail-drawer.tsx:1096:      <Card className="rounded-xl border border-border/80 bg-surface-panel overflow-hidden shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:1270:                            <div className="h-1 rounded bg-border overflow-hidden">
+src/features/crm/student-detail/academic-tab.tsx:283:              <div className="rounded-md border border-border overflow-hidden mb-3">
+src/features/crm/student-detail/academic-tab.tsx:437:                <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/batch-registration/parent-picker-step.tsx:140:        <div className="rounded-md border border-border divide-y divide-border max-h-72 overflow-y-auto">
+src/features/ai/copilot-drawer.tsx:146:      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
+src/features/financials/unified-payment-modal.tsx:640:                  <ul className="mt-2 rounded-md border border-border max-h-48 overflow-y-auto">
+src/features/financials/debt-meter.tsx:144:      <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+src/features/financials/expense-attachments-gallery.tsx:179:                className="rounded-md border border-border overflow-hidden bg-background"
+src/features/financials/cross-service-matrix.tsx:41:      <CardContent className="p-3 overflow-x-auto">
+src/features/financials/cross-service-matrix.tsx:82:                      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:102:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:115:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:128:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/financial-query-console.tsx:280:        <div className="rounded-md border border-border overflow-hidden">
+src/features/financials/financial-query-console.tsx:288:            <div className="max-h-[380px] overflow-y-auto">
+src/features/financials/payment-slider.tsx:221:        <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
+src/features/financials/financials-page.tsx:1258:                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/installment-schedule-tab.tsx:355:          <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+src/features/financials/webhook-diagnostics-card.tsx:273:        <div className="rounded-md border border-border overflow-hidden" data-testid="webhook-diagnostics-table">
+src/features/financials/webhook-diagnostics-card.tsx:280:            <div className="max-h-[420px] overflow-y-auto">
+src/features/dashboard/dashboard-calendar.tsx:253:    <Card className="h-full flex flex-col rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
+src/features/dashboard/dashboard-calendar.tsx:296:      <CardContent className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+src/features/dashboard/dashboard-calendar.tsx:301:          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-surface-panel">
+src/features/dashboard/dashboard-calendar.tsx:391:        <div className="lg:col-span-5 flex flex-col rounded-xl border border-border/70 bg-surface-elevated/20 overflow-hidden min-h-[230px]">
+src/features/dashboard/dashboard-layout-editor.tsx:330:          ? "min-h-0 overflow-hidden rounded-xl ring-1 ring-primary/20 bg-surface-background/80"
+src/features/dashboard/see-details-modal.tsx:929:                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/dashboard/components/recovery-funnel-card.tsx:567:                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/dashboard/components/recovery-funnel-card.tsx:670:              <div className="overflow-x-auto rounded-lg border border-border/70">
+src/features/dashboard/components/insights-rail.tsx:67:      <Card className="relative overflow-hidden rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-surface-panel shadow-sm">
+src/features/dashboard/components/insights-rail.tsx:189:          <div className="h-1 w-full rounded-full bg-muted/60 overflow-hidden mt-1">
+src/features/dashboard/components/analytics/aging-composition-card.tsx:76:              className="flex h-7 w-full rounded-xl overflow-hidden border border-border/60 shadow-inner"
+src/features/dashboard/components/analytics/aging-composition-card.tsx:105:            <div className="overflow-x-auto">
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:114:      <CardContent className="p-0 flex-1 overflow-x-auto">
+src/features/dashboard/components/analytics/operational-query-console.tsx:594:              <div className="mt-3 max-h-40 overflow-auto space-y-1.5">
+src/features/dashboard/components/analytics/operational-query-console.tsx:733:              <div className="mt-3 max-h-52 overflow-auto space-y-1.5">
+src/features/dashboard/components/analytics/operational-query-console.tsx:777:            <div className="max-h-52 overflow-auto">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1161:          <div className="rounded-xl border border-border/70 overflow-hidden">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1171:              <div className="max-h-[380px] overflow-y-auto">
+src/features/dashboard/components/analytics/executive-cards.tsx:217:                      <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:546:            <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:663:                  <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:771:          <div className="overflow-x-auto">
+src/features/dashboard/components/analytics/executive-cards.tsx:853:                <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:467:              <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-stacked-bar">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:498:            <div className="overflow-auto rounded-xl border border-border/70">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:584:            <div className="flex h-2 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-compact-bar">
+src/features/dashboard/components/analytics/info-tip.tsx:28: * without clipping (the shared TooltipContent lost its overflow-hidden and
+src/features/dashboard/components/sparkline-kpi-card.tsx:132:        "group relative overflow-hidden rounded-xl border border-border/70 bg-surface-panel p-0 transition-all duration-200",
+src/features/dashboard/tabs/reports-tab.tsx:367:      <Card className="rounded-xl border border-primary/40 bg-gradient-to-r from-primary/15 via-primary/5 to-surface-panel p-0 overflow-hidden shadow-sm">
+src/features/profile/profile-page.tsx:171:      <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+src/features/workflow/test-studio-drawer.tsx:214:          <ul className="mt-2 max-h-44 overflow-y-auto rounded-md border border-border divide-y divide-border">
+src/features/workflow/test-studio-drawer.tsx:369:            <ul className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border">
+src/features/workflow/test-studio-drawer.tsx:439:                    <pre className="text-[10px] leading-relaxed bg-surface-background border border-border rounded px-2 py-1.5 overflow-x-auto max-h-32">
+src/features/workflow/workflow-page.tsx:333:        <ul className="flex-1 overflow-y-auto divide-y divide-border">
+src/features/workflow/workflow-page.tsx:744:      <div className="flex-1 overflow-y-auto">
+src/features/workflow/node-palette.tsx:66:    <aside className="flex flex-col w-64 shrink-0 rounded-lg border border-border bg-card overflow-hidden">
+src/features/workflow/node-palette.tsx:75:      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+src/features/workflow/dag-canvas.tsx:901:      <CardContent className="relative flex-1 p-0 overflow-hidden">
+src/features/workflow/node-inspector-drawer.tsx:490:            <pre className="max-h-52 overflow-auto border-t border-border bg-muted/30 p-3 text-[11px] leading-relaxed font-mono">
+src/features/settings/rbac-matrix-editor.tsx:278:        <div className="rounded-md border border-border overflow-x-auto">
+src/features/settings/audit-log-tab.tsx:468:          <div className="rounded-md border border-border/70 overflow-hidden">
+src/features/settings/audit-log-tab.tsx:469:            <div className="max-h-[40vh] overflow-y-auto">
+src/features/settings/audit-log-tab.tsx:514:                <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+src/features/settings/audit-log-tab.tsx:520:                <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
+src/features/settings/approvals-tab.tsx:857:                  <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/approvals-tab.tsx:1082:                  <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/approvals-tab.tsx:1406:                    <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/accounts-tab.tsx:266:            <div className="overflow-x-auto">
+src/features/settings/danger-zone-card.tsx:107:    <div className="max-h-56 overflow-y-auto rounded-md border">
+src/features/settings/pricing/tuition-card.tsx:116:        <div className="overflow-x-auto">
+src/features/settings/pricing/pricing-year-config-bar.tsx:230:                <div className="mt-2 max-h-56 overflow-auto rounded border bg-background">
+src/features/settings/backup-tab.tsx:765:              <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/settings/backup-tab.tsx:783:            <div className="rounded-md border border-border max-h-56 overflow-y-auto">
+src/features/settings/backup-tab.tsx:982:            <div className="overflow-x-auto">
+src/features/settings/backup-tab.tsx:1304:                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+src/features/settings/sync-tab.tsx:313:            <div className="rounded-md border border-border overflow-hidden">
+src/features/settings/conflict-resolver-modal.tsx:142:        <div className="space-y-3 max-h-[45vh] overflow-y-auto pr-1">
+src/features/settings/conflict-resolver-modal.tsx:269:            className="text-[10px] font-mono bg-muted/40 border border-border rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap break-all"
+src/features/personnel/workflow-monitor-tab.tsx:59:      <div className="flex-1 overflow-y-auto">
+src/features/personnel/dashboards/teacher-dashboard.tsx:303:          <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1">
+src/features/personnel/dashboards/teacher-dashboard.tsx:350:          <div className="flex-1 overflow-hidden">
+src/features/personnel/releve-tab.tsx:238:            <ul className="divide-y divide-border text-xs max-h-72 overflow-y-auto">
+src/features/personnel/management/chat-panel.tsx:557:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:561:          <div className="flex-1 overflow-y-auto">
+src/features/personnel/management/chat-panel.tsx:610:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:639:              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+src/features/personnel/management/chat-panel.tsx:898:                <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
+src/features/personnel/management/chat-panel.tsx:1004:          className="block rounded-md overflow-hidden border border-border/40 hover:opacity-90 transition-opacity"
+src/features/personnel/management/expense-review-section.tsx:205:              <div className="overflow-x-auto">
+src/features/personnel/management/expense-review-section.tsx:343:            <div className="overflow-x-auto">
+src/features/personnel/management/employee-profile-drawer.tsx:466:              <div className="space-y-1.5 max-h-80 overflow-y-auto">
+src/features/personnel/management/staff-attendance-center.tsx:471:            <div className="overflow-x-auto">
+src/features/personnel/management/requests-management.tsx:289:            <div className="overflow-x-auto">
+src/features/personnel/management/payroll-management.tsx:419:          <div className="overflow-x-auto">
+src/features/personnel/management/upcoming-payroll-payments.tsx:156:        <div className="overflow-x-auto">
+src/features/personnel/management/upcoming-payroll-payments.tsx:366:        <div className="rounded-lg border border-border/60 overflow-hidden">
+src/features/personnel/management/upcoming-payroll-payments.tsx:371:          <div className="max-h-72 overflow-y-auto">
+src/features/academics/timetable/timetable-grid.tsx:232:    <div className="overflow-x-auto">
+src/features/academics/timetable/timetable-tab.tsx:467:              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+src/features/academics/timetable/timetable-tab.tsx:918:                          <div className="mt-2 overflow-hidden rounded-md border border-border">
+src/features/academics/timetable/timetable-tab.tsx:929:                            <div className="max-h-72 overflow-y-auto">
+src/features/academics/timetable/timetable-tab.tsx:1469:          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/timetable/timetable-entry-dialog.tsx:142:      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/roll-call-screen.tsx:209:          <div className="flex rounded-md border border-border overflow-hidden">
+src/features/academics/roll-call-screen.tsx:246:      <div className="flex-1 overflow-y-auto px-6 pb-20">
+src/features/academics/placement/class-student-multi-select.tsx:221:          "border border-border rounded-lg divide-y divide-border overflow-y-auto bg-background",
+src/features/academics/placement/class-placement-studio-modal.tsx:221:        <div className="flex items-center gap-1 overflow-x-auto border-b border-border pb-2">
+src/features/academics/placement/class-placement-studio-modal.tsx:315:          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:317:            <div className="lg:col-span-5 flex flex-col h-full border rounded-lg bg-surface-panel overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:384:              <div className="p-2 space-y-1.5 flex-1 overflow-y-auto max-h-[500px]">
+src/features/academics/placement/class-placement-studio-modal.tsx:408:            <div className="lg:col-span-7 flex flex-col h-full space-y-3 overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:434:                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 overflow-y-auto max-h-[540px]">
+src/features/academics/placement/class-placement-studio-modal.tsx:466:          <div className="border rounded-lg overflow-hidden flex-1 flex flex-col bg-card">
+src/features/academics/placement/class-placement-studio-modal.tsx:467:            <div className="overflow-x-auto flex-1">
+src/features/academics/placement/class-placement-studio-modal.tsx:542:          <div className="space-y-4 flex-1 overflow-y-auto">
+src/features/academics/placement/class-placement-studio-modal.tsx:610:          <div className="space-y-4 flex-1 overflow-y-auto">
+src/features/academics/placement/class-card-dropzone.tsx:57:    <Card className="flex flex-col h-full border-border bg-card shadow-sm overflow-hidden">
+src/features/academics/placement/class-card-dropzone.tsx:146:      <CardContent className="p-2.5 flex-1 overflow-y-auto space-y-1.5 max-h-[460px]">
+src/features/academics/grade-levels-class-view.tsx:162:            <Card key={gradeCode} className="overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:114:      <div className="flex items-center gap-1 border-b border-border mb-4 overflow-x-auto">
+src/features/academics/academic-year-detail-drawer.tsx:191:        className="h-1.5 rounded-full bg-muted overflow-hidden"
+src/features/academics/academic-year-detail-drawer.tsx:412:          <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:446:                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:520:        <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+src/features/academics/academic-year-detail-drawer.tsx:843:        <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+src/features/academics/academic-year-detail-drawer.tsx:1100:        <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+src/features/academics/class-subjects-tab.tsx:182:          <div className="rounded-md border border-border overflow-hidden">
+src/features/academics/class-attendance-tab.tsx:128:            <div className="rounded-md border border-border overflow-hidden">
+src/shared/ui/slider.tsx:25:    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
+src/shared/ui/avatar.tsx:12:      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:264:        <div className="rounded-lg border border-border overflow-hidden max-h-[45vh] overflow-y-auto">
+src/shared/ui/scroll-area.tsx:11:    className={cn("relative overflow-hidden", className)}
+src/shared/ui/tooltip.tsx:11: * - NO internal clipping: the former `overflow-hidden` truncated long
+src/features/academics/class-grades-tab.tsx:178:            <div className="rounded-md border border-border overflow-hidden">
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/features/academics/grade-entry-screen.tsx:561:      <div className="flex-1 overflow-y-auto px-6 pb-20">
+src/features/academics/students-directory-tab.tsx:281:        <div className="rounded-lg border border-border overflow-hidden">
+src/features/academics/students-directory-tab.tsx:282:          <div className="overflow-x-auto">
+src/shared/ui/kpi-card.tsx:35:    <Card className={cn("overflow-hidden", className)}>
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:260:          <div className="space-y-2 max-h-80 overflow-y-auto">
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:374:          <div className="space-y-2 max-h-80 overflow-y-auto">
+src/shared/ui/latex.tsx:82:        display ? "block overflow-x-auto py-1" : "inline-block max-w-full",
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:272:          <div className="space-y-2 max-h-72 overflow-y-auto">
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:375:          <div className="space-y-2 max-h-72 overflow-y-auto">
+src/shared/ui/unified-modal/parts.tsx:95:        "flex-1 min-h-0 overflow-y-auto",
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:71:  // `flex-1 overflow-y-auto` actually bound the content: the footer stays
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/features/academics/clubs/club-detail-drawer.tsx:197:          <div className="space-y-1.5 max-h-72 overflow-y-auto">
+src/features/academics/clubs/club-detail-drawer.tsx:312:          <div className="space-y-2 max-h-96 overflow-y-auto">
+src/features/academics/clubs/club-detail-drawer.tsx:707:          <div className="max-h-40 overflow-y-auto border border-border rounded p-2 space-y-1">
+src/features/academics/clubs/clubs-tab.tsx:292:      className={`overflow-hidden transition-all hover:border-primary/40 cursor-pointer ${club.isArchived ? "opacity-60" : ""} ${!club.isActive && !club.isArchived ? "border-status-warning/40" : ""}`}
+src/shared/ui/progress.tsx:11:    className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+src/features/academics/subject-configurations-panel.tsx:247:      <div className="rounded-lg border border-border overflow-hidden">
+src/features/academics/subject-configurations-panel.tsx:248:        <div className="overflow-x-auto">
+src/shared/ui/wizard/wizard.tsx:122:          <div className="max-h-[60vh] overflow-auto p-4">
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/shared/ui/markdown-view.tsx:270:        <div className="my-2.5 overflow-hidden rounded-lg border border-border bg-surface-panel shadow-sm">
+src/shared/ui/markdown-view.tsx:271:          <div className="overflow-x-auto">
+src/shared/ui/markdown-view.tsx:325:        <pre className="my-2 overflow-x-auto rounded-lg border border-border/80 bg-black/40 p-3 font-mono text-[11px] text-primary-foreground">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:131:            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border/60 bg-surface-panel/40 overflow-x-auto no-scrollbar">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:167:          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+src/shared/layout/window-frame.tsx:42:    <div className="flex h-screen w-screen flex-col overflow-hidden border border-border/80 bg-background text-foreground shadow-2xl">
+src/shared/layout/window-frame.tsx:68:      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+src/shared/layout/sidebar.tsx:79:      <nav className="flex-1 overflow-y-auto p-2 no-scrollbar">
+src/shared/layout/topbar.tsx:465:        <div className="max-h-[60vh] overflow-y-auto p-2">
+src/shared/layout/page-tabs.tsx:122:   * `className="flex-1 overflow-y-auto mt-4"` overrides that existed across
+src/shared/layout/page-tabs.tsx:305:  // `overflow-x-auto` + hidden scrollbars so the segmented control can
+src/shared/layout/page-tabs.tsx:308:    ? "flex overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+src/shared/layout/page-tabs.tsx:503:        scrollable && "overflow-y-auto",
+
+# --- COUNT: 183 matching lines ---

@@ -1,0 +1,297 @@
+# CENSUS: ui-overflow-truncate
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading truncate|line-clamp|text-ellipsis|overflow-hidden -g *.tsx (baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/app-shell.tsx:48:          <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+src/app/app-shell.tsx:68:        <div className="flex h-full w-full overflow-hidden bg-background text-foreground">
+src/features/crm/excel-import-modal.tsx:712:                        <span className="text-xs font-medium truncate max-w-[180px]">
+src/features/crm/excel-import-modal.tsx:716:                        <span className="text-xs font-medium truncate max-w-[220px]">
+src/features/crm/excel-import-modal.tsx:765:            <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/excel-import-modal.tsx:824:              <span>Checksum :</span><span className="text-foreground truncate">{previewCtx.fileChecksum?.slice(0, 24)}…</span>
+src/features/crm/excel-import-modal.tsx:844:            <div className="w-full max-w-md h-2 rounded-full bg-muted overflow-hidden">
+src/features/crm/parent-year-history-section.tsx:234:                      <p className="truncate font-medium">
+src/features/crm/parent-year-history-section.tsx:270:                      <p className="truncate font-medium">
+src/features/crm/parent-year-history-section.tsx:320:                            <span className="min-w-0 truncate">
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/crm/crm-page.tsx:487:                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+src/features/crm/crm-page.tsx:640:                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+src/features/crm/parent-detail-drawer.tsx:589:                          <p className="text-sm font-bold text-foreground hover:text-primary transition-colors truncate">
+src/features/crm/parent-detail-drawer.tsx:1043:          <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex" aria-hidden="true">
+src/features/crm/parent-detail-drawer.tsx:1096:      <Card className="rounded-xl border border-border/80 bg-surface-panel overflow-hidden shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:1202:                          <span className="text-foreground truncate">
+src/features/crm/parent-detail-drawer.tsx:1233:                              className="truncate"
+src/features/crm/parent-detail-drawer.tsx:1270:                            <div className="h-1 rounded bg-border overflow-hidden">
+src/features/crm/parent-detail-drawer.tsx:1851:        <span className="text-[10px] text-muted-foreground mt-0.5 block truncate">
+src/features/crm/parent-detail-drawer.tsx:1975:          <p className="font-semibold text-foreground text-sm truncate">
+src/features/crm/student-detail/academic-tab.tsx:283:              <div className="rounded-md border border-border overflow-hidden mb-3">
+src/features/crm/student-detail/academic-tab.tsx:437:                <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/student-detail/info-tab.tsx:160:                  className="font-bold text-sm text-foreground hover:text-primary hover:underline transition-colors truncate block text-left"
+src/features/crm/student-detail/info-tab.tsx:198:                      className="text-left font-medium text-xs text-foreground hover:text-primary hover:underline truncate flex-1"
+src/features/crm/student-detail/documents-tab.tsx:266:                  <p className="text-sm font-medium truncate" title={d.fileName}>
+src/features/crm/batch-registration/parent-picker-step.tsx:149:                <p className="text-sm font-medium truncate">{parentDisplayName(p)}</p>
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:249:          <p className="text-sm font-medium text-foreground truncate">
+src/features/ai/copilot-drawer.tsx:165:                  <span className="truncate">{suggestion}</span>
+src/features/ai/copilot-drawer.tsx:181:                  <span className="truncate opacity-75">
+src/features/ai/artifact-renderer.tsx:41:            <span className="truncate text-xs font-semibold text-foreground">{artifact.title}</span>
+src/features/ai/artifact-renderer.tsx:54:            <span className="truncate text-xs font-semibold text-foreground">{artifact.title}</span>
+src/features/ai/artifact-renderer.tsx:101:            <p className="truncate text-xs font-semibold text-foreground">{artifact.title}</p>
+src/features/ai/artifact-renderer.tsx:102:            <p className="truncate font-mono text-[10px] text-muted-foreground">
+src/features/ai/artifact-renderer.tsx:123:            {artifact.truncated ? " (export tronqué à 500)" : ""}
+src/features/ai/artifact-renderer.tsx:127:          <p className="truncate font-mono text-[9.5px] text-muted-foreground/70">
+src/features/ai/chart-svg.tsx:23: * text overflow at French label lengths (labels truncate with
+src/features/financials/unified-payment-modal.tsx:550:          <span className="truncate">
+src/features/financials/unified-payment-modal.tsx:653:                            <p className="text-sm font-medium truncate">
+src/features/financials/unified-payment-modal.tsx:676:                      <p className="text-sm font-semibold truncate">
+src/features/financials/unified-payment-modal.tsx:684:                      <p className="text-xs text-muted-foreground truncate">
+src/features/financials/unified-payment-modal.tsx:688:                      <p className="text-xs text-muted-foreground truncate">
+src/features/financials/unified-payment-modal.tsx:694:                      <p className="text-xs text-muted-foreground truncate">
+src/features/financials/unified-payment-modal.tsx:698:                    <p className="text-[11px] text-muted-foreground italic truncate">{itemTitle}</p>
+src/features/financials/unified-payment-modal.tsx:862:                      <span className="truncate">
+src/features/financials/unified-payment-modal.tsx:1051:                        <span className="text-xs text-muted-foreground truncate">
+src/features/financials/unified-payment-modal.tsx:1147:                <span className="font-semibold truncate ml-3">
+src/features/financials/debt-meter.tsx:144:      <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+src/features/financials/expense-attachments-gallery.tsx:179:                className="rounded-md border border-border overflow-hidden bg-background"
+src/features/financials/expense-attachments-gallery.tsx:200:                  <p className="text-[11px] font-medium truncate" title={a.fileName}>
+src/features/financials/cross-service-matrix.tsx:82:                      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+src/features/academics/exams-tab.tsx:74:          {ex.description && <p className="text-xs text-muted-foreground line-clamp-2">{ex.description}</p>}
+src/features/academics/timetable/timetable-grid.tsx:294:                                <span className="truncate text-[11px] font-semibold text-inherit">
+src/features/academics/timetable/timetable-grid.tsx:298:                                <span className="truncate text-[10px] font-medium text-inherit opacity-80">
+src/features/academics/timetable/timetable-tab.tsx:467:              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+src/features/academics/timetable/timetable-tab.tsx:918:                          <div className="mt-2 overflow-hidden rounded-md border border-border">
+src/features/academics/timetable/timetable-tab.tsx:1081:                      <p className="truncate text-sm font-medium text-foreground">
+src/features/academics/timetable/timetable-tab.tsx:1152:                      <span className="truncate text-[11px] text-muted-foreground">
+src/features/academics/homework-history-tab.tsx:49:          {hw.description && <p className="text-xs text-muted-foreground line-clamp-2">{hw.description}</p>}
+src/features/financials/cash-flow-radar.tsx:102:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:115:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:128:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/academics/roll-call-screen.tsx:209:          <div className="flex rounded-md border border-border overflow-hidden">
+src/features/academics/roll-call-screen.tsx:267:                      <p className="text-sm font-medium truncate">
+src/features/financials/financial-query-console.tsx:280:        <div className="rounded-md border border-border overflow-hidden">
+src/features/financials/payment-slider.tsx:221:        <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
+src/features/financials/payment-slider.tsx:239:                <span className="text-[10px] font-medium leading-tight truncate w-full text-center">
+src/features/financials/payment-slider.tsx:242:                <span className="text-[9px] text-muted-foreground leading-tight truncate w-full text-center">
+src/features/academics/placement/class-student-multi-select.tsx:269:                  <span className="block text-xs font-medium text-foreground truncate">
+src/features/academics/placement/class-student-multi-select.tsx:277:                  <span className="block text-[10px] text-muted-foreground font-mono truncate">
+src/features/academics/placement/class-student-multi-select.tsx:284:                    className="text-[10px] px-1.5 py-0 max-w-28 truncate shrink-0"
+src/features/financials/expense-submit-modal.tsx:339:                  <span className="truncate">
+src/features/academics/placement/student-placement-card.tsx:81:            <span className="font-semibold text-xs text-foreground truncate">
+src/features/academics/placement/student-placement-card.tsx:115:              <span className="truncate">Ex: {candidate.originClassName}</span>
+src/features/academics/placement/student-placement-card.tsx:126:                <span className="truncate max-w-[100px] text-foreground font-semibold">
+src/features/financials/expense-detail-drawer.tsx:412:              <span className="text-sm text-muted-foreground truncate">
+src/features/academics/placement/class-placement-studio-modal.tsx:251:              <span className="truncate">
+src/features/academics/placement/class-placement-studio-modal.tsx:315:          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0 overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:317:            <div className="lg:col-span-5 flex flex-col h-full border rounded-lg bg-surface-panel overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:408:            <div className="lg:col-span-7 flex flex-col h-full space-y-3 overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:466:          <div className="border rounded-lg overflow-hidden flex-1 flex flex-col bg-card">
+src/features/academics/placement/class-card-dropzone.tsx:57:    <Card className="flex flex-col h-full border-border bg-card shadow-sm overflow-hidden">
+src/features/financials/financials-page.tsx:693:                className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+src/features/financials/financials-page.tsx:716:                    className="hover:text-primary hover:underline truncate"
+src/features/financials/financials-page.tsx:747:            className="font-mono text-xs font-medium text-foreground truncate"
+src/features/financials/financials-page.tsx:753:            <span className="text-[10px] text-muted-foreground truncate" title={p.collectedBy}>
+src/features/financials/financials-page.tsx:777:            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.checkNumber}>
+src/features/financials/financials-page.tsx:782:            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.transferReference}>
+src/features/financials/financials-page.tsx:1093:              className="text-sm font-semibold text-foreground hover:text-primary hover:underline truncate text-left"
+src/features/financials/financials-page.tsx:1258:                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/academics/grade-levels-class-view.tsx:162:            <Card key={gradeCode} className="overflow-hidden">
+src/features/academics/grade-levels-class-view.tsx:280:                            <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50 line-clamp-2 italic">
+src/features/academics/homework-push-modal.tsx:250:                  <span className="truncate">{name}</span>
+src/features/financials/debt-aging-tab.tsx:272:          <p className="text-sm font-medium truncate">{r.parentName}</p>
+src/features/financials/debt-aging-tab.tsx:361:          className="text-xs text-muted-foreground max-w-[26rem] line-clamp-2"
+src/features/financials/debt-aging-tab.tsx:644:                <p className="text-sm font-medium truncate">
+src/features/academics/academic-year-detail-drawer.tsx:183:        <span className="text-xs font-medium text-foreground truncate">
+src/features/academics/academic-year-detail-drawer.tsx:191:        className="h-1.5 rounded-full bg-muted overflow-hidden"
+src/features/academics/academic-year-detail-drawer.tsx:201:      <p className="text-[10px] text-muted-foreground truncate">{detail}</p>
+src/features/academics/academic-year-detail-drawer.tsx:412:          <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:446:                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:528:                  <p className="text-sm font-medium text-foreground truncate">
+src/features/financials/installment-schedule-tab.tsx:344:            <span className="text-xs font-semibold text-foreground truncate">{w.label}</span>
+src/features/financials/installment-schedule-tab.tsx:355:          <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+src/features/financials/installment-schedule-tab.tsx:383:            <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
+src/features/financials/installment-schedule-tab.tsx:384:            <span className="truncate">Dû : {formatDzdPlain(w.due)}</span>
+src/features/financials/installment-schedule-tab.tsx:604:          <p className="text-sm font-medium truncate">{i.parentName}</p>
+src/features/financials/installment-schedule-tab.tsx:768:              <span className="max-w-[180px] truncate">
+src/features/academics/class-subjects-tab.tsx:182:          <div className="rounded-md border border-border overflow-hidden">
+src/features/financials/webhook-diagnostics-card.tsx:273:        <div className="rounded-md border border-border overflow-hidden" data-testid="webhook-diagnostics-table">
+src/features/academics/justifications-tab.tsx:118:            <p className="text-xs whitespace-pre-wrap line-clamp-4">{r.justificationNote}</p>
+src/features/financials/payment-detail-drawer.tsx:209:                      className="font-bold text-sm text-foreground hover:text-primary hover:underline text-left truncate block"
+src/features/financials/payment-detail-drawer.tsx:241:                      className="font-bold text-sm text-foreground hover:text-primary hover:underline text-left truncate block"
+src/features/academics/class-attendance-tab.tsx:128:            <div className="rounded-md border border-border overflow-hidden">
+src/features/academics/class-detail-page.tsx:619:                            className="text-sm font-semibold text-foreground hover:text-primary hover:underline text-left truncate"
+src/features/dashboard/dashboard-calendar.tsx:253:    <Card className="h-full flex flex-col rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
+src/features/dashboard/dashboard-calendar.tsx:301:          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-surface-panel">
+src/features/dashboard/dashboard-calendar.tsx:391:        <div className="lg:col-span-5 flex flex-col rounded-xl border border-border/70 bg-surface-elevated/20 overflow-hidden min-h-[230px]">
+src/features/dashboard/dashboard-calendar.tsx:459:                          <span className="text-xs font-semibold text-foreground truncate">
+src/features/dashboard/dashboard-calendar.tsx:473:                          <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+src/features/dashboard/dashboard-layout-editor.tsx:330:          ? "min-h-0 overflow-hidden rounded-xl ring-1 ring-primary/20 bg-surface-background/80"
+src/features/dashboard/see-details-modal.tsx:192:      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block truncate">
+src/features/dashboard/see-details-modal.tsx:196:        className={`text-xl font-mono font-bold ${toneClasses[tone]} tabular-nums truncate`}
+src/features/dashboard/see-details-modal.tsx:201:        <p className="text-[11px] text-muted-foreground truncate">{subtext}</p>
+src/features/dashboard/see-details-modal.tsx:805:                              <td className="px-3 py-2 font-medium text-foreground truncate max-w-[150px]">
+src/features/dashboard/see-details-modal.tsx:929:                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:264:        <div className="rounded-lg border border-border overflow-hidden max-h-[45vh] overflow-y-auto">
+src/features/dashboard/alert-detail-modal.tsx:408:                    <p className="text-sm font-semibold text-foreground truncate">
+src/features/dashboard/alert-detail-modal.tsx:411:                    <p className="text-[11px] text-muted-foreground font-mono truncate">
+src/features/academics/class-grades-tab.tsx:178:            <div className="rounded-md border border-border overflow-hidden">
+src/features/academics/grade-entry-screen.tsx:612:                            <p className="text-sm font-medium truncate">
+src/features/dashboard/components/recovery-funnel-card.tsx:543:                  <span className="truncate text-[10px] font-bold uppercase text-muted-foreground">
+src/features/dashboard/components/recovery-funnel-card.tsx:562:                  <span className="line-clamp-2 text-[11px] text-muted-foreground">
+src/features/dashboard/components/recovery-funnel-card.tsx:567:                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/dashboard/components/recovery-funnel-card.tsx:686:                          <div className="max-w-[220px] truncate font-medium text-foreground">
+src/features/dashboard/components/recovery-funnel-card.tsx:695:                            <div className="truncate" title={household.studentNames.join(" · ")}>
+src/features/academics/students-directory-tab.tsx:212:                <p className="text-sm font-semibold truncate">
+src/features/academics/students-directory-tab.tsx:281:        <div className="rounded-lg border border-border overflow-hidden">
+src/features/dashboard/components/insights-rail.tsx:67:      <Card className="relative overflow-hidden rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-surface-panel shadow-sm">
+src/features/dashboard/components/insights-rail.tsx:183:          <p className="text-sm font-bold font-mono text-foreground truncate">
+src/features/dashboard/components/insights-rail.tsx:186:          <p className="text-xs text-muted-foreground font-mono truncate">
+src/features/dashboard/components/insights-rail.tsx:189:          <div className="h-1 w-full rounded-full bg-muted/60 overflow-hidden mt-1">
+src/features/dashboard/components/insights-rail.tsx:227:                    <p className="text-xs font-semibold text-foreground truncate">
+src/features/academics/therapy/psychology-tab.tsx:239:        <p className="text-xs text-muted-foreground line-clamp-2">
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:400:                    <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap">
+src/features/dashboard/components/analytics/aging-composition-card.tsx:76:              className="flex h-7 w-full rounded-xl overflow-hidden border border-border/60 shadow-inner"
+src/features/academics/therapy/therapy-attachments-card.tsx:132:                  <p className="text-xs font-medium truncate" title={a.fileName}>
+src/features/academics/therapy/orthophonie-tab.tsx:214:        <p className="text-xs text-muted-foreground line-clamp-2">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1161:          <div className="rounded-xl border border-border/70 overflow-hidden">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1209:                              className="font-semibold text-foreground hover:text-primary hover:underline text-left truncate"
+src/features/dashboard/components/analytics/operational-query-console.tsx:1242:                              className="text-foreground font-medium hover:text-primary hover:underline truncate max-w-[130px] text-left"
+src/features/dashboard/components/analytics/operational-query-console.tsx:1313:                              className="text-[11px] text-muted-foreground truncate block"
+src/features/academics/clubs/clubs-tab.tsx:292:      className={`overflow-hidden transition-all hover:border-primary/40 cursor-pointer ${club.isArchived ? "opacity-60" : ""} ${!club.isActive && !club.isArchived ? "border-status-warning/40" : ""}`}
+src/features/academics/clubs/clubs-tab.tsx:310:        {club.description && <p className="text-xs text-muted-foreground line-clamp-2">{club.description}</p>}
+src/features/academics/subject-configurations-panel.tsx:247:      <div className="rounded-lg border border-border overflow-hidden">
+src/features/academics/subject-configurations-panel.tsx:268:                      <span className="font-medium truncate">{s.name}</span>
+src/features/dashboard/components/analytics/executive-cards.tsx:217:                      <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:399:                          <p className="font-medium text-foreground truncate">
+src/features/dashboard/components/analytics/executive-cards.tsx:407:                            className={`text-[10px] font-mono truncate ${
+src/features/dashboard/components/analytics/executive-cards.tsx:449:                          <p className="font-medium text-foreground truncate">
+src/features/dashboard/components/analytics/executive-cards.tsx:454:                            className={`text-[10px] font-mono truncate ${
+src/features/dashboard/components/analytics/executive-cards.tsx:546:            <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:663:                  <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:698:                      <span className="font-medium truncate max-w-[170px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:784:                    <td className="py-2 px-1 font-medium truncate max-w-[140px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:846:                  <span className="font-medium truncate max-w-[180px]">
+src/features/dashboard/components/analytics/executive-cards.tsx:853:                <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:467:              <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-stacked-bar">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:568:                <div className="truncate text-sm font-semibold text-foreground">{request.title}</div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:584:            <div className="flex h-2 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-compact-bar">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:633: * clipping guards are GONE — no max-w cap, no truncate span: the button
+src/features/dashboard/components/analytics/data-inspector-core.tsx:680:      {/* T-502 (UI-333): NO truncate — the label is always fully visible;
+src/features/dashboard/components/analytics/data-inspector-core.tsx:682:          (the old max-w-56 + truncate pair silently cut long labels). */}
+src/features/dashboard/components/analytics/info-tip.tsx:28: * without clipping (the shared TooltipContent lost its overflow-hidden and
+src/features/dashboard/components/analytics/stat-strip.tsx:42:        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate flex items-center gap-0.5">
+src/features/dashboard/components/analytics/stat-strip.tsx:57:        className="font-mono text-base font-bold text-foreground tabular-nums truncate"
+src/features/dashboard/components/analytics/stat-strip.tsx:63:        <div className="text-[10px] text-muted-foreground truncate">{sub}</div>
+src/features/dashboard/components/sparkline-kpi-card.tsx:132:        "group relative overflow-hidden rounded-xl border border-border/70 bg-surface-panel p-0 transition-all duration-200",
+src/features/dashboard/components/sparkline-kpi-card.tsx:152:            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+src/features/dashboard/components/sparkline-kpi-card.tsx:190:              <span className="text-[11px] text-muted-foreground truncate">
+src/features/dashboard/tabs/alerts-tab.tsx:284:                        <span className="text-sm font-bold text-foreground truncate">
+src/features/dashboard/tabs/alerts-tab.tsx:302:                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+src/features/dashboard/tabs/reports-tab.tsx:367:      <Card className="rounded-xl border border-primary/40 bg-gradient-to-r from-primary/15 via-primary/5 to-surface-panel p-0 overflow-hidden shadow-sm">
+src/features/dashboard/tabs/reports-tab.tsx:428:                    <h4 className="text-sm font-bold text-foreground truncate">
+src/features/dashboard/tabs/reports-tab.tsx:431:                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+src/features/profile/profile-page.tsx:275:                    <p className="text-xs font-medium truncate">
+src/features/profile/profile-page.tsx:429:                    <p className="truncate text-sm text-foreground">{t.title}</p>
+src/features/profile/profile-page.tsx:461:                    <p className="truncate text-sm text-foreground">{r.reason}</p>
+src/features/workflow/test-studio-drawer.tsx:234:                  <span className="font-medium text-foreground truncate flex-1">{entity.label}</span>
+src/features/workflow/test-studio-drawer.tsx:389:                      <span className="font-medium text-foreground truncate flex-1">
+src/features/workflow/workflow-page.tsx:346:                <p className="text-sm font-medium text-foreground truncate">
+src/features/workflow/workflow-page.tsx:349:                <p className="text-[11px] text-muted-foreground truncate">
+src/features/workflow/workflow-page.tsx:776:                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[200px]">
+src/features/workflow/workflow-page.tsx:791:                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">
+src/features/workflow/workflow-run-detail-drawer.tsx:65:          <p className="text-sm font-medium text-foreground truncate">{result.nodeLabel}</p>
+src/features/workflow/node-palette.tsx:66:    <aside className="flex flex-col w-64 shrink-0 rounded-lg border border-border bg-card overflow-hidden">
+src/features/workflow/node-palette.tsx:106:                        <span className="truncate">{label}</span>
+src/features/workflow/dag-canvas.tsx:717:          <span className="text-sm font-medium text-foreground truncate">
+src/features/workflow/dag-canvas.tsx:901:      <CardContent className="relative flex-1 p-0 overflow-hidden">
+src/features/settings/audit-log-tab.tsx:468:          <div className="rounded-md border border-border/70 overflow-hidden">
+src/features/settings/approvals-tab.tsx:500:            <span className="font-medium truncate">{request.email}</span>
+src/features/settings/approvals-tab.tsx:877:                              <p className="text-sm font-medium truncate">
+src/features/settings/approvals-tab.tsx:1093:                            <p className="text-sm font-medium truncate">
+src/features/settings/approvals-tab.tsx:1417:                              <p className="text-sm font-medium truncate">
+src/features/settings/theme-editor-modal.tsx:367:        className="text-xs font-medium text-foreground truncate"
+src/features/settings/backup-tab.tsx:765:              <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/settings/backup-tab.tsx:802:                      <span className="ml-auto truncate text-status-danger" title={entry.error}>
+src/features/settings/backup-tab.tsx:1045:                              {/* T-502 (UI-333): no truncate — the shared
+src/features/settings/sync-tab.tsx:254:                      <p className="text-xs font-medium truncate">
+src/features/settings/sync-tab.tsx:257:                      <p className="text-[10px] text-muted-foreground truncate font-mono">
+src/features/settings/sync-tab.tsx:313:            <div className="rounded-md border border-border overflow-hidden">
+src/features/settings/sync-tab.tsx:337:                      <td className="p-2 truncate max-w-[160px]" title={e.sourceFile ?? ""}>
+src/shared/ui/slider.tsx:25:    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
+src/shared/ui/avatar.tsx:12:      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+src/features/personnel/workflow-monitor-tab.tsx:87:                <td className="px-3 py-2 font-medium text-foreground truncate max-w-[220px]">{r.workflowName}</td>
+src/features/personnel/workflow-monitor-tab.tsx:93:                <td className="px-3 py-2 text-xs text-foreground truncate max-w-[160px]">{r.actorName}</td>
+src/shared/ui/scroll-area.tsx:11:    className={cn("relative overflow-hidden", className)}
+src/shared/ui/person-link.tsx:55:        className="text-left font-medium text-foreground hover:text-primary hover:underline transition-colors truncate"
+src/shared/ui/person-link.tsx:58:        <span className="truncate block font-semibold text-sm">{name}</span>
+src/shared/ui/person-link.tsx:59:        {sub && <span className="block text-[10px] text-muted-foreground font-mono truncate">{sub}</span>}
+src/shared/ui/tooltip.tsx:11: * - NO internal clipping: the former `overflow-hidden` truncated long
+src/features/personnel/dashboards/manager-dashboard.tsx:274:                    <p className="text-sm font-medium truncate">{p.firstName} {p.lastName}</p>
+src/features/personnel/dashboards/manager-dashboard.tsx:275:                    <p className="text-xs text-muted-foreground truncate">{p.position}</p>
+src/features/personnel/dashboards/manager-dashboard.tsx:297:                    <p className="text-sm font-medium truncate">{task.title}</p>
+src/features/personnel/dashboards/manager-dashboard.tsx:335:                    <p className="text-sm font-medium truncate">{req.personnelName}</p>
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/shared/ui/student-actions-menu.tsx:53:          <span className="block truncate font-semibold">« {studentName} »</span>
+src/shared/ui/student-actions-menu.tsx:54:          {parentName && <span className="font-normal text-[10px] text-muted-foreground block truncate">Famille {parentName}</span>}
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:224:                    <p className="text-sm font-medium truncate">
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:263:                      <p className="text-sm font-medium truncate">{d.itemLabel}</p>
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:335:        <p className="text-sm truncate">
+src/shared/ui/kpi-card.tsx:35:    <Card className={cn("overflow-hidden", className)}>
+src/shared/ui/kpi-card.tsx:41:          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground truncate">
+src/shared/ui/kpi-card.tsx:44:          <span className="text-xl font-semibold text-foreground tnum truncate">{value}</span>
+src/shared/ui/kpi-card.tsx:45:          {hint ? <span className="text-xs text-muted-foreground truncate">{hint}</span> : null}
+src/features/personnel/dashboards/teacher-dashboard.tsx:322:                  <span className="font-medium truncate">{s.name}</span>
+src/features/personnel/dashboards/teacher-dashboard.tsx:350:          <div className="flex-1 overflow-hidden">
+src/features/personnel/dashboards/worker-dashboard.tsx:322:                    <p className="text-sm font-medium truncate">{task.title}</p>
+src/features/personnel/dashboards/role-dashboard-layout.tsx:109:                  <div className="text-sm font-medium truncate">{t.label}</div>
+src/features/personnel/dashboards/role-dashboard-layout.tsx:110:                  {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
+src/shared/ui/unified-modal/parts.tsx:58:              "font-semibold text-foreground truncate",
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/progress.tsx:11:    className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+src/features/personnel/onboarding/steps/admins-step.tsx:57:                      <p className="text-sm font-medium text-foreground truncate">
+src/shared/ui/select.tsx:20:      "[&>span]:line-clamp-1",
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/shared/ui/markdown-view.tsx:270:        <div className="my-2.5 overflow-hidden rounded-lg border border-border bg-surface-panel shadow-sm">
+src/shared/ui/parent-actions-menu.tsx:72:          <span className="block truncate font-semibold">{fullName}</span>
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:84:                <Dialog.Title className="text-lg font-bold tracking-tight text-foreground truncate">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:89:                <Dialog.Description className="text-xs text-muted-foreground truncate leading-relaxed">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:115:                  <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground truncate">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:119:                    className="mt-1 text-xs sm:text-sm font-semibold text-foreground truncate"
+src/features/personnel/management/employee-directory.tsx:124:            <p className="font-medium text-sm truncate">{p.firstName} {p.lastName}</p>
+src/features/personnel/management/employee-directory.tsx:125:            <p className="text-xs text-muted-foreground truncate">{p.email ?? p.phone}</p>
+src/features/personnel/management/chat-panel.tsx:557:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:586:                            <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+src/features/personnel/management/chat-panel.tsx:593:                          <p className="text-[11px] text-muted-foreground truncate">
+src/features/personnel/management/chat-panel.tsx:610:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:619:                  <p className="text-sm font-medium text-foreground truncate flex items-center gap-1">
+src/features/personnel/management/chat-panel.tsx:624:                    <p className="text-[11px] text-muted-foreground truncate">{selectedChannel.description}</p>
+src/features/personnel/management/chat-panel.tsx:740:                        <span className="truncate flex-1">{f.name}</span>
+src/features/personnel/management/chat-panel.tsx:916:                      <span className="flex-1 truncate">{p.firstName} {p.lastName}</span>
+src/features/personnel/management/chat-panel.tsx:917:                      <span className="text-[11px] text-muted-foreground truncate">{p.position || "—"}</span>
+src/features/personnel/management/chat-panel.tsx:1004:          className="block rounded-md overflow-hidden border border-border/40 hover:opacity-90 transition-opacity"
+src/features/personnel/management/chat-panel.tsx:1033:        <p className="text-[11px] font-medium truncate" title={attachment.filename}>
+src/features/personnel/management/chat-panel.tsx:1062:    <span className="text-[10px] opacity-75 truncate">
+src/features/personnel/management/employee-profile-drawer.tsx:232:                  <span className="text-foreground text-sm truncate block">
+src/features/personnel/management/employee-profile-drawer.tsx:339:                  <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
+src/features/personnel/management/employee-profile-drawer.tsx:424:                  <p className="text-sm font-medium truncate">{t.title}</p>
+src/shared/layout/window-frame.tsx:42:    <div className="flex h-screen w-screen flex-col overflow-hidden border border-border/80 bg-background text-foreground shadow-2xl">
+src/shared/layout/window-frame.tsx:47:        <div className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[0.08em] text-muted-foreground">
+src/shared/layout/window-frame.tsx:68:      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+src/features/personnel/management/department-management.tsx:210:                        <p className="font-semibold text-foreground truncate">{d.name}</p>
+src/features/personnel/management/department-management.tsx:213:                      <p className="text-xs text-muted-foreground line-clamp-2">{d.description || "—"}</p>
+src/features/personnel/management/department-management.tsx:220:                    <span className="inline-flex items-center gap-1 truncate">
+src/shared/layout/sidebar.tsx:72:            <p className="text-sm font-semibold text-foreground truncate">El-Imtiyaz</p>
+src/shared/layout/sidebar.tsx:73:            <p className="text-[10px] text-muted-foreground truncate">Desktop Terminal</p>
+src/shared/layout/sidebar.tsx:106:                          {!collapsed && <span className="truncate">{label}</span>}
+src/shared/layout/topbar.tsx:328:                      <span className="text-xs font-medium text-foreground truncate">{n.title}</span>
+src/shared/layout/topbar.tsx:332:                  <p className="text-xs text-muted-foreground line-clamp-2">{n.body}</p>
+src/shared/layout/topbar.tsx:477:                <p className="truncate text-sm font-medium text-primary">
+src/shared/layout/topbar.tsx:629:        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+src/shared/layout/topbar.tsx:630:        <p className="text-xs text-muted-foreground font-mono truncate">{subtitle}</p>
+src/shared/layout/page-header.tsx:21:        <h1 className="text-xl font-semibold text-foreground truncate">{title}</h1>
+src/shared/layout/tenant-switcher.tsx:93:          <span className="max-w-40 truncate">
+src/features/personnel/management/upcoming-payroll-payments.tsx:366:        <div className="rounded-lg border border-border/60 overflow-hidden">
+src/features/personnel/management/task-management.tsx:164:          <p className="font-semibold text-sm text-foreground truncate">
+src/features/personnel/management/task-management.tsx:168:            <p className="text-xs text-muted-foreground truncate max-w-sm">
+src/features/personnel/management/task-management.tsx:173:            <p className="text-[11px] text-status-success italic truncate">
+

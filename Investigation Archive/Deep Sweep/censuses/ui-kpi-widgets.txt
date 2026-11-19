@@ -1,0 +1,46 @@
+# CENSUS: ui-kpi-widgets
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading KpiCard|SparklineKpiCard|StatStrip|ExecutiveCards|MixCards -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/financials/financials-page.tsx:65:import { KpiCard } from "../../shared/ui/kpi-card";
+src/features/financials/financials-page.tsx:390:            <KpiCard
+src/features/financials/financials-page.tsx:404:            <KpiCard
+src/features/financials/financials-page.tsx:417:            <KpiCard
+src/features/financials/financials-page.tsx:435:            <KpiCard
+src/features/financials/debt-aging-tab.tsx:60:import { KpiCard } from "../../shared/ui/kpi-card";
+src/features/financials/debt-aging-tab.tsx:412:          <KpiCard
+src/features/financials/debt-aging-tab.tsx:429:          <KpiCard label="Critique" value={statusCounts.red} icon={<Siren className="h-5 w-5" />} tone="danger" />
+src/features/financials/debt-aging-tab.tsx:436:          <KpiCard label="Retard soutenu" value={statusCounts.orange} icon={<Flame className="h-5 w-5" />} tone="warning" />
+src/features/financials/debt-aging-tab.tsx:443:          <KpiCard label="À surveiller" value={statusCounts.yellow} icon={<AlertTriangle className="h-5 w-5" />} tone="warning" />
+src/features/financials/debt-aging-tab.tsx:450:          <KpiCard label="Actif / Soldé" value={statusCounts.green} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
+src/features/dashboard/components/analytics/stat-strip.tsx:19:export interface StatStripProps {
+src/features/dashboard/components/analytics/stat-strip.tsx:69:export function StatStrip({ slice }: StatStripProps) {
+src/features/dashboard/components/sparkline-kpi-card.tsx:6: * SparklineKpiCard — Executive KPI Tile with High-Definition Bezier Sparkline.
+src/features/dashboard/components/sparkline-kpi-card.tsx:39:export interface SparklineKpiCardProps {
+src/features/dashboard/components/sparkline-kpi-card.tsx:83:export function SparklineKpiCard({
+src/features/dashboard/components/sparkline-kpi-card.tsx:94:}: SparklineKpiCardProps) {
+src/features/dashboard/tabs/overview-tab.tsx:7:import { SparklineKpiCard } from "../components/sparkline-kpi-card";
+src/features/dashboard/tabs/overview-tab.tsx:116:        <SparklineKpiCard
+src/features/dashboard/tabs/overview-tab.tsx:139:        <SparklineKpiCard
+src/features/dashboard/tabs/overview-tab.tsx:163:        <SparklineKpiCard
+src/features/dashboard/tabs/overview-tab.tsx:194:        <SparklineKpiCard
+src/features/dashboard/tabs/analytics-tab.tsx:59:import { StatStrip } from "../components/analytics/stat-strip";
+src/features/dashboard/tabs/analytics-tab.tsx:610:          <StatStrip slice={slice} />
+src/features/personnel/dashboards/role-dashboard-layout.tsx:16:import { KpiCard } from "../../../shared/ui/kpi-card";
+src/features/personnel/dashboards/role-dashboard-layout.tsx:92:            <KpiCard
+src/features/personnel/dashboards/role-dashboard-layout.tsx:168:export { KpiCard, ComingSoonCard };
+src/features/academics/academic-year-detail-drawer.tsx:41:import { KpiCard } from "../../shared/ui/kpi-card";
+src/features/academics/academic-year-detail-drawer.tsx:329:        <KpiCard
+src/features/academics/academic-year-detail-drawer.tsx:335:        <KpiCard
+src/features/academics/academic-year-detail-drawer.tsx:341:        <KpiCard
+src/features/academics/academic-year-detail-drawer.tsx:347:        <KpiCard
+src/shared/ui/kpi-card.tsx:19:export function KpiCard({
+src/i18n/gen/en.ts:1088:          ExecutiveCards: {
+src/i18n/gen/en.ts:1094:          MixCards: {
+src/i18n/gen/fr.ts:1088:          ExecutiveCards: {
+src/i18n/gen/fr.ts:1094:          MixCards: {
+src/i18n/gen/ar.ts:1088:          ExecutiveCards: {
+src/i18n/gen/ar.ts:1094:          MixCards: {
+
+# --- COUNT: 39 matching lines ---

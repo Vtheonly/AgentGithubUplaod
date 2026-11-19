@@ -1,0 +1,37 @@
+# Deep Sweep — Session 7 Evidence Layer (2026-11-19)
+
+**Trigger:** the owner's verdict on Sessions 1-6 — *"the sweep is not deep enough at all."* The prior archive carried analytically strong but **compressed** conclusions: headline counts ("194 title= occurrences", "165 useObservable sites", "39 hand-rolled tables", "496 .from() queries") with **no complete per-file / per-call-site enumeration** behind them. This folder is the missing evidence layer: exhaustive, reproducible, line-numbered censuses of every category in the owner's four-part mandate, plus the analysis that turns the raw data into verified counts, corrections to the prior record, and new findings.
+
+**Repo HEAD at sweep:** `37e9b1f7` (main, clean tree). **Charter unchanged:** read-only — no application source/config touched; this folder and its censuses are the only writes.
+
+## What is in here
+
+| Path | Contents |
+|---|---|
+| `censuses/*.txt` | **The raw evidence:** 50+ census files. Each records the exact `rg` command, HEAD, timestamp, then the COMPLETE match list (`file:line:match`), then the count. Nothing is sampled, truncated, or paginated. |
+| `censuses/agg-*.txt` | Per-file aggregations of the raw censuses (complete per-file count tables, sorted by count). |
+| `censuses/vocab-*.txt` | Design-token vocabulary distributions: every distinct value with its occurrence count (`rg -oI` over the whole non-test tree). |
+| `censuses/estate-*.txt` | Complete estate maps: every non-test source file with line counts (per-area + per-feature totals), the settings ceremony census (40 files × 7 metrics), the dashboard estate (40 files × 5 metrics), the tri-family sections inventory, and the 45 shared/ui primitives with line counts. |
+| `01-DEEP-UI-CENSUS-2026-11-19.md` | The UI-overlay/surface census analysis: complete implementation + consumer tables for all 12 mandate categories, with corrections to the Session 2 UI audit and new findings. |
+| `02-DEEP-TOKEN-CENSUS-2026-11-19.md` | The design-token layer census — the evidence the foundation spec lacked: the complete token inventory (index.css + tailwind.config.cjs), the measured utility-class vocabulary (surfaces, shadows, radii, z, animations, durations, transitions, widths, height caps), and the token-layer defects (BUG-039, ARCH-036). |
+| `03-DEEP-LOGIC-CENSUS-2026-11-19.md` | The logic-side census: the complete `useObservable` call-site table (359 sites / 105 files), repository-consumer map, the Supabase `.from()` precision correction (413 real vs 496 loose), the settings ceremony table, and the estate/impact map at file granularity. |
+
+## Method (reproducible)
+
+- **Scope:** `elimtiyaz-desktop/src/`, non-test — `-g '!src/tests/**' -g '!*.test.*' -g '!*.spec.*' -g '!**/__tests__/**'`. The same filter as the S2-S6 sweeps (640 non-test source files at this HEAD).
+- **Tool:** ripgrep (`rg`) with `-n --no-heading` for raw censuses, `-oI --no-filename` for vocabulary distributions. The exact command is embedded in every census file header — re-run at any future HEAD to re-derive.
+- **Census engine:** the scripts live outside the repo at `/home/z/my-project/scripts/deep-census-s7*.sh` (4 phases); every command they run is recorded inside each census file, so the evidence is reproducible without the scripts.
+- **Counting discipline (the C-13/C-14 lesson):** a count is only as good as its pattern. Two prior headline numbers (useObservable 165, .from() 496) were artifacts of loose or paginated patterns; this sweep pins each to a precise pattern and cross-checks by a second shape (per-file aggregation + distinct-value distribution). Where this folder contradicts a prior count, the correction is registered in `Findings and Hypotheses/FINDINGS_INDEX.md` (Session 7 addendum), never silently.
+- **No execution this session:** static censuses only (the vitest census remains S5's; live probes remain GET-only per `01-INFRASTRUCTURE-STATUS.md`).
+
+## Census inventory (censuses/)
+
+**UI raw (rg -n):** ui-radix-overlay-imports · ui-unified-modal-import · ui-autoform-modal-import · ui-wizard-import · ui-entity-drawer-import · ui-dropdown-usage · ui-tooltip-usage · ui-title-attribute · ui-fixed-surfaces · ui-fixed-better · ui-zindex · ui-animations · ui-portals · ui-aria · ui-native-dialogs · ui-native-prompt · ui-toast-usage · ui-shadow · ui-surface-bg · ui-radius · ui-border-sides · ui-physical-positioning · ui-logical-positioning · ui-width-literals · ui-height-caps · ui-kpi-widgets · ui-pagetabs · ui-handrolled-tables · ui-native-selects · ui-usemodal-consumers · ui-transitions · ui-keyframes · ui-keyframes-all · ui-overflow-scroll · ui-focus · ui-sr-only · ui-overflow-truncate · ui-disabled-attrs.
+
+**Logic raw:** logic-useobservable · logic-useeffect · logic-localstorage · logic-repository-consumers · logic-supabase-from · logic-supabase-rpc · logic-excel-export · logic-json-io · logic-window-open · logic-isloading-state · logic-setinterval · logic-notify-toast.
+
+**Aggregations (agg-):** useobservable · title-attribute · handrolled-tables · native-selects · zindex · fixed-surfaces · physical-positioning · logical-positioning · surface-bg · shadow · animations · width-literals · toast-usage · dropdown-usage · tooltip-usage · page-tabs · repository-consumers · supabase-from · aria · portals · height-caps · native-dialogs · kpi-widgets.
+
+**Vocabularies (vocab-):** zindex · shadow · surface · radius · border-sides · animations · widths · height-caps · durations · transitions · toasts.
+
+**Estates:** estate-feature-map · estate-settings-ceremony · estate-dashboard-files · estate-sections-trifamily · estate-shared-ui.

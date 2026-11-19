@@ -1,0 +1,11 @@
+# CENSUS: ui-usemodal-consumers
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading useModal\( -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/providers/modal-provider.tsx:10: *   const { open, close } = useModal();
+src/app/providers/modal-provider.tsx:52:export function useModal(): ModalContextValue {
+src/shared/layout/modal-host.tsx:4: * Lives at the app root so any page can call useModal().open() to push
+src/shared/layout/modal-host.tsx:15:  const { modals } = useModal();
+
+# --- COUNT: 4 matching lines ---

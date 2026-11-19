@@ -1,0 +1,11 @@
+# CENSUS: ui-wizard-import
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading ui/wizard|from "\.\./wizard|\.\./shared/ui/wizard|WizardShell|MultiStepWizard -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/batch-registration-modal.tsx:7: * (`src/shared/ui/wizard/`). The custom stepper JSX, step-state index,
+src/features/crm/batch-registration-modal.tsx:35:import { Wizard, type WizardStep } from "../../shared/ui/wizard";
+src/features/crm/re-enrollment/re-enroll-modal.tsx:23:import { Wizard, type WizardStep } from "../../../shared/ui/wizard";
+src/features/personnel/onboarding/onboarding-wizard.tsx:38:import { Wizard, type WizardStep } from "../../../shared/ui/wizard";
+
+# --- COUNT: 4 matching lines ---

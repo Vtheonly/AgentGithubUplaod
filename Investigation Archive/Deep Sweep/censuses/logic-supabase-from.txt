@@ -1,0 +1,503 @@
+# CENSUS: logic-supabase-from
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading \.from\( -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/student-detail/info-tab.tsx:311:  return Array.from(groups.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+src/features/crm/batch-registration/step2-students.tsx:145:                  {Array.from({ length: LEVEL_YEARS[s.level] }, (_, k) => k + 1).map((y) => (
+src/features/ai/chart-svg.tsx:113:  const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (maxY / yTicks) * i);
+src/features/financials/expense-attachments-gallery.tsx:80:      for (const file of Array.from(files)) {
+src/features/financials/expense-submit-modal.tsx:99:    for (const file of Array.from(files)) {
+src/features/financials/financials-page.tsx:1058:    return Array.from(totals.entries())
+src/features/dashboard/dashboard-calendar.tsx:369:                        {Array.from({ length: Math.min(count, 4) }).map((_, di) => (
+src/features/dashboard/alert-creator-modal.tsx:90:        ...Array.from(STAFF_ROLES).map((r) => ({ label: ROLE_LABELS_FR[r], value: r })),
+src/features/academics/hooks/use-class-placement-studio.ts:174:      assignedMap: Array.from(assignedMap.entries()),
+src/features/academics/hooks/use-class-placement-studio.ts:176:      modifiedClassPatches: Array.from(modifiedClassPatches.entries()),
+src/features/academics/hooks/use-class-placement-studio.ts:613:      const classesUpdatesPayload = Array.from(
+src/features/dashboard/dashboard-tab-layout-editor.tsx:74:    const elements = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement);
+src/features/dashboard/dashboard-tab-layout-editor.tsx:99:    for (const child of Array.from(root.children)) observer.observe(child);
+src/features/dashboard/dashboard-tab-layout-editor.tsx:114:      for (const child of Array.from(root.children) as HTMLElement[]) {
+src/features/dashboard/dashboard-tab-layout-editor.tsx:131:    for (const child of Array.from(root.children) as HTMLElement[]) {
+src/features/dashboard/dashboard-tab-layout-editor.tsx:132:      const id = child.dataset.dashboardLayoutId ?? `${storageKey}-${Array.from(root.children).indexOf(child)}`;
+src/features/academics/roll-call-screen.tsx:124:  const absentCount = Array.from(statuses.values()).filter(
+src/features/academics/roll-call-screen.tsx:142:        const nonPresentIds = Array.from(statuses.entries())
+src/features/academics/placement/class-placement-studio-modal.tsx:127:    studio.bulkAssignStudents(Array.from(selectedIds), targetClassId);
+src/features/academics/grade-levels-class-view.tsx:183:                    {Array.from(
+src/features/academics/homework-push-modal.tsx:234:                const files = Array.from(e.target.files ?? []);
+src/features/dashboard/components/analytics/operational-query-engine.ts:358:  return Array.from(groups.entries())
+src/features/academics/class-attendance-tab.tsx:52:  const dates = Array.from(byDate.keys()).sort((a, b) => b.localeCompare(a));
+src/features/academics/class-grades-tab.tsx:91:  const latestPerSubject = Array.from(bySubject.entries()).map(([subjectId, list]) => {
+src/features/dashboard/tabs/reports-tab.tsx:313:        const rows = Array.from(byCategory.entries()).map(([cat, amount]) => ({
+src/features/profile/profile-page.tsx:268:              {Array.from(session.permissions).map((perm) => (
+src/features/academics/therapy/therapy-attachments-card.tsx:65:    const additions: TherapyAttachment[] = Array.from(files).map((f, i) => ({
+src/features/academics/clubs/club-detail-drawer.tsx:640:      attendeeStudentIds: Array.from(attendees),
+src/features/settings/rbac-matrix-editor.tsx:60:      serializable[role] = Array.from(matrix[role]);
+src/features/settings/rbac-matrix-editor.tsx:145:  const staffRoleList = useMemo(() => Array.from(STAFF_ROLES), []);
+src/features/settings/rbac-matrix-editor.tsx:212:        const b = Array.from(DEFAULT_ROLE_PERMISSIONS[role]).sort();
+src/features/settings/rbac-matrix-editor.tsx:213:        const a = Array.from(matrix[role]).sort();
+src/infrastructure/backup/backup-file-restore.ts:119:    bytes: Uint8Array.from(result.bytes),
+src/infrastructure/backup/backup-file-restore.ts:281:        iv: Uint8Array.from(iv),
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:308:      client.from("parents").select("*").eq("id", parentId).maybeSingle() as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:387:      client.from("students").select("*").eq("id", studentId).maybeSingle() as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:457:      client.from("parents").update({ address: UPDATED_ADDRESS }).eq("id", parentId) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:477:        .from("parents")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:504:      client.from("students").update({ medical_notes: UPDATED_NOTES }).eq("id", studentId) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:522:      client.from("students").select("*").eq("id", studentId).maybeSingle() as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:546:        .from("parents")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:574:        .from("students")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:630:        .from("ledger_entries")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:679:        .from("installments")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:702:      client.from("installments").select("*").eq("student_id", studentId) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:732:      client.from("students").select("id, parent_id, tenant_id").eq("id", studentId).maybeSingle() as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:755:      client.from("ledger_entries").select("parent_id, student_id, category").eq("student_id", studentId) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:781:      client.from("installments").select("id, amount_due").eq("parent_id", parentId) as PromiseLike<{
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:978:        .from("students")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:1027:        .from("parents")
+src/features/settings/supabase-diagnostics/crud-test-runner.ts:1061:        .from("parents")
+src/infrastructure/system-config.ts:205:      .from("system_settings")
+src/infrastructure/system-config.ts:250:      .from("system_settings")
+src/infrastructure/system-config.ts:295:      .from("system_settings")
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:143:    client.from("tenants").select("id").limit(1),
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:311:    client.from("user_profiles").select("id,tenant_id,display_name").limit(2),
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:497:      client.from(table).select("id", { count: "exact", head: true }),
+src/infrastructure/storage/media-vault.ts:110:      .from(bucket)
+src/infrastructure/storage/media-vault.ts:170:      .from(params.bucket)
+src/infrastructure/sync/default-push-handler.ts:88:    .from("sync_queue")
+src/infrastructure/sync/default-push-handler.ts:319:        const { error } = await client.from("homework").upsert({
+src/infrastructure/sync/sync-queue-store.ts:132:      return Array.from(this.memFallback.values()).filter((e) => e.status === status);
+src/infrastructure/sync/sync-queue-store.ts:144:    if (this.usingFallback) return Array.from(this.memFallback.values());
+src/infrastructure/sync/conflict-detector.ts:407:    let query = client.from(mapping.table).select("*");
+src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:148:    return Array.from(this.records.values()).filter((r) => r.schemaName === schemaName);
+src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:154:    return Array.from(refTable.values).map((value, i) => ({
+src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:168:    return Array.from(this.runs.values()).sort(
+src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:179:    return Array.from(this.records.values()).filter(
+src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1236:    return Array.from(this.runs.values()).sort(
+src/infrastructure/excel/import-engine/storage/repository-adapter.ts:2306:      ...Array.from({ length: 12 }, (_, i) => {
+src/features/personnel/onboarding/steps/shift-types-step.tsx:23:    await repos.onboarding.updateData({ shiftTypes: Array.from(set) });
+src/features/personnel/onboarding/steps/working-days-step.tsx:87:  const blanks = Array.from({ length: firstColumn }, (_, i) => i);
+src/features/personnel/onboarding/steps/working-days-step.tsx:141:            {Array.from({ length: total }, (_, i) => i + 1).map((day) => {
+src/features/personnel/onboarding/steps/working-days-step.tsx:187:                  days: Array.from({ length: total }, (_, i) => i + 1),
+src/features/personnel/onboarding/steps/roles-step.tsx:33:            {Array.from(STAFF_ROLES).map((role) => {
+src/infrastructure/excel/import-engine/utils/checksum.ts:54:  return Array.from(new Uint8Array(hash))
+src/features/personnel/management/employee-form-modal.tsx:125:      options: Array.from(STAFF_ROLES).map((r) => ({ label: ROLE_LABELS_FR[r], value: r })),
+src/features/personnel/management/chat-panel.tsx:361:    for (const f of Array.from(files)) {
+src/features/personnel/management/payroll-management.tsx:74:  return Array.from({ length: 12 }, (_, offset) => {
+src/infrastructure/excel/full-export.ts:166:    ...Array.from(byCategory.entries()).map(([cat, amount]) => ({
+src/infrastructure/export/archive-export.ts:106:      data: new TextEncoder().encode(JSON.stringify({ iv: Array.from(record.iv) })),
+src/infrastructure/receipt-pdf/global-reports.ts:87:                rows: Array.from(byMethod.entries()).map(([k, v]) => [
+src/infrastructure/receipt-pdf/global-reports.ts:102:                rows: Array.from(byCategory.entries()).map(([k, v]) => [
+src/infrastructure/receipt-pdf/global-reports.ts:171:                rows: Array.from(byBucket.entries()).map(([k, v]) => [
+src/infrastructure/receipt-pdf/global-reports.ts:227:          rows: Array.from(byLevel.entries()).map(([k, v]) => [
+src/infrastructure/receipt-pdf/global-reports.ts:301:  const total = Array.from(byCategory.values()).reduce((s, v) => s + v.amount, 0);
+src/infrastructure/receipt-pdf/global-reports.ts:317:          rows: Array.from(byCategory.entries()).map(([k, v]) => [
+src/shared/devtools/test-data/generators.ts:291:  const tail = Array.from({ length: 6 }, () => LETTERS[rng.int(0, LETTERS.length)]).join("");
+src/infrastructure/supabase/financial-realtime.ts:212:      .from("ledger_entries")
+src/infrastructure/supabase/financial-realtime.ts:284:            .from("parents")
+src/infrastructure/supabase/financial-realtime.ts:295:            .from("students")
+src/infrastructure/supabase/repositories/supabase-workflow-run-repository.ts:105:        .from("workflow_runs")
+src/infrastructure/supabase/repositories/supabase-workflow-run-repository.ts:121:      .from("workflow_runs")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:224:      .from("pending_receipts")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:245:      .from("pending_receipts")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:271:      .from("pending_dispatches")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:293:      .from("pending_dispatches")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:329:      .from("pending_receipts")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:358:      .from("pending_dispatches")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:377:      .from("pending_receipts")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:388:      .from("pending_dispatches")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:404:      .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:415:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:432:        .from("pending_receipts")
+src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:438:        .from("pending_dispatches")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:131:        .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:173:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:185:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:203:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:215:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:232:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-notification-repository.ts:293:      .from("notifications")
+src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:159:        this.client.from("user_profiles").select("id, email, display_name, status").order("email"),
+src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:160:        this.client.from("role_assignments").select("user_profile_id, role_id, revoked_at"),
+src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:161:        this.client.from("roles").select("id, code"),
+src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:162:        this.client.from("personnel").select("id, user_id, personnel_code, first_name, last_name").is("deleted_at", null),
+src/infrastructure/supabase/repositories/supabase-releve-repository.ts:261:      .from("releve_entries")
+src/infrastructure/supabase/repositories/supabase-releve-repository.ts:296:        .from("releve_entries")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:177:      const { data, error } = await this.client.from("roles").select("id, code");
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:433:        .from("personnel")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:515:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:525:          .from("personnel")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:562:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:583:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:713:        .from("salary_payments")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:784:        .from("departments")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:829:      .from("departments")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:847:          .from("departments")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:900:      .from("departments")
+src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:937:      .from("departments")
+src/infrastructure/supabase/repositories/supabase-auth-repository.ts:97:      .from("user_profiles")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:256:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:273:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:291:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:315:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:323:      .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:365:        .from("purchase_requests")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:181:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:202:        .from("personnel")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:264:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:296:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:309:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:391:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:515:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:535:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:571:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:584:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:590:      .from("rooms")
+src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:663:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:97:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:120:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:131:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:188:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:233:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:246:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:259:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:272:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:294:      .from("academic_levels")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:312:      .from("academic_levels")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:345:          .from("classes")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:364:          .from("students")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:452:      .from("classes")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:510:      .from("classes")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:523:      .from("classes")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:551:      .from("subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:563:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:575:      .from("subject_configurations")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:645:      .from("subject_configurations")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:710:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:734:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:758:      .from("subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:794:      .from("subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:813:        .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:846:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:854:      .from("subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:874:        .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:893:        .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:921:        .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:945:      .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1059:      .from("assessments")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1085:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1106:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1127:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1148:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1174:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1199:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1227:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1268:    const payload = Array.from(input.statuses.entries())
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1302:      .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1352:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1375:        .from("students")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1425:        .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1441:          .from("students")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1545:        .from("homework")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1563:        .from("homework")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1596:        .from("subjects")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1601:        .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1615:      .from("homework")
+src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1744:      .from("students")
+src/infrastructure/supabase/repositories/supabase-backup-repository.ts:219:      const { error } = await this.client.from("backup_archives").insert({
+src/infrastructure/supabase/repositories/supabase-backup-repository.ts:264:        .from("backup_archives")
+src/infrastructure/supabase/repositories/supabase-backup-repository.ts:284:        .from("backup_archives")
+src/infrastructure/supabase/repositories/supabase-backup-repository.ts:304:        .from("backup_archives")
+src/infrastructure/supabase/repositories/supabase-backup-repository.ts:325:        .from("backup_archives")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:129:          .from("students")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:134:          .from("parents")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:139:          .from("personnel")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:146:          .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:151:          .from("attendance_records")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:261:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:295:          .from("payments")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:460:          .from("students")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:465:          .from("classes")
+src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:509:      const grade: DemographicSlice[] = Array.from(gradeCounts.entries()).map(([label, count]) => ({
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:480:      .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:533:      .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:556:      .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:588:      .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:622:      .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:641:        .from("calendar_events")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:715:      .from("payments")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:747:          .from("parents")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:766:      .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:781:      .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:178:      .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:276:        .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:358:      .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:557:      .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:632:      .from("expense_attachments")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:683:      .from("expense_attachments")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:737:        .from("expense_attachments")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:757:      .from("expense_categories")
+src/infrastructure/supabase/repositories/supabase-expense-repository.ts:811:      .from("expense_tickets")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:101:      .from("account_approval_requests")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:143:        .from("activation_codes")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:151:          .from("parents")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:166:          .from("students")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:181:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:195:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:209:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:227:        .from("students")
+src/infrastructure/supabase/repositories/supabase-approval-repository.ts:571:    const { error: insertError } = await this.client.from("activation_codes").insert({
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:195:      .from("er_source_observations")
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:205:      .from("er_source_observations")
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:244:      .from("er_match_proposals")
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:269:          .from("er_match_proposals")
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:275:          .from("er_identity_edges")
+src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:281:          .from("er_aggregation_events")
+src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:152:        .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:196:      .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:213:      .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:229:      .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:253:        .from("suppliers")
+src/infrastructure/supabase/repositories/supabase-dashboard-layout-repository.ts:47:        .from("dashboard_layouts")
+src/infrastructure/supabase/repositories/supabase-dashboard-layout-repository.ts:95:        .from("dashboard_layouts")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:247:        .from("workflows")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:311:      .from("workflows")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:324:      .from("workflows")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:358:      .from("workflows")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:410:      .from("workflow_runs")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:540:        .from("workflows")
+src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:553:      .from("workflows")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:180:      .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:188:      .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:198:    .from("academic_levels")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:208:      .from("grade_level_tuition")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:251:      .from("transport_destinations")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:286:      client.from("complementary_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:289:      client.from("additional_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:292:      client.from("discounts")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:372:      .from("system_settings")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:448:          .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:453:          .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:502:        .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:567:      .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:578:      .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:597:      .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:617:        .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:656:        .from("pricing_configs")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:685:        .from("academic_levels")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:691:        .from("grade_level_tuition")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:699:          .from("grade_level_tuition")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:710:          .from("grade_level_tuition")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:743:        .from("transport_destinations")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:751:          .from("transport_destinations")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:762:          .from("transport_destinations")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:795:        .from("complementary_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:817:        .from("complementary_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:837:        .from("additional_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:858:        .from("additional_services")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:881:        .from("discounts")
+src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:904:        .from("discounts")
+src/shared/layout/topbar.tsx:576:      {Array.from(grouped.entries()).map(([type, items]) => {
+src/shared/layout/tenant-switcher.tsx:57:          .from("tenants")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1195:        const base = this.client.from("parents").select("*").eq("tenant_id", tenantId).is("deleted_at", null);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1254:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1358:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1399:        const { error } = await this.client.from("parents").update(patch).eq("id", id);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1505:        const base = this.client.from("students").select("*").eq("tenant_id", tenantId).is("deleted_at", null);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1561:      .from("student_academic_histories")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1572:      .from("student_documents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1593:          .from("user_profiles")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1738:        .from("students")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1825:        const { error } = await this.client.from("students").update(patch).eq("id", id);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1860:        .from("student_documents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1900:        .from("student_documents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2233:      .from("students")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2274:      .from("students")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2323:        const base = this.client.from("payments").select("*").eq("tenant_id", tenantId);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2377:        .from("payment_allocations")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2428:          .from("payment_allocations")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2525:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2566:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2609:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2644:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2766:          .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2822:              .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2827:              .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2931:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3053:        const base = this.client.from("ledger_entries").select("*").eq("tenant_id", tenantId);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3229:          .from("ledger_entries")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3309:              .from("ledger_entries")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3314:              .from("ledger_entries")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3376:        .from("parents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3411:      const balances = Array.from(accountIds).map((accId) => computeAccountBalance(ledger, accId));
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3419:        this.client.from("payments").select("*"),
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3420:        this.client.from("installments").select("*"),
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3421:        this.client.from("parents").select("*"),
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3578:          .from("academic_years")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3627:        const base = this.client.from("installments").select("*").eq("tenant_id", tenantId);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3682:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3692:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3752:        .from("payments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3786:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3820:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3872:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4005:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4076:              .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4081:              .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4135:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4156:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4175:            .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4221:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4227:          .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4237:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4288:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4353:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4807:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4847:      .from("parents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4874:      const base = this.client.from("students").select("id, parent_id").eq("tenant_id", tenantId);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4927:        .from("ledger_entries")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4949:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5159:          .from("parents")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5196:      .from("installments")
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5234:        .from("parents")
+src/shared/layout/page-tabs.tsx:268:    Array.from(list.children).forEach((child) => ro.observe(child as HTMLElement));
+src/infrastructure/supabase/repositories/supabase-student-narrative-repository.ts:84:      .from("student_narratives")
+src/infrastructure/supabase/repositories/supabase-student-narrative-repository.ts:111:      .from("student_narratives")
+src/infrastructure/supabase/repositories/supabase-onboarding-repository.ts:158:        .from("onboarding_states")
+src/infrastructure/supabase/repositories/supabase-onboarding-repository.ts:167:        .from("onboarding_states")
+src/infrastructure/supabase/repositories/supabase-onboarding-repository.ts:239:      .from("onboarding_states")
+src/infrastructure/supabase/repositories/supabase-onboarding-repository.ts:285:      .from("onboarding_states")
+src/infrastructure/supabase/repositories/supabase-onboarding-repository.ts:311:      .from("onboarding_states")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:187:        .from("chat_channels")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:252:        .from("user_profiles")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:265:        .from("personnel")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:284:        .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:349:      .from("personnel")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:417:      .from("chat_channels")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:454:      .from("chat_channels")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:494:      .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:524:      .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:537:      .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:556:      .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:575:          .from("chat_messages")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:597:      .from("parents")
+src/infrastructure/supabase/repositories/supabase-chat-repository.ts:615:      .from("user_profiles")
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:249:        .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:307:          .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:338:          .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:411:        .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:425:      .from("audit_logs")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:214:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:250:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:266:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:297:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:313:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:320:      .from("inventory_transactions")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:369:      .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:427:        .from("inventory_items")
+src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:440:        .from("inventory_transactions")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:238:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:263:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:289:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:306:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:326:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:334:      .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:380:        .from("deliveries")
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:217:      .from("leave_requests")
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:262:      .from("leave_requests")
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:311:      .from("leave_requests")
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:354:      .from("leave_requests")
+src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:388:        .from("leave_requests")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:218:      .from("timetable_configurations")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:230:      .from("rooms")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:238:      .from("timetable_constraints")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:249:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:261:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:338:      .from("timetable_configurations")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:357:          .from("timetable_configurations")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:363:          .from("timetable_configurations")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:399:      .from("rooms")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:432:      .from("rooms")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:461:    const { error } = await this.client.from("rooms").delete().eq("id", id);
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:492:      .from("timetable_constraints")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:524:      .from("timetable_constraints")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:550:      .from("timetable_constraints")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:599:        .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:611:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:641:          .from("timetable_configurations")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:646:        this.client.from("rooms").select("*").eq("is_active", true).order("code"),
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:648:          .from("timetable_constraints")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:667:      .from("classes")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:688:      .from("class_subjects")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:707:        .from("personnel")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:823:          .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:832:          .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:859:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:877:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:928:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:939:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1017:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1083:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1100:    await this.client.from("timetable_entries").delete().eq("version_id", versionId);
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1101:    await this.client.from("timetable_versions").delete().eq("id", versionId);
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1116:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1128:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1205:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1228:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1238:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1282:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1304:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1311:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1335:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1343:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1371:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1393:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1438:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1462:        .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1487:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1529:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1550:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1556:      .from("timetable_versions")
+src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1568:      .from("timetable_entries")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:133:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:146:        .from("installments")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:306:        .from("notifications")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:397:          .from("parents")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:432:          .from("notifications")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:470:        .from("notifications")
+src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:489:          .from("notifications")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:254:      .from("workforce_attendance_events")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:348:      .from("staff_absences")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:379:      .from("staff_absences")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:420:      .from("staff_absences")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:462:      .from("staff_absences")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:510:        .from("staff_absences")
+src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:527:        .from("workforce_attendance_events")
+src/core/ai/streaming/stream-client.ts:205:          const aggregated: AIToolCall[] = Array.from(toolCallsMap.values()).map((tc) => ({
+src/core/ai/streaming/stream-client.ts:219:  const finalToolCalls: AIToolCall[] = Array.from(toolCallsMap.values()).map((tc) => ({
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:154:      .from("shifts")
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:198:      .from("shifts")
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:219:    const { error } = await this.client.from("shifts").delete().eq("id", id);
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:244:        .from("shifts")
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:327:      .from("schedules")
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:367:    const { error } = await this.client.from("schedules").delete().eq("id", id);
+src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:400:        .from("schedules")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:248:      .from("tasks")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:340:      .from("tasks")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:454:      .from("task_comments")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:510:      .from("tasks")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:546:    const { error } = await this.client.from("task_attachments").insert({
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:570:        .from("tasks")
+src/infrastructure/supabase/repositories/supabase-task-repository.ts:584:      .from("tasks")
+src/infrastructure/mock/workforce/index.ts:1317:    const merged = Array.from(new Set([...ch.memberIds, ...memberIds]));
+src/infrastructure/mock/repositories/ledger-repository.ts:178:    const balances = Array.from(accountIds).map((accId) => computeAccountBalance(store.ledger, accId));
+src/infrastructure/mock/repositories/user-account-repository.ts:69:    ...Array.from({ length: 9 }, () => pick(all)),
+src/domain/calc/payment/revenue.ts:70:  return Array.from(totals.entries()).map(([category, amount]) => ({ category, amount }));
+src/infrastructure/mock/fixtures/parent-fixtures.ts:60:  return Array.from({ length: opts.count }, (_, i) => buildParent(rng, i, opts.tenantId));
+src/infrastructure/mock/seed-data.ts:690:export const seedPayments = Array.from({ length: 30 }, (_, i) => {
+src/domain/calc/timetable/constraints.ts:586:  if (n <= 1) return Array.from({ length: requiredPeriods }, () => 1);
+src/domain/calc/reconcile/reconciliation.ts:46:  const accountBalances = Array.from(accountIds, (id) =>
+src/domain/calc/reconcile/reconciliation.ts:51:  const parentSummaries = Array.from(parentIds, (pid) =>
+src/domain/calc/academics/class-placement.ts:652:  const classBuckets: string[][] = Array.from({ length: K }, () => []);
+src/domain/calc/workflow/auto-layout.ts:85:  const maxRows = Math.max(1, ...Array.from(layers.values(), (b) => b.length));
+src/domain/calc/diff/field-diff.ts:180:      const keys = Array.from(new Set([...Object.keys(b), ...Object.keys(a)])).sort();
+
+# --- COUNT: 496 matching lines ---

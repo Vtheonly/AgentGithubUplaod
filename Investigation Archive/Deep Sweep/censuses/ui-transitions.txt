@@ -1,0 +1,204 @@
+# CENSUS: ui-transitions
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading transition-(colors|opacity|transform|all|none)|duration-[0-9]+ -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:616:            className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-8 cursor-pointer hover:bg-accent/5 transition-colors"
+src/features/crm/excel-import-modal.tsx:846:                className="h-full rounded-full bg-primary transition-all duration-300"
+src/features/crm/parent-detail-drawer.tsx:575:                    className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/40 transition-all shadow-sm"
+src/features/crm/parent-detail-drawer.tsx:589:                          <p className="text-sm font-bold text-foreground hover:text-primary transition-colors truncate">
+src/features/crm/parent-detail-drawer.tsx:1045:              className="h-full bg-status-success transition-all duration-700"
+src/features/crm/parent-detail-drawer.tsx:1052:              className="h-full bg-status-danger/80 transition-all duration-700"
+src/features/crm/parent-detail-drawer.tsx:1120:                "flex items-center gap-1 px-3 py-1 rounded-md transition-all font-semibold",
+src/features/crm/parent-detail-drawer.tsx:1132:                "flex items-center gap-1 px-3 py-1 rounded-md transition-all font-semibold",
+src/features/crm/parent-detail-drawer.tsx:1223:                            "rounded-xl border p-2.5 text-xs space-y-1.5 transition-all shadow-sm",
+src/features/crm/parent-detail-drawer.tsx:1504:                <li key={c.id} className="px-3 py-2.5 space-y-1 hover:bg-accent/5 transition-colors">
+src/features/crm/student-detail/academic-tab.tsx:396:        className="w-full text-left p-3 hover:bg-accent/5 transition-colors"
+src/features/crm/student-detail/info-tab.tsx:160:                  className="font-bold text-sm text-foreground hover:text-primary hover:underline transition-colors truncate block text-left"
+src/features/crm/student-detail/info-tab.tsx:193:                    className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border/60 bg-surface-elevated/20 hover:bg-surface-elevated/50 transition-colors"
+src/features/ai/copilot-drawer.tsx:163:                  className="flex w-full items-center justify-between rounded-md border border-border/80 bg-background/50 p-2.5 text-start text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/features/ai/artifact-renderer.tsx:111:          className="flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+src/features/personnel/dashboards/teacher-dashboard.tsx:320:                  className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm text-left hover:bg-accent/10 transition-colors"
+src/features/financials/unified-payment-modal.tsx:816:                        className="px-2.5 py-1 text-xs rounded border border-border bg-surface-panel hover:border-primary hover:text-primary transition-colors font-mono"
+src/features/financials/unified-payment-modal.tsx:825:                      className="px-2.5 py-1 text-xs rounded border border-primary/40 bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors font-mono"
+src/features/financials/unified-payment-modal.tsx:908:                      className={`h-9 rounded-md border text-xs font-medium transition-colors ${
+src/features/financials/debt-meter.tsx:147:          className="absolute inset-y-0 left-0 bg-status-success transition-all duration-300"
+src/features/financials/debt-meter.tsx:152:          className="absolute inset-y-0 bg-primary/80 transition-all duration-300"
+src/features/financials/cross-service-matrix.tsx:67:                  className="hover:bg-accent/5 transition-colors cursor-pointer"
+src/features/financials/cross-service-matrix.tsx:84:                          className={`h-full rounded-full transition-all ${tone}`}
+src/features/personnel/onboarding/steps/shift-types-step.tsx:44:                    "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors",
+src/features/financials/cash-flow-radar.tsx:104:                className="h-full rounded-full bg-status-success transition-all"
+src/features/financials/cash-flow-radar.tsx:117:                className="h-full rounded-full bg-status-warning transition-all"
+src/features/financials/cash-flow-radar.tsx:130:                className="h-full rounded-full bg-primary transition-all"
+src/features/personnel/onboarding/steps/admins-step.tsx:50:                        "h-5 w-5 rounded border-2 flex items-center justify-center transition-colors",
+src/features/financials/financial-query-console.tsx:184:                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/financials/financial-query-console.tsx:313:                      className="hover:bg-accent/5 transition-colors"
+src/features/personnel/onboarding/steps/working-days-step.tsx:153:                    "h-9 rounded-md border text-xs font-mono font-medium transition-colors",
+src/features/financials/payment-slider.tsx:401:      className="rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:border-primary hover:bg-accent/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+src/features/personnel/onboarding/steps/departments-step.tsx:64:                    "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors",
+src/features/personnel/onboarding/steps/roles-step.tsx:41:                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+src/features/financials/expense-detail-drawer.tsx:233:              className="w-full rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-left hover:bg-status-danger/20 transition-colors"
+src/features/financials/financials-page.tsx:388:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:402:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:415:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:433:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:1260:                        className="h-full rounded-full bg-status-danger/70 transition-all"
+src/features/financials/debt-aging-tab.tsx:409:            "text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5",
+src/features/financials/installment-schedule-tab.tsx:358:                "h-full rounded-full transition-all duration-500 " +
+src/features/personnel/management/chat-panel.tsx:579:                        className={`w-full text-left px-3 py-2 flex items-start gap-2 border-b border-border/50 transition-colors ${
+src/features/personnel/management/chat-panel.tsx:1004:          className="block rounded-md overflow-hidden border border-border/40 hover:opacity-90 transition-opacity"
+src/features/personnel/management/expense-review-section.tsx:221:                      <tr key={e.id} className="hover:bg-accent/5 transition-colors">
+src/features/personnel/management/expense-review-section.tsx:358:                    <tr key={e.id} className="hover:bg-accent/5 transition-colors">
+src/features/financials/webhook-diagnostics-card.tsx:242:                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/financials/webhook-diagnostics-card.tsx:364:      <tr className="hover:bg-accent/5 transition-colors align-top" data-testid={`webhook-finding-${finding.id}`}>
+src/features/financials/webhook-diagnostics-card.tsx:415:              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+src/features/personnel/management/task-detail-drawer.tsx:340:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/task-detail-drawer.tsx:358:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/staff-attendance-center.tsx:487:                      className="hover:bg-accent/5 transition-colors"
+src/features/personnel/management/staff-attendance-center.tsx:614:                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+src/features/personnel/management/staff-attendance-center.tsx:739:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/staff-attendance-center.tsx:757:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/requests-management.tsx:306:                      className="hover:bg-accent/5 transition-colors"
+src/features/dashboard/dashboard-calendar.tsx:340:                    className={`flex min-h-[34px] flex-col gap-1 p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary ${skin}`}
+src/features/dashboard/dashboard-calendar.tsx:441:                      className="p-2.5 rounded-lg border border-border/50 bg-surface-panel/80 flex items-start gap-2.5 hover:border-border transition-colors"
+src/features/personnel/management/payroll-management.tsx:438:                    <tr key={p.id} className="hover:bg-accent/5 transition-colors">
+src/features/personnel/management/upcoming-payroll-payments.tsx:292:        className={`hover:bg-accent/5 transition-colors ${isOverdue ? "bg-status-danger/5" : ""}`}
+src/features/dashboard/dashboard-layout-editor.tsx:328:        "relative min-w-0 transition-all",
+src/features/dashboard/dashboard-layout-editor.tsx:377:              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-surface-panel/95 text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/dashboard-layout-editor.tsx:789:              className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/dashboard-layout-editor.tsx:800:            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 font-medium text-primary transition-colors hover:bg-primary/10"
+src/features/dashboard/dashboard-layout-editor.tsx:892:                className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/see-details-modal.tsx:931:                      className="h-full rounded-full transition-all duration-500"
+src/features/auth/splash-screen.tsx:220:      className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-surface-background transition-opacity duration-400"
+src/features/dashboard/alert-detail-modal.tsx:400:                  className="flex items-center gap-3 w-full rounded-xl border border-border/70 p-3 hover:bg-surface-elevated/50 transition-colors text-left"
+src/features/dashboard/components/recovery-funnel-card.tsx:540:                className="group relative flex w-full flex-col justify-between space-y-2 rounded-xl border border-border/70 bg-surface-elevated/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+src/features/dashboard/components/recovery-funnel-card.tsx:569:                    className="h-full rounded-full transition-[width] duration-200"
+src/features/dashboard/components/recovery-funnel-card.tsx:576:                <span className="flex items-center justify-end gap-1 text-[10px] font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+src/features/dashboard/components/recovery-funnel-card.tsx:684:                      <tr key={household.parentId} className="transition-colors hover:bg-muted/25">
+src/features/dashboard/components/insights-rail.tsx:155:              className="transition-all duration-700 ease-out"
+src/features/dashboard/components/insights-rail.tsx:224:                  className="group flex items-center justify-between gap-2 p-2 rounded-lg border border-border/50 bg-surface-elevated/20 hover:bg-surface-elevated/60 transition-colors"
+src/features/academics/timetable/timetable-tab.tsx:431:            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+src/features/academics/timetable/timetable-tab.tsx:469:                  className={`h-full rounded-full bg-primary transition-[width] duration-150 ${
+src/features/academics/timetable/timetable-tab.tsx:1785:                  className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+src/features/dashboard/components/analytics/cross-risk-card.tsx:105:            className="p-3.5 rounded-xl border border-status-danger/40 bg-status-danger/10 cursor-pointer hover:bg-status-danger/15 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:124:            className="p-3.5 rounded-xl border border-status-warning/40 bg-status-warning/10 cursor-pointer hover:bg-status-warning/15 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:143:            className="p-3.5 rounded-xl border border-border/70 bg-surface-elevated/40 cursor-pointer hover:bg-surface-elevated/70 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:162:            className="p-3.5 rounded-xl border border-border/70 bg-surface-elevated/40 cursor-pointer hover:bg-surface-elevated/70 transition-all space-y-1"
+src/features/dashboard/components/analytics/mix-cards.tsx:209:            className={`px-2.5 py-1 rounded transition-colors ${
+src/features/dashboard/components/analytics/mix-cards.tsx:221:            className={`px-2.5 py-1 rounded transition-colors ${
+src/features/dashboard/components/analytics/aging-composition-card.tsx:89:                  className="h-full flex items-center justify-center transition-all cursor-pointer"
+src/features/dashboard/components/analytics/aging-composition-card.tsx:120:                      className={`hover:bg-accent/5 transition-colors ${
+src/features/academics/roll-call-screen.tsx:216:                  "px-3 py-1.5 text-xs font-medium transition-colors",
+src/features/academics/roll-call-screen.tsx:300:                              "h-9 w-10 rounded-md border text-xs font-bold transition-all",
+src/features/dashboard/components/analytics/reference-population-selector.tsx:82:            "rounded-full font-medium transition-colors",
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:115:                ? "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/50 bg-status-warning/10 text-status-warning hover:bg-status-warning/20 transition-colors"
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:116:                : "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:bg-accent/10 hover:text-foreground transition-colors"
+src/features/academics/placement/class-student-multi-select.tsx:242:                  "flex items-center gap-2.5 px-2.5 py-2 transition-colors select-none",
+src/features/academics/placement/student-placement-card.tsx:61:      className={`rounded-lg border transition-all p-2.5 flex items-center justify-between gap-2.5 ${
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:80:            className={`px-2.5 py-1 rounded transition-colors ${
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:91:            className={`px-2.5 py-1 rounded transition-colors ${
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:102:            className={`px-2.5 py-1 rounded transition-colors ${
+src/features/academics/placement/class-placement-studio-modal.tsx:174:              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors ${
+src/features/academics/placement/class-placement-studio-modal.tsx:185:              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors ${
+src/features/academics/placement/class-placement-studio-modal.tsx:196:              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors ${
+src/features/academics/placement/class-placement-studio-modal.tsx:207:              className={`flex items-center gap-1 px-2.5 py-1 rounded transition-colors ${
+src/features/academics/placement/class-placement-studio-modal.tsx:232:                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
+src/features/dashboard/components/analytics/operational-query-console.tsx:1050:                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/dashboard/components/analytics/operational-query-console.tsx:1202:                        className="hover:bg-accent/5 transition-colors"
+src/features/academics/grade-levels-class-view.tsx:164:                className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border cursor-pointer select-none hover:bg-muted/30 transition-colors"
+src/features/academics/grade-levels-class-view.tsx:253:                          className="rounded-lg border border-border bg-card p-3.5 hover:border-primary/50 hover:bg-accent/5 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+src/features/academics/grade-levels-class-view.tsx:257:                              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+src/features/academics/grade-levels-class-view.tsx:293:                            <span className="text-primary group-hover:translate-x-0.5 transition-transform flex items-center">
+src/features/academics/academic-year-detail-drawer.tsx:128:            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+src/features/academics/academic-year-detail-drawer.tsx:195:          className={`h-full rounded-full transition-all duration-500 ${barTone}`}
+src/features/academics/academic-year-detail-drawer.tsx:414:              className="h-full rounded-full bg-primary transition-all"
+src/features/academics/academic-year-detail-drawer.tsx:448:                      className="h-full rounded-full bg-primary/70 transition-all"
+src/features/academics/academic-year-detail-drawer.tsx:847:              className="flex items-start gap-3 p-3 rounded border border-border/60 bg-card hover:bg-accent/5 transition-colors"
+src/features/dashboard/components/analytics/executive-cards.tsx:156:                    className="rounded-xl border border-border/80 bg-surface-elevated/30 p-3.5 space-y-3 transition-all hover:border-border hover:bg-surface-elevated/60"
+src/features/dashboard/components/analytics/executive-cards.tsx:219:                          className="h-full rounded-full transition-all duration-500"
+src/features/dashboard/components/analytics/executive-cards.tsx:548:                className="h-full rounded-full bg-status-warning transition-all"
+src/features/dashboard/components/analytics/executive-cards.tsx:665:                      className="h-full rounded-full transition-all"
+src/features/dashboard/components/analytics/executive-cards.tsx:855:                    className="h-full rounded-full bg-brand-cyan transition-all"
+src/features/academics/teachers-tab.tsx:286:              className="p-4 space-y-3 hover:border-primary/40 transition-colors"
+src/features/dashboard/components/analytics/data-inspector-core.tsx:642:  "inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary shrink-0 transition-colors " +
+src/features/academics/class-detail-page.tsx:602:                        "flex items-center gap-3 p-3 transition-colors",
+src/features/dashboard/components/analytics/info-tip.tsx:74:              "inline-flex items-center justify-center rounded-full text-muted-foreground/70 hover:text-primary hover:bg-primary/10 transition-colors shrink-0",
+src/features/dashboard/components/analytics/analytics-slicers.tsx:49:      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/dashboard/components/sparkline-kpi-card.tsx:132:        "group relative overflow-hidden rounded-xl border border-border/70 bg-surface-panel p-0 transition-all duration-200",
+src/features/academics/school-years-tab.tsx:375:      className={`${year.isArchived ? "opacity-60" : ""} hover:border-primary/40 transition-all cursor-pointer group`}
+src/features/academics/school-years-tab.tsx:382:              <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+src/features/dashboard/tabs/analytics-tab.tsx:754:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "pilotage" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:762:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "diagnostic" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:770:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "charts" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/alerts-tab.tsx:266:                className={`cursor-pointer border-border/70 bg-surface-panel hover:bg-surface-elevated/40 transition-all shadow-sm ${
+src/features/dashboard/tabs/reports-tab.tsx:414:              className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/30 transition-all shadow-sm"
+src/features/academics/class-grades-tab.tsx:128:                className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+src/features/academics/therapy/psychology-tab.tsx:201:      className="cursor-pointer hover:border-primary/40 transition-all"
+src/features/academics/therapy/orthophonie-tab.tsx:188:      className="cursor-pointer hover:border-primary/40 transition-all"
+src/features/workflow/test-studio-drawer.tsx:224:                    "flex items-center gap-2 w-full px-3 py-2 text-start text-xs transition-colors",
+src/features/workflow/test-studio-drawer.tsx:268:                  "rounded-full border px-3 py-1.5 text-xs transition-colors",
+src/features/workflow/test-studio-drawer.tsx:379:                        "flex items-center gap-2 w-full px-3 py-2 text-start text-xs transition-colors",
+src/features/workflow/test-studio-drawer.tsx:385:                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+src/features/academics/clubs/clubs-tab.tsx:292:      className={`overflow-hidden transition-all hover:border-primary/40 cursor-pointer ${club.isArchived ? "opacity-60" : ""} ${!club.isActive && !club.isArchived ? "border-status-warning/40" : ""}`}
+src/features/workflow/workflow-page.tsx:636:        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+src/features/workflow/workflow-page.tsx:827:    "flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors",
+src/features/workflow/node-palette.tsx:98:                          "flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-start text-xs transition-colors",
+src/features/workflow/dag-canvas.tsx:1191:                    className="fill-popover stroke-border hover:stroke-primary hover:scale-125 transition-transform"
+src/features/workflow/dag-canvas.tsx:1209:                        className="fill-popover stroke-status-success hover:scale-125 transition-transform cursor-crosshair"
+src/features/workflow/dag-canvas.tsx:1219:                        className="fill-popover stroke-status-danger hover:scale-125 transition-transform cursor-crosshair"
+src/features/workflow/dag-canvas.tsx:1247:                      className="fill-popover stroke-primary hover:scale-125 transition-transform cursor-crosshair"
+src/features/workflow/dag-canvas.tsx:1265:                            className="flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-accent/20 hover:text-foreground transition-colors"
+src/features/settings/rbac-matrix-editor.tsx:317:                              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-all ${
+src/features/settings/create-account-modal.tsx:283:              "rounded-lg border p-3 text-left transition-colors " +
+src/features/settings/create-account-modal.tsx:302:              "rounded-lg border p-3 text-left transition-colors " +
+src/features/settings/audit-log-tab.tsx:153:                  "ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+src/infrastructure/sync/sync-indicator.tsx:153:          className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/features/settings/approvals-tab.tsx:494:    <div className="border rounded-lg p-4 space-y-3 bg-card hover:border-primary/50 transition-colors">
+src/features/settings/general-tab.tsx:133:                  className={`relative rounded-xl border p-3.5 cursor-pointer transition-all flex flex-col justify-between gap-3 ${
+src/features/settings/pricing/pricing-year-config-bar.tsx:177:                  "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+src/features/settings/theme-editor-modal.tsx:136:          className="rounded-xl border p-4 space-y-3 transition-colors shadow-sm"
+src/features/settings/theme-editor-modal.tsx:163:              className="px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-opacity hover:opacity-90"
+src/features/settings/backup-tab.tsx:1317:                          "w-full text-left rounded-lg border p-2.5 transition-colors",
+src/features/settings/export-dialog.tsx:205:                  "w-full text-left rounded-lg border p-3 transition-colors",
+src/features/settings/contextual-thresholds-config.tsx:193:  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-panel/60 text-muted-foreground transition-colors " +
+src/shared/ui/particle-canvas.tsx:250:        className={cn("block h-full w-full", ready && "transition-opacity duration-700", className)}
+src/shared/ui/slider.tsx:31:        "ring-offset-background transition-colors",
+src/shared/ui/scroll-area.tsx:31:      "flex touch-none select-none transition-colors",
+src/shared/ui/person-link.tsx:55:        className="text-left font-medium text-foreground hover:text-primary hover:underline transition-colors truncate"
+src/shared/ui/person-link.tsx:63:        <span className="opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+src/shared/ui/dropdown-menu.tsx:39:      "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
+src/shared/ui/button.tsx:7:  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+src/shared/ui/unified-modal/parts.tsx:184:          className="shrink-0 text-current opacity-60 transition-opacity hover:opacity-100"
+src/i18n/language-switcher.tsx:55:          className="flex h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/shared/ui/unified-modal/modal-shell.tsx:107:              className="absolute end-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+src/shared/ui/switch.tsx:33:      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+src/shared/ui/switch.tsx:43:        "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+src/shared/ui/progress.tsx:15:      className={cn("h-full w-full flex-1 bg-primary transition-transform", indicatorClassName)}
+src/shared/ui/input.tsx:11:        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors",
+src/shared/ui/wizard/wizard.tsx:110:                  "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+src/shared/ui/markdown-view.tsx:284:                  <tr key={rIdx} className="hover:bg-accent/5 transition-colors">
+src/shared/ui/badge.tsx:6:  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:58:        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:61:            "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl transition-transform duration-300 ease-out",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:99:                className="absolute end-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-surface-elevated/70 text-muted-foreground transition-all hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:113:                  className="rounded-xl border border-border/60 bg-card/90 p-2.5 shadow-sm transition-all hover:border-border"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:141:                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
+src/shared/layout/window-frame.tsx:54:          <button type="button" aria-label="Minimize window" title="Minimize" onClick={minimize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:57:          <button type="button" aria-label={maximized ? "Restore window" : "Maximize window"} title={maximized ? "Restore" : "Maximize"} onClick={toggleMaximize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:60:          <button type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:63:          <button type="button" aria-label="Close window" title="Close" onClick={close} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/sidebar.tsx:62:      className="flex h-full flex-col border-r border-border bg-surface-panel transition-all duration-200"
+src/shared/layout/sidebar.tsx:97:                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+src/shared/layout/sidebar.tsx:125:        className="flex h-10 items-center justify-center border-t border-border text-muted-foreground hover:bg-accent/10 hover:text-foreground transition-colors"
+src/shared/layout/topbar.tsx:256:          className="group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/50"
+src/shared/layout/topbar.tsx:294:              className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/shared/layout/topbar.tsx:376:              className="flex items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent/10"
+src/shared/layout/topbar.tsx:471:              className="flex w-full items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-start transition-colors hover:bg-primary/10"
+src/shared/layout/topbar.tsx:621:        "flex w-full items-center gap-3 rounded-md px-3 py-2 text-start transition-colors",
+src/shared/layout/page-tabs.tsx:337:          "transition-all duration-300",
+src/shared/layout/page-tabs.tsx:353:          "transition-all duration-300",
+src/shared/layout/page-tabs.tsx:413:      "ring-offset-background transition-colors duration-200",
+src/shared/layout/page-tabs.tsx:427:      "ring-offset-background transition-colors duration-150",
+src/shared/layout/page-tabs.tsx:442:      "ring-offset-background transition-all duration-200",
+
+# --- COUNT: 197 matching lines ---

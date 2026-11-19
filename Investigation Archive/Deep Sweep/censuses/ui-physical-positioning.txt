@@ -1,0 +1,62 @@
+# CENSUS: ui-physical-positioning
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading (^|[ "])right-[0-9]|(^|[ "])left-[0-9]|inset-y-0|(^|[ "])top-\[ -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/ai/copilot-drawer.tsx:101:    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-border bg-surface-panel shadow-2xl">
+src/features/financials/receipts-tab.tsx:226:        <div className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-2 text-xs text-muted-foreground shadow-lg">
+src/features/financials/debt-meter.tsx:147:          className="absolute inset-y-0 left-0 bg-status-success transition-all duration-300"
+src/features/financials/debt-meter.tsx:152:          className="absolute inset-y-0 bg-primary/80 transition-all duration-300"
+src/features/financials/debt-meter.tsx:157:          className="absolute inset-y-0 bg-muted-foreground/20"
+src/features/financials/financial-query-console.tsx:201:            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/financials/payment-slider.tsx:230:                className={`absolute inset-y-0 flex flex-col items-center justify-center border-r border-border last:border-r-0 px-1 text-center ${
+src/features/financials/payment-slider.tsx:250:            className="absolute inset-y-0 w-0.5 bg-foreground/60 pointer-events-none"
+src/features/financials/payment-slider.tsx:256:          <span className="absolute left-0">0</span>
+src/features/financials/webhook-diagnostics-card.tsx:259:          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/academics/timetable/timetable-grid.tsx:236:            <th className="sticky left-0 z-10 w-24 border-b border-border bg-surface-panel px-2 py-2 text-left font-medium text-muted-foreground">
+src/features/academics/timetable/timetable-grid.tsx:255:              <td className="sticky left-0 z-10 border-b border-border bg-surface-panel px-2 py-2">
+src/features/dashboard/dashboard-layout-editor.tsx:355:            className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
+src/features/dashboard/dashboard-layout-editor.tsx:364:            className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
+src/features/dashboard/dashboard-layout-editor.tsx:368:          <div className="absolute right-2 top-2 z-40 flex items-center gap-1.5">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:255:              <button type="button" aria-label={`Déplacer la section ${item.id}`} onPointerDown={(event) => startMove(item.id, event)} className="pointer-events-auto absolute left-2 top-2 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing" title="Déplacer">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:258:              <button type="button" aria-label={`Redimensionner la section ${item.id}`} onPointerDown={(event) => startResize(item.id, event)} className="pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 w-7 cursor-nwse-resize items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm" title="Redimensionner">
+src/features/academics/roll-call-screen.tsx:342:      <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-surface-panel/95 backdrop-blur-sm p-3 flex items-center justify-between">
+src/features/dashboard/components/recovery-funnel-card.tsx:641:                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+src/features/academics/placement/class-student-multi-select.tsx:208:        <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+src/features/dashboard/components/insights-rail.tsx:68:        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-brand-cyan to-brand-violet" />
+src/features/academics/placement/class-placement-studio-modal.tsx:340:                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/academics/academic-year-detail-drawer.tsx:491:          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/academics/academic-year-detail-drawer.tsx:800:            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/academics/academic-year-detail-drawer.tsx:1071:          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/academics/teachers-tab.tsx:247:            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/dashboard/components/analytics/operational-query-console.tsx:1066:              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/dashboard/components/analytics/data-inspector-core.tsx:491:              <div className="relative min-w-[260px] flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 text-xs" placeholder="Rechercher famille, élève, référence, catégorie…" /></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/academics/grade-entry-screen.tsx:679:      <div className="sticky bottom-0 left-0 right-0 border-t border-border bg-surface-panel/95 backdrop-blur-sm p-3 flex items-center justify-between">
+src/features/academics/students-directory-tab.tsx:146:          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/academics/students-directory-tab.tsx:157:              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+src/features/academics/therapy/psychology-tab.tsx:129:              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/workflow/test-studio-drawer.tsx:206:            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/academics/therapy/orthophonie-tab.tsx:123:              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/workflow/dag-canvas.tsx:1313:          <div className="absolute bottom-3 right-3 rounded-md border border-border bg-popover/95 shadow-lg p-1.5">
+src/features/settings/rbac-matrix-editor.tsx:282:                <th className="text-left p-3 sticky left-0 bg-muted/30 z-10 min-w-[200px]">Permission</th>
+src/features/settings/rbac-matrix-editor.tsx:305:                      <td className="p-3 sticky left-0 bg-popover z-10">
+src/features/settings/approvals-tab.tsx:399:            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+src/features/settings/approvals-tab.tsx:847:                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/settings/approvals-tab.tsx:1072:                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/settings/approvals-tab.tsx:1397:                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/features/personnel/management/expense-review-section.tsx:185:                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/shared/ui/data-table/data-table.tsx:101:                <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+src/features/personnel/management/staff-attendance-center.tsx:452:                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/shared/ui/auto-form/auto-form-modal.tsx:70:        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-6 shadow-lg">
+src/shared/ui/auto-form/auto-form-modal.tsx:74:            <button className="absolute right-4 top-4 text-muted-foreground hover:text-foreground" aria-label="Fermer">
+src/features/personnel/management/payroll-management.tsx:406:                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+src/shared/ui/money-input.tsx:52:      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/wizard/wizard.tsx:82:          "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover shadow-lg",
+src/shared/ui/select.tsx:82:    <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+src/shared/layout/toast-viewport.tsx:27:    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+
+# --- COUNT: 55 matching lines ---

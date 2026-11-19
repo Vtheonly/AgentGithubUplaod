@@ -1,0 +1,16 @@
+# AGGREGATION: dropdown-usage (from censuses/ui-dropdown-usage)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+     23 src/shared/layout/topbar.tsx
+     18 src/features/academics/placement/student-placement-card.tsx
+     17 src/shared/ui/parent-actions-menu.tsx
+     16 src/shared/ui/student-actions-menu.tsx
+     14 src/features/dashboard/academic-year-selector.tsx
+     10 src/i18n/language-switcher.tsx
+      9 src/shared/layout/tenant-switcher.tsx
+      9 src/features/workflow/dag-canvas.tsx
+      8 src/shared/ui/dropdown-menu.tsx
+      8 src/features/settings/audit-log-tab.tsx
+
+# --- FILES: 10 ---

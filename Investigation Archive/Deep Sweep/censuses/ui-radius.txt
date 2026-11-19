@@ -1,0 +1,751 @@
+# CENSUS: ui-radius
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading rounded-(none|sm|md|lg|xl|2xl|3xl|full) -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:616:            className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-8 cursor-pointer hover:bg-accent/5 transition-colors"
+src/features/crm/excel-import-modal.tsx:624:            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+src/features/crm/excel-import-modal.tsx:636:          <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
+src/features/crm/excel-import-modal.tsx:655:          <div className="flex items-center justify-between rounded-md border border-border p-3">
+src/features/crm/excel-import-modal.tsx:682:            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+src/features/crm/excel-import-modal.tsx:707:                    <li key={p.id} className="rounded-md border border-border bg-background p-3 space-y-1.5">
+src/features/crm/excel-import-modal.tsx:754:            <div className="rounded-md border border-border p-3">
+src/features/crm/excel-import-modal.tsx:765:            <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/excel-import-modal.tsx:797:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 max-h-32 overflow-y-auto">
+src/features/crm/excel-import-modal.tsx:820:          <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
+src/features/crm/excel-import-modal.tsx:844:            <div className="w-full max-w-md h-2 rounded-full bg-muted overflow-hidden">
+src/features/crm/excel-import-modal.tsx:846:                className="h-full rounded-full bg-primary transition-all duration-300"
+src/features/crm/excel-import-modal.tsx:860:          <div className={`rounded-md border p-4 text-center ${skipErrors.length > 0 ? "border-status-warning/40 bg-status-warning/5" : "border-status-success/40 bg-status-success/5"}`}>
+src/features/crm/excel-import-modal.tsx:876:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 max-h-48 overflow-y-auto">
+src/features/crm/excel-import-modal.tsx:910:            <div className="rounded-md border border-border p-3">
+src/features/crm/excel-import-modal.tsx:949:          <div className="rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
+src/features/crm/excel-import-modal.tsx:961:            <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 flex items-start gap-2">
+src/features/crm/parent-year-history-section.tsx:139:    <div className="rounded-md border border-border bg-card">
+src/features/crm/parent-year-history-section.tsx:231:                    className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
+src/features/crm/parent-year-history-section.tsx:267:                    className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
+src/features/crm/parent-year-history-section.tsx:304:                  <li key={p.ledgerEntryId} className="rounded-sm bg-muted/40 px-2 py-1 text-xs">
+src/features/crm/parent-year-history-section.tsx:344:            <div className="rounded-sm border border-amber-200 bg-amber-50/60 px-2 py-1.5 dark:border-amber-900/60 dark:bg-amber-950/30">
+src/features/crm/parent-year-history-section.tsx:511:        <p className="rounded-sm border border-rose-200 bg-rose-50/60 px-2 py-1 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-400">
+src/features/crm/crm-page.tsx:247:                    <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+src/features/crm/crm-page.tsx:389:          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+src/features/crm/parent-detail-drawer.tsx:397:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:485:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:557:            <div className="rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+src/features/crm/parent-detail-drawer.tsx:575:                    className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/40 transition-all shadow-sm"
+src/features/crm/parent-detail-drawer.tsx:995:          className="flex flex-col gap-1 rounded-xl border border-status-danger/40 bg-status-danger/10 p-3 text-xs"
+src/features/crm/parent-detail-drawer.tsx:1033:        <div className="rounded-xl border border-border bg-surface-panel/40 p-3.5 space-y-2">
+src/features/crm/parent-detail-drawer.tsx:1043:          <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex" aria-hidden="true">
+src/features/crm/parent-detail-drawer.tsx:1061:              <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
+src/features/crm/parent-detail-drawer.tsx:1066:                <span className="h-1.5 w-1.5 rounded-full bg-status-warning" />
+src/features/crm/parent-detail-drawer.tsx:1083:                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+src/features/crm/parent-detail-drawer.tsx:1088:              <span className="h-1.5 w-1.5 rounded-full bg-status-danger" />
+src/features/crm/parent-detail-drawer.tsx:1096:      <Card className="rounded-xl border border-border/80 bg-surface-panel overflow-hidden shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:1115:          <div className="flex items-center rounded-lg border border-border bg-background p-0.5 text-xs">
+src/features/crm/parent-detail-drawer.tsx:1120:                "flex items-center gap-1 px-3 py-1 rounded-md transition-all font-semibold",
+src/features/crm/parent-detail-drawer.tsx:1132:                "flex items-center gap-1 px-3 py-1 rounded-md transition-all font-semibold",
+src/features/crm/parent-detail-drawer.tsx:1148:            <div className="flex items-start gap-2 rounded-lg border border-status-warning/40 bg-status-warning/10 p-2.5 text-[11px] text-status-warning">
+src/features/crm/parent-detail-drawer.tsx:1163:                  className="rounded-xl border border-border/80 bg-surface-elevated/30 p-3.5 space-y-3"
+src/features/crm/parent-detail-drawer.tsx:1196:                    <div className="text-xs bg-muted/20 rounded-lg p-2.5 border border-border/40 space-y-1">
+src/features/crm/parent-detail-drawer.tsx:1223:                            "rounded-xl border p-2.5 text-xs space-y-1.5 transition-all shadow-sm",
+src/features/crm/parent-detail-drawer.tsx:1319:                <div className="rounded-lg border border-dashed border-border p-2.5 space-y-1">
+src/features/crm/parent-detail-drawer.tsx:1339:            <div className="rounded-xl border border-dashed border-border bg-muted/10 p-3 space-y-1.5">
+src/features/crm/parent-detail-drawer.tsx:1430:      <div className="rounded-xl border border-border bg-card">
+src/features/crm/parent-detail-drawer.tsx:1459:      <div className="rounded-xl border border-border bg-card">
+src/features/crm/parent-detail-drawer.tsx:1657:        <div className="rounded-md border border-border p-2.5 text-xs bg-muted/20">
+src/features/crm/parent-detail-drawer.tsx:1671:          className="rounded-md border border-border p-2.5 text-[11px] text-muted-foreground space-y-1"
+src/features/crm/parent-detail-drawer.tsx:1695:            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+src/features/crm/parent-detail-drawer.tsx:1841:    <div className="rounded-xl border border-border/80 p-3 text-center bg-card shadow-sm">
+src/features/crm/parent-detail-drawer.tsx:1969:    <div className="rounded-xl border border-border bg-surface-elevated/30 p-3 space-y-2">
+src/features/crm/parent-detail-drawer.tsx:1971:        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+src/features/crm/parent-detail-drawer.tsx:2013:                <div key={c.studentId ?? "famille"} className="rounded-lg border border-border/50 bg-muted/20 p-2 space-y-1">
+src/features/crm/parent-detail-drawer.tsx:2036:                  <div key={`${ref.kind}-${ref.studentId ?? "f"}-${i}`} className="rounded-lg border border-border/50 bg-muted/20 p-2 space-y-1">
+src/features/crm/parent-detail-drawer.tsx:2102:                <div key={item.id} className="rounded-lg border border-border/50 bg-muted/20 p-2 space-y-1">
+src/features/crm/parent-detail-drawer.tsx:2178:            <div className="space-y-1 rounded-lg border border-border/50 bg-muted/20 p-2">
+src/features/crm/student-detail/academic-tab.tsx:283:              <div className="rounded-md border border-border overflow-hidden mb-3">
+src/features/crm/student-detail/academic-tab.tsx:321:              <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/20 p-3">
+src/features/crm/student-detail/academic-tab.tsx:393:    <li className="rounded-md border border-border text-sm">
+src/features/crm/student-detail/academic-tab.tsx:437:                <div className="rounded-md border border-border overflow-hidden">
+src/features/crm/student-detail/academic-tab.tsx:483:              <p className="text-xs rounded-md bg-muted/30 border border-border p-2">
+src/features/crm/student-detail/academic-tab.tsx:491:            <div className="rounded-md border border-border p-2">
+src/features/crm/student-detail/academic-tab.tsx:499:            <div className="rounded-md border border-border p-2">
+src/features/crm/student-detail/info-tab.tsx:76:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:123:              <p className="text-xs rounded-lg bg-status-warning/10 border border-status-warning/30 p-2.5 text-foreground leading-relaxed">
+src/features/crm/student-detail/info-tab.tsx:132:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:152:            <div className="rounded-xl border border-border bg-surface-elevated/40 p-3.5 flex items-center justify-between gap-3">
+src/features/crm/student-detail/info-tab.tsx:193:                    className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-border/60 bg-surface-elevated/20 hover:bg-surface-elevated/50 transition-colors"
+src/features/crm/student-detail/info-tab.tsx:220:      <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:246:                  <p className="text-xs rounded-lg bg-muted/40 border border-border p-2.5">
+src/features/crm/student-detail/info-tab.tsx:262:        <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/crm/student-detail/info-tab.tsx:272:                <li key={s.field} className="flex items-center justify-between text-xs p-2 rounded-lg bg-surface-elevated/30 border border-border/40">
+src/features/crm/student-detail/attendance-tab.tsx:51:        <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 flex items-start gap-2">
+src/features/crm/student-detail/attendance-tab.tsx:139:    <div className="rounded-md border border-border p-3">
+src/features/crm/student-detail/documents-tab.tsx:207:                  className="w-full h-9 rounded-md border border-border bg-transparent px-2 text-xs"
+src/features/crm/student-detail/documents-tab.tsx:223:                  className="w-full h-9 rounded-md border border-border bg-transparent px-2 text-xs"
+src/features/crm/student-detail/documents-tab.tsx:230:            <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/crm/student-detail/documents-tab.tsx:262:                className="flex items-center gap-3 rounded-md border border-border p-2.5"
+src/features/crm/batch-registration/step1-parent.tsx:33:        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+src/features/crm/batch-registration/step1-parent.tsx:41:        <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-border p-3 text-sm">
+src/features/crm/batch-registration/parent-picker-step.tsx:61:        <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+src/features/crm/batch-registration/parent-picker-step.tsx:140:        <div className="rounded-md border border-border divide-y divide-border max-h-72 overflow-y-auto">
+src/features/crm/batch-registration/step2-students.tsx:87:        <div key={i} className="rounded-md border border-border p-3 space-y-3 relative">
+src/features/crm/batch-registration/step2-students.tsx:282:          <details className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
+src/features/crm/batch-registration/step3-billing.tsx:38:        <label className="flex items-center gap-2 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/crm/batch-registration/step3-billing.tsx:53:        <label className="flex items-center gap-2 rounded-md border border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/crm/batch-registration/step3-billing.tsx:71:        <div className="rounded-md border border-border p-3">
+src/features/crm/batch-registration/step3-billing.tsx:77:            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-mono"
+src/features/crm/batch-registration/step3-billing.tsx:84:        <div className="rounded-md border border-border p-3">
+src/features/crm/batch-registration/step3-billing.tsx:90:            className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm font-mono"
+src/features/crm/batch-registration/step3-billing.tsx:99:      <div className="rounded-md border border-border">
+src/features/crm/batch-registration/step4-review.tsx:29:      <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3">
+src/features/crm/batch-registration/step4-review.tsx:36:      <div className="rounded-md border border-border p-3 space-y-2">
+src/features/crm/batch-registration/step4-review.tsx:50:      <div className="rounded-md border border-border p-3 space-y-2">
+src/features/crm/batch-registration/step4-review.tsx:73:      <div className="rounded-md border border-border p-3 space-y-2">
+src/features/crm/re-enrollment/re-enroll-modal.tsx:209:          <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+src/features/crm/re-enrollment/re-enroll-modal.tsx:351:            <div className="rounded-md border border-border p-3 text-sm space-y-1.5">
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:429:            <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+src/features/ai/copilot-drawer.tsx:105:          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+src/features/ai/copilot-drawer.tsx:149:            <div className="rounded-full bg-primary/10 p-3 text-primary">
+src/features/ai/copilot-drawer.tsx:163:                  className="flex w-full items-center justify-between rounded-md border border-border/80 bg-background/50 p-2.5 text-start text-xs text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/features/ai/copilot-drawer.tsx:178:                <div className="flex items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground">
+src/features/ai/copilot-drawer.tsx:194:                <div className="max-w-[85%] break-words whitespace-pre-wrap rounded-lg bg-primary px-3.5 py-2.5 text-xs font-medium text-primary-foreground leading-relaxed">
+src/features/ai/copilot-drawer.tsx:198:                <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+src/features/ai/copilot-drawer.tsx:216:              <div className="flex animate-pulse items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 font-mono text-xs text-primary">
+src/features/ai/copilot-drawer.tsx:222:              <div className="w-full max-w-[96%] rounded-lg border border-border/60 bg-surface-elevated px-3.5 py-2.5 text-xs shadow-sm">
+src/features/ai/copilot-drawer.tsx:228:                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+src/features/ai/artifact-renderer.tsx:38:        <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-border/60 bg-surface-elevated p-3 shadow-sm">
+src/features/ai/artifact-renderer.tsx:51:        <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-border/60 bg-surface-elevated p-3 shadow-sm">
+src/features/ai/artifact-renderer.tsx:94:    <div className="w-full max-w-[96%] space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3 shadow-sm">
+src/features/ai/artifact-renderer.tsx:97:          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+src/features/ai/artifact-renderer.tsx:111:          className="flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+src/features/financials/unified-payment-modal.tsx:640:                  <ul className="mt-2 rounded-md border border-border max-h-48 overflow-y-auto">
+src/features/financials/unified-payment-modal.tsx:666:              <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between gap-3">
+src/features/financials/unified-payment-modal.tsx:722:                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+src/features/financials/unified-payment-modal.tsx:740:                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+src/features/financials/unified-payment-modal.tsx:758:              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1.5 text-xs">
+src/features/financials/unified-payment-modal.tsx:836:              <div className="rounded-lg border border-border bg-card p-3.5">
+src/features/financials/unified-payment-modal.tsx:847:              <div className="rounded-md border border-status-success/40 bg-status-success/5 p-3 text-xs text-status-success">
+src/features/financials/unified-payment-modal.tsx:855:              <div className="rounded-md border border-border p-3 space-y-1 text-xs">
+src/features/financials/unified-payment-modal.tsx:880:              <div className="rounded-md border border-status-warning/40 bg-status-warning/5 p-3 text-xs text-status-warning">
+src/features/financials/unified-payment-modal.tsx:892:              <div className="rounded-lg border border-border bg-card p-3.5 space-y-3">
+src/features/financials/unified-payment-modal.tsx:908:                      className={`h-9 rounded-md border text-xs font-medium transition-colors ${
+src/features/financials/unified-payment-modal.tsx:923:                  <div className="rounded-lg border border-border/80 bg-surface-elevated/40 p-3 space-y-2">
+src/features/financials/unified-payment-modal.tsx:1049:                      <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 cursor-pointer hover:bg-accent/5">
+src/features/financials/unified-payment-modal.tsx:1118:            <div className="rounded-md border border-border p-3 space-y-1 text-xs">
+src/features/financials/unified-payment-modal.tsx:1139:          <div className="rounded-lg border border-status-success/40 bg-status-success/5 p-4 space-y-3">
+src/features/financials/unified-payment-modal.tsx:1190:          <div className="rounded-lg border border-border p-3 flex items-center gap-3">
+src/features/financials/receipts-tab.tsx:226:        <div className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-2 text-xs text-muted-foreground shadow-lg">
+src/features/financials/debt-meter.tsx:104:    <div className="rounded-lg border border-border bg-surface-panel/40 p-4 space-y-3">
+src/features/financials/debt-meter.tsx:144:      <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+src/features/financials/debt-meter.tsx:165:          <span className="inline-block h-2 w-2 rounded-full bg-status-success" />
+src/features/financials/debt-meter.tsx:169:          <span className="inline-block h-2 w-2 rounded-full bg-primary/80" />
+src/features/financials/debt-meter.tsx:173:          <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/30" />
+src/features/financials/expense-attachments-gallery.tsx:167:        <p className="text-xs text-muted-foreground italic rounded-md border border-dashed border-border p-3">
+src/features/financials/expense-attachments-gallery.tsx:179:                className="rounded-md border border-border overflow-hidden bg-background"
+src/features/financials/cross-service-matrix.tsx:82:                      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+src/features/financials/cross-service-matrix.tsx:84:                          className={`h-full rounded-full transition-all ${tone}`}
+src/features/financials/cash-flow-radar.tsx:51:          <div className="p-3 rounded-lg border border-border bg-surface-elevated/40">
+src/features/financials/cash-flow-radar.tsx:73:          <div className="p-3 rounded-lg border border-border bg-surface-elevated/40">
+src/features/financials/cash-flow-radar.tsx:102:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:104:                className="h-full rounded-full bg-status-success transition-all"
+src/features/financials/cash-flow-radar.tsx:115:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:117:                className="h-full rounded-full bg-status-warning transition-all"
+src/features/financials/cash-flow-radar.tsx:128:            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/cash-flow-radar.tsx:130:                className="h-full rounded-full bg-primary transition-all"
+src/features/financials/cash-flow-radar.tsx:138:        <div className="p-2.5 rounded-md bg-muted/20 border border-border/60 text-xs text-muted-foreground flex items-center justify-between">
+src/features/financials/tranche-amount-edit-modal.tsx:206:          className="rounded-md border border-border p-2.5 text-xs bg-muted/20 space-y-1"
+src/features/financials/tranche-amount-edit-modal.tsx:254:            className="rounded-md border border-border p-2.5 text-xs space-y-1"
+src/features/financials/tranche-amount-edit-modal.tsx:290:            className="rounded-md border border-status-warning/40 bg-status-warning/10 p-2.5 text-[11px] space-y-1"
+src/features/financials/financial-query-console.tsx:184:                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/financials/financial-query-console.tsx:246:        <div className="flex flex-wrap items-center justify-between text-xs px-3 py-2 rounded-md bg-muted/20 border border-border/50 text-muted-foreground gap-2">
+src/features/financials/financial-query-console.tsx:280:        <div className="rounded-md border border-border overflow-hidden">
+src/features/financials/payment-slider.tsx:162:      <div className="rounded-lg border border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+src/features/financials/payment-slider.tsx:221:        <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
+src/features/financials/payment-slider.tsx:324:      <div className="rounded-md border border-border">
+src/features/financials/payment-slider.tsx:374:      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 flex justify-between items-center">
+src/features/financials/payment-slider.tsx:401:      className="rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:border-primary hover:bg-accent/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+src/features/financials/expense-submit-modal.tsx:316:          <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/financials/expense-submit-modal.tsx:337:                  className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2.5 py-1.5 text-xs"
+src/features/academics/narrative-generator-modal.tsx:330:            <div className="rounded-md border border-border p-3 space-y-2 text-sm">
+src/features/academics/narrative-generator-modal.tsx:425:            <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-2 text-[11px] text-status-warning">
+src/features/financials/expense-detail-drawer.tsx:233:              className="w-full rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-left hover:bg-status-danger/20 transition-colors"
+src/features/financials/expense-detail-drawer.tsx:250:                    className={`absolute -left-[21px] top-1 size-3 rounded-full border-2 border-background ${
+src/features/financials/expense-detail-drawer.tsx:271:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3">
+src/features/financials/expense-detail-drawer.tsx:279:            <div className="rounded-md border border-status-success/30 bg-status-success/5 p-3 space-y-1.5">
+src/features/financials/expense-detail-drawer.tsx:369:                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+src/features/financials/expense-detail-drawer.tsx:410:            <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/financials/expense-detail-drawer.tsx:431:              className={`rounded-md border p-2 text-xs ${
+src/features/financials/payroll-funding-card.tsx:98:            <div className="p-2.5 rounded-lg border border-border bg-surface-elevated/40">
+src/features/financials/payroll-funding-card.tsx:109:            <div className="p-2.5 rounded-lg border border-border bg-surface-elevated/40">
+src/features/financials/payroll-funding-card.tsx:122:          <div className="p-2.5 rounded-lg border border-status-warning/30 bg-status-warning/5 flex items-center justify-between gap-2">
+src/features/financials/payroll-funding-card.tsx:137:        <div className="p-2.5 rounded-md bg-muted/20 border border-border/60 space-y-1.5">
+src/features/financials/payroll-funding-card.tsx:178:              className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+src/features/financials/anomaly-explainer-modal.tsx:223:              <li className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+src/features/financials/anomaly-explainer-modal.tsx:232:                <li key={i} className="rounded-md border border-border p-3 space-y-1.5">
+src/features/financials/anomaly-explainer-modal.tsx:271:              <div className="rounded-md border border-border bg-muted/20 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+src/features/financials/payment-breakdown-card.tsx:120:          <div className="rounded-md border border-border p-3 space-y-1.5 bg-muted/30">
+src/features/financials/payment-breakdown-card.tsx:166:          <div className="rounded-md border border-status-warning/40 bg-status-warning/5 p-3 space-y-1">
+src/features/academics/timetable/timetable-grid.tsx:180:      <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-10 text-center">
+src/features/academics/timetable/timetable-grid.tsx:202:      <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-10 text-center">
+src/features/academics/timetable/timetable-grid.tsx:282:                                  "flex min-h-[52px] w-full flex-col justify-center gap-0.5 rounded-md border px-2 py-1 text-left transition-[filter,box-shadow]",
+src/features/financials/financials-page.tsx:360:          className="mx-6 mb-3 flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+src/features/financials/financials-page.tsx:375:            className="ml-auto rounded-md border border-destructive/50 px-2.5 py-1 text-xs font-medium uppercase tracking-wide hover:bg-destructive/20 disabled:opacity-50"
+src/features/financials/financials-page.tsx:388:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:402:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:415:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:433:            className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
+src/features/financials/financials-page.tsx:1078:        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-status-danger/10 text-xs font-mono font-semibold text-status-danger">
+src/features/financials/financials-page.tsx:1164:                  className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+src/features/financials/financials-page.tsx:1258:                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/financials/financials-page.tsx:1260:                        className="h-full rounded-full bg-status-danger/70 transition-all"
+src/features/financials/debt-aging-tab.tsx:144:        className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400"
+src/features/financials/debt-aging-tab.tsx:146:        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+src/features/financials/debt-aging-tab.tsx:409:            "text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5",
+src/features/financials/debt-aging-tab.tsx:471:            className="rounded-full border border-status-warning/40 bg-status-warning/10 px-2 py-0.5 text-[10px] font-medium text-status-warning"
+src/features/financials/debt-aging-tab.tsx:641:              className="rounded-lg border border-border/60 bg-surface-elevated/60 p-3 space-y-1"
+src/features/financials/debt-aging-tab.tsx:682:          <div className="rounded-lg border border-border/60 bg-surface-elevated/60 p-3 space-y-2 text-sm">
+src/features/financials/debt-aging-tab.tsx:703:          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+src/features/academics/timetable/timetable-tab.tsx:406:        <div className="rounded-md border border-dashed border-border p-6 text-center">
+src/features/academics/timetable/timetable-tab.tsx:431:            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+src/features/academics/timetable/timetable-tab.tsx:467:              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+src/features/academics/timetable/timetable-tab.tsx:469:                  className={`h-full rounded-full bg-primary transition-[width] duration-150 ${
+src/features/academics/timetable/timetable-tab.tsx:650:                className={`mb-3 rounded-md border p-3 ${
+src/features/academics/timetable/timetable-tab.tsx:722:              <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border p-12 text-center">
+src/features/academics/timetable/timetable-tab.tsx:809:                        className={`rounded-md border p-3 ${
+src/features/academics/timetable/timetable-tab.tsx:918:                          <div className="mt-2 overflow-hidden rounded-md border border-border">
+src/features/academics/timetable/timetable-tab.tsx:1078:                    className="flex items-center justify-between gap-2 rounded-md border border-border p-3"
+src/features/academics/timetable/timetable-tab.tsx:1140:                    className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+src/features/academics/timetable/timetable-tab.tsx:1325:          <div className="w-full max-w-md rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/timetable/timetable-tab.tsx:1332:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1341:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1352:                  className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1361:                  className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1469:          <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/timetable/timetable-tab.tsx:1476:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1492:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1508:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1524:                  className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1536:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1552:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1568:                    className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1764:            className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1785:                  className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
+src/features/academics/timetable/timetable-tab.tsx:1801:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1810:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1820:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-tab.tsx:1830:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/financials/installment-schedule-tab.tsx:298:      <div className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+src/features/financials/installment-schedule-tab.tsx:337:            "rounded-lg border p-3 space-y-2 " +
+src/features/financials/installment-schedule-tab.tsx:355:          <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+src/features/financials/installment-schedule-tab.tsx:358:                "h-full rounded-full transition-all duration-500 " +
+src/features/financials/installment-schedule-tab.tsx:766:            <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/5 px-2.5 h-9 text-sm">
+src/features/financials/installment-schedule-tab.tsx:855:        <div className="grid grid-cols-4 gap-2 rounded-md border bg-muted/20 p-3">
+src/features/academics/timetable/timetable-entry-dialog.tsx:142:      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-surface-panel p-5 shadow-xl">
+src/features/academics/timetable/timetable-entry-dialog.tsx:156:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-entry-dialog.tsx:170:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-entry-dialog.tsx:184:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-entry-dialog.tsx:199:              className="rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+src/features/academics/timetable/timetable-entry-dialog.tsx:214:          <div className="mt-3 flex items-start gap-2 rounded-md border border-status-danger/40 bg-status-danger/10 p-2.5">
+src/features/financials/webhook-diagnostics-card.tsx:218:            className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${
+src/features/financials/webhook-diagnostics-card.tsx:242:                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/financials/webhook-diagnostics-card.tsx:273:        <div className="rounded-md border border-border overflow-hidden" data-testid="webhook-diagnostics-table">
+src/features/financials/payment-detail-drawer.tsx:171:          <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-surface-panel p-4 flex items-center justify-between">
+src/features/financials/payment-detail-drawer.tsx:196:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/financials/payment-detail-drawer.tsx:199:                  <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+src/features/financials/payment-detail-drawer.tsx:228:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/financials/payment-detail-drawer.tsx:231:                  <div className="h-10 w-10 rounded-xl bg-brand-gold/10 text-brand-gold flex items-center justify-center shrink-0">
+src/features/financials/payment-detail-drawer.tsx:260:            <div className="rounded-xl border border-border bg-surface-elevated/40 p-3.5 space-y-2">
+src/features/financials/payment-detail-drawer.tsx:274:            <div className="rounded-lg border border-border p-3 text-xs">
+src/features/financials/payment-detail-drawer.tsx:282:            <div className="rounded-xl border border-status-warning/40 bg-status-warning/5 p-3.5 space-y-2.5">
+src/features/financials/payment-detail-drawer.tsx:311:            <div className="rounded-xl border border-status-danger/40 bg-status-danger/5 p-3 text-xs text-status-danger">
+src/features/financials/payment-detail-drawer.tsx:385:                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+src/features/academics/roll-call-screen.tsx:209:          <div className="flex rounded-md border border-border overflow-hidden">
+src/features/academics/roll-call-screen.tsx:300:                              "h-9 w-10 rounded-md border text-xs font-bold transition-all",
+src/features/academics/roll-call-screen.tsx:322:                          className="h-8 w-28 rounded-md border border-status-info/40 bg-background px-2 text-xs font-mono text-status-info"
+src/features/dashboard/dashboard-calendar.tsx:253:    <Card className="h-full flex flex-col rounded-xl border border-border/70 bg-surface-panel shadow-sm overflow-hidden">
+src/features/dashboard/dashboard-calendar.tsx:301:          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/60 bg-surface-panel">
+src/features/dashboard/dashboard-calendar.tsx:344:                        className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] leading-none ${
+src/features/dashboard/dashboard-calendar.tsx:372:                            className={`h-1.5 w-1.5 rounded-full ${
+src/features/dashboard/dashboard-calendar.tsx:391:        <div className="lg:col-span-5 flex flex-col rounded-xl border border-border/70 bg-surface-elevated/20 overflow-hidden min-h-[230px]">
+src/features/dashboard/dashboard-calendar.tsx:441:                      className="p-2.5 rounded-lg border border-border/50 bg-surface-panel/80 flex items-start gap-2.5 hover:border-border transition-colors"
+src/features/dashboard/dashboard-calendar.tsx:444:                        className={`h-7 w-7 rounded-md flex items-center justify-center shrink-0 ${
+src/features/academics/placement/class-student-multi-select.tsx:221:          "border border-border rounded-lg divide-y divide-border overflow-y-auto bg-background",
+src/features/academics/placement/class-student-multi-select.tsx:259:                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+src/features/academics/placement/student-placement-card.tsx:61:      className={`rounded-lg border transition-all p-2.5 flex items-center justify-between gap-2.5 ${
+src/features/dashboard/dashboard-layout-editor.tsx:330:          ? "min-h-0 overflow-hidden rounded-xl ring-1 ring-primary/20 bg-surface-background/80"
+src/features/dashboard/dashboard-layout-editor.tsx:355:            className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
+src/features/dashboard/dashboard-layout-editor.tsx:364:            className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
+src/features/dashboard/dashboard-layout-editor.tsx:377:              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-surface-panel/95 text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/dashboard-layout-editor.tsx:736:        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+src/features/dashboard/dashboard-layout-editor.tsx:755:              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-panel px-2.5 py-1 text-xs hover:bg-muted"
+src/features/dashboard/dashboard-layout-editor.tsx:763:              className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground disabled:opacity-50"
+src/features/dashboard/dashboard-layout-editor.tsx:774:          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border/70 bg-surface-panel/60 px-3 py-2 text-xs text-muted-foreground"
+src/features/dashboard/dashboard-layout-editor.tsx:789:              className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+src/features/dashboard/dashboard-layout-editor.tsx:800:            className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 font-medium text-primary transition-colors hover:bg-primary/10"
+src/features/dashboard/dashboard-layout-editor.tsx:819:        className={`relative grid grid-cols-12 gap-3 pb-8 ${editing ? "rounded-xl border border-dashed border-primary/30 bg-[linear-gradient(to_right,hsl(var(--primary)/0.06)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary)/0.06)_1px,transparent_1px)] bg-[size:8.333%_32px] p-2" : ""}`}
+src/features/dashboard/dashboard-layout-editor.tsx:866:          className="rounded-xl border border-dashed border-border/70 bg-surface-panel/50 px-4 py-10 text-center text-xs text-muted-foreground"
+src/features/dashboard/dashboard-layout-editor.tsx:878:          className="mt-3 rounded-lg border border-dashed border-border/70 bg-surface-panel/60 px-3 py-2.5"
+src/features/dashboard/dashboard-layout-editor.tsx:892:                className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+src/features/academics/placement/class-placement-studio-modal.tsx:170:          <div className="flex rounded-md border border-border bg-muted/30 p-0.5 text-xs">
+src/features/academics/placement/class-placement-studio-modal.tsx:232:                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
+src/features/academics/placement/class-placement-studio-modal.tsx:248:          <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs">
+src/features/academics/placement/class-placement-studio-modal.tsx:317:            <div className="lg:col-span-5 flex flex-col h-full border rounded-lg bg-surface-panel overflow-hidden">
+src/features/academics/placement/class-placement-studio-modal.tsx:386:                  <div className="py-12 text-center text-xs text-muted-foreground border border-dashed rounded-lg">
+src/features/academics/placement/class-placement-studio-modal.tsx:466:          <div className="border rounded-lg overflow-hidden flex-1 flex flex-col bg-card">
+src/features/academics/placement/class-placement-studio-modal.tsx:550:                  <div className="space-y-1.5 p-3 rounded-lg border border-status-warning/40 bg-status-warning/10 text-xs">
+src/features/academics/placement/class-placement-studio-modal.tsx:561:                  <div className="p-3 rounded-lg border border-status-success/40 bg-status-success/10 text-xs text-status-success flex items-center gap-2">
+src/features/dashboard/see-details-modal.tsx:191:    <div className="rounded-xl border border-border/70 bg-surface-elevated/40 p-3.5 space-y-1">
+src/features/dashboard/see-details-modal.tsx:624:                              className="h-2.5 w-2.5 rounded-full"
+src/features/dashboard/see-details-modal.tsx:745:                                  className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${sev.className}`}
+src/features/dashboard/see-details-modal.tsx:867:      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+src/features/dashboard/see-details-modal.tsx:898:                      className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+src/features/dashboard/see-details-modal.tsx:911:                    className="text-xs font-mono font-bold px-2 py-0.5 rounded-full border"
+src/features/dashboard/see-details-modal.tsx:929:                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/dashboard/see-details-modal.tsx:931:                      className="h-full rounded-full transition-all duration-500"
+src/features/academics/placement/class-card-dropzone.tsx:148:          <div className="py-12 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:236:        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:239:            <button type="button" onClick={reset} className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-panel px-2 py-1 hover:bg-muted">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:242:            <button type="button" onClick={persist} disabled={!dirty} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:255:              <button type="button" aria-label={`Déplacer la section ${item.id}`} onPointerDown={(event) => startMove(item.id, event)} className="pointer-events-auto absolute left-2 top-2 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing" title="Déplacer">
+src/features/dashboard/dashboard-tab-layout-editor.tsx:258:              <button type="button" aria-label={`Redimensionner la section ${item.id}`} onPointerDown={(event) => startResize(item.id, event)} className="pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 w-7 cursor-nwse-resize items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm" title="Redimensionner">
+src/features/academics/grade-levels-class-view.tsx:232:                    <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
+src/features/academics/grade-levels-class-view.tsx:253:                          className="rounded-lg border border-border bg-card p-3.5 hover:border-primary/50 hover:bg-accent/5 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+src/features/dashboard/alert-detail-modal.tsx:346:          <div className="rounded-xl border border-border/80 bg-surface-elevated/40 p-4">
+src/features/dashboard/alert-detail-modal.tsx:353:            <div className="p-3 rounded-lg border border-border/50 bg-surface-elevated/20 space-y-1">
+src/features/dashboard/alert-detail-modal.tsx:375:            <div className="p-3 rounded-lg border border-border/50 bg-surface-elevated/20 space-y-1">
+src/features/dashboard/alert-detail-modal.tsx:400:                  className="flex items-center gap-3 w-full rounded-xl border border-border/70 p-3 hover:bg-surface-elevated/50 transition-colors text-left"
+src/features/dashboard/alert-detail-modal.tsx:422:            <div className="flex items-start gap-2.5 rounded-xl border border-status-danger/40 bg-status-danger/10 p-3 text-xs text-status-danger">
+src/features/academics/homework-push-modal.tsx:224:          <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-3 cursor-pointer hover:bg-accent/5">
+src/features/academics/academic-year-detail-drawer.tsx:181:    <div className="p-3 rounded-lg border border-border/70 bg-surface-elevated/40 space-y-1.5">
+src/features/academics/academic-year-detail-drawer.tsx:191:        className="h-1.5 rounded-full bg-muted overflow-hidden"
+src/features/academics/academic-year-detail-drawer.tsx:195:          className={`h-full rounded-full transition-all duration-500 ${barTone}`}
+src/features/academics/academic-year-detail-drawer.tsx:412:          <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:414:              className="h-full rounded-full bg-primary transition-all"
+src/features/academics/academic-year-detail-drawer.tsx:446:                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+src/features/academics/academic-year-detail-drawer.tsx:448:                      className="h-full rounded-full bg-primary/70 transition-all"
+src/features/academics/class-subjects-tab.tsx:182:          <div className="rounded-md border border-border overflow-hidden">
+src/features/dashboard/components/recovery-funnel-card.tsx:512:            <span className="rounded-full border border-status-danger/20 bg-status-danger/10 px-2 py-0.5 text-xs font-mono font-semibold text-status-danger">
+src/features/dashboard/components/recovery-funnel-card.tsx:540:                className="group relative flex w-full flex-col justify-between space-y-2 rounded-xl border border-border/70 bg-surface-elevated/40 p-3 text-left transition-all hover:border-primary/50 hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+src/features/dashboard/components/recovery-funnel-card.tsx:547:                    className="rounded-full border px-1.5 py-0.5 text-[10px] font-mono font-bold"
+src/features/dashboard/components/recovery-funnel-card.tsx:567:                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+src/features/dashboard/components/recovery-funnel-card.tsx:569:                    className="h-full rounded-full transition-[width] duration-200"
+src/features/dashboard/components/recovery-funnel-card.tsx:603:            <div className="grid grid-cols-1 gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 sm:grid-cols-3">
+src/features/dashboard/components/recovery-funnel-card.tsx:660:              <div className="rounded-lg border border-dashed border-border p-8 text-center">
+src/features/dashboard/components/recovery-funnel-card.tsx:670:              <div className="overflow-x-auto rounded-lg border border-border/70">
+src/features/dashboard/components/recovery-funnel-card.tsx:721:                              "rounded-full border px-1.5 py-0.5 text-[10px] font-medium " +
+src/features/dashboard/components/recovery-funnel-card.tsx:793:            <div className="rounded-lg border border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
+src/features/dashboard/components/recovery-funnel-card.tsx:818:            <div className="grid grid-cols-1 gap-2 rounded-lg border border-border/70 bg-muted/20 p-3 sm:grid-cols-2">
+src/features/dashboard/components/recovery-funnel-card.tsx:852:            <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+src/features/dashboard/components/recovery-funnel-card.tsx:915:              <span className="block rounded-md border border-border/70 bg-muted/25 p-3">
+src/features/dashboard/components/insights-rail.tsx:67:      <Card className="relative overflow-hidden rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 via-primary/5 to-surface-panel shadow-sm">
+src/features/dashboard/components/insights-rail.tsx:75:            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold">
+src/features/dashboard/components/insights-rail.tsx:128:      <Card className="rounded-xl border border-border/70 bg-surface-panel p-4 flex items-center gap-4">
+src/features/dashboard/components/insights-rail.tsx:189:          <div className="h-1 w-full rounded-full bg-muted/60 overflow-hidden mt-1">
+src/features/dashboard/components/insights-rail.tsx:191:              className="h-full bg-status-success rounded-full"
+src/features/dashboard/components/insights-rail.tsx:199:      <Card className="rounded-xl border border-border/70 bg-surface-panel shadow-sm">
+src/features/dashboard/components/insights-rail.tsx:204:              <span className="h-2 w-2 rounded-full bg-status-danger animate-pulse" />
+src/features/dashboard/components/insights-rail.tsx:224:                  className="group flex items-center justify-between gap-2 p-2 rounded-lg border border-border/50 bg-surface-elevated/20 hover:bg-surface-elevated/60 transition-colors"
+src/features/academics/class-attendance-tab.tsx:128:            <div className="rounded-md border border-border overflow-hidden">
+src/features/academics/class-attendance-tab.tsx:223:    <div className="rounded-md border border-border p-3">
+src/features/academics/class-attendance-tab.tsx:225:        className={`inline-flex items-center justify-center h-8 w-8 rounded-md ${toneClass} mb-2`}
+src/features/dashboard/components/weekly-operating-rhythm.tsx:123:                  className="h-2 w-2 rounded-full"
+src/features/academics/class-detail-page.tsx:417:        <div className="mx-6 mb-3 bg-muted/20 border border-border p-3 rounded-lg flex items-start gap-2.5 text-xs text-muted-foreground">
+src/features/dashboard/components/analytics/cross-risk-card.tsx:105:            className="p-3.5 rounded-xl border border-status-danger/40 bg-status-danger/10 cursor-pointer hover:bg-status-danger/15 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:124:            className="p-3.5 rounded-xl border border-status-warning/40 bg-status-warning/10 cursor-pointer hover:bg-status-warning/15 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:143:            className="p-3.5 rounded-xl border border-border/70 bg-surface-elevated/40 cursor-pointer hover:bg-surface-elevated/70 transition-all space-y-1"
+src/features/dashboard/components/analytics/cross-risk-card.tsx:162:            className="p-3.5 rounded-xl border border-border/70 bg-surface-elevated/40 cursor-pointer hover:bg-surface-elevated/70 transition-all space-y-1"
+src/features/dashboard/components/analytics/mix-cards.tsx:139:                  className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-surface-elevated/30 border border-border/30"
+src/features/dashboard/components/analytics/mix-cards.tsx:143:                      className="h-2.5 w-2.5 rounded-full shrink-0"
+src/features/dashboard/components/analytics/mix-cards.tsx:201:          className="flex items-center gap-1 rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
+src/features/dashboard/components/analytics/aging-composition-card.tsx:76:              className="flex h-7 w-full rounded-xl overflow-hidden border border-border/60 shadow-inner"
+src/features/dashboard/components/analytics/aging-composition-card.tsx:128:                          className="h-2 w-2 rounded-full shrink-0"
+src/features/dashboard/components/analytics/reference-population-selector.tsx:66:        "inline-flex items-center gap-1 rounded-full border border-border/70 bg-surface-elevated/40 p-0.5",
+src/features/dashboard/components/analytics/reference-population-selector.tsx:82:            "rounded-full font-medium transition-colors",
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:90:            className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border bg-status-warning/15 text-status-warning border-status-warning/40 animate-pulse"
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:97:            className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:115:                ? "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/50 bg-status-warning/10 text-status-warning hover:bg-status-warning/20 transition-colors"
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx:116:                : "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:bg-accent/10 hover:text-foreground transition-colors"
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:226:          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground flex items-start gap-2">
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:241:          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:264:        <div className="rounded-lg border border-border overflow-hidden max-h-[45vh] overflow-y-auto">
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:76:        <div className="flex rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs">
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx:190:                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-status-danger/15 text-status-danger font-bold">
+src/features/academics/class-grades-tab.tsx:122:          <div className="flex gap-1 bg-muted/40 p-1 rounded-md border border-border">
+src/features/academics/class-grades-tab.tsx:164:              <div className="rounded-md border border-border p-3 text-center bg-surface-panel/40">
+src/features/academics/class-grades-tab.tsx:168:              <div className="rounded-md border border-status-success/30 bg-status-success/5 p-3 text-center">
+src/features/academics/class-grades-tab.tsx:172:              <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 text-center">
+src/features/academics/class-grades-tab.tsx:178:            <div className="rounded-md border border-border overflow-hidden">
+src/features/academics/grade-entry-screen.tsx:534:        <div className="mx-6 mb-3 flex items-center gap-2 rounded-md border border-status-warning/40 bg-status-warning/10 p-2.5 text-xs text-status-warning">
+src/features/academics/grade-entry-screen.tsx:748:    <div className="rounded-md border border-border p-2 flex items-center gap-2">
+src/features/dashboard/components/analytics/operational-query-console.tsx:146:    <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-2.5">
+src/features/dashboard/components/analytics/operational-query-console.tsx:157:    <div className="rounded-lg border border-border/50 bg-surface-elevated/20 p-2">
+src/features/dashboard/components/analytics/operational-query-console.tsx:208:      className={`rounded-lg border p-3 ${
+src/features/dashboard/components/analytics/operational-query-console.tsx:428:          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+src/features/dashboard/components/analytics/operational-query-console.tsx:549:                        className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-xs"
+src/features/dashboard/components/analytics/operational-query-console.tsx:598:                    className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-[11px]"
+src/features/dashboard/components/analytics/operational-query-console.tsx:664:                        className="rounded-full border border-border/70 px-2 py-1 text-[10px]"
+src/features/dashboard/components/analytics/operational-query-console.tsx:673:              <div className="mt-3 rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+src/features/dashboard/components/analytics/operational-query-console.tsx:737:                    className="rounded-lg border border-border/50 px-3 py-2"
+src/features/dashboard/components/analytics/operational-query-console.tsx:855:            <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1050:                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/dashboard/components/analytics/operational-query-console.tsx:1136:          <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-surface-elevated/40 border border-border/50 text-muted-foreground">
+src/features/dashboard/components/analytics/operational-query-console.tsx:1161:          <div className="rounded-xl border border-border/70 overflow-hidden">
+src/features/academics/students-directory-tab.tsx:207:        <div className="rounded-lg border border-primary/40 bg-primary/5 p-4">
+src/features/academics/students-directory-tab.tsx:281:        <div className="rounded-lg border border-border overflow-hidden">
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:156:                  className="h-2.5 w-2.5 rounded-sm"
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:163:                  className="h-2.5 w-2.5 rounded-sm"
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:174:                  className="h-0.5 w-3 rounded-full"
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:182:              <div className="p-2 rounded-md border border-border bg-surface-elevated/40">
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:190:              <div className="p-2 rounded-md border border-border bg-surface-elevated/40">
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:198:              <div className="p-2 rounded-md border border-status-warning/30 bg-status-warning/5">
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:208:              <div className="p-2 rounded-md border border-border bg-surface-elevated/40">
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:238:              className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+src/features/academics/therapy/therapy-attachments-card.tsx:94:                className="w-full h-9 rounded-md border border-border bg-transparent px-2 text-xs"
+src/features/academics/therapy/therapy-attachments-card.tsx:105:            <label className="flex items-center gap-2 rounded-md border border-dashed border-border p-2.5 cursor-pointer hover:bg-accent/5">
+src/features/academics/therapy/therapy-attachments-card.tsx:129:              <li key={a.id} className="flex items-center gap-3 rounded-md border border-border p-2">
+src/features/dashboard/components/analytics/executive-cards.tsx:105:            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
+src/features/dashboard/components/analytics/executive-cards.tsx:110:              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20 font-semibold">
+src/features/dashboard/components/analytics/executive-cards.tsx:114:            <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-status-danger/10 text-status-danger border border-status-danger/20 font-semibold">
+src/features/dashboard/components/analytics/executive-cards.tsx:156:                    className="rounded-xl border border-border/80 bg-surface-elevated/30 p-3.5 space-y-3 transition-all hover:border-border hover:bg-surface-elevated/60"
+src/features/dashboard/components/analytics/executive-cards.tsx:165:                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+src/features/dashboard/components/analytics/executive-cards.tsx:217:                      <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:219:                          className="h-full rounded-full transition-all duration-500"
+src/features/dashboard/components/analytics/executive-cards.tsx:234:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:243:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:252:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:267:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:286:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:308:                      <div className="rounded-lg bg-surface-panel/60 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:347:                            className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
+src/features/dashboard/components/analytics/executive-cards.tsx:395:                        className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
+src/features/dashboard/components/analytics/executive-cards.tsx:445:                        className="rounded-lg border border-border/60 bg-surface-elevated/20 p-2.5 flex items-center justify-between gap-3 text-xs"
+src/features/dashboard/components/analytics/executive-cards.tsx:546:            <div className="h-2 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:548:                className="h-full rounded-full bg-status-warning transition-all"
+src/features/dashboard/components/analytics/executive-cards.tsx:553:            <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3 space-y-2 text-xs">
+src/features/dashboard/components/analytics/executive-cards.tsx:650:                        className="h-2 w-2 rounded-full"
+src/features/dashboard/components/analytics/executive-cards.tsx:663:                  <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:665:                      className="h-full rounded-full transition-all"
+src/features/dashboard/components/analytics/executive-cards.tsx:678:                className="rounded-xl border border-status-danger/30 bg-status-danger/5 p-3 space-y-2"
+src/features/dashboard/components/analytics/executive-cards.tsx:853:                <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+src/features/dashboard/components/analytics/executive-cards.tsx:855:                    className="h-full rounded-full bg-brand-cyan transition-all"
+src/features/dashboard/components/analytics/executive-cards.tsx:968:              <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:976:              <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:994:                    className="flex-1 rounded-md bg-surface-elevated/50 p-1.5 text-center border border-border/40"
+src/features/dashboard/components/analytics/executive-cards.tsx:1057:          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-status-danger/20 text-status-danger border border-status-danger/30">
+src/features/dashboard/components/analytics/executive-cards.tsx:1066:          <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:1075:          <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
+src/features/dashboard/components/analytics/executive-cards.tsx:1084:          <div className="rounded-lg bg-surface-elevated/40 p-2 border border-border/40">
+src/features/dashboard/components/analytics/debtors-pareto-card.tsx:105:          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30">
+src/features/academics/subject-configurations-panel.tsx:247:      <div className="rounded-lg border border-border overflow-hidden">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:132:      className="flex items-center justify-between gap-3 rounded-md border-l-2 py-0.5 pl-2"
+src/features/dashboard/components/analytics/data-inspector-core.tsx:138:          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+src/features/dashboard/components/analytics/data-inspector-core.tsx:381:            <div className="rounded-xl border border-border/60 bg-surface-elevated/30 p-3" data-testid="inspector-definition">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:398:              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Affiché</div><div className="font-mono font-semibold">{formatDzdPlain(resolved.request.sourceValue)}</div></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:399:              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Composants</div><div className="font-mono font-semibold">{formatDzdPlain(resolved.resolvedValue)}</div></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:400:              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Écart</div><div className={`font-mono font-semibold ${Math.abs(resolved.difference) < 0.5 ? "text-status-success" : "text-status-danger"}`}>{formatDzdPlain(resolved.difference)}</div></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:401:              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Enregistrements</div><div className="font-mono font-semibold">{resolved.records.length}</div></div>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:405:            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3" data-testid="inspector-formula">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:435:            <div className="rounded-xl border border-border/60 bg-surface-panel/60 p-3" data-testid="inspector-contributors">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:447:                className="mt-2 rounded-lg border border-border/50 bg-surface-elevated/40 p-2.5 text-[10px] leading-relaxed text-muted-foreground"
+src/features/dashboard/components/analytics/data-inspector-core.tsx:467:              <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-stacked-bar">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:498:            <div className="overflow-auto rounded-xl border border-border/70">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:520:                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} title={row.contributorName} />
+src/features/dashboard/components/analytics/data-inspector-core.tsx:563:        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:571:              <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted" onClick={() => setRequest(null)} aria-label="Fermer"><X className="h-4 w-4" /></button>
+src/features/dashboard/components/analytics/data-inspector-core.tsx:584:            <div className="flex h-2 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-compact-bar">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:603:            <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-[10px] leading-relaxed text-muted-foreground" data-testid="inspector-compact-formula">
+src/features/dashboard/components/analytics/data-inspector-core.tsx:642:  "inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-md border border-primary/25 bg-primary/5 px-3 text-xs font-medium text-primary shrink-0 transition-colors " +
+src/features/dashboard/components/analytics/info-tip.tsx:74:              "inline-flex items-center justify-center rounded-full text-muted-foreground/70 hover:text-primary hover:bg-primary/10 transition-colors shrink-0",
+src/features/dashboard/components/analytics/info-tip.tsx:106:              className="mt-1 rounded-md border border-border/70 bg-muted/40 px-2 py-1.5"
+src/features/dashboard/components/analytics/analytics-slicers.tsx:49:      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+src/features/dashboard/components/analytics/analytics-slicers.tsx:76:      className="rounded-xl border border-border/70 bg-surface-panel p-3.5 space-y-2.5 shadow-sm"
+src/features/dashboard/components/analytics/stat-strip.tsx:40:    <div className="rounded-xl border border-border/70 bg-surface-panel p-3 flex flex-col justify-between space-y-1 shadow-sm">
+src/features/dashboard/components/analytics/stat-strip.tsx:47:          className="h-6 w-6 rounded-md flex items-center justify-center shrink-0"
+src/features/dashboard/components/sparkline-kpi-card.tsx:132:        "group relative overflow-hidden rounded-xl border border-border/70 bg-surface-panel p-0 transition-all duration-200",
+src/features/dashboard/components/sparkline-kpi-card.tsx:149:              className="h-1.5 w-1.5 rounded-full shrink-0"
+src/features/dashboard/components/sparkline-kpi-card.tsx:173:                  "inline-flex items-center text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-md",
+src/features/dashboard/tabs/analytics-tab.tsx:754:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "pilotage" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:762:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "diagnostic" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/analytics-tab.tsx:770:              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all ${viewMode === "charts" ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-surface-panel border-border text-muted-foreground hover:text-foreground"}`}
+src/features/dashboard/tabs/alerts-tab.tsx:117:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:126:          <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+src/features/dashboard/tabs/alerts-tab.tsx:131:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:140:          <div className="h-8 w-8 rounded-lg bg-status-warning/10 text-status-warning flex items-center justify-center">
+src/features/dashboard/tabs/alerts-tab.tsx:145:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:154:          <div className="h-8 w-8 rounded-lg bg-status-danger/10 text-status-danger flex items-center justify-center">
+src/features/dashboard/tabs/alerts-tab.tsx:159:        <div className="rounded-xl border border-border/70 bg-surface-panel p-3.5 flex items-center justify-between shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:168:          <div className="h-8 w-8 rounded-lg bg-surface-elevated text-muted-foreground flex items-center justify-center">
+src/features/dashboard/tabs/alerts-tab.tsx:175:      <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-border/70 bg-surface-panel p-3 shadow-sm">
+src/features/dashboard/tabs/alerts-tab.tsx:253:        <div className="rounded-xl border border-border/70 bg-surface-panel p-12 text-center text-xs text-muted-foreground">
+src/features/dashboard/tabs/alerts-tab.tsx:277:                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+src/features/dashboard/tabs/reports-tab.tsx:367:      <Card className="rounded-xl border border-primary/40 bg-gradient-to-r from-primary/15 via-primary/5 to-surface-panel p-0 overflow-hidden shadow-sm">
+src/features/dashboard/tabs/reports-tab.tsx:370:            <div className="h-12 w-12 rounded-xl bg-primary/20 text-primary flex items-center justify-center shrink-0 border border-primary/30 shadow-inner">
+src/features/dashboard/tabs/reports-tab.tsx:414:              className="rounded-xl border border-border/70 bg-surface-panel hover:border-primary/40 hover:bg-surface-elevated/30 transition-all shadow-sm"
+src/features/dashboard/tabs/reports-tab.tsx:419:                    className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border border-border/40"
+src/features/dashboard/dashboard-page.tsx:339:            <span className="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+src/features/profile/profile-page.tsx:271:                  className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+src/features/profile/profile-page.tsx:273:                  <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
+src/features/profile/profile-page.tsx:409:        <div className="rounded-lg border border-border bg-muted/30 p-3">
+src/features/profile/profile-page.tsx:442:        <div className="rounded-lg border border-border bg-muted/30 p-3">
+src/infrastructure/sync/sync-indicator.tsx:153:          className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/infrastructure/sync/sync-indicator.tsx:166:                "absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white",
+src/features/workflow/test-studio-drawer.tsx:214:          <ul className="mt-2 max-h-44 overflow-y-auto rounded-md border border-border divide-y divide-border">
+src/features/workflow/test-studio-drawer.tsx:230:                      "h-1.5 w-1.5 rounded-full shrink-0",
+src/features/workflow/test-studio-drawer.tsx:268:                  "rounded-full border px-3 py-1.5 text-xs transition-colors",
+src/features/workflow/test-studio-drawer.tsx:356:          <p className="text-[11px] leading-snug rounded-md border border-status-info/30 bg-status-info/10 text-status-info px-2.5 py-1.5">
+src/features/workflow/test-studio-drawer.tsx:369:            <ul className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border">
+src/features/workflow/test-studio-drawer.tsx:404:              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2.5">
+src/features/workflow/workflow-page.tsx:636:        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+src/features/workflow/workflow-page.tsx:644:          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+src/features/workflow/workflow-run-detail-drawer.tsx:127:            <div className="rounded-md border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">
+src/features/workflow/workflow-run-detail-drawer.tsx:137:            <div className="rounded-md border border-border bg-card px-3">
+src/features/workflow/workflow-run-detail-drawer.tsx:155:    <div className="rounded-md border border-border bg-card p-2.5 space-y-1">
+src/features/workflow/node-palette.tsx:66:    <aside className="flex flex-col w-64 shrink-0 rounded-lg border border-border bg-card overflow-hidden">
+src/features/workflow/node-palette.tsx:98:                          "flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-start text-xs transition-colors",
+src/features/workflow/node-palette.tsx:105:                        <span className={cn("h-1.5 w-1.5 rounded-full bg-current shrink-0", ICON_TONE_FOR_TYPE[type])} />
+src/features/workflow/dag-canvas.tsx:1313:          <div className="absolute bottom-3 right-3 rounded-md border border-border bg-popover/95 shadow-lg p-1.5">
+src/features/workflow/node-inspector-drawer.tsx:329:          <div className="space-y-2 rounded-lg border border-border p-3">
+src/features/workflow/node-inspector-drawer.tsx:379:          <div className="space-y-2 rounded-lg border border-border p-3">
+src/features/workflow/node-inspector-drawer.tsx:389:              <div key={idx} className="space-y-1.5 rounded-md border border-border/70 p-2.5">
+src/features/workflow/node-inspector-drawer.tsx:478:        <div className="rounded-lg border border-border">
+src/features/workflow/node-inspector-drawer.tsx:740:                    className={`h-7 min-w-7 rounded-md border px-2 text-xs ${
+src/features/settings/locked-features-tab.tsx:30:              className="flex items-center gap-3 rounded-md border border-border p-3"
+src/features/settings/rbac-matrix-editor.tsx:270:          <div className="rounded-md border border-status-warning/30 bg-status-warning/5 p-3 mb-4 flex items-start gap-2">
+src/features/settings/rbac-matrix-editor.tsx:278:        <div className="rounded-md border border-border overflow-x-auto">
+src/features/settings/rbac-matrix-editor.tsx:317:                              className={`inline-flex h-7 w-7 items-center justify-center rounded-md border transition-all ${
+src/features/settings/rbac-matrix-editor.tsx:339:            <div key={role} className="rounded-md border border-border p-3">
+src/features/settings/create-account-modal.tsx:283:              "rounded-lg border p-3 text-left transition-colors " +
+src/features/settings/create-account-modal.tsx:302:              "rounded-lg border p-3 text-left transition-colors " +
+src/features/settings/create-account-modal.tsx:318:          <div className="flex items-start gap-2 rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-sm text-status-danger">
+src/features/settings/create-account-modal.tsx:359:              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+src/features/settings/audit-log-tab.tsx:153:                  "ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+src/features/settings/audit-log-tab.tsx:329:              "inline-block size-1.5 rounded-full shrink-0",
+src/features/settings/audit-log-tab.tsx:468:          <div className="rounded-md border border-border/70 overflow-hidden">
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:183:            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:202:                <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm flex gap-2">
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:214:                  <div key={group.category} className="rounded-lg border">
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:271:            <div className="divide-y rounded-lg border">
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:171:          <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm flex gap-2">
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:206:            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:229:                <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm flex gap-2">
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:242:                  <div key={group.category} className="rounded-lg border">
+src/features/settings/experimental-tab.tsx:161:          <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+src/features/settings/experimental-tab.tsx:173:              className="flex items-start justify-between gap-4 rounded-md border border-border p-4"
+src/features/settings/experimental-tab.tsx:217:                <p className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+src/features/settings/experimental-tab.tsx:224:                    <li key={p.id} className="rounded-md border border-border p-3">
+src/features/settings/experimental-tab.tsx:280:                <p className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+src/features/settings/experimental-tab.tsx:290:                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3"
+src/features/settings/approvals-tab.tsx:494:    <div className="border rounded-lg p-4 space-y-3 bg-card hover:border-primary/50 transition-colors">
+src/features/settings/approvals-tab.tsx:818:              <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between">
+src/features/settings/approvals-tab.tsx:857:                  <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/approvals-tab.tsx:1049:            <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between">
+src/features/settings/approvals-tab.tsx:1082:                  <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/approvals-tab.tsx:1254:              <div className="rounded-lg border border-border bg-card p-3 flex items-center justify-between">
+src/features/settings/approvals-tab.tsx:1406:                    <ul className="rounded-md border border-border max-h-48 overflow-y-auto divide-y divide-border">
+src/features/settings/approvals-tab.tsx:1524:    <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 cursor-pointer select-none">
+src/features/settings/accounts-tab.tsx:177:            <div className="rounded-lg border border-status-success/40 bg-status-success/10 p-4 space-y-3">
+src/features/settings/danger-zone-card.tsx:107:    <div className="max-h-56 overflow-y-auto rounded-md border">
+src/features/settings/danger-zone-card.tsx:208:          <div className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+src/features/settings/danger-zone-card.tsx:220:            <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+src/features/settings/danger-zone-card.tsx:292:              <div className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+src/features/settings/general-tab.tsx:133:                  className={`relative rounded-xl border p-3.5 cursor-pointer transition-all flex flex-col justify-between gap-3 ${
+src/features/settings/general-tab.tsx:181:                    className="flex items-center gap-1.5 rounded-lg p-2 border border-border/50"
+src/features/settings/general-tab.tsx:185:                      className="h-4 w-4 rounded-full border border-black/20"
+src/features/settings/general-tab.tsx:190:                      className="h-4 w-4 rounded-full border border-black/20"
+src/features/settings/general-tab.tsx:195:                      className="h-4 w-4 rounded-full border border-black/20"
+src/features/settings/general-tab.tsx:200:                      className="h-4 w-4 rounded-full border border-black/20"
+src/features/settings/general-tab.tsx:205:                      className="h-4 w-4 rounded-full border border-black/20"
+src/features/settings/pricing/additional-services-card.tsx:62:            <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-panel/50 p-3">
+src/features/settings/pricing/additional-services-card.tsx:84:          <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+src/features/settings/pricing/complementary-services-card.tsx:69:            <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-panel/50 p-3">
+src/features/settings/pricing/complementary-services-card.tsx:92:          <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+src/features/settings/pricing/discounts-card.tsx:74:            <div key={d.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface-panel/50 p-3">
+src/features/settings/pricing/discounts-card.tsx:101:          <div className="rounded-lg border border-dashed border-border p-4 space-y-3">
+src/features/settings/pricing/transport-card.tsx:89:            <div key={d} className="rounded-lg border border-border bg-surface-panel/50 p-4">
+src/features/settings/pricing/tuition-card.tsx:147:                          className="ml-1.5 inline-block size-1.5 rounded-full bg-status-warning align-middle"
+src/features/settings/pricing/pricing-year-config-bar.tsx:177:                  "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+src/features/settings/pricing/pricing-year-config-bar.tsx:202:          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+src/features/settings/pricing/fees-card.tsx:85:        <div className="rounded-lg border border-border bg-surface-panel/50 p-4 space-y-3">
+src/features/settings/pricing/fees-card.tsx:95:        <div className="rounded-lg border border-border bg-surface-panel/50 p-4 space-y-3">
+src/features/settings/pricing/fees-card.tsx:113:        <div className="rounded-lg border border-border bg-surface-panel/50 p-4 space-y-3">
+src/features/settings/theme-editor-modal.tsx:83:        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end rounded-lg border border-border p-3.5 bg-muted/20">
+src/features/settings/theme-editor-modal.tsx:94:          <div className="flex items-center justify-between p-2 rounded-md border border-border bg-card">
+src/features/settings/theme-editor-modal.tsx:125:                  className="h-2.5 w-2.5 rounded-full"
+src/features/settings/theme-editor-modal.tsx:136:          className="rounded-xl border p-4 space-y-3 transition-colors shadow-sm"
+src/features/settings/theme-editor-modal.tsx:163:              className="px-3 py-1.5 rounded-md text-xs font-semibold shadow-sm transition-opacity hover:opacity-90"
+src/features/settings/theme-editor-modal.tsx:174:              className="px-3 py-1.5 rounded-md text-xs font-medium border"
+src/features/settings/theme-editor-modal.tsx:206:            className="p-2.5 rounded-md border text-xs"
+src/features/settings/theme-editor-modal.tsx:344:    <div className="rounded-lg border border-border/70 p-3 space-y-2.5 bg-surface-elevated/20">
+src/features/settings/theme-editor-modal.tsx:365:    <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border/50 bg-card">
+src/features/settings/backup-tab.tsx:554:          className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 flex items-start gap-2"
+src/features/settings/backup-tab.tsx:718:              <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-2.5 text-xs text-status-warning">
+src/features/settings/backup-tab.tsx:729:                    className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm"
+src/features/settings/backup-tab.tsx:765:              <div className="h-2 rounded-full bg-muted overflow-hidden">
+src/features/settings/backup-tab.tsx:767:                  className={`h-full rounded-full ${capacity.alert ? "bg-status-danger" : "bg-status-success"}`}
+src/features/settings/backup-tab.tsx:783:            <div className="rounded-md border border-border max-h-56 overflow-y-auto">
+src/features/settings/backup-tab.tsx:921:            className="rounded-md border border-border bg-muted/20 p-3 text-xs space-y-1.5"
+src/features/settings/backup-tab.tsx:953:          <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-muted-foreground">
+src/features/settings/backup-tab.tsx:1122:          <div className="mt-3 rounded-md border border-info/30 bg-info/5 p-3 text-xs text-muted-foreground">
+src/features/settings/backup-tab.tsx:1289:              <div className="rounded-md border border-status-danger/40 bg-status-danger/10 p-3 text-xs text-status-danger">
+src/features/settings/backup-tab.tsx:1294:              <div className="rounded-md border border-info/40 bg-info/5 p-3 text-xs text-muted-foreground">
+src/features/settings/backup-tab.tsx:1317:                          "w-full text-left rounded-lg border p-2.5 transition-colors",
+src/features/settings/backup-tab.tsx:1328:                              "size-3 rounded-full border shrink-0",
+src/features/settings/backup-tab.tsx:1349:                  <div className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-xs text-status-warning">
+src/features/settings/backup-tab.tsx:1402:    <div className="rounded-md border border-border bg-muted/30 p-2 text-center">
+src/features/settings/sync-tab.tsx:193:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 text-xs text-status-danger flex items-start gap-2">
+src/features/settings/sync-tab.tsx:241:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 mb-4 space-y-2" data-testid="sync-conflict-section">
+src/features/settings/sync-tab.tsx:278:            <div className="rounded-md border border-status-danger/30 bg-status-danger/5 p-3 mb-4 space-y-2">
+src/features/settings/sync-tab.tsx:313:            <div className="rounded-md border border-border overflow-hidden">
+src/features/settings/sync-tab.tsx:418:    <div className={`rounded-md border p-3 ${toneClass}`}>
+src/features/settings/ai-config-tab.tsx:316:        <div className="flex items-start gap-3 rounded-md border border-status-success/30 bg-status-success/5 p-3">
+src/features/settings/ai-config-tab.tsx:410:        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 space-y-3">
+src/features/settings/export-dialog.tsx:205:                  "w-full text-left rounded-lg border p-3 transition-colors",
+src/features/settings/export-dialog.tsx:231:        <div className="rounded-md border border-info/30 bg-info/5 p-3 text-xs text-muted-foreground">
+src/features/settings/configuration/setting-row.tsx:46:    <div className="rounded-lg border border-border p-3 space-y-2">
+src/features/settings/configuration/connection-card.tsx:123:    <div className="rounded-lg border border-status-info/30 bg-status-info/10 p-3 text-xs">
+src/features/settings/configuration/connection-card.tsx:142:    <div className="flex items-center justify-between rounded-lg border border-border p-3">
+src/features/settings/configuration/connection-card.tsx:157:    <div className={`rounded-lg border p-3 text-sm ${
+src/features/settings/contextual-thresholds-config.tsx:193:  "relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-panel/60 text-muted-foreground transition-colors " +
+src/features/settings/contextual-thresholds-config.tsx:230:          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-status-warning ring-2 ring-surface-panel"
+src/features/personnel/dashboards/manager-dashboard.tsx:262:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/manager-dashboard.tsx:288:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/manager-dashboard.tsx:323:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/administrator-dashboard.tsx:177:        <div className="rounded-lg border border-status-warning/40 bg-status-warning/10 p-4 flex items-center justify-between">
+src/features/personnel/dashboards/driver-dashboard.tsx:152:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:210:          <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:249:          <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:289:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:331:      <div className="h-7 w-7 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+src/features/personnel/dashboards/teacher-dashboard.tsx:220:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/teacher-dashboard.tsx:237:                  className="rounded-lg border p-3 flex flex-col justify-between space-y-3"
+src/features/personnel/dashboards/teacher-dashboard.tsx:320:                  className="w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm text-left hover:bg-accent/10 transition-colors"
+src/features/personnel/dashboards/buyer-dashboard.tsx:186:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/worker-dashboard.tsx:262:        <div className="rounded-lg border bg-card p-5">
+src/features/personnel/dashboards/worker-dashboard.tsx:265:              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+src/features/personnel/dashboards/worker-dashboard.tsx:313:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/dashboards/worker-dashboard.tsx:355:        <div className="rounded-lg border bg-card p-4">
+src/features/personnel/onboarding/steps/step-header.tsx:14:      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+src/features/personnel/onboarding/steps/shift-types-step.tsx:44:                    "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors",
+src/features/personnel/onboarding/steps/shift-types-step.tsx:49:                    "h-4 w-4 rounded-full border-2",
+src/features/personnel/onboarding/steps/welcome-step.tsx:8:        <div className="h-16 w-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+src/features/personnel/onboarding/steps/welcome-step.tsx:19:          <div className="rounded-lg border border-border p-3">
+src/features/personnel/onboarding/steps/welcome-step.tsx:23:          <div className="rounded-lg border border-border p-3">
+src/features/personnel/onboarding/steps/welcome-step.tsx:27:          <div className="rounded-lg border border-border p-3">
+src/features/personnel/onboarding/steps/working-days-step.tsx:153:                    "h-9 rounded-md border text-xs font-mono font-medium transition-colors",
+src/features/personnel/onboarding/steps/working-days-step.tsx:208:            className="flex items-center justify-between rounded-md border bg-primary/5 border-primary/20 px-3 py-2 max-w-md"
+src/features/personnel/onboarding/steps/managers-step.tsx:51:                      className="h-9 rounded-md border border-border bg-popover px-2 text-sm max-w-xs"
+src/features/personnel/onboarding/steps/permissions-step.tsx:30:          <div className="mt-4 rounded-md bg-accent/5 border border-border p-3 text-xs text-muted-foreground">
+src/features/personnel/onboarding/steps/departments-step.tsx:64:                    "flex items-center gap-2 rounded-lg border p-3 text-left transition-colors",
+src/features/personnel/onboarding/steps/departments-step.tsx:70:                  <div className={cn("h-8 w-8 rounded-md flex items-center justify-center", `bg-${d.color}/15`)}>
+src/features/personnel/onboarding/steps/departments-step.tsx:93:                className="h-9 rounded-md border border-border bg-popover px-2 text-sm"
+src/features/personnel/onboarding/steps/departments-step.tsx:114:                    className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-2 py-1 text-xs"
+src/features/personnel/onboarding/steps/roles-step.tsx:41:                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+src/features/personnel/onboarding/steps/roles-step.tsx:46:                    "h-4 w-4 mt-0.5 rounded-full border-2",
+src/features/personnel/onboarding/steps/done-step.tsx:8:        <div className="h-16 w-16 mx-auto rounded-full bg-status-success/15 flex items-center justify-center">
+src/features/personnel/releve-tab.tsx:157:            <div className="rounded-lg border bg-surface-panel p-4 space-y-2">
+src/features/personnel/releve-tab.tsx:224:        <div className="rounded-md border border-border">
+src/features/personnel/releve-tab.tsx:257:                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">
+src/features/personnel/management/chat-panel.tsx:557:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:588:                              <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-status-danger text-status-danger-foreground text-[10px] font-semibold">
+src/features/personnel/management/chat-panel.tsx:610:        <div className="border border-border rounded-md flex flex-col overflow-hidden">
+src/features/personnel/management/chat-panel.tsx:656:                          <div className={`inline-block text-left rounded-lg px-3 py-1.5 ${
+src/features/personnel/management/chat-panel.tsx:737:                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 pl-2 pr-1 py-0.5 text-[11px] max-w-[220px]"
+src/features/personnel/management/chat-panel.tsx:892:                <p className="p-4 text-xs text-muted-foreground text-center border border-border rounded-md">
+src/features/personnel/management/chat-panel.tsx:898:                <div className="border border-border rounded-md max-h-44 overflow-y-auto divide-y divide-border">
+src/features/personnel/management/chat-panel.tsx:1004:          className="block rounded-md overflow-hidden border border-border/40 hover:opacity-90 transition-opacity"
+src/features/personnel/management/chat-panel.tsx:1030:    <div className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-background/60 px-2 py-1.5 max-w-[280px]">
+src/features/personnel/management/employee-profile-drawer.tsx:206:          <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/personnel/management/employee-profile-drawer.tsx:275:            <Card className="rounded-xl border border-border/80 bg-surface-panel shadow-sm">
+src/features/personnel/management/employee-profile-drawer.tsx:321:              <div className="grid grid-cols-2 gap-3 p-4 rounded-xl border border-border bg-surface-panel shadow-sm">
+src/features/personnel/management/employee-profile-drawer.tsx:363:                  <p className="text-xs text-muted-foreground py-4 border border-dashed rounded-xl text-center">
+src/features/personnel/management/employee-profile-drawer.tsx:371:                        className="p-3 rounded-xl border border-border/70 bg-surface-elevated/30 flex items-center justify-between text-xs"
+src/features/personnel/management/employee-profile-drawer.tsx:462:              <p className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-xl">
+src/features/personnel/management/employee-profile-drawer.tsx:470:                    className="p-2.5 rounded-lg border border-border/60 bg-surface-elevated/20 flex items-center justify-between text-xs"
+src/features/personnel/management/task-detail-drawer.tsx:189:              <p className="mt-1 whitespace-pre-wrap text-foreground bg-muted/20 p-3 rounded-lg border">
+src/features/personnel/management/task-detail-drawer.tsx:195:              <div className="rounded-lg border border-status-success/30 bg-status-success/5 p-3">
+src/features/personnel/management/task-detail-drawer.tsx:211:              <div className="rounded-lg border border-status-warning/30 bg-status-warning/5 p-3">
+src/features/personnel/management/task-detail-drawer.tsx:340:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/task-detail-drawer.tsx:358:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/department-management.tsx:204:                  className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2"
+src/features/personnel/management/department-management.tsx:207:                    <span className={`mt-1 h-3 w-3 rounded-full shrink-0 ${COLOR_SWATCHES[(d.color as DepartmentColor) ?? "brand-blue"]}`} />
+src/features/personnel/management/department-management.tsx:279:                  className={`h-8 w-8 rounded-full border-2 transition ${COLOR_SWATCHES[c]} ${
+src/features/personnel/management/staff-attendance-center.tsx:338:            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+src/features/personnel/management/staff-attendance-center.tsx:614:                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+src/features/personnel/management/staff-attendance-center.tsx:739:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/staff-attendance-center.tsx:757:                className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+src/features/personnel/management/payroll-management.tsx:268:            <div className="grid grid-cols-2 gap-3 p-4 rounded-lg border bg-surface-panel">
+src/features/personnel/management/upcoming-payroll-payments.tsx:224:                className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+src/features/personnel/management/upcoming-payroll-payments.tsx:232:                className="inline-flex items-center h-7 px-3 text-xs rounded-md border border-input bg-background hover:bg-accent/5"
+src/features/personnel/management/upcoming-payroll-payments.tsx:366:        <div className="rounded-lg border border-border/60 overflow-hidden">
+src/features/auth/login-screen.tsx:44:        <div className="hidden lg:flex flex-col justify-between rounded-lg border border-border bg-surface-panel p-8">
+src/features/auth/login-screen.tsx:46:            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-primary text-primary-foreground text-xl font-bold">
+src/shared/ui/card.tsx:9:        "rounded-lg border border-border bg-card text-card-foreground",
+src/shared/layout/window-frame.tsx:54:          <button type="button" aria-label="Minimize window" title="Minimize" onClick={minimize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:57:          <button type="button" aria-label={maximized ? "Restore window" : "Maximize window"} title={maximized ? "Restore" : "Maximize"} onClick={toggleMaximize} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:60:          <button type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/layout/window-frame.tsx:63:          <button type="button" aria-label="Close window" title="Close" onClick={close} className="flex h-7 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+src/shared/ui/slider.tsx:25:    <SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
+src/shared/ui/slider.tsx:30:        "block h-5 w-5 rounded-full border-2 border-primary bg-background shadow-md",
+src/shared/ui/textarea.tsx:11:        "flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm",
+src/shared/layout/sidebar.tsx:67:        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold">
+src/shared/layout/sidebar.tsx:97:                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+src/shared/ui/avatar.tsx:12:      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+src/shared/ui/avatar.tsx:39:      "flex h-full w-full items-center justify-center rounded-full bg-primary/15 text-primary text-sm font-semibold uppercase",
+src/shared/layout/topbar.tsx:256:          className="group flex h-9 w-full max-w-md items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/50"
+src/shared/layout/topbar.tsx:294:              className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+src/shared/layout/topbar.tsx:299:                <span className="absolute end-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-status-danger px-1 text-[9px] font-bold text-white">
+src/shared/layout/topbar.tsx:330:                    {!n.readAt && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+src/shared/layout/topbar.tsx:376:              className="flex items-center gap-2 rounded-md p-1 transition-colors hover:bg-accent/10"
+src/shared/layout/topbar.tsx:471:              className="flex w-full items-center gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-start transition-colors hover:bg-primary/10"
+src/shared/layout/topbar.tsx:527:                      className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5"
+src/shared/layout/topbar.tsx:621:        "flex w-full items-center gap-3 rounded-md px-3 py-2 text-start transition-colors",
+src/shared/layout/state-views.tsx:28:      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-status-danger/15">
+src/shared/layout/state-views.tsx:59:      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+src/shared/ui/data-table/data-table.tsx:113:      <div className="rounded-md border">
+src/shared/layout/gated-content.tsx:40:          <div className="flex flex-col items-center gap-2 rounded-md bg-popover/80 px-4 py-2 backdrop-blur-sm">
+src/shared/layout/coming-soon-card.tsx:24:          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-status-warning/15">
+src/shared/ui/scroll-area.tsx:38:    <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
+src/shared/layout/toast-viewport.tsx:35:              "flex items-start gap-3 rounded-md border p-3 shadow-lg backdrop-blur-sm animate-slide-up",
+src/shared/ui/tooltip.tsx:31:      "z-[70] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md",
+src/shared/ui/qr-code.tsx:57:      className={cn("rounded-md border border-border bg-white p-1.5", className)}
+src/shared/layout/page-tabs.tsx:314:          "relative inline-flex items-center gap-1 rounded-xl bg-muted/50 p-1 ring-1 ring-inset ring-border/60",
+src/shared/layout/page-tabs.tsx:336:          "absolute top-1 bottom-1 rounded-lg bg-popover shadow-sm ring-1 ring-border/50",
+src/shared/layout/page-tabs.tsx:352:          "absolute bottom-[-1px] h-[2px] rounded-full bg-primary",
+src/shared/layout/page-tabs.tsx:408:      "relative z-10 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg",
+src/shared/layout/page-tabs.tsx:438:      "relative inline-flex items-center gap-2.5 whitespace-nowrap rounded-lg text-left",
+src/shared/layout/page-tabs.tsx:471:              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+src/shared/layout/page-tabs.tsx:529:        "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none",
+src/shared/ui/dropdown-menu.tsx:22:        "z-50 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md",
+src/shared/ui/dropdown-menu.tsx:39:      "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
+src/shared/ui/button.tsx:7:  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+src/shared/ui/button.tsx:20:        sm: "h-8 rounded-md px-3 text-xs",
+src/shared/ui/button.tsx:21:        lg: "h-10 rounded-md px-6",
+src/shared/ui/kpi-card.tsx:37:        <div className={cn("flex h-10 w-10 items-center justify-center rounded-md", TONE_ICON_BG[tone])}>
+src/shared/ui/auto-form/auto-form-modal.tsx:70:        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-6 shadow-lg">
+src/shared/ui/unified-modal/parts.tsx:47:            "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+src/shared/ui/unified-modal/parts.tsx:168:        "mb-4 flex items-start gap-3 rounded-lg border px-3 py-2.5 text-sm",
+src/shared/ui/unified-modal/modal-shell.tsx:58:      "fixed left-1/2 top-[15vh] z-50 grid w-full -translate-x-1/2 flex-col gap-0 border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:75:    "fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-popover shadow-2xl sm:rounded-lg overflow-hidden",
+src/shared/ui/unified-modal/modal-shell.tsx:107:              className="absolute end-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+src/shared/ui/switch.tsx:33:      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
+src/shared/ui/switch.tsx:43:        "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+src/shared/ui/progress.tsx:11:    className={cn("relative h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+src/shared/ui/input.tsx:11:        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors",
+src/shared/ui/status-chip.tsx:40:        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+src/shared/ui/status-chip.tsx:45:      <span className={cn("h-1.5 w-1.5 rounded-full", DOT_CLASSES[tone])} />
+src/shared/ui/wizard/wizard.tsx:82:          "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover shadow-lg",
+src/shared/ui/wizard/wizard.tsx:110:                  "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+src/shared/ui/select.tsx:17:      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm",
+src/shared/ui/select.tsx:41:        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-md",
+src/shared/ui/select.tsx:75:      "relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none",
+src/shared/ui/markdown-view.tsx:270:        <div className="my-2.5 overflow-hidden rounded-lg border border-border bg-surface-panel shadow-sm">
+src/shared/ui/markdown-view.tsx:325:        <pre className="my-2 overflow-x-auto rounded-lg border border-border/80 bg-black/40 p-3 font-mono text-[11px] text-primary-foreground">
+src/shared/ui/badge.tsx:6:  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:74:              <Avatar className="h-13 w-13 rounded-2xl ring-2 ring-primary/20 shadow-md shrink-0">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:76:                <AvatarFallback className="rounded-2xl bg-primary/15 text-primary font-bold text-base">
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:99:                className="absolute end-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-surface-elevated/70 text-muted-foreground transition-all hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:113:                  className="rounded-xl border border-border/60 bg-card/90 p-2.5 shadow-sm transition-all hover:border-border"
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:141:                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all",
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:151:                          "px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono",
+src/i18n/language-switcher.tsx:55:          className="flex h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+
+# --- COUNT: 744 matching lines ---

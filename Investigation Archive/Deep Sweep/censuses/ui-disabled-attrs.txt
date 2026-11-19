@@ -1,0 +1,274 @@
+# CENSUS: ui-disabled-attrs
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading aria-disabled|disabled=\{ -g *.tsx (baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/excel-import-modal.tsx:577:              <Button onClick={commit} disabled={!canCommit}>
+src/features/crm/excel-import-modal.tsx:739:                          <Button size="sm" disabled={erBusy} onClick={() => void decideErProposal(p, "approve")}>
+src/features/crm/excel-import-modal.tsx:742:                          <Button size="sm" variant="outline" disabled={erBusy} onClick={() => void decideErProposal(p, "reject")}>
+src/features/crm/crm-page.tsx:234:                  disabled={exporting || students.length === 0}
+src/features/crm/parent-detail-drawer.tsx:465:                  disabled={openingChannel}
+src/features/crm/parent-detail-drawer.tsx:521:                    disabled={issuingCode}
+src/features/crm/parent-detail-drawer.tsx:939:            disabled={payments.length === 0}
+src/features/crm/student-detail/academic-tab.tsx:248:                disabled={downloading || termAssessments.length === 0}
+src/features/crm/student-detail/payments-tab.tsx:184:              disabled={individualOverdue <= 0}
+src/features/crm/student-detail/documents-tab.tsx:280:                  disabled={!d.storagePath && !mockVaultHas(d.storagePath ?? "")}
+src/features/crm/batch-registration/parent-picker-step.tsx:134:        <Button variant="outline" onClick={runSearch} disabled={query.trim().length < 2 || searching}>
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:395:              <Button variant="outline" onClick={handleCreateTargetYear} disabled={busy || !sourceYearId}>
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:401:              disabled={generating || !sourceYearId || !targetYearId || !!list?.frozen}
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:410:                disabled={busy || list.waitingCount > 0}
+src/features/ai/copilot-drawer.tsx:307:            <Button type="submit" size="icon" className="h-9 w-9 shrink-0" disabled={!clarificationAnswer.trim()}>
+src/features/ai/copilot-drawer.tsx:328:            disabled={isStreaming}
+src/features/ai/copilot-drawer.tsx:345:              disabled={!input.trim() || isStreaming}
+src/features/ai/artifact-renderer.tsx:110:          disabled={busy}
+src/features/financials/unified-payment-modal.tsx:560:        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+src/features/financials/unified-payment-modal.tsx:563:        <Button onClick={submit} disabled={!canSubmit || submitting}>
+src/features/financials/unified-payment-modal.tsx:579:      <Button variant="outline" onClick={shareViaWhatsApp} disabled={!pdfBytes}>
+src/features/financials/unified-payment-modal.tsx:582:      <Button onClick={downloadReceiptPdf} disabled={!pdfBytes}>
+src/features/financials/unified-payment-modal.tsx:841:                  disabled={submitting}
+src/features/financials/receipts-tab.tsx:186:          <Button onClick={downloadStatement} disabled={downloadingStatement || !statementParentId}>
+src/features/financials/installment-schedule-tab.tsx:828:            disabled={scanningOverdue}
+src/features/financials/expense-attachments-gallery.tsx:146:            <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+src/features/financials/webhook-diagnostics-card.tsx:319:              disabled={safePage === 0}
+src/features/financials/webhook-diagnostics-card.tsx:332:              disabled={safePage >= pageCount - 1}
+src/features/financials/payment-detail-drawer.tsx:188:              <Button size="sm" variant="outline" onClick={handleDownloadPdf} disabled={downloading} className="h-7 text-xs gap-1">
+src/features/financials/payment-detail-drawer.tsx:289:                <Button size="sm" className="h-8 text-xs" disabled={transitioning} onClick={() => setConfirmClear(true)}>
+src/features/financials/payment-detail-drawer.tsx:292:                <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger" disabled={transitioning} onClick={() => setConfirmBounce(true)}>
+src/features/financials/payment-detail-drawer.tsx:301:              <Button size="sm" variant="outline" className="h-8 text-xs text-status-danger border-status-danger/30 hover:bg-status-danger/10 gap-1.5" disabled={transitioning} onClick={() => setConfirmRefund(true)}>
+src/features/financials/payment-slider.tsx:276:          disabled={disabled}
+src/features/financials/payment-slider.tsx:293:          <MoneyInput value={value} onChange={(v) => onChange(v)} disabled={disabled} />
+src/features/financials/payment-slider.tsx:298:            <SnapButton label="0" onClick={() => onChange(0)} disabled={disabled} />
+src/features/financials/payment-slider.tsx:309:                  disabled={disabled}
+src/features/financials/payment-slider.tsx:317:              disabled={disabled}
+src/features/financials/payment-slider.tsx:400:      disabled={disabled}
+src/features/dashboard/academic-year-selector.tsx:229:            <Button size="sm" className="w-full h-7 text-xs" onClick={applyCustom} disabled={!customFrom || !customTo}>
+src/features/financials/financials-page.tsx:374:            disabled={retryingSeeds}
+src/features/financials/financials-page.tsx:1186:                disabled={bulkBusy || top20Debtors.length === 0}
+src/features/financials/financials-page.tsx:1194:                disabled={bulkBusy || top20Debtors.length === 0}
+src/features/dashboard/dashboard-layout-editor.tsx:762:              disabled={!dirty}
+src/features/dashboard/dashboard-tab-layout-editor.tsx:242:            <button type="button" onClick={persist} disabled={!dirty} className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-primary-foreground disabled:opacity-50">
+src/features/workflow/test-studio-drawer.tsx:335:              disabled={executing}
+src/features/workflow/workflow-page.tsx:328:            disabled={!canEdit}
+src/features/workflow/workflow-page.tsx:401:            <NodePalette onAddNode={handleAddNode} disabled={!canEdit} />
+src/features/workflow/workflow-page.tsx:599:            disabled={!!template}
+src/features/workflow/workflow-page.tsx:803:                      disabled={retrying}
+src/features/workflow/node-palette.tsx:95:                        disabled={disabled}
+src/features/dashboard/components/recovery-funnel-card.tsx:774:                  disabled={page === 0}
+src/features/dashboard/components/recovery-funnel-card.tsx:783:                  disabled={page + 1 >= pageCount}
+src/features/dashboard/components/recovery-funnel-card.tsx:878:                disabled={!messageTarget.contactPhone}
+src/features/workflow/dag-canvas.tsx:771:            disabled={!canEdit}
+src/features/workflow/dag-canvas.tsx:780:            disabled={nodes.length === 0}
+src/features/workflow/dag-canvas.tsx:818:                disabled={serverTesting || nodes.length === 0}
+src/features/workflow/dag-canvas.tsx:831:            disabled={!canEdit || saving}
+src/features/workflow/dag-canvas.tsx:839:            disabled={!canEdit || deploying}
+src/features/workflow/dag-canvas.tsx:848:              disabled={executing}
+src/features/workflow/node-inspector-drawer.tsx:303:            <Button onClick={handleSave} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:317:            <Input value={label} onChange={(e) => setLabel(e.target.value)} disabled={!canEdit} />
+src/features/workflow/node-inspector-drawer.tsx:337:                disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:369:              disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:398:                    disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:407:                    disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:444:                    disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:462:              disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:525:        disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:541:        disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:559:        disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:566:          disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:617:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:628:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:639:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:646:          <Select value={str("event", "bounced")} onValueChange={(v) => set("event", v)} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:662:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:675:              disabled={!canEdit} className="h-8 text-sm font-mono"
+src/features/workflow/node-inspector-drawer.tsx:683:              disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:695:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:710:                disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:718:                disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:733:                    disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:760:            <Input value={str("title")} onChange={(e) => set("title", e.target.value)} disabled={!canEdit} className="h-8 text-sm" />
+src/features/workflow/node-inspector-drawer.tsx:767:              disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:771:            <RoleSelect value={str("recipient_role", "parent")} onChange={(v) => set("recipient_role", v)} disabled={!canEdit} />
+src/features/workflow/node-inspector-drawer.tsx:781:              <Input value={str("subject")} onChange={(e) => set("subject", e.target.value)} disabled={!canEdit} className="h-8 text-sm" />
+src/features/workflow/node-inspector-drawer.tsx:792:              disabled={!canEdit}
+src/features/workflow/node-inspector-drawer.tsx:796:            <RoleSelect value={str("recipient_role", "parent")} onChange={(v) => set("recipient_role", v)} disabled={!canEdit} />
+src/features/workflow/node-inspector-drawer.tsx:807:            disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:815:            <Input value={str("title")} onChange={(e) => set("title", e.target.value)} disabled={!canEdit} className="h-8 text-sm" />
+src/features/workflow/node-inspector-drawer.tsx:818:            <RoleSelect value={str("assignee_role", "finance_officer")} onChange={(v) => set("assignee_role", v)} disabled={!canEdit} />
+src/features/workflow/node-inspector-drawer.tsx:821:            <Select value={str("priority", "normal")} onValueChange={(v) => set("priority", v)} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:836:          <Select value={str("document_type", "account_statement")} onValueChange={(v) => set("document_type", v)} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:856:              disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:863:              disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:878:              disabled={!canEdit} className="h-8 text-sm"
+src/features/workflow/node-inspector-drawer.tsx:882:            <Select value={str("unit", "hours")} onValueChange={(v) => set("unit", v)} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:897:            <Select value={str("entity", "payments")} onValueChange={(v) => set("entity", v)} disabled={!canEdit}>
+src/features/workflow/node-inspector-drawer.tsx:913:              disabled={!canEdit} className="h-8 text-sm font-mono"
+src/features/workflow/node-inspector-drawer.tsx:925:            disabled={!canEdit} className="h-8 text-sm font-mono"
+src/features/workflow/node-inspector-drawer.tsx:960:    <Select value={value} onValueChange={onChange} disabled={disabled}>
+src/features/dashboard/components/analytics/data-inspector.tsx:55:      disabled={disabled}
+src/features/dashboard/components/analytics/data-inspector-core.tsx:677:      disabled={disabled}
+src/features/settings/rbac-matrix-editor.tsx:259:            <Button variant="outline" size="sm" onClick={reset} disabled={(!dirty && !usingOverride) || saving}>
+src/features/settings/rbac-matrix-editor.tsx:262:            <Button size="sm" onClick={save} disabled={!dirty || saving}>
+src/features/settings/rbac-matrix-editor.tsx:315:                              disabled={!canEdit}
+src/features/settings/create-account-modal.tsx:342:                      disabled={Boolean(p.userId)}
+src/features/settings/audit-log-tab.tsx:169:              <Button variant="outline" size="sm" disabled={entries.length === 0 || exporting !== null}>
+src/features/dashboard/tabs/reports-tab.tsx:394:            disabled={exporting === "export-complet-XLSX"}
+src/features/dashboard/tabs/reports-tab.tsx:469:                          disabled={isBusy}
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:166:            <Button onClick={handleRun} disabled={isRunning}>
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:182:            <Button onClick={handleRun} disabled={isRunning}>
+src/features/settings/experimental-tab.tsx:246:                        <Button size="sm" disabled={busy} onClick={() => void decide(p, "approve")}>
+src/features/settings/experimental-tab.tsx:252:                          disabled={busy}
+src/features/settings/experimental-tab.tsx:307:                            <Button size="sm" variant="outline" disabled={busy} onClick={() => void unmerge(e)}>
+src/features/settings/export-dialog.tsx:272:      disabled={disabled}
+src/features/settings/approvals-tab.tsx:390:              disabled={isLoading}
+src/features/settings/approvals-tab.tsx:868:                            disabled={bound}
+src/features/settings/configuration/setting-row.tsx:137:        <Button size="sm" variant="outline" onClick={onEditSecret} disabled={readOnly}>
+src/features/settings/configuration/setting-row.tsx:150:          disabled={readOnly}
+src/features/settings/configuration/setting-row.tsx:154:          <Button size="sm" onClick={onSave} className="ml-auto" disabled={readOnly}>
+src/features/settings/configuration/setting-row.tsx:165:        <Select value={localValue} onValueChange={onLocalValueChange} disabled={readOnly}>
+src/features/settings/configuration/setting-row.tsx:174:          <Button size="sm" onClick={onSave} disabled={readOnly}>
+src/features/settings/configuration/setting-row.tsx:193:          <Button size="sm" onClick={onSave} disabled={readOnly}>
+src/features/settings/configuration/setting-row.tsx:217:        <Button size="sm" onClick={onSave} disabled={readOnly}>
+src/features/settings/danger-zone-card.tsx:237:                  disabled={previewing || executing}
+src/features/settings/danger-zone-card.tsx:268:                disabled={executing}
+src/features/settings/danger-zone-card.tsx:278:              disabled={!phraseValid || !preview || executing}
+src/features/settings/configuration/connection-card.tsx:98:            disabled={isTesting || !localConfig.supabase_url || !localConfig.supabase_anon_key}
+src/features/settings/configuration/connection-card.tsx:106:            disabled={!localConfig.supabase_url || !localConfig.supabase_anon_key}
+src/features/settings/configuration-tab.tsx:323:          disabled={!isSupabaseConfigured() || isLoading}
+src/features/settings/settings-page.tsx:127:          <PageTab value="pricing" label="Tarification" icon={Tag} disabled={!canViewPricing} />
+src/features/settings/settings-page.tsx:128:          <PageTab value="audit" label={t("settings.audit")} icon={ScrollText} disabled={!canViewAudit} />
+src/features/settings/contextual-thresholds-config.tsx:504:                    disabled={readOnly || !row}
+src/features/settings/pricing/additional-services-card.tsx:71:                disabled={!canEdit}
+src/features/settings/pricing/complementary-services-card.tsx:79:                disabled={!canEdit}
+src/features/settings/pricing/discounts-card.tsx:88:                disabled={!canEdit}
+src/features/settings/pricing/transport-card.tsx:99:                  disabled={!canEdit || !isDirty}
+src/features/settings/pricing/transport-card.tsx:111:                    disabled={!canEdit}
+src/features/settings/pricing/transport-card.tsx:118:                    disabled={!canEdit}
+src/features/settings/pricing/transport-card.tsx:125:                    disabled={!canEdit}
+src/features/settings/pricing/transport-card.tsx:132:                    disabled={!canEdit}
+src/features/settings/pricing/tuition-card.tsx:156:                        disabled={!canEdit}
+src/features/settings/pricing/tuition-card.tsx:163:                        disabled={!canEdit}
+src/features/settings/pricing/tuition-card.tsx:170:                        disabled={!canEdit}
+src/features/settings/pricing/tuition-card.tsx:177:                        disabled={!canEdit}
+src/features/settings/pricing/tuition-card.tsx:202:                          disabled={!isDirty || !isBalanced}
+src/features/settings/pricing/pricing-year-config-bar.tsx:263:            disabled={yearOptions.length === 0 || busy}
+src/features/settings/pricing/fees-card.tsx:87:            <MoneyInput value={registration} onChange={setRegistration} disabled={!canEdit} />
+src/features/settings/pricing/fees-card.tsx:89:          <Button size="sm" variant="default" disabled={!canEdit} onClick={saveRegistration}>
+src/features/settings/pricing/fees-card.tsx:98:              <MoneyInput value={monthlyPrimaire} onChange={setMonthlyPrimaire} disabled={!canEdit} />
+src/features/settings/pricing/fees-card.tsx:101:              <MoneyInput value={monthlyCem} onChange={setMonthlyCem} disabled={!canEdit} />
+src/features/settings/pricing/fees-card.tsx:104:              <MoneyInput value={monthlyLycee} onChange={setMonthlyLycee} disabled={!canEdit} />
+src/features/settings/pricing/fees-card.tsx:107:          <Button size="sm" variant="default" disabled={!canEdit} onClick={saveMonthly}>
+src/features/settings/pricing/fees-card.tsx:117:            <MoneyInput value={secondApron} onChange={setSecondApron} disabled={!canEdit} />
+src/features/settings/pricing/fees-card.tsx:119:          <Button size="sm" variant="default" disabled={!canEdit} onClick={saveSecondApron}>
+src/features/settings/backup-tab.tsx:591:              disabled={!canManage || runningBackup}
+src/features/settings/backup-tab.tsx:731:                  <Button onClick={handleSavePassphrase} disabled={!passphraseInput.trim()}>
+src/features/settings/backup-tab.tsx:836:            disabled={!canManage}
+src/features/settings/backup-tab.tsx:872:              disabled={!canManage || checkpointing}
+src/features/settings/backup-tab.tsx:891:              disabled={!canManage || fileInspecting || !canPickBackupFile}
+src/features/settings/backup-tab.tsx:945:                disabled={!canManage || !canPickDirectory}
+src/features/settings/backup-tab.tsx:1038:                              disabled={inspecting}
+src/features/settings/backup-tab.tsx:1107:              disabled={!canManage || purging}
+src/features/settings/backup-tab.tsx:1313:                        disabled={a.integrity !== "verified"}
+src/features/settings/sync-tab.tsx:202:              disabled={syncing || status.syncing || !status.online || !status.supabaseConfigured}
+src/features/settings/sync-tab.tsx:211:              disabled={probing}
+src/features/settings/sync-tab.tsx:291:                  disabled={retrying || syncing || status.syncing || !status.online || !status.supabaseConfigured}
+src/features/settings/sync-tab.tsx:353:            <Button size="sm" variant="outline" onClick={() => setConfirmClear(true)} disabled={entries.length === 0}>
+src/features/settings/ai-config-tab.tsx:531:          <Button onClick={handleSave} disabled={saving}>
+src/features/settings/ai-config-tab.tsx:538:            disabled={testing !== null}
+src/features/settings/ai-config-tab.tsx:547:          <Button variant="outline" onClick={handleClear} disabled={saving}>
+src/features/settings/ai-config-tab.tsx:726:        <Button variant="outline" onClick={onDiscover} disabled={discovering}>
+src/features/personnel/releve-tab.tsx:205:              <Button onClick={submit} disabled={submitting || !target}>
+src/features/personnel/onboarding/steps/departments-step.tsx:99:              <Button size="sm" onClick={addCustom} disabled={!customName.trim()}>
+src/features/personnel/management/chat-panel.tsx:771:                    disabled={uploading}
+src/features/personnel/management/chat-panel.tsx:785:                    disabled={uploading || (!draft.trim() && pendingFiles.length === 0)}
+src/features/personnel/management/expense-review-section.tsx:279:                                  disabled={e.submittedBy === currentUserId}
+src/features/personnel/management/expense-review-section.tsx:292:                                  disabled={e.submittedBy === currentUserId}
+src/features/personnel/management/employee-profile-drawer.tsx:350:                  disabled={downloading}
+src/features/auth/login-screen.tsx:101:              <Button type="submit" disabled={isLoading} className="w-full">
+src/features/personnel/management/payroll-management.tsx:287:                disabled={downloading}
+src/features/academics/narrative-generator-modal.tsx:395:              disabled={loading}
+src/features/academics/narrative-generator-modal.tsx:432:                disabled={loading || !narrative}
+src/features/academics/narrative-generator-modal.tsx:441:                disabled={loading || !narrative}
+src/infrastructure/sync/sync-indicator.tsx:202:              disabled={loadingConflicts || syncing || isServiceSyncing}
+src/infrastructure/sync/sync-indicator.tsx:214:              disabled={syncing || isServiceSyncing}
+src/infrastructure/sync/sync-indicator.tsx:227:              disabled={retrying || syncing || isServiceSyncing}
+src/features/academics/timetable/timetable-tab.tsx:613:                    disabled={busy}
+src/features/academics/timetable/timetable-tab.tsx:633:                    disabled={busy}
+src/features/academics/timetable/timetable-tab.tsx:734:                  <Button size="sm" disabled={busy} onClick={() => generate()}>
+src/features/academics/timetable/timetable-tab.tsx:775:                    disabled={busy}
+src/features/academics/timetable/timetable-tab.tsx:786:                      disabled={busy}
+src/features/academics/timetable/timetable-tab.tsx:829:                                <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "submit")}>
+src/features/academics/timetable/timetable-tab.tsx:832:                                <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "reject")}>
+src/features/academics/timetable/timetable-tab.tsx:839:                                <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "approve")}>
+src/features/academics/timetable/timetable-tab.tsx:843:                                <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "reject")}>
+src/features/academics/timetable/timetable-tab.tsx:849:                              <Button size="sm" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "publish")}>
+src/features/academics/timetable/timetable-tab.tsx:854:                              <Button size="sm" variant="outline" className="h-7 text-[11px]" disabled={busy} onClick={() => workflow(v, "duplicate")}>
+src/features/academics/timetable/timetable-tab.tsx:1377:              <Button size="sm" className="h-8 text-xs" disabled={busy} onClick={() => void submit()}>
+src/features/academics/timetable/timetable-tab.tsx:1583:                disabled={busy || (needsEntity && entityId === "")}
+src/features/academics/timetable/timetable-tab.tsx:1766:            disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1779:                  disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1803:              disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1813:              disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1823:              disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1832:              disabled={!canManage}
+src/features/academics/timetable/timetable-tab.tsx:1839:            <Button size="sm" className="h-8 text-xs" disabled={busy} onClick={() => void save()}>
+src/features/academics/timetable/timetable-entry-dialog.tsx:229:              disabled={busy}
+src/features/academics/timetable/timetable-entry-dialog.tsx:239:              disabled={busy}
+src/features/academics/timetable/timetable-entry-dialog.tsx:249:            <Button size="sm" className="h-8 text-xs" disabled={busy} onClick={() => void save()}>
+src/features/academics/roll-call-screen.tsx:347:        <Button onClick={save} disabled={saving || students.length === 0}>
+src/features/academics/placement/class-student-multi-select.tsx:168:              disabled={disabled}
+src/features/academics/placement/class-student-multi-select.tsx:192:            disabled={disabled}
+src/features/academics/placement/class-student-multi-select.tsx:212:          disabled={disabled}
+src/features/academics/placement/class-student-multi-select.tsx:252:                  disabled={disabled}
+src/features/academics/placement/class-placement-studio-modal.tsx:650:                disabled={studio.isSubmitting || studio.poolSummary.totalAssignedCount === 0}
+src/features/academics/placement/class-placement-studio-modal.tsx:675:                disabled={studio.isSubmitting || studio.poolSummary.totalAssignedCount === 0}
+src/features/academics/grade-levels-class-view.tsx:697:          disabled={submitting}
+src/features/academics/academic-year-detail-drawer.tsx:1332:            <Button size="sm" onClick={handleSave} disabled={submitting}>
+src/features/academics/justifications-tab.tsx:153:              disabled={busyId === r.id}
+src/features/academics/justifications-tab.tsx:162:              disabled={busyId === r.id}
+src/features/academics/class-detail-page.tsx:433:          disabled={!canRollCall}
+src/features/academics/class-detail-page.tsx:444:            disabled={!canGrade || availableGradeSubjects.length === 0}
+src/features/academics/class-detail-page.tsx:460:            disabled={!canGrade || gradeSubject === NO_SUBJECT}
+src/features/academics/class-detail-page.tsx:474:          disabled={!canHomework}
+src/features/academics/class-detail-page.tsx:499:            disabled={openingCycle}
+src/features/academics/class-detail-page.tsx:642:                        disabled={
+src/features/academics/class-detail-page.tsx:815:            disabled={submittingClassEdit}
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:252:                disabled={confirming}
+src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:167:                disabled={completing || !allResolved}
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:128:            <Button size="sm" variant="ghost" onClick={() => void refresh()} disabled={loading}>
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:132:            <Button size="sm" onClick={() => void createCycle()} disabled={creating || existingSources.has(defaultSourceYear)}>
+src/features/academics/grade-entry-screen.tsx:693:        <Button onClick={save} disabled={saving || rows.length === 0 || readOnly}>
+src/features/academics/therapy/psychology-tab.tsx:491:          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+src/features/academics/therapy/psychology-tab.tsx:499:            disabled={submitting || !studentId || !reason.trim()}
+src/features/academics/therapy/psychology-tab.tsx:507:            disabled={submitting || !studentId || !reason.trim()}
+src/features/academics/therapy/orthophonie-tab.tsx:448:          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+src/features/academics/therapy/orthophonie-tab.tsx:456:            disabled={submitting || !studentId || !reason.trim()}
+src/features/academics/therapy/orthophonie-tab.tsx:464:            disabled={submitting || !studentId || !reason.trim()}
+src/features/academics/clubs/club-detail-drawer.tsx:525:          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+src/features/academics/clubs/club-detail-drawer.tsx:533:            disabled={submitting || !studentId}
+src/features/academics/clubs/club-detail-drawer.tsx:541:            disabled={submitting || !studentId}
+src/shared/ui/data-table/data-table.tsx:62:                disabled={a.disabled?.(row.original)}
+src/shared/ui/data-table/data-table.tsx:179:        <Button variant="outline" size="icon" disabled={!table.getCanPreviousPage()} onClick={() => table.setPageIndex(0)}>
+src/shared/ui/data-table/data-table.tsx:182:        <Button variant="outline" size="icon" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+src/shared/ui/data-table/data-table.tsx:186:        <Button variant="outline" size="icon" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+src/shared/ui/data-table/data-table.tsx:189:        <Button variant="outline" size="icon" disabled={!table.getCanNextPage()} onClick={() => table.setPageIndex(table.getPageCount() - 1)}>
+src/shared/layout/page-tabs.tsx:460:        disabled={disabled}
+src/shared/ui/unified-modal.tsx:267:        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+src/shared/ui/unified-modal.tsx:276:          disabled={loading || submitDisabled}
+src/shared/ui/auto-form/auto-form-modal.tsx:102:              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+src/shared/ui/auto-form/auto-form-modal.tsx:105:              <Button type="submit" disabled={isSubmitting}>
+src/shared/ui/auto-form/auto-form-modal.tsx:120:      return <Textarea id={f.name} value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:122:      return <Input id={f.name} type="number" value={(field.value as number | string) ?? ""} min={f.min} max={f.max} onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:124:      return <Input id={f.name} type="email" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:126:      return <Input id={f.name} type="tel" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:128:      return <Input id={f.name} type="password" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:130:      return <Input id={f.name} type="date" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:133:        <Select value={(field.value as string) ?? ""} onValueChange={field.onChange} disabled={f.disabled}>
+src/shared/ui/auto-form/auto-form-modal.tsx:143:      return <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:145:      return <MoneyInput value={(field.value as number) ?? 0} onChange={field.onChange as (v: number) => void} disabled={f.disabled} />;
+src/shared/ui/auto-form/auto-form-modal.tsx:148:      return <Input id={f.name} type="text" value={(field.value as string) ?? ""} onChange={(e) => field.onChange(e.target.value)} onBlur={field.onBlur} placeholder={f.placeholder} disabled={f.disabled} />;
+src/shared/ui/wizard/wizard.tsx:107:                disabled={idx > current}
+src/shared/ui/wizard/wizard.tsx:128:            <Button variant="outline" onClick={goBack} disabled={busy}>
+src/shared/ui/wizard/wizard.tsx:132:            <Button onClick={goNext} disabled={busy}>
+src/shared/ui/money-input.tsx:42:        disabled={disabled}
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:179:                  disabled={a.disabled?.(entity)}
+

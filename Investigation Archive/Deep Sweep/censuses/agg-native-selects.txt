@@ -1,0 +1,15 @@
+# AGGREGATION: native-selects (from censuses/ui-native-selects)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+      7 src/features/academics/timetable/timetable-tab.tsx
+      4 src/features/academics/timetable/timetable-entry-dialog.tsx
+      2 src/features/financials/unified-payment-modal.tsx
+      1 src/features/personnel/onboarding/steps/managers-step.tsx
+      1 src/features/personnel/onboarding/steps/departments-step.tsx
+      1 src/features/personnel/management/staff-attendance-center.tsx
+      1 src/features/crm/student-detail/documents-tab.tsx
+      1 src/features/crm/parent-detail-drawer.tsx
+      1 src/features/academics/therapy/therapy-attachments-card.tsx
+
+# --- FILES: 9 ---

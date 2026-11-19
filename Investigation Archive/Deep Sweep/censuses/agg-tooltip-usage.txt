@@ -1,0 +1,16 @@
+# AGGREGATION: tooltip-usage (from censuses/ui-tooltip-usage)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+     13 src/features/dashboard/components/analytics/info-tip.tsx
+      7 src/shared/layout/sidebar.tsx
+      6 src/shared/ui/tooltip.tsx
+      6 src/infrastructure/sync/sync-indicator.tsx
+      4 src/app/app.tsx
+      2 src/features/dashboard/components/analytics/mix-cards.tsx
+      1 src/features/dashboard/components/weekly-operating-rhythm.tsx
+      1 src/features/dashboard/components/analytics/yoy-comparison-card.tsx
+      1 src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx
+      1 src/features/dashboard/components/analytics/debtors-pareto-card.tsx
+
+# --- FILES: 10 ---

@@ -1,0 +1,33 @@
+# CENSUS: logic-localstorage
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading localStorage\.(get|set|remove)item|el-imtiyaz: -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/providers/ai-copilot-provider.tsx:55:const CONVERSATION_STORAGE_KEY = "el-imtiyaz:ai-copilot-conversation";
+src/app/providers/user-preferences-provider.tsx:45:const STORAGE_KEY = "el-imtiyaz:prefs";
+src/features/dashboard/dashboard-layout-storage.ts:18:export const DASHBOARD_LAYOUT_STORAGE_PREFIX = "el-imtiyaz:dashboard-layout:";
+src/features/dashboard/dashboard-tab-layout-editor.tsx:4:const STORAGE_PREFIX = "el-imtiyaz:dashboard-layout:tab:";
+src/features/academics/placement/placement-draft-storage.ts:31:export const PLACEMENT_DRAFT_STORAGE_PREFIX = "el-imtiyaz:placement-draft:";
+src/features/settings/rbac-matrix-editor.tsx:34:const STORAGE_KEY = "el-imtiyaz:rbac-overrides";
+src/infrastructure/ai/ai-config-storage.ts:26:export const AI_CONFIG_STORAGE_KEY = "el-imtiyaz:ai-config";
+src/infrastructure/ai/ai-config-storage.ts:27:export const AI_PASSPHRASE_STORAGE_KEY = "el-imtiyaz:ai-passphrase";
+src/infrastructure/backup/backup-scheduler.ts:40:const RUN_LOG_KEY = "el-imtiyaz:backup-run-log";
+src/infrastructure/backup/backup-scheduler.ts:44:const SCHEDULER_ENABLED_KEY = "el-imtiyaz:backup-scheduler-enabled";
+src/infrastructure/backup/backup-service.ts:54:export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
+src/infrastructure/backup/backup-service.ts:57:export const RESTORED_FROM_KEY = "el-imtiyaz:restored-from";
+src/infrastructure/backup/backup-service.ts:172:    const raw = localStorage.getItem("el-imtiyaz:rbac-matrix-overrides");
+src/infrastructure/backup/backup-locations.ts:18:const LAST_SOURCE_KEY = "el-imtiyaz:backup-last-source-dir";
+src/infrastructure/backup/backup-locations.ts:19:const LAST_DESTINATION_KEY = "el-imtiyaz:backup-last-destination-dir";
+src/infrastructure/experimental/experimental-flags.ts:38:const storageKey = (key: string): string => `el-imtiyaz:experimental:${key}`;
+src/shared/search-index.ts:86:const RECENT_SEARCHES_KEY = "el-imtiyaz:recent-searches";
+src/infrastructure/mock/repositories/dashboard-layout-repository.ts:7: * (`el-imtiyaz:dashboard-layout:<viewKey>`), so mock mode keeps the full
+src/core/theme/theme-engine.ts:11:const CUSTOM_THEMES_STORAGE_KEY = "el-imtiyaz:custom-themes";
+src/infrastructure/mock/repositories/mock-store.ts:293:        localStorage.setItem("el-imtiyaz:rbac-matrix-overrides", JSON.stringify(rbac));
+src/infrastructure/mock/repositories/mock-store.ts:295:        localStorage.removeItem("el-imtiyaz:rbac-matrix-overrides");
+src/i18n/language-switcher.tsx:10: * `localStorage["el-imtiyaz:prefs"]` key is the single source of truth — the
+src/i18n/language-switcher.tsx:11: * legacy `el-imtiyaz:locale` key is no longer written (theme-engine era).
+src/domain/model/backup.ts:74:export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
+src/domain/repository/dashboard-layout-repository.ts:30: *     offline cache uses (`el-imtiyaz:dashboard-layout:<viewKey>`) — mock
+src/domain/repository/repository.ts:1396: * stored in `localStorage["el-imtiyaz:backup-passphrase"]` for the mock
+
+# --- COUNT: 26 matching lines ---

@@ -1,0 +1,97 @@
+# CENSUS: ui-pagetabs
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading <PageTab |PageTabs -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/crm-page.tsx:39:  PageTabs,
+src/features/crm/crm-page.tsx:292:      <PageTabs
+src/features/crm/crm-page.tsx:317:          <PageTab value="batch" label="Inscription groupée" icon={UserPlus} />
+src/features/crm/crm-page.tsx:357:      </PageTabs>
+src/features/financials/financials-page.tsx:68:import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
+src/features/financials/financials-page.tsx:445:      <PageTabs
+src/features/financials/financials-page.tsx:451:          <PageTab value="payments" label="Paiements" icon={CreditCard} />
+src/features/financials/financials-page.tsx:452:          <PageTab value="installments" label="Tranches" icon={CalendarClock} />
+src/features/financials/financials-page.tsx:460:          <PageTab value="debt-aging" label="Suivi des Dettes" icon={Hourglass} />
+src/features/financials/financials-page.tsx:468:          <PageTab value="receipts" label="Reçus" icon={FileCheck} />
+src/features/financials/financials-page.tsx:550:      </PageTabs>
+src/features/dashboard/see-details-modal.tsx:67:  PageTabs,
+src/features/dashboard/see-details-modal.tsx:316:      <PageTabs defaultValue={initialTab} variant="elevated">
+src/features/dashboard/see-details-modal.tsx:828:      </PageTabs>
+src/features/dashboard/dashboard-page.tsx:31:  PageTabs,
+src/features/dashboard/dashboard-page.tsx:381:      <PageTabs
+src/features/dashboard/dashboard-page.tsx:451:      </PageTabs>
+src/features/workflow/workflow-page.tsx:24:  PageTabs,
+src/features/workflow/workflow-page.tsx:94:      <PageTabs
+src/features/workflow/workflow-page.tsx:104:          <PageTab value="runs" label={t("workflow.runs")} icon={Activity} />
+src/features/workflow/workflow-page.tsx:112:      </PageTabs>
+src/features/settings/settings-page.tsx:49:import { PageTabs, PageTabList, PageTab, PageTabContent } from "../../shared/layout/page-tabs";
+src/features/settings/settings-page.tsx:120:      <PageTabs
+src/features/settings/settings-page.tsx:126:          <PageTab value="general" label={t("settings.general")} icon={SettingsIcon} />
+src/features/settings/settings-page.tsx:127:          <PageTab value="pricing" label="Tarification" icon={Tag} disabled={!canViewPricing} />
+src/features/settings/settings-page.tsx:128:          <PageTab value="audit" label={t("settings.audit")} icon={ScrollText} disabled={!canViewAudit} />
+src/features/settings/settings-page.tsx:129:          <PageTab value="rbac" label={t("settings.rbac")} icon={Shield} />
+src/features/settings/settings-page.tsx:130:          <PageTab value="approvals" label="Inscriptions" icon={UserCheck} />
+src/features/settings/settings-page.tsx:131:          <PageTab value="accounts" label="Comptes" icon={UserPlus} />
+src/features/settings/settings-page.tsx:132:          <PageTab value="config" label="Configuration" icon={SlidersHorizontal} />
+src/features/settings/settings-page.tsx:133:          <PageTab value="diagnostics" label="Diagnostic Supabase" icon={Activity} />
+src/features/settings/settings-page.tsx:134:          <PageTab value="crud" label="Tests CRUD" icon={FlaskConical} />
+src/features/settings/settings-page.tsx:135:          <PageTab value="sync" label="Synchronisation" icon={RefreshCw} />
+src/features/settings/settings-page.tsx:136:          <PageTab value="ai" label={t("settings.ai")} icon={Bot} />
+src/features/settings/settings-page.tsx:137:          <PageTab value="backup" label={t("settings.backup")} icon={Database} />
+src/features/settings/settings-page.tsx:138:          <PageTab value="locked" label={t("settings.locked")} icon={Lock} />
+src/features/settings/settings-page.tsx:139:          <PageTab value="experimental" label="Expérimental" icon={FlaskConical} />
+src/features/settings/settings-page.tsx:197:      </PageTabs>
+src/features/personnel/personnel-page.tsx:57:  PageTabs,
+src/features/personnel/personnel-page.tsx:153:      <PageTabs
+src/features/personnel/personnel-page.tsx:198:          <PageTab value="chat" label="Messagerie Interne" icon={MessageSquare} />
+src/features/personnel/personnel-page.tsx:202:            <PageTab value="releve" label="Relevé d'Activité" icon={Clock} />
+src/features/personnel/personnel-page.tsx:205:            <PageTab value="workflows" label="Workflows" icon={Workflow} />
+src/features/personnel/personnel-page.tsx:262:      </PageTabs>
+src/shared/layout/page-tabs.tsx:2: * PageTabs — modern, polished, reusable page-level tab navigation.
+src/shared/layout/page-tabs.tsx:40: *   <PageTabs value={tab} onValueChange={setTab}>
+src/shared/layout/page-tabs.tsx:42: *       <PageTab value="parents" label="Parents" icon={Users} count={12} />
+src/shared/layout/page-tabs.tsx:43: *       <PageTab value="students" label="Élèves" icon={GraduationCap} />
+src/shared/layout/page-tabs.tsx:46: *   </PageTabs>
+src/shared/layout/page-tabs.tsx:49: *   <PageTabs defaultValue="parents">
+src/shared/layout/page-tabs.tsx:51: *       <PageTab value="parents" label="Parents" icon={Users} />
+src/shared/layout/page-tabs.tsx:54: *   </PageTabs>
+src/shared/layout/page-tabs.tsx:65:type PageTabsVariant = "elevated" | "underline" | "rail";
+src/shared/layout/page-tabs.tsx:66:type PageTabsSize = "sm" | "md" | "lg";
+src/shared/layout/page-tabs.tsx:69:export interface PageTabsProps extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root> {
+src/shared/layout/page-tabs.tsx:70:  variant?: PageTabsVariant;
+src/shared/layout/page-tabs.tsx:77:  size?: PageTabsSize;
+src/shared/layout/page-tabs.tsx:83:  variant?: PageTabsVariant;
+src/shared/layout/page-tabs.tsx:84:  size?: PageTabsSize;
+src/shared/layout/page-tabs.tsx:134:const SIZE_HEIGHT: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:140:const SIZE_TEXT: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:146:const SIZE_ICON_ELEVATED: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:152:const SIZE_ICON_UNDERLINE: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:158:const SIZE_PADDING_X_ELEVATED: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:164:const SIZE_PADDING_RAIL: Record<PageTabsSize, string> = {
+src/shared/layout/page-tabs.tsx:177: *   <PageTabs defaultValue="parents" variant="elevated" size="md">
+src/shared/layout/page-tabs.tsx:179: *       <PageTab value="parents" label="Parents" icon={Users} />
+src/shared/layout/page-tabs.tsx:182: *   </PageTabs>
+src/shared/layout/page-tabs.tsx:185: *   <PageTabs value={tab} onValueChange={setTab} variant="elevated" size="md">
+src/shared/layout/page-tabs.tsx:187:export const PageTabs = React.forwardRef<
+src/shared/layout/page-tabs.tsx:189:  PageTabsProps
+src/shared/layout/page-tabs.tsx:208:PageTabs.displayName = "PageTabs";
+src/shared/layout/page-tabs.tsx:210:const VariantContext = React.createContext<PageTabsVariant>("elevated");
+src/shared/layout/page-tabs.tsx:211:const SizeContext = React.createContext<PageTabsSize>("md");
+src/shared/layout/page-tabs.tsx:539:/*  Convenience: PageTabsBar (single-line use without children)        */
+src/shared/layout/page-tabs.tsx:545: *   <PageTabsBar
+src/shared/layout/page-tabs.tsx:553:export function PageTabsBar({
+src/shared/layout/page-tabs.tsx:577:  variant?: PageTabsVariant;
+src/shared/layout/page-tabs.tsx:578:  size?: PageTabsSize;
+src/shared/layout/page-tabs.tsx:583:    <PageTabs
+src/shared/layout/page-tabs.tsx:592:          <PageTab key={t.value} {...t} />
+src/shared/layout/page-tabs.tsx:595:    </PageTabs>
+src/features/academics/class-detail-page.tsx:34:  PageTabs,
+src/features/academics/class-detail-page.tsx:507:      <PageTabs
+src/features/academics/class-detail-page.tsx:525:          <PageTab value="attendance" label="Présences" icon={Calendar} />
+src/features/academics/class-detail-page.tsx:526:          <PageTab value="grades" label="Notes" icon={GraduationCap} />
+src/features/academics/class-detail-page.tsx:688:      </PageTabs>
+src/features/academics/academics-page.tsx:23:  PageTabs,
+src/features/academics/academics-page.tsx:315:      <PageTabs
+src/features/academics/academics-page.tsx:392:      </PageTabs>
+
+# --- COUNT: 90 matching lines ---

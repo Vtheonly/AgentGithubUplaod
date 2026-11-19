@@ -1,0 +1,44 @@
+# DASHBOARD ESTATE: every file under src/features/dashboard/ with lines + overlay/subscription metrics
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7 (recorded 2026-11-19T02:55Z)
+# --- COMPLETE PER-FILE TABLE (tab-separated) ---
+file	lines	useObservable	UnifiedModal	title=
+src/features/dashboard/academic-year-selector.tsx	249	0	0	1
+src/features/dashboard/alert-creator-modal.tsx	134	2	1	1
+src/features/dashboard/alert-detail-modal.tsx	452	0	3	0
+src/features/dashboard/calendar-event-creator-modal.tsx	118	0	1	1
+src/features/dashboard/components/analytics/aging-composition-card.tsx	169	0	0	0
+src/features/dashboard/components/analytics/analytics-derivations.ts	549	0	0	0
+src/features/dashboard/components/analytics/analytics-slicers.tsx	157	0	0	0
+src/features/dashboard/components/analytics/card-header-actions.tsx	42	0	0	0
+src/features/dashboard/components/analytics/cross-risk-card.tsx	192	0	0	0
+src/features/dashboard/components/analytics/data-inspector-core.tsx	692	12	3	0
+src/features/dashboard/components/analytics/data-inspector-lineage.ts	930	0	0	0
+src/features/dashboard/components/analytics/data-inspector.tsx	59	0	0	0
+src/features/dashboard/components/analytics/debtors-pareto-card.tsx	209	0	0	0
+src/features/dashboard/components/analytics/executive-cards.tsx	1096	0	0	0
+src/features/dashboard/components/analytics/executive-statistics.ts	1136	0	0	0
+src/features/dashboard/components/analytics/info-tip.tsx	127	0	0	0
+src/features/dashboard/components/analytics/mix-cards.tsx	288	0	0	0
+src/features/dashboard/components/analytics/operational-query-console.tsx	1367	10	3	6
+src/features/dashboard/components/analytics/operational-query-engine.ts	403	0	0	0
+src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx	263	0	0	0
+src/features/dashboard/components/analytics/pivot-matrix-card.tsx	224	0	0	0
+src/features/dashboard/components/analytics/reference-population-selector.tsx	111	0	0	0
+src/features/dashboard/components/analytics/stat-strip.tsx	137	0	0	0
+src/features/dashboard/components/analytics/yoy-comparison-card.tsx	215	0	0	0
+src/features/dashboard/components/analytics/yoy-mock.ts	95	0	0	0
+src/features/dashboard/components/insights-rail.tsx	277	0	0	2
+src/features/dashboard/components/recovery-funnel-card.tsx	936	3	6	2
+src/features/dashboard/components/sparkline-kpi-card.tsx	225	0	0	0
+src/features/dashboard/components/weekly-operating-rhythm.tsx	181	0	0	0
+src/features/dashboard/dashboard-calendar.tsx	530	0	2	1
+src/features/dashboard/dashboard-layout-editor.tsx	903	0	0	1
+src/features/dashboard/dashboard-layout-storage.ts	46	0	0	0
+src/features/dashboard/dashboard-page.tsx	465	2	0	0
+src/features/dashboard/dashboard-tab-layout-editor.tsx	267	0	0	2
+src/features/dashboard/see-details-modal.tsx	948	0	3	0
+src/features/dashboard/tabs/alerts-tab.tsx	334	0	0	1
+src/features/dashboard/tabs/analytics-tab.tsx	817	13	0	0
+src/features/dashboard/tabs/overview-tab.tsx	308	0	0	0
+src/features/dashboard/tabs/reports-tab.tsx	490	14	0	0
+src/features/dashboard/tabs/types.ts	64	0	0	0

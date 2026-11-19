@@ -1,0 +1,47 @@
+# CENSUS: logic-setinterval
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading setInterval\(|setTimeout\( -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/providers/auth-provider.tsx:162:    const timer = setTimeout(async () => {
+src/app/providers/toast-provider.tsx:50:        setTimeout(() => dismiss(id), durationMs);
+src/features/crm/excel-import-modal.tsx:560:        if (!o) setTimeout(reset, 200);
+src/features/crm/batch-registration-modal.tsx:111:      setTimeout(() => {
+src/features/financials/unified-payment-modal.tsx:198:      const t = setTimeout(() => {
+src/infrastructure/ai/llm-adapter.ts:57:  return new Promise((resolve) => setTimeout(resolve, ms));
+src/features/dashboard/dashboard-layout-editor.tsx:476:    const timer = window.setTimeout(
+src/infrastructure/backup/backup-scheduler.ts:270:    timer = setTimeout(async () => {
+src/infrastructure/sync/online-detector.ts:90:    this.probeTimer = setInterval(() => void this.probe(), this.probeIntervalMs);
+src/infrastructure/sync/online-detector.ts:125:      const timeoutId = setTimeout(() => controller.abort(), 5_000);
+src/infrastructure/sync/sync-service.ts:448:    this.drainTimer = setTimeout(() => {
+src/infrastructure/sync/sync-service.ts:459:    this.pollTimer = setInterval(() => {
+src/features/workflow/workflow-page.tsx:524:      setTimeout(reset, 200);
+src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:125:      window.setTimeout(() => setCopied(false), 2500);
+src/features/settings/supabase-diagnostics/diagnostics-runner.ts:586:      const timer = setTimeout(() => {
+src/features/settings/supabase-diagnostics/crud-test-tab.tsx:134:      window.setTimeout(() => setCopied(false), 2500);
+src/infrastructure/excel/export-engine.ts:169:  setTimeout(() => URL.revokeObjectURL(url), 1000);
+src/features/settings/accounts-tab.tsx:142:        setTimeout(() => setCopied(false), 2000);
+src/infrastructure/excel/data-export.ts:64:  setTimeout(() => URL.revokeObjectURL(url), 1000);
+src/infrastructure/export/export-warmup.ts:147:  const timer = setTimeout(() => resolveDone?.(), PER_CALL_SETTLE_MS);
+src/infrastructure/receipt-pdf/download.ts:17:  setTimeout(() => URL.revokeObjectURL(url), 1000);
+src/infrastructure/supabase/financial-realtime.ts:512:      refreshTimer = setTimeout(() => {
+src/infrastructure/supabase/financial-realtime.ts:561:      fallbackTimer = setInterval(() => void refreshAll(), FALLBACK_POLL_MS);
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:383:      await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 1500 : 4000));
+src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:573:      await new Promise((resolve) => setTimeout(resolve, seedRetryBackoffMs[attempt]));
+src/features/auth/splash-screen.tsx:154:      const modeTimer1 = setTimeout(() => engine.setMode("circular"), durationMs * 0.45);
+src/features/auth/splash-screen.tsx:155:      const modeTimer2 = setTimeout(() => engine.setMode("logo"), durationMs * 0.75);
+src/features/auth/splash-screen.tsx:209:    const t1 = setTimeout(() => setExiting(true), durationMs - 400);
+src/features/auth/splash-screen.tsx:210:    const t2 = setTimeout(onDone, durationMs);
+src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:69:  return new Promise((resolve) => setTimeout(resolve, ms));
+src/infrastructure/mock/repositories/mock-store.ts:427:  return new Promise((resolve) => setTimeout(resolve, ms));
+src/features/academics/therapy/psychology-tab.tsx:466:    setTimeout(() => setCollectOpen(true), 100);
+src/features/academics/therapy/orthophonie-tab.tsx:423:    setTimeout(() => setCollectOpen(true), 100);
+src/features/academics/clubs/club-detail-drawer.tsx:501:    setTimeout(() => setCollectOpen(true), 100);
+src/shared/devtools/test-data/autofill-engine.ts:438:    await new Promise((r) => setTimeout(r, 24));
+src/shared/hooks/use-debounce.ts:11:    const t = setTimeout(() => setDebounced(value), delayMs);
+src/shared/layout/topbar.tsx:219:    const timer = setTimeout(async () => {
+src/core/ai/streaming/stream-client.ts:99:    return new Promise((resolve) => setTimeout(resolve, ms));
+src/core/ai/streaming/stream-client.ts:102:    const timer = setTimeout(() => {
+src/domain/calc/timetable/solver/greedy-solver.ts:268:  return new Promise((resolve) => setTimeout(resolve, 0));
+
+# --- COUNT: 40 matching lines ---

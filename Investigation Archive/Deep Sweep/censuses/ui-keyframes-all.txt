@@ -1,0 +1,6 @@
+# CENSUS: ui-keyframes-all
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:50Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading @keyframes|keyframes: -g *.css -g *.js -g *.cjs -g *.ts -g *.tsx -g !*.test.* (baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+

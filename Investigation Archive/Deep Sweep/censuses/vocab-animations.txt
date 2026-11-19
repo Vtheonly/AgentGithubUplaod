@@ -1,0 +1,17 @@
+# VOCABULARY: distinct values of animations
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+     47 animate-spin
+     11 animate-pulse
+      9 fade-out-0
+      9 fade-in-0
+      9 animate-out
+      9 animate-in
+      4 zoom-out-95
+      4 zoom-in-95
+      1 slide-out-to-right
+      1 slide-in-from-right
+      1 animate-slide-up
+      1 animate-fade-in
+
+# --- DISTINCT: 12 values ---

@@ -1,0 +1,11 @@
+# CENSUS: ui-aria
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading role="dialog"|role="alertdialog"|aria-modal|aria-expanded|aria-haspopup|aria-controls -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/parent-year-history-section.tsx:145:        aria-expanded={open}
+src/features/crm/student-detail/academic-tab.tsx:398:        aria-expanded={expanded}
+src/features/personnel/dashboards/teacher-dashboard.tsx:336:          role="dialog"
+src/features/personnel/dashboards/teacher-dashboard.tsx:337:          aria-modal="true"
+
+# --- COUNT: 4 matching lines ---

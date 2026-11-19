@@ -1,0 +1,366 @@
+# CENSUS: logic-useobservable
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading useObservable\( -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/crm-page.tsx:78:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/crm/crm-page.tsx:79:  const students = useObservable(() => repos.students.observe(), []);
+src/features/crm/crm-page.tsx:80:  const ledger = useObservable(() => repos.ledger.observe(), []);
+src/features/crm/crm-page.tsx:443:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/crm/crm-page.tsx:595:  const students = useObservable(() => repos.students.observe(), []);
+src/features/crm/crm-page.tsx:596:  const parentsList = useObservable(() => repos.parents.observe(), []) ?? [];
+src/features/crm/parent-detail-drawer.tsx:146:  const parent = useObservable(
+src/features/crm/parent-detail-drawer.tsx:150:  const students = useObservable(
+src/features/crm/parent-detail-drawer.tsx:154:  const financialProfile = useObservable(
+src/features/crm/parent-detail-drawer.tsx:161:  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+src/features/crm/parent-detail-drawer.tsx:162:  const payments = useObservable(
+src/features/crm/parent-detail-drawer.tsx:166:  const ledgerEntries = useObservable(
+src/features/crm/parent-detail-drawer.tsx:170:  const installments = useObservable(
+src/features/crm/parent-detail-drawer.tsx:174:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/parent-detail-drawer.tsx:175:  const academicYears = useObservable(
+src/features/crm/parent-detail-drawer.tsx:179:  const pricingConfig = useObservable(() => repos.pricing.observe(), []);
+src/features/crm/parent-detail-drawer.tsx:180:  const allocations = useObservable(
+src/features/crm/edit-parent-modal.tsx:55:  const parent = useObservable(
+src/features/crm/student-detail/academic-tab.tsx:69:  const assessments = useObservable(() => repos.grades.observeForStudent(studentId), [studentId]);
+src/features/crm/student-detail/academic-tab.tsx:76:  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+src/features/crm/student-detail/academic-tab.tsx:78:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/crm/student-detail/academic-tab.tsx:81:  const subjectConfigurations = useObservable(
+src/features/crm/student-detail/academic-tab.tsx:85:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/student-detail/academic-tab.tsx:93:  const attendanceAll = useObservable(
+src/features/crm/student-detail/info-tab.tsx:41:  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+src/features/crm/student-detail/info-tab.tsx:42:  const parent = useObservable(
+src/features/crm/student-detail/info-tab.tsx:46:  const siblings = useObservable(
+src/features/crm/student-detail/info-tab.tsx:51:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/student-detail/info-tab.tsx:56:  const ledgerEntries = useObservable(
+src/features/crm/student-detail/payments-tab.tsx:52:  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+src/features/crm/student-detail/payments-tab.tsx:53:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/crm/student-detail/payments-tab.tsx:54:  const payments = useObservable(() => repos.payments.observeByStudent(studentId), [studentId]);
+src/features/crm/student-detail/payments-tab.tsx:55:  const installments = useObservable(() => repos.installments.observeByStudent(studentId), [studentId]);
+src/features/crm/student-detail/payments-tab.tsx:56:  const familyProfile = useObservable(
+src/features/crm/student-detail/attendance-tab.tsx:23:  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+src/features/crm/student-detail/attendance-tab.tsx:29:  const attendance = useObservable(
+src/features/crm/student-detail/documents-tab.tsx:70:  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+src/features/crm/edit-student-modal.tsx:86:  const student = useObservable(
+src/features/crm/edit-student-modal.tsx:90:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/batch-registration/step2-students.tsx:67:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/batch-registration/step4-review.tsx:26:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/batch-registration-modal.tsx:81:  const pricing = useObservable(() => repos.pricing.observe(), []);
+src/features/crm/re-enrollment/re-enroll-modal.tsx:65:  const pricing = useObservable(() => repos.pricing.observe(), []);
+src/features/crm/re-enrollment/re-enroll-modal.tsx:66:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/crm/re-enrollment/re-enrollment-tab.tsx:55:  const years = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/crm/student-detail-drawer.tsx:37:  const student = useObservable(
+src/features/financials/manual-debt-modal.tsx:106:  const students = useObservable(() => repos.students.observe(), []);
+src/features/financials/manual-debt-modal.tsx:107:  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/financials/manual-debt-modal.tsx:108:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/unified-payment-modal.tsx:166:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/unified-payment-modal.tsx:167:  const students = useObservable(
+src/features/financials/unified-payment-modal.tsx:171:  const installments = useObservable(
+src/features/financials/unified-payment-modal.tsx:182:  const debtProfile = useObservable(
+src/features/financials/receipts-tab.tsx:55:  const payments = useObservable(() => repos.payments.observe(), []);
+src/features/financials/receipts-tab.tsx:56:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/expense-attachments-gallery.tsx:45:  const attachments = useObservable(
+src/features/financials/debt-aging-year-history.tsx:44:  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+src/features/financials/debt-aging-year-history.tsx:45:  const installments = useObservable(() => repos.installments.observeByParent(parentId), [parentId]);
+src/features/financials/debt-aging-year-history.tsx:46:  const payments = useObservable(() => repos.payments.observeByParent(parentId), [parentId]);
+src/features/financials/debt-aging-year-history.tsx:51:  const allocations = useObservable(
+src/features/financials/debt-aging-year-history.tsx:59:  const ledgerEntries = useObservable(() => repos.ledger.observeByParent(parentId), [parentId]);
+src/features/financials/debt-aging-year-history.tsx:60:  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/financials/expense-submit-modal.tsx:69:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/financials/expense-detail-drawer.tsx:72:  const expense = useObservable(
+src/features/financials/expense-detail-drawer.tsx:78:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/financials/anomaly-explainer-modal.tsx:92:  const expense = useObservable(
+src/features/financials/anomaly-explainer-modal.tsx:99:  const allExpenses = useObservable(() => repos.expenses.observe(), []);
+src/features/academics/exams-tab.tsx:36:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/academics/exams-tab.tsx:37:  const exams = useObservable(() => repos.calendar.observeExams(), []);
+src/features/financials/financials-page.tsx:133:  const payments = useObservable(() => repos.payments.observe(), []);
+src/features/financials/financials-page.tsx:134:  const expenses = useObservable(() => repos.expenses.observe(), []);
+src/features/financials/financials-page.tsx:135:  const debtSummary = useObservable(() => repos.debt.observeSummary(), []);
+src/features/financials/financials-page.tsx:136:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/financials-page.tsx:137:  const students = useObservable(() => repos.students.observe(), []);
+src/features/financials/financials-page.tsx:138:  const installments = useObservable(() => repos.installments.observe(), []);
+src/features/financials/financials-page.tsx:139:  const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
+src/features/financials/financials-page.tsx:140:  const paymentAllocations = useObservable(
+src/features/financials/financials-page.tsx:152:  const pricingConfig = useObservable(() => repos.pricing.observe(), []);
+src/features/financials/financials-page.tsx:153:  const payrollPersonnel = useObservable(
+src/features/financials/financials-page.tsx:161:  const salaryPayments = useObservable(
+src/features/financials/financials-page.tsx:172:  const seedHealth = useObservable(() => observeSeedHealth(), []);
+src/features/financials/financials-page.tsx:647:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/financials-page.tsx:648:  const students = useObservable(() => repos.students.observe(), []);
+src/features/financials/financials-page.tsx:940:  const debt = useObservable(() => repos.debt.observeSummary(), []);
+src/features/financials/financials-page.tsx:947:  const installments = useObservable(() => repos.installments.observe(), []);
+src/features/financials/financials-page.tsx:949:  const students = useObservable(() => repos.students.observe(), []);
+src/features/financials/financials-page.tsx:950:  const ledgerEntries = useObservable(() => repos.ledger.observe(), []);
+src/features/financials/debt-aging-tab.tsx:188:  const aging = useObservable(() => repos.debt.observeAging(), []);
+src/features/financials/debt-aging-tab.tsx:193:  const thresholds = useObservable(() => repos.debt.observeThresholds(), []);
+src/features/financials/debt-aging-tab.tsx:214:  const students = useObservable(() => repos.students.observe(), []);
+src/features/financials/debt-aging-tab.tsx:215:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/installment-schedule-tab.tsx:431:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/installment-schedule-tab.tsx:437:  const academicYears = useObservable(() => repos.academicYears.observeAll(), []) ?? [];
+src/features/financials/installment-schedule-tab.tsx:505:  const debtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+src/features/academics/timetable/timetable-tab.tsx:140:  const configuration = useObservable(
+src/features/academics/timetable/timetable-tab.tsx:144:  const rooms = useObservable(() => repos.timetable.observeRooms(), []) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:146:    useObservable(() => repos.timetable.observeConstraints(yearId), [yearId]) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:148:    useObservable(() => repos.timetable.observeVersions(yearId), [yearId]) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:150:    useObservable(
+src/features/academics/timetable/timetable-tab.tsx:154:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:155:  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:156:  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+src/features/academics/timetable/timetable-tab.tsx:166:  const draftEntries = useObservable(
+src/features/financials/payment-detail-drawer.tsx:59:  const payment = useObservable(
+src/features/financials/payment-detail-drawer.tsx:63:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/financials/payment-detail-drawer.tsx:64:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/homework-history-tab.tsx:23:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/academics/homework-history-tab.tsx:25:  const homework = useObservable(() => repos.homework.observeForClass(classId || ""), [classId]);
+src/features/academics/hooks/use-class-placement-studio.ts:50:  const allStudents = useObservable(() => repos.students.observe(), []);
+src/features/academics/hooks/use-class-placement-studio.ts:51:  const allClasses = useObservable(() => repos.classes.observe(), []);
+src/features/academics/hooks/use-class-placement-studio.ts:52:  const allAcademicYears = useObservable(
+src/features/academics/hooks/use-class-placement-studio.ts:56:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/hooks/use-class-placement-studio.ts:57:  const allAssessments = useObservable(() => repos.grades.observeAll(), []);
+src/features/academics/hooks/use-class-placement-studio.ts:58:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/dashboard/alert-creator-modal.tsx:66:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/hooks/use-current-academic-year.ts:31:  const years = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/academics/subjects-directory-tab.tsx:113:  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+src/features/academics/roll-call-screen.tsx:71:  const cls = useObservable(
+src/features/academics/roll-call-screen.tsx:75:  const students = useObservable(
+src/features/academics/placement/class-student-multi-select.tsx:86:  const allStudents = useObservable(() => repos.students.observe(), []) ?? [];
+src/features/academics/placement/class-student-multi-select.tsx:87:  const allClasses = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/dashboard/components/recovery-funnel-card.tsx:360:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/dashboard/components/recovery-funnel-card.tsx:361:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/grade-levels-class-view.tsx:58:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/academics/grade-levels-class-view.tsx:335:  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+src/features/academics/homework-push-modal.tsx:39:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/academics/homework-push-modal.tsx:40:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:208:  const allClasses = useObservable(() => repos.classes.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:209:  const allStudents = useObservable(() => repos.students.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:210:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:211:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:215:  const subjectConfigurations = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:219:  const teachers = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:223:  const timetableEntries = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:464:  const allClasses = useObservable(() => repos.classes.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:585:  const teachers = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:589:  const assignments = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:593:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:596:  const subjectConfigurations = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:600:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:601:  const allClasses = useObservable(() => repos.classes.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:1021:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/academic-year-detail-drawer.tsx:1025:  const subjectConfigurations = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:1029:  const assignments = useObservable(
+src/features/academics/academic-year-detail-drawer.tsx:1033:  const teachers = useObservable(
+src/features/academics/class-subjects-tab.tsx:40:  const classSubjects = useObservable(
+src/features/academics/class-subjects-tab.tsx:44:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/class-subjects-tab.tsx:45:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/class-subjects-tab.tsx:46:  const teachers = useObservable(() => repos.teachers.observe(), []);
+src/features/academics/class-subjects-tab.tsx:55:  const cls = useObservable(
+src/features/academics/class-subjects-tab.tsx:61:  const subjectConfigurations = useObservable(
+src/features/academics/teachers-tab.tsx:51:  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+src/features/academics/teachers-tab.tsx:52:  const teachers = useObservable(() => repos.teachers.observe(), []) ?? [];
+src/features/academics/teachers-tab.tsx:53:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/academics/teachers-tab.tsx:54:  const allSubjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+src/features/academics/teachers-tab.tsx:57:  const subjectConfigurations = useObservable(
+src/features/academics/justifications-tab.tsx:49:  const records = useObservable(
+src/features/academics/justifications-tab.tsx:53:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/class-attendance-tab.tsx:42:  const records = useObservable(
+src/features/dashboard/components/analytics/operational-query-console.tsx:231:  const students = useObservable(() => repos.students.observe(), []);
+src/features/dashboard/components/analytics/operational-query-console.tsx:232:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/dashboard/components/analytics/operational-query-console.tsx:233:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/exam-scheduling-modal.tsx:53:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/academics/class-detail-page.tsx:98:  const cls = useObservable(
+src/features/academics/class-detail-page.tsx:102:  const students = useObservable(
+src/features/academics/class-detail-page.tsx:106:  const allStudents = useObservable(() => repos.students.observe(), []);
+src/features/academics/class-detail-page.tsx:107:  const classSubjects = useObservable(
+src/features/academics/class-detail-page.tsx:111:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/class-detail-page.tsx:113:  const subjectConfigurations = useObservable(
+src/features/academics/class-detail-page.tsx:117:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:183:  const students = useObservable(() => repos.students.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:184:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:185:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:186:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:187:  const subjectConfigurations = useObservable(() => repos.subjects.observeConfigurations(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:188:  const assessments = useObservable(() => repos.grades.observeAll(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:189:  const attendance = useObservable(
+src/features/dashboard/components/analytics/data-inspector-core.tsx:193:  const payments = useObservable(() => repos.payments.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:194:  const installments = useObservable(() => repos.installments.observe(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:195:  const debts = useObservable(() => repos.debt.observeSummary(), []);
+src/features/dashboard/components/analytics/data-inspector-core.tsx:196:  const ledger = useObservable(() => repos.ledger.observe(), []);
+src/features/academics/school-years-tab.tsx:112:  const years = useObservable(() => repos.academicYears.observeAll(), []) ?? [];
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:68:  const students = useObservable(
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:72:  const assessments = useObservable(
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:76:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:77:  const cls = useObservable(
+src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:46:  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:132:  const students = useObservable(() => repos.students.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:133:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:134:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:135:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:136:  const subjectConfigurations = useObservable(
+src/features/dashboard/tabs/analytics-tab.tsx:140:  const assessments = useObservable(() => repos.grades.observeAll(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:141:  const attendance = useObservable(
+src/features/dashboard/tabs/analytics-tab.tsx:149:  const internalInstallments = useObservable(() => repos.installments.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:151:  const internalDebtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:153:  const ledger = useObservable(() => repos.ledger.observe(), []);
+src/features/dashboard/tabs/analytics-tab.tsx:155:  const payrollPersonnel = useObservable(
+src/features/dashboard/tabs/analytics-tab.tsx:163:  const salaryPayments = useObservable(
+src/features/academics/class-grades-tab.tsx:23:  const cls = useObservable(() => repos.classes.observeById(classId), [classId]);
+src/features/academics/class-grades-tab.tsx:24:  const assessments = useObservable(() => repos.grades.observeForClass(classId), [classId]);
+src/features/academics/class-grades-tab.tsx:25:  const allSubjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/class-grades-tab.tsx:26:  const classSubjects = useObservable(() => repos.subjects.observeByClass(classId), [classId]);
+src/features/academics/class-grades-tab.tsx:31:  const subjectConfigurations = useObservable(
+src/features/dashboard/tabs/reports-tab.tsx:49:  const payments = useObservable(() => repos.payments.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:50:  const debtSummaries = useObservable(() => repos.debt.observeSummary(), []);
+src/features/dashboard/tabs/reports-tab.tsx:51:  const students = useObservable(() => repos.students.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:52:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:53:  const expenses = useObservable(() => repos.expenses.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:54:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:56:  const installments = useObservable(() => repos.installments.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:57:  const ledger = useObservable(() => repos.ledger.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:58:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:59:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/dashboard/tabs/reports-tab.tsx:60:  const assessments = useObservable(() => repos.grades.observeAll(), []);
+src/features/dashboard/tabs/reports-tab.tsx:61:  const attendance = useObservable(
+src/features/dashboard/tabs/reports-tab.tsx:65:  const pricing = useObservable(() => repos.pricing.observe(), []);
+src/features/academics/grade-entry-screen.tsx:94:  const cls = useObservable(
+src/features/academics/grade-entry-screen.tsx:104:  const students = useObservable(
+src/features/academics/grade-entry-screen.tsx:108:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/academics/grade-entry-screen.tsx:109:  const classSubjects = useObservable(
+src/features/academics/grade-entry-screen.tsx:115:  const subjectConfigurations = useObservable(
+src/features/academics/grade-entry-screen.tsx:119:  const classAssessments = useObservable(
+src/features/academics/grade-entry-screen.tsx:228:  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
+src/features/dashboard/dashboard-page.tsx:107:    useObservable(() => repos.academicYears.observeAll(), []) ?? NO_YEARS;
+src/features/academics/students-directory-tab.tsx:67:  const students = useObservable(() => repos.students.observe(), []) ?? [];
+src/features/academics/students-directory-tab.tsx:68:  const parents = useObservable(() => repos.parents.observe(), []) ?? [];
+src/features/academics/students-directory-tab.tsx:69:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/academics/therapy/psychology-tab.tsx:62:  const followUps = useObservable(
+src/features/academics/therapy/psychology-tab.tsx:271:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/therapy/psychology-tab.tsx:272:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/profile/profile-page.tsx:66:  const me = useObservable(
+src/features/profile/profile-page.tsx:70:  const personnelDirectory = useObservable(() => repos.personnel.observe(), []);
+src/features/profile/profile-page.tsx:71:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/profile/profile-page.tsx:72:  const myTasks = useObservable(
+src/features/profile/profile-page.tsx:79:  const myLeave = useObservable(
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:72:  const evaluations = useObservable(
+src/features/academics/therapy/ortho-followup-detail-drawer.tsx:76:  const sessions = useObservable(
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:72:  const sessions = useObservable(
+src/features/academics/therapy/psych-followup-detail-drawer.tsx:76:  const reports = useObservable(
+src/features/workflow/workflow-page.tsx:126:  const workflows = useObservable(() => repos.workflows.observe(), []);
+src/features/workflow/workflow-page.tsx:142:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/workflow/workflow-page.tsx:143:  const students = useObservable(() => repos.students.observe(), []);
+src/features/workflow/workflow-page.tsx:144:  const debtSummaries = useObservable(() => repos.debt.observeSummary(), []);
+src/features/workflow/workflow-page.tsx:678:  const allRuns = useObservable(() => repos.workflowRuns.observe(), []);
+src/features/workflow/workflow-page.tsx:679:  const workflows = useObservable(() => repos.workflows.observe(), []);
+src/features/academics/therapy/orthophonie-tab.tsx:58:  const followUps = useObservable(
+src/features/academics/therapy/orthophonie-tab.tsx:241:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/therapy/orthophonie-tab.tsx:242:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/clubs/club-detail-drawer.tsx:62:  const memberships = useObservable(
+src/features/academics/clubs/club-detail-drawer.tsx:66:  const activities = useObservable(
+src/features/academics/clubs/club-detail-drawer.tsx:379:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/clubs/club-detail-drawer.tsx:380:  const existingMemberships = useObservable(
+src/features/academics/clubs/club-detail-drawer.tsx:608:  const students = useObservable(() => repos.students.observe(), []);
+src/features/academics/clubs/clubs-tab.tsx:52:  const clubs = useObservable(() => repos.clubs.observe(), []);
+src/features/academics/clubs/clubs-tab.tsx:53:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/academics/academics-page.tsx:79:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/academics/academics-page.tsx:80:  const students = useObservable(() => repos.students.observe(), []) ?? [];
+src/features/academics/academics-page.tsx:81:  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+src/features/academics/academics-page.tsx:82:  const clubs = useObservable(() => repos.clubs.observe(), []) ?? [];
+src/features/academics/academics-page.tsx:83:  const psychFollowUps = useObservable(
+src/features/academics/academics-page.tsx:87:  const orthoFollowUps = useObservable(
+src/features/academics/academics-page.tsx:91:  const pendingJustifications = useObservable(
+src/features/academics/academics-page.tsx:95:  const personnel = useObservable(() => repos.personnel.observe(), []) ?? [];
+src/features/academics/subject-configurations-panel.tsx:127:  const subjects = useObservable(() => repos.subjects.observe(), []) ?? [];
+src/features/academics/subject-configurations-panel.tsx:129:    useObservable(() => repos.subjects.observeConfigurations(), []) ?? [];
+src/features/academics/subject-configurations-panel.tsx:130:  const classes = useObservable(() => repos.classes.observe(), []) ?? [];
+src/features/settings/create-account-modal.tsx:152:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/settings/create-account-modal.tsx:153:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/settings/approvals-tab.tsx:116:  const parents = useObservable(() => repos.parents.observe(), []);
+src/features/settings/approvals-tab.tsx:117:  const students = useObservable(() => repos.students.observe(), []);
+src/features/settings/approvals-tab.tsx:118:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/settings/pricing/pricing-year-config-bar.tsx:50:  const years = useObservable(() => repos.academicYears.observeAll(), []) ?? [];
+src/features/settings/backup-tab.tsx:192:  const archives = useObservable(() => repos.backups.observe(), []);
+src/features/settings/ai-config-tab.tsx:88:  const config = useObservable(() => repos.aiConfig.observe(), []);
+src/features/personnel/workflow-monitor-tab.tsx:37:  const allRuns = useObservable(() => repos.workflowRuns.observe(), []);
+src/features/personnel/dashboards/manager-dashboard.tsx:79:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/dashboards/manager-dashboard.tsx:80:  const tasks = useObservable(() => repos.tasks.observe(), []);
+src/features/personnel/dashboards/manager-dashboard.tsx:81:  const leaveRequests = useObservable(() => repos.leaveRequests.observe(), []);
+src/features/personnel/dashboards/manager-dashboard.tsx:82:  const todayAttendance = useObservable(
+src/features/personnel/dashboards/manager-dashboard.tsx:89:  const me = useObservable(
+src/features/personnel/dashboards/administrator-dashboard.tsx:47:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/dashboards/administrator-dashboard.tsx:48:  const tasks = useObservable(() => repos.tasks.observe(), []);
+src/features/personnel/dashboards/administrator-dashboard.tsx:49:  const leaveRequests = useObservable(() => repos.leaveRequests.observe(), []);
+src/features/personnel/dashboards/administrator-dashboard.tsx:53:  const expenses = useObservable(() => repos.expenses.observe(), []);
+src/features/personnel/dashboards/administrator-dashboard.tsx:54:  const absences = useObservable(
+src/features/personnel/dashboards/driver-dashboard.tsx:88:  const me = useObservable(
+src/features/personnel/dashboards/driver-dashboard.tsx:93:  const deliveries = useObservable(() => repos.deliveries.observeByDriver(driverId), [driverId]);
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:96:  const receipts = useObservable(() => repos.warehouseTasks.observeReceipts(), []);
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:97:  const dispatches = useObservable(() => repos.warehouseTasks.observeDispatches(), []);
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:98:  const activity = useObservable(() => repos.inventory.observeTransactions(10), []);
+src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:99:  const items = useObservable(() => repos.inventory.observeItems(), []);
+src/features/personnel/dashboards/teacher-dashboard.tsx:74:  const classes = useObservable(() => repos.classes.observe(), []);
+src/features/personnel/dashboards/teacher-dashboard.tsx:75:  const subjects = useObservable(() => repos.subjects.observe(), []);
+src/features/personnel/dashboards/teacher-dashboard.tsx:82:  const me = useObservable(
+src/features/personnel/dashboards/teacher-dashboard.tsx:99:  const myHomework = useObservable(
+src/features/personnel/dashboards/teacher-dashboard.tsx:190:  const classSubjects = useObservable(
+src/features/personnel/dashboards/buyer-dashboard.tsx:67:  const requests = useObservable(() => repos.purchaseRequests.observe(), []);
+src/features/personnel/dashboards/buyer-dashboard.tsx:68:  const suppliers = useObservable(() => repos.suppliers.observe(), []);
+src/features/personnel/dashboards/buyer-dashboard.tsx:69:  const myTasks = useObservable(
+src/features/personnel/dashboards/worker-dashboard.tsx:104:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/dashboards/worker-dashboard.tsx:105:  const allTasks = useObservable(
+src/features/personnel/dashboards/worker-dashboard.tsx:118:  const me = useObservable(
+src/features/personnel/dashboards/worker-dashboard.tsx:125:  const myLeave = useObservable(
+src/features/personnel/onboarding/steps/shift-types-step.tsx:15:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/admins-step.tsx:11:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/admins-step.tsx:12:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/onboarding/steps/review-step.tsx:29:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/working-days-step.tsx:61:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/managers-step.tsx:9:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/managers-step.tsx:10:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/onboarding/steps/permissions-step.tsx:14:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/departments-step.tsx:19:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/roles-step.tsx:11:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/steps/employees-step.tsx:12:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/onboarding/onboarding-wizard.tsx:57:  const state = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/releve-tab.tsx:54:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/releve-tab.tsx:58:  const me = useObservable(
+src/features/personnel/releve-tab.tsx:85:  const myEntries = useObservable(
+src/features/personnel/personnel-page.tsx:77:  const onboarding = useObservable(() => repos.onboarding.observe(), []);
+src/features/personnel/management/task-form-modal.tsx:48:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/task-form-modal.tsx:49:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/employee-directory.tsx:50:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/employee-directory.tsx:51:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/employee-form-modal.tsx:87:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/employee-form-modal.tsx:88:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/chat-panel.tsx:190:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/chat-panel.tsx:191:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/chat-panel.tsx:194:  const channels = useObservable(
+src/features/personnel/management/chat-panel.tsx:199:  const messages = useObservable(
+src/features/personnel/management/expense-review-section.tsx:91:  const expenses = useObservable(() => repos.expenses.observe(), []);
+src/features/personnel/management/expense-review-section.tsx:92:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/employee-profile-drawer.tsx:88:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/employee-profile-drawer.tsx:89:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/employee-profile-drawer.tsx:90:  const allTasks = useObservable(() => repos.tasks.observe(), []);
+src/features/personnel/management/employee-profile-drawer.tsx:98:  const attendance = useObservable(
+src/features/personnel/management/employee-profile-drawer.tsx:113:  const schedules = useObservable(
+src/features/personnel/management/employee-profile-drawer.tsx:117:  const shifts = useObservable(() => repos.shifts.observe(), []);
+src/features/personnel/management/task-detail-drawer.tsx:55:  const allTasks = useObservable(() => repos.tasks.observe(), []);
+src/features/personnel/management/task-detail-drawer.tsx:56:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/task-detail-drawer.tsx:57:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/department-management.tsx:81:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/department-management.tsx:82:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/staff-attendance-center.tsx:84:  const me = useObservable(
+src/features/personnel/management/staff-attendance-center.tsx:94:  const allAbsences = useObservable(
+src/features/personnel/management/staff-attendance-center.tsx:98:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/requests-management.tsx:87:  const me = useObservable(
+src/features/personnel/management/requests-management.tsx:92:  const personnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/requests-management.tsx:108:  const allRequests = useObservable(() => repos.leaveRequests.observe(), []);
+src/features/personnel/management/payroll-management.tsx:98:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/payroll-management.tsx:99:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/payroll-management.tsx:101:  const me = useObservable(
+src/features/personnel/management/payroll-management.tsx:127:  const salaryPayments = useObservable(() => repos.personnel.observeSalaryPayments(), []);
+src/features/personnel/management/upcoming-payroll-payments.tsx:72:  const allPersonnel = useObservable(() => repos.personnel.observe(), []);
+src/features/personnel/management/upcoming-payroll-payments.tsx:73:  const salaryPayments = useObservable(
+src/features/personnel/management/task-management.tsx:86:  const me = useObservable(
+src/features/personnel/management/task-management.tsx:97:  const allTasks = useObservable(() => repos.tasks.observe(), []);
+src/features/personnel/management/task-management.tsx:98:  const departments = useObservable(() => repos.departments.observe(), []);
+src/features/personnel/management/task-management.tsx:99:  const personnel = useObservable(() => repos.personnel.observe(), []);
+
+# --- COUNT: 359 matching lines ---

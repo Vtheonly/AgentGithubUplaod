@@ -1,0 +1,29 @@
+# CENSUS: ui-entity-drawer-import
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading entity-detail-drawer|EntityDetailDrawer -g *.ts -g *.tsx (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/features/crm/parent-detail-drawer.tsx:50:  EntityDetailDrawer,
+src/features/crm/parent-detail-drawer.tsx:729:      <EntityDetailDrawer<Parent>
+src/features/crm/student-detail-drawer.tsx:10:  EntityDetailDrawer,
+src/features/crm/student-detail-drawer.tsx:90:      <EntityDetailDrawer<Student>
+src/features/financials/expense-detail-drawer.tsx:7: * Refactored to consume `<EntityDetailDrawer<Expense>>` so the drawer chrome,
+src/features/financials/expense-detail-drawer.tsx:32:  EntityDetailDrawer,
+src/features/financials/expense-detail-drawer.tsx:342:      <EntityDetailDrawer<Expense>
+src/features/financials/debt-aging-tab.tsx:87:import { EntityDetailDrawer, type EntityDrawerTab, type EntityDrawerMetaItem } from "../../shared/ui/entity-drawer";
+src/features/financials/debt-aging-tab.tsx:732:    <EntityDetailDrawer
+src/features/financials/payment-detail-drawer.tsx:17:import { EntityDetailDrawer, type EntityDrawerTab, type EntityDrawerMetaItem } from "../../shared/ui/entity-drawer";
+src/features/financials/payment-detail-drawer.tsx:323:      <EntityDetailDrawer<Payment>
+src/features/personnel/management/employee-profile-drawer.tsx:20:  EntityDetailDrawer,
+src/features/personnel/management/employee-profile-drawer.tsx:560:    <EntityDetailDrawer<Personnel>
+src/features/personnel/management/task-detail-drawer.tsx:26:  EntityDetailDrawer,
+src/features/personnel/management/task-detail-drawer.tsx:284:      <EntityDetailDrawer<Task>
+src/shared/ui/entity-drawer/types.ts:23:export interface EntityDetailDrawerProps<T> {
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:2:// FILE: elimtiyaz-desktop/src/shared/ui/entity-drawer/entity-detail-drawer.tsx
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:5: * <EntityDetailDrawer<T>> — Premium redesigned slide-over drawer primitive.
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:21:import type { EntityDetailDrawerProps } from "./types";
+src/shared/ui/entity-drawer/entity-detail-drawer.tsx:23:export function EntityDetailDrawer<T>(props: EntityDetailDrawerProps<T>): ReactNode {
+src/shared/ui/entity-drawer/index.ts:1:export { EntityDetailDrawer } from "./entity-detail-drawer";
+src/shared/ui/entity-drawer/index.ts:2:export type { EntityDetailDrawerProps, EntityDrawerMetaItem, EntityDrawerTab, EntityDrawerAction } from "./types";
+
+# --- COUNT: 22 matching lines ---

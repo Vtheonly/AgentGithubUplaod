@@ -1,0 +1,11 @@
+# VOCABULARY: distinct values of shadow
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# --- DISTINCT VALUES (value: count), rg -oI over src/ non-test ---
+     91 shadow-sm
+      7 shadow-lg
+      7 shadow-2xl
+      6 shadow-md
+      4 shadow-xl
+      1 shadow-none
+
+# --- DISTINCT: 6 values ---

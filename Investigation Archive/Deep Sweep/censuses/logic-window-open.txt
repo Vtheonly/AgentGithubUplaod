@@ -1,0 +1,25 @@
+# CENSUS: logic-window-open
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:49Z)
+# cwd: elimtiyaz-desktop/ ; scope: src/ non-test
+# command: rg -n --no-heading window\.open\( -g *.tsx -g *.ts (with baseline non-test globs)
+# --- COMPLETE MATCHES (file:line:match) ---
+src/app/app.tsx:52: * Electron's renderer `window.open()` can otherwise create a new BrowserWindow
+src/app/app.tsx:58: * `window.open(...)`) while guaranteeing WhatsApp never replaces the app
+src/features/crm/activation-code-modal.tsx:88:                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(shareText)}`)
+src/features/crm/parent-detail-drawer.tsx:446:                    if (clean) window.open(`https://wa.me/${clean}`);
+src/features/crm/parent-detail-drawer.tsx:456:                  onClick={() => window.open(`tel:${p.phone}`)}
+src/features/crm/parent-detail-drawer.tsx:475:                    onClick={() => window.open(`mailto:${p.email}`)}
+src/features/crm/student-detail/documents-tab.tsx:154:      window.open(url, "_blank", "noopener,noreferrer");
+src/features/financials/unified-payment-modal.tsx:539:    window.open(url, "_blank", "noopener,noreferrer");
+src/features/financials/financial-query-console.tsx:382:                                window.open(`https://wa.me/${clean}`);
+src/features/financials/financials-page.tsx:990:          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+src/features/dashboard/components/insights-rail.tsx:252:                          window.open(`https://wa.me/${cleanPhone}`, "_blank")
+src/features/personnel/management/chat-panel.tsx:996:    window.open(url, "_blank", "noopener,noreferrer");
+src/features/personnel/management/employee-profile-drawer.tsx:296:              onClick={() => window.open(`tel:${p.phone}`)}
+src/features/personnel/management/employee-profile-drawer.tsx:305:                onClick={() => window.open(`mailto:${p.email}`)}
+src/shared/ui/parent-actions-menu.tsx:139:              window.open(`https://wa.me/${cleanPhone}`, "_blank");
+src/shared/ui/parent-actions-menu.tsx:152:              window.open(`tel:${parent.phone}`);
+src/shared/ui/parent-actions-menu.tsx:167:              window.open(`mailto:${parent.email}`);
+src/shared/utils/whatsapp.ts:62:    window.open(url, "_blank", "noopener,noreferrer");
+
+# --- COUNT: 18 matching lines ---

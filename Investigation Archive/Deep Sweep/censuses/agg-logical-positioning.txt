@@ -1,0 +1,6 @@
+# AGGREGATION: logical-positioning (from censuses/ui-logical-positioning)
+# repo: Vtheonly/AgentGithubUplaod @ 37e9b1f7  (recorded 2026-11-19T02:52Z)
+# per-file match counts, sorted by count desc; paths relative to elimtiyaz-desktop/src/
+# --- COMPLETE PER-FILE TABLE ---
+
+# --- FILES: 0 ---
