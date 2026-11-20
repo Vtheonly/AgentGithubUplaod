@@ -1,0 +1,89 @@
+{
+ "comment": "S23 Format Comparison Matrix — the eight ingestion-relevant formats side by side (source: Deep Sweep/13 §2.1; every cell verified programmatically from the workbook dumps in this folder)",
+ "formats": [
+  {
+   "id": 1, "workbook": "Suivis clients  2026_2027.xlsx", "sheet": "ETAT 20262027", "label": "ETAT old (NOM header)",
+   "granularity": "student", "identity": "NEM(D) phones + NOM(F)",
+   "tranche1": "FI(R) + V2(S)", "tranche2": "2V(T)", "tranche3": "v3(U)",
+   "registrationFI": "FI(R)", "extraFees": "ORTH1/2, E-PLANT, Ratrapage, SEPTEMBRE/DECEMBRE/MARS quarterly",
+   "owed": "DEVIS ANNUEL(L) + DETTES(N) − REMBOURCEMENT(M)",
+   "paid": "REGLEMENTS DETTES(O)+FI+V2+2V+v3+1T+T2+t3+therapy+quarterly",
+   "remaining": "TOTAL*CREANCE = L − P (formula)",
+   "status": "SUPPORTED (oracle-exact)"
+  },
+  {
+   "id": 2, "workbook": "2027-2026.xlsx", "sheet": "ETAT 20262027", "label": "ETAT new (PSY grid)",
+   "granularity": "student", "identity": "NEM(D) + headerless F",
+   "tranche1": "FI(R) + V1(S)", "tranche2": "2V(T)", "tranche3": "v3(U)",
+   "registrationFI": "FI(R)", "extraFees": "PSY1..14, COURS SUP(AR), LIVRES(AS), CLUB(AT), SORTIES(AU)",
+   "owed": "L + N − M", "paid": "O,R,S,T,U,W,X,Y + PSY1..14 + ancillary AR..AU",
+   "remaining": "Q = L − P",
+   "status": "SUPPORTED (oracle-exact)"
+  },
+  {
+   "id": 3, "workbook": "ETAT 2024 -205.xlsx", "sheet": "ETAT 20262027", "label": "ETAT 3rd variant (ancillary-in-grid)",
+   "granularity": "student", "identity": "NEM(D) + headerless F (freeze A2)",
+   "tranche1": "FI(R) + V1(S)", "tranche2": "2V(T)", "tranche3": "v3(U)",
+   "registrationFI": "FI(R)", "extraFees": "LIVRES(AB), CLUB(AC), SORTIE(AD), COURS SOUTIEN(AE) EMBEDDED in grid + PSY7..14(AF..AM) + trailing AR..AU",
+   "owed": "L + N − M", "paid": "O,R,S,T,U,W,X,Y + AB..AE + PSY7..14 + AR..AU",
+   "remaining": "Q = L − P",
+   "status": "MIS-IMPORTS (BUG-068: AB..AE → psy3..psy6)"
+  },
+  {
+   "id": 4, "workbook": "ETAT 2024 -205.xlsx", "sheet": "ETAT 20232024", "label": "ETAT 2023/2024 (header row 4)",
+   "granularity": "student", "identity": "NEM(D) + headerless F",
+   "tranche1": "FI(R) + V2(S)", "tranche2": "2V(T)", "tranche3": "v3(U)",
+   "registrationFI": "FI(R)", "extraFees": "ORTH1/2, E-PLANT, Ratrapage, SEPTEMBRE/DECEMBRE/MARS",
+   "owed": "L + N − M", "paid": "O,R,S,T,U,W,X,Y + therapy + quarterly",
+   "remaining": "Q = L − P",
+   "status": "tier-1 auto-adopt → OLD config (positional luck; year-blind → BUG-066 pollution)"
+  },
+  {
+   "id": 5, "workbook": "ETAT 2024 -205.xlsx", "sheet": "ETAT 20262025", "label": "ETAT 2026/2025 (header row 3, v1/V2/V3)",
+   "granularity": "student", "identity": "NEM(D) + headerless F",
+   "tranche1": "FI(R) + v1(S)", "tranche2": "V2(T)", "tranche3": "V3(U)",
+   "registrationFI": "FI(R)", "extraFees": "ORTH1/2, E-PLANT, Ratrapage, SEPTEMBRE/december/MARS",
+   "owed": "L + N − M", "paid": "O,R,S,T,U,W,X,Y + therapy + quarterly",
+   "remaining": "Q = L − P",
+   "status": "tier-1 auto-adopt → OLD config (positional luck; year-blind → BUG-066)"
+  },
+  {
+   "id": 6, "workbook": "ETAT 2024 -205.xlsx", "sheet": " ETAT 20242025", "label": "ETAT 2024/2025 (LEADING SPACE in name)",
+   "granularity": "student", "identity": "NEM(D) + headerless F (header row 4)",
+   "tranche1": "FI(R) + v1(S)", "tranche2": "V2(T)", "tranche3": "v3(U)",
+   "registrationFI": "FI(R)", "extraFees": "ORTH/E-PLANT/Ratrapage + quarterly",
+   "owed": "L + N − M", "paid": "O,R,S,T,U,W,X,Y + therapy + quarterly",
+   "remaining": "Q = L − P",
+   "status": "SILENTLY SKIPPED (tier-1 ^ETAT fails on the leading space)"
+  },
+  {
+   "id": 7, "workbook": "ETAT 2024 -205.xlsx", "sheet": "Etat General Versement", "label": "EGV — the historical payments ledger (header row 7)",
+   "granularity": "student", "identity": "NUM TEL(D) + NUM TEL(E) + headerless F",
+   "tranche1": "FI(O) + 1V(P)", "tranche2": "2V(Q)", "tranche3": "3V(R)",
+   "registrationFI": "FI(O)", "extraFees": "P1/P2 (W/X), O1/O2 (Y/Z), Ratrapage(AA), E-PLANT(AB), SEPTEMBRE..MARS quarterly, BON01..BON10 receipts",
+   "owed": "DEVIS ANNUEL(H) + DETTES(K) − REMBOURCEMENT(J)",
+   "paid": "MONTANT VERSE(L) + DETTES VERSE(N) + 1V/2V/3V + 1T/2T/3T + P1/P2/O1/O2 + therapy + quarterly",
+   "remaining": "RESTE VERSE(M)",
+   "status": "CATASTROPHIC MIS-IMPORT (BUG-067: tier-1 ^ETAT case-insensitive + candidates[0])"
+  },
+  {
+   "id": 8, "workbook": "ETAT 2024 -205.xlsx", "sheet": "CLIENT CRITIQ", "label": "CLIENT CRITIQ — the NEW family-level critical-debtor state",
+   "granularity": "FAMILY", "identity": "Num(A) phone + address(B) + CLIENT(C) family name + N ENFANT(D) + roster panel R/T/V/X/Z (122 slots, markers S/U/W/Y)",
+   "tranche1": "—", "tranche2": "—", "tranche3": "—",
+   "registrationFI": "—",
+   "extraFees": "Garanti(F)=CHEQ; Obs(G); title 'ETAT 2EME TRIMESTRE CREANCE + 20000'; markers ECHE/ECHELENE/ECHEL/ECH/MOIS/3V/CAS/A VOIR/APRE AID/DETERGENT/A V",
+   "owed": "Montant(E) — family total outstanding (23 families = 31,584,600 DZD; TOT row 28)",
+   "paid": "— (a debtor state; no per-payment detail)",
+   "remaining": "Montant(E) itself",
+   "status": "UNSUPPORTED (unknown_schema — RUN D)"
+  },
+  {
+   "id": 9, "workbook": "متابعة تمدرس التلاميذ.xlsx", "sheet": "6 block sheets", "label": "Pedagogy roster template (S14)",
+   "granularity": "student (block rosters)", "identity": "الرقم + الاسم و اللقب (block title = شعبة + القسم)",
+   "tranche1": "—", "tranche2": "—", "tranche3": "—", "registrationFI": "—",
+   "extraFees": "8 assessment-dimension families (S14 §4)",
+   "owed": "—", "paid": "—", "remaining": "—",
+   "status": "DESIGNED (DS/10 P-U5) — importer pending the pedagogy lane"
+  }
+ ]
+}

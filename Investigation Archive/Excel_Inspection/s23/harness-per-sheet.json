@@ -1,0 +1,994 @@
+{
+  "generated": "2026-11-20T13:05:59.057Z",
+  "EGV_alone": {
+    "sheet": "Etat General Versement",
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 1275,
+      "rowsImported": 1251,
+      "rowsUpdated": 0,
+      "rowsSkipped": 24,
+      "rowsRejected": 0,
+      "warnings": 7229
+    },
+    "sheetResults": [
+      {
+        "sheet": "Etat General Versement",
+        "schema": "etat",
+        "rowsRead": 1275,
+        "rowsImported": 1251,
+        "rowsUpdated": 0,
+        "rowsSkipped": 24,
+        "rowsRejected": 0
+      }
+    ],
+    "parents": 534,
+    "students": 1251,
+    "ledgerEntries": 8679,
+    "paymentRows": 6851,
+    "installmentRows": 5007,
+    "ledgerEntriesByField": {
+      "DEVIS_ANNUEL": {
+        "count": 1186,
+        "sum": 281601040
+      },
+      "ORTH2": {
+        "count": 1178,
+        "sum": -132096590
+      },
+      "REGLEMENTS_DETTES": {
+        "count": 1155,
+        "sum": -22216900
+      },
+      "RATRAPAGE": {
+        "count": 1057,
+        "sum": -76707750
+      },
+      "FI": {
+        "count": 922,
+        "sum": -63054500
+      },
+      "DECEMBRE": {
+        "count": 559,
+        "sum": -69030750
+      },
+      "REMBOURSEMENT": {
+        "count": 491,
+        "sum": -68280830
+      },
+      "SEPTEMBRE": {
+        "count": 470,
+        "sum": -47439300
+      },
+      "V2_ALT": {
+        "count": 436,
+        "sum": -7292300
+      },
+      "V3": {
+        "count": 381,
+        "sum": -4700400
+      },
+      "EPLANT": {
+        "count": 366,
+        "sum": -33124750
+      },
+      "ORTH1": {
+        "count": 222,
+        "sum": -3286600
+      },
+      "DETTES": {
+        "count": 151,
+        "sum": 20530750
+      },
+      "T1": {
+        "count": 26,
+        "sum": -205500
+      },
+      "T3": {
+        "count": 23,
+        "sum": -178000
+      },
+      "PSY2": {
+        "count": 19,
+        "sum": -1635000
+      },
+      "T2": {
+        "count": 19,
+        "sum": -142500
+      },
+      "PSY1": {
+        "count": 18,
+        "sum": -132500
+      }
+    },
+    "totalLedgerSignedSum": -227392380
+  },
+  "ETAT_20262025_alone": {
+    "sheet": "ETAT 20262025",
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 1537,
+      "rowsImported": 1524,
+      "rowsUpdated": 0,
+      "rowsSkipped": 13,
+      "rowsRejected": 0,
+      "warnings": 1521
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20262025",
+        "schema": "etat",
+        "rowsRead": 1537,
+        "rowsImported": 1524,
+        "rowsUpdated": 0,
+        "rowsSkipped": 13,
+        "rowsRejected": 0
+      }
+    ],
+    "parents": 955,
+    "students": 1524,
+    "ledgerEntries": 11554,
+    "paymentRows": 9981,
+    "installmentRows": 7830,
+    "ledgerEntriesByField": {
+      "DEVIS_ANNUEL": {
+        "count": 1505,
+        "sum": 436537800
+      },
+      "FI": {
+        "count": 1454,
+        "sum": -43277400
+      },
+      "SEPTEMBRE": {
+        "count": 1419,
+        "sum": -189615800
+      },
+      "V2": {
+        "count": 1390,
+        "sum": -131553400
+      },
+      "V2_ALT": {
+        "count": 1336,
+        "sum": -119067350
+      },
+      "DECEMBRE": {
+        "count": 1293,
+        "sum": -118200150
+      },
+      "V3": {
+        "count": 1168,
+        "sum": -103331800
+      },
+      "MARS": {
+        "count": 1133,
+        "sum": -101581900
+      },
+      "T1": {
+        "count": 438,
+        "sum": -7993000
+      },
+      "T2": {
+        "count": 214,
+        "sum": -2722200
+      },
+      "T3": {
+        "count": 94,
+        "sum": -997000
+      },
+      "DETTES": {
+        "count": 58,
+        "sum": 34107400
+      },
+      "REGLEMENTS_DETTES": {
+        "count": 42,
+        "sum": -11522600
+      },
+      "REMBOURSEMENT": {
+        "count": 10,
+        "sum": -514000
+      }
+    },
+    "totalLedgerSignedSum": -359731400
+  },
+  "ETAT_20232024_alone": {
+    "sheet": "ETAT 20232024",
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 1348,
+      "rowsImported": 1334,
+      "rowsUpdated": 1,
+      "rowsSkipped": 13,
+      "rowsRejected": 0,
+      "warnings": 1871
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20232024",
+        "schema": "etat",
+        "rowsRead": 1348,
+        "rowsImported": 1334,
+        "rowsUpdated": 1,
+        "rowsSkipped": 13,
+        "rowsRejected": 0
+      }
+    ],
+    "parents": 910,
+    "students": 1334,
+    "ledgerEntries": 10954,
+    "paymentRows": 9520,
+    "installmentRows": 6649,
+    "ledgerEntriesByField": {
+      "DEVIS_ANNUEL": {
+        "count": 1317,
+        "sum": 349865970
+      },
+      "SEPTEMBRE": {
+        "count": 1270,
+        "sum": -151350450
+      },
+      "FI": {
+        "count": 1245,
+        "sum": -25973900
+      },
+      "V2": {
+        "count": 1191,
+        "sum": -104754900
+      },
+      "DECEMBRE": {
+        "count": 1154,
+        "sum": -93201120
+      },
+      "V2_ALT": {
+        "count": 1151,
+        "sum": -87759520
+      },
+      "MARS": {
+        "count": 1108,
+        "sum": -89738800
+      },
+      "V3": {
+        "count": 1104,
+        "sum": -85574100
+      },
+      "T1": {
+        "count": 435,
+        "sum": -7473950
+      },
+      "T2": {
+        "count": 412,
+        "sum": -5368700
+      },
+      "T3": {
+        "count": 364,
+        "sum": -4054300
+      },
+      "DETTES": {
+        "count": 93,
+        "sum": 31716200
+      },
+      "REGLEMENTS_DETTES": {
+        "count": 74,
+        "sum": -13876900
+      },
+      "REMBOURSEMENT": {
+        "count": 24,
+        "sum": -404000
+      },
+      "EPLANT": {
+        "count": 6,
+        "sum": -80000
+      },
+      "PSY1": {
+        "count": 4,
+        "sum": -57500
+      },
+      "PSY2": {
+        "count": 2,
+        "sum": -22500
+      }
+    },
+    "totalLedgerSignedSum": -288108470
+  },
+  "ETAT_20262027_alone": {
+    "sheet": "ETAT 20262027",
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 1317,
+      "rowsImported": 1308,
+      "rowsUpdated": 4,
+      "rowsSkipped": 5,
+      "rowsRejected": 0,
+      "warnings": 140
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20262027",
+        "schema": "etat",
+        "rowsRead": 1317,
+        "rowsImported": 1308,
+        "rowsUpdated": 4,
+        "rowsSkipped": 5,
+        "rowsRejected": 0
+      }
+    ],
+    "parents": 871,
+    "students": 1308,
+    "ledgerEntries": 3694,
+    "paymentRows": 2419,
+    "installmentRows": 6544,
+    "ledgerEntriesByField": {
+      "DEVIS_ANNUEL": {
+        "count": 1258,
+        "sum": 390522901
+      },
+      "V2": {
+        "count": 1228,
+        "sum": -122532850
+      },
+      "V2_ALT": {
+        "count": 424,
+        "sum": -25752350
+      },
+      "T1": {
+        "count": 395,
+        "sum": -9665500
+      },
+      "V3": {
+        "count": 229,
+        "sum": -20770500
+      },
+      "T2": {
+        "count": 69,
+        "sum": -911000
+      },
+      "T3": {
+        "count": 60,
+        "sum": -615000
+      },
+      "DETTES": {
+        "count": 11,
+        "sum": 1193700
+      },
+      "PSY3": {
+        "count": 8,
+        "sum": -80000
+      },
+      "REMBOURSEMENT": {
+        "count": 6,
+        "sum": -137500
+      },
+      "REGLEMENTS_DETTES": {
+        "count": 5,
+        "sum": -372000
+      },
+      "FI": {
+        "count": 1,
+        "sum": -25000
+      }
+    },
+    "totalLedgerSignedSum": 210854901
+  },
+  "EGV_groundTruth": {
+    "rows": 1251,
+    "totalOwed": 349017080,
+    "totalPaid": 302131790,
+    "fi": 22216900,
+    "v1": 82691140,
+    "v2": 72301350,
+    "v3": 63054500
+  },
+  "CLIENT_CRITIQ_census": {
+    "families": 23,
+    "childrenSum": 48,
+    "montantSum": 31584600,
+    "familyRows": [
+      {
+        "row": 5,
+        "phone": "559769535",
+        "address": "",
+        "client": "ROULID",
+        "children": 2,
+        "montant": 1777000,
+        "garanti": "CHEQ",
+        "obs": "Transfert fin d'annee"
+      },
+      {
+        "row": 6,
+        "phone": "549287986",
+        "address": "",
+        "client": "AIT HAMOUDA",
+        "children": 2,
+        "montant": 2768000,
+        "garanti": "",
+        "obs": "NE SAPPLIQUE PAS A L'ECHEANCIER"
+      },
+      {
+        "row": 7,
+        "phone": "",
+        "address": "",
+        "client": "BENGHARABI",
+        "children": 2,
+        "montant": 1837000,
+        "garanti": "CHEQ",
+        "obs": ""
+      },
+      {
+        "row": 8,
+        "phone": "",
+        "address": "",
+        "client": "BOKRI",
+        "children": 1,
+        "montant": 669500,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 9,
+        "phone": "541929290",
+        "address": "CITE 32 LOGT BOUDOUAOU ELBAHRI BOUMERDES",
+        "client": "CHAIB",
+        "children": 2,
+        "montant": 1828000,
+        "garanti": "CHEQ",
+        "obs": "RETOURE"
+      },
+      {
+        "row": 10,
+        "phone": "",
+        "address": "",
+        "client": "FALKOUNE",
+        "children": 2,
+        "montant": 1010600,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 11,
+        "phone": "775601206",
+        "address": "CITE 32 LOGT BOUDOUAOU ELBAHRI BOUMERDES",
+        "client": "FERGANI",
+        "children": 1,
+        "montant": 1765000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 12,
+        "phone": "",
+        "address": "",
+        "client": "FIED",
+        "children": 1,
+        "montant": 366000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 13,
+        "phone": "556251156",
+        "address": "CITE 350 LOGEMENT BT 21 N 2 BOUMERDES",
+        "client": "LEBANE",
+        "children": 2,
+        "montant": 2676000,
+        "garanti": "CHEQ",
+        "obs": ""
+      },
+      {
+        "row": 14,
+        "phone": "542235550",
+        "address": "CITE CARRIERE CAP DJENET BOUMERDES",
+        "client": "BENYOUNES",
+        "children": 2,
+        "montant": 1684000,
+        "garanti": "CHEQ",
+        "obs": ""
+      },
+      {
+        "row": 15,
+        "phone": "669922292",
+        "address": "CITE ALLILIGUIA BOUMERDES",
+        "client": "MOULAI",
+        "children": 1,
+        "montant": 1075000,
+        "garanti": "CHEQ",
+        "obs": ""
+      },
+      {
+        "row": 16,
+        "phone": "662158673",
+        "address": "CITE FERRER TABAROUT SI MUSTAPHA BOUMERDES",
+        "client": "NACER",
+        "children": 4,
+        "montant": 2672900,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 17,
+        "phone": "550711504",
+        "address": "CITE 350 LOGEMENT ELKARMA BOUMERDES",
+        "client": "CHETOUANE",
+        "children": 1,
+        "montant": 732000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 18,
+        "phone": "550369849",
+        "address": "CITE ALLILIGUIA EN FACE IMTIYAZ",
+        "client": "SELMOUNI",
+        "children": 1,
+        "montant": 1017000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 19,
+        "phone": "",
+        "address": "",
+        "client": "BOUMERDASSI",
+        "children": 1,
+        "montant": 475500,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 20,
+        "phone": "",
+        "address": "CITE DENDANI SAHEL  BOUMERDES",
+        "client": "DAMOUS",
+        "children": 4,
+        "montant": 2158000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 21,
+        "phone": "",
+        "address": "",
+        "client": "BENCHOUBANE",
+        "children": 2,
+        "montant": 646000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 22,
+        "phone": "",
+        "address": "",
+        "client": "GACEB",
+        "children": 4,
+        "montant": 733000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 23,
+        "phone": "",
+        "address": "CITE DERICHE PLAZA BT A1 N 1121 BOUMERDES",
+        "client": "BOUCHIBANE",
+        "children": 2,
+        "montant": 1250000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 24,
+        "phone": "",
+        "address": "",
+        "client": "TOUILEB",
+        "children": 4,
+        "montant": 1578000,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 25,
+        "phone": "",
+        "address": "",
+        "client": "BELGLAOUI",
+        "children": 2,
+        "montant": 680000,
+        "garanti": "",
+        "obs": "DECE LE PERE"
+      },
+      {
+        "row": 26,
+        "phone": "",
+        "address": "",
+        "client": "BELGLAOUII",
+        "children": 4,
+        "montant": 1561500,
+        "garanti": "",
+        "obs": ""
+      },
+      {
+        "row": 27,
+        "phone": "",
+        "address": "CITE ZEAATRA ZEMMOURI BOUMERDES",
+        "client": "KHELIFI AHMED",
+        "children": 1,
+        "montant": 624600,
+        "garanti": "",
+        "obs": ""
+      }
+    ],
+    "rosterCount": 122,
+    "rosterSample": [
+      {
+        "row": 5,
+        "level": "1AAM",
+        "name": "FOURAR ELAIDI AMIRA",
+        "marker": "ECHELENE"
+      },
+      {
+        "row": 5,
+        "level": "2AAM",
+        "name": "BOUISSERI MAROUA",
+        "marker": ""
+      },
+      {
+        "row": 5,
+        "level": "2AS",
+        "name": "BELOULOU HAFIDA",
+        "marker": ""
+      },
+      {
+        "row": 5,
+        "level": "3AS",
+        "name": "KHELALFA MAROUA",
+        "marker": ""
+      },
+      {
+        "row": 5,
+        "level": "col5",
+        "name": "BOUNAR AMINE ABDERAHMANE",
+        "marker": ""
+      },
+      {
+        "row": 6,
+        "level": "1AAM",
+        "name": "FOURAR ELAIDI IBTISSEM",
+        "marker": "ECHELENE"
+      },
+      {
+        "row": 6,
+        "level": "2AAM",
+        "name": "OTHEMANI LOUAI",
+        "marker": ""
+      },
+      {
+        "row": 6,
+        "level": "3AS",
+        "name": "DJANI LINA",
+        "marker": ""
+      },
+      {
+        "row": 6,
+        "level": "col5",
+        "name": "HADDAD YOUCEF MOUHAMED AMINE",
+        "marker": ""
+      },
+      {
+        "row": 7,
+        "level": "1AAM",
+        "name": "LEBANE ANIS",
+        "marker": ""
+      },
+      {
+        "row": 7,
+        "level": "2AAM",
+        "name": "SEDDIKI ALAA",
+        "marker": ""
+      },
+      {
+        "row": 7,
+        "level": "3AS",
+        "name": "KEDDACHE CHOROUK",
+        "marker": ""
+      },
+      {
+        "row": 7,
+        "level": "col5",
+        "name": "BAGHZOUZ MOUHAMED AMINE",
+        "marker": ""
+      },
+      {
+        "row": 8,
+        "level": "1AAM",
+        "name": "SIGOUANI DALIA",
+        "marker": ""
+      },
+      {
+        "row": 8,
+        "level": "2AAM",
+        "name": "KHOUCHA GHEZALA ACIL",
+        "marker": "ECH"
+      },
+      {
+        "row": 8,
+        "level": "3AS",
+        "name": "CHELIHI NOURELHOUDA",
+        "marker": ""
+      },
+      {
+        "row": 8,
+        "level": "col5",
+        "name": "HAMALIT AMIRA",
+        "marker": ""
+      },
+      {
+        "row": 9,
+        "level": "1AAM",
+        "name": "KHELIFAOUI CHAIMA",
+        "marker": "3V"
+      },
+      {
+        "row": 9,
+        "level": "2AAM",
+        "name": "KHERAZ ABDELMOUMEN",
+        "marker": ""
+      },
+      {
+        "row": 9,
+        "level": "3AS",
+        "name": "BENZOUAOUI MOUHAMED SLIMANE",
+        "marker": ""
+      },
+      {
+        "row": 9,
+        "level": "col5",
+        "name": "DOUHA MOUHAMED ELSADIK",
+        "marker": ""
+      },
+      {
+        "row": 10,
+        "level": "1AAM",
+        "name": "ZENAIDI TASNIM",
+        "marker": "MOIS"
+      },
+      {
+        "row": 10,
+        "level": "2AAM",
+        "name": "MAZOUZ OUAEL DJAMEL",
+        "marker": ""
+      },
+      {
+        "row": 10,
+        "level": "3AS",
+        "name": "BENZOUAOUI LOUAI ABDELOUADOUD",
+        "marker": ""
+      },
+      {
+        "row": 10,
+        "level": "col5",
+        "name": "BOUDJELTI  BOCHERA",
+        "marker": ""
+      },
+      {
+        "row": 11,
+        "level": "1AAM",
+        "name": "ABBAS MOUHAMED IYAD",
+        "marker": "ECHELEM"
+      },
+      {
+        "row": 11,
+        "level": "2AAM",
+        "name": "MEDJABOU YOUNES",
+        "marker": ""
+      },
+      {
+        "row": 11,
+        "level": "3AS",
+        "name": "YOUNES ZAHIR",
+        "marker": ""
+      },
+      {
+        "row": 11,
+        "level": "col5",
+        "name": "MOUHAMOU ABDERAHMANE",
+        "marker": ""
+      },
+      {
+        "row": 12,
+        "level": "1AAM",
+        "name": "BOUDOUR ROMAISSA",
+        "marker": "ECHELEM"
+      },
+      {
+        "row": 12,
+        "level": "2AAM",
+        "name": "YOUCEFI ANIS",
+        "marker": ""
+      },
+      {
+        "row": 12,
+        "level": "3AS",
+        "name": "HEDJAJ ABDELGHANI",
+        "marker": ""
+      },
+      {
+        "row": 12,
+        "level": "col5",
+        "name": "ADJEL HAMID",
+        "marker": ""
+      },
+      {
+        "row": 13,
+        "level": "1AAM",
+        "name": "MEDAHI FARES",
+        "marker": ""
+      },
+      {
+        "row": 13,
+        "level": "2AAM",
+        "name": "BOUKMACHE FOUDIL",
+        "marker": ""
+      },
+      {
+        "row": 13,
+        "level": "3AS",
+        "name": "GHIAR AGHILES AMINE",
+        "marker": ""
+      },
+      {
+        "row": 13,
+        "level": "col5",
+        "name": "AMIMER HICHEM",
+        "marker": ""
+      },
+      {
+        "row": 14,
+        "level": "1AAM",
+        "name": "KALAFAT MALAK",
+        "marker": ""
+      },
+      {
+        "row": 14,
+        "level": "2AAM",
+        "name": "MOULHI MOUHAMED ISLEM",
+        "marker": ""
+      },
+      {
+        "row": 14,
+        "level": "3AS",
+        "name": "BADARI NIHEL",
+        "marker": ""
+      },
+      {
+        "row": 14,
+        "level": "col5",
+        "name": "chinoun wissel",
+        "marker": ""
+      },
+      {
+        "row": 15,
+        "level": "1AAM",
+        "name": "KBAILI YOUNES",
+        "marker": "ECHEL"
+      },
+      {
+        "row": 15,
+        "level": "2AAM",
+        "name": "ZAMOUCHE KANZI ABDERAHIM",
+        "marker": ""
+      },
+      {
+        "row": 15,
+        "level": "3AS",
+        "name": "OURLOUM MOUAD",
+        "marker": ""
+      },
+      {
+        "row": 15,
+        "level": "col5",
+        "name": "HASINI MAROUA",
+        "marker": ""
+      },
+      {
+        "row": 16,
+        "level": "1AAM",
+        "name": "BOUMEDAH CHAKIB",
+        "marker": ""
+      },
+      {
+        "row": 16,
+        "level": "2AAM",
+        "name": "BOUAZIZ ACHEOUAK",
+        "marker": ""
+      },
+      {
+        "row": 16,
+        "level": "3AS",
+        "name": "KAMIM MOUHAMED ZIAD",
+        "marker": ""
+      },
+      {
+        "row": 16,
+        "level": "col5",
+        "name": "HEBAZ AYOUB",
+        "marker": ""
+      },
+      {
+        "row": 17,
+        "level": "1AAM",
+        "name": "KBAILI ANFAL",
+        "marker": "ECHEL"
+      },
+      {
+        "row": 17,
+        "level": "2AAM",
+        "name": "MEGHICHE KINDA",
+        "marker": ""
+      },
+      {
+        "row": 17,
+        "level": "3AS",
+        "name": "BELRACHED MAROUANE",
+        "marker": ""
+      },
+      {
+        "row": 17,
+        "level": "col5",
+        "name": "BOKRI NAWEL",
+        "marker": ""
+      },
+      {
+        "row": 18,
+        "level": "1AAM",
+        "name": "KHELIF  samyi",
+        "marker": ""
+      },
+      {
+        "row": 18,
+        "level": "2AAM",
+        "name": "YAHYAOUI SELINE",
+        "marker": ""
+      },
+      {
+        "row": 18,
+        "level": "3AS",
+        "name": "CHAIB LYDIA",
+        "marker": ""
+      },
+      {
+        "row": 18,
+        "level": "col5",
+        "name": "meghich chiraz",
+        "marker": ""
+      },
+      {
+        "row": 19,
+        "level": "1AAM",
+        "name": "HAMDOUCHE YAKOUB",
+        "marker": "ECH"
+      },
+      {
+        "row": 19,
+        "level": "2AAM",
+        "name": "BENAMROUCHE MOUHAMED WASSIM",
+        "marker": ""
+      },
+      {
+        "row": 19,
+        "level": "3AS",
+        "name": "BADI MANIL",
+        "marker": ""
+      }
+    ],
+    "markerCounts": {
+      "ECHELENE": 2,
+      "ECH": 3,
+      "3V": 1,
+      "MOIS": 1,
+      "ECHELEM": 2,
+      "ECHEL": 2,
+      "ECHE": 3,
+      "A VOIR": 1,
+      "APRE AID": 1,
+      "DETERGENT": 1,
+      "A V": 1,
+      "CAS": 1
+    }
+  }
+}

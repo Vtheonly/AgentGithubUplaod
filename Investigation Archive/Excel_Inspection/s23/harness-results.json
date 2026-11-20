@@ -1,0 +1,823 @@
+{
+  "generated": "2026-11-20T13:02:10.779Z",
+  "detectionMatrix": {
+    "newArchive": [
+      {
+        "sheet": "CLIENT CRITIQ",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": "Feuille 25",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "ETAT 20232024",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": "ETAT 20262025",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": " ETAT 20242025",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "LOT GRATUIT 2025",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "caisse02",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "Feuille 4",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "Tableau croisé dynamique 1",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "club dété 2024",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "Etat General Versement",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": "BON ",
+        "tier1": "bon",
+        "headerRowUsed": 1,
+        "finalSchema": "bon"
+      },
+      {
+        "sheet": "APPELLS",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "Devis",
+        "tier1": "devis",
+        "headerRowUsed": 1,
+        "finalSchema": "devis"
+      },
+      {
+        "sheet": "REF",
+        "tier1": "ref",
+        "headerRowUsed": 1,
+        "finalSchema": "ref"
+      },
+      {
+        "sheet": "Feuille 2",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "PAR PARENT",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "Feuille 7",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      },
+      {
+        "sheet": "datt",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      }
+    ],
+    "oldWorkbook": [
+      {
+        "sheet": "ETAT 20262027",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": "BON ",
+        "tier1": "bon",
+        "headerRowUsed": 1,
+        "finalSchema": "bon"
+      },
+      {
+        "sheet": "Devis",
+        "tier1": "devis",
+        "headerRowUsed": 1,
+        "finalSchema": "devis"
+      },
+      {
+        "sheet": "REF",
+        "tier1": "ref",
+        "headerRowUsed": 1,
+        "finalSchema": "ref"
+      }
+    ],
+    "newWorkbook": [
+      {
+        "sheet": "ETAT 20262027",
+        "tier1": "etat",
+        "headerRowUsed": 1,
+        "finalSchema": "etat"
+      },
+      {
+        "sheet": "statistiques ",
+        "tier1": null,
+        "headerRowUsed": 1,
+        "finalSchema": null
+      }
+    ]
+  },
+  "runA_2027_2026": {
+    "wallClockMs": 3530,
+    "heapDeltaMb": 39,
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 1141,
+      "rowsImported": 1137,
+      "rowsUpdated": 2,
+      "rowsSkipped": 2,
+      "rowsRejected": 0,
+      "warnings": 73
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20262027",
+        "schema": "etat",
+        "rowsRead": 1141,
+        "rowsImported": 1137,
+        "rowsUpdated": 2,
+        "rowsSkipped": 2,
+        "rowsRejected": 0
+      }
+    ],
+    "warningsCount": 73,
+    "errorsCount": 0,
+    "parents": 741,
+    "students": 1137,
+    "ledgerEntries": 3342,
+    "paymentRows": 2198,
+    "installmentRows": 5956,
+    "oracle": {
+      "rows": 1139,
+      "pass": 1135,
+      "fail": 4,
+      "failures": [
+        {
+          "nom": "HEROUA  MOSADEK",
+          "row": 770,
+          "oracleBalance": 232000,
+          "ledgerBalance": null
+        },
+        {
+          "nom": "HEROUA MOSADEK",
+          "row": 771,
+          "oracleBalance": 235000,
+          "ledgerBalance": 232000
+        },
+        {
+          "nom": "BIDA MED",
+          "row": 786,
+          "oracleBalance": 207000,
+          "ledgerBalance": 0
+        },
+        {
+          "nom": "KHALEF RAYAN",
+          "row": 1090,
+          "oracleBalance": 237000,
+          "ledgerBalance": 315000
+        }
+      ]
+    },
+    "callCounts": {
+      "parents": {
+        "search": 1,
+        "createParentTracked": 741
+      },
+      "students": {
+        "search": 1,
+        "createStudentTracked": 1137,
+        "updateStudent": 2
+      },
+      "ledger": {
+        "listImportLedgerSourceKeys": 1,
+        "observe": 1,
+        "bulkAppendWithProgress": 1
+      },
+      "payments": {
+        "listImportPaymentNumbers": 1,
+        "bulkCollectWithProgress": 1
+      },
+      "installments": {
+        "listImportInstallmentIdentities": 1,
+        "resolveImportAcademicYearId": 3,
+        "bulkImportInstallmentsWithProgress": 1
+      }
+    }
+  },
+  "runB_oldWorkbook": {
+    "wallClockMs": 1532,
+    "stats": {
+      "sheetsProcessed": 4,
+      "rowsRead": 620,
+      "rowsImported": 418,
+      "rowsUpdated": 0,
+      "rowsSkipped": 202,
+      "rowsRejected": 0,
+      "warnings": 53
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20262027",
+        "schema": "etat",
+        "rowsRead": 390,
+        "rowsImported": 390,
+        "rowsUpdated": 0,
+        "rowsSkipped": 0,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "BON ",
+        "schema": "bon",
+        "rowsRead": 16,
+        "rowsImported": 2,
+        "rowsUpdated": 0,
+        "rowsSkipped": 14,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "Devis",
+        "schema": "devis",
+        "rowsRead": 188,
+        "rowsImported": 0,
+        "rowsUpdated": 0,
+        "rowsSkipped": 188,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "REF",
+        "schema": "ref",
+        "rowsRead": 26,
+        "rowsImported": 26,
+        "rowsUpdated": 0,
+        "rowsSkipped": 0,
+        "rowsRejected": 0
+      }
+    ],
+    "parents": 253,
+    "students": 390,
+    "ledgerEntries": 1283,
+    "paymentRows": 891,
+    "installmentRows": 1966,
+    "oracle": {
+      "rows": 390,
+      "pass": 389,
+      "fail": 1,
+      "failures": [
+        {
+          "nom": "SIDI MAMER SAMYI",
+          "row": 242,
+          "oracleBalance": 0,
+          "ledgerBalance": -30000
+        }
+      ]
+    }
+  },
+  "runC_newArchive": {
+    "wallClockMs": 19138,
+    "stats": {
+      "sheetsProcessed": 7,
+      "rowsRead": 5707,
+      "rowsImported": 5021,
+      "rowsUpdated": 429,
+      "rowsSkipped": 257,
+      "rowsRejected": 0,
+      "warnings": 10798
+    },
+    "sheetResults": [
+      {
+        "sheet": "ETAT 20262027",
+        "schema": "etat",
+        "rowsRead": 1317,
+        "rowsImported": 1308,
+        "rowsUpdated": 4,
+        "rowsSkipped": 5,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "ETAT 20232024",
+        "schema": "etat",
+        "rowsRead": 1348,
+        "rowsImported": 1273,
+        "rowsUpdated": 62,
+        "rowsSkipped": 13,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "ETAT 20262025",
+        "schema": "etat",
+        "rowsRead": 1537,
+        "rowsImported": 1316,
+        "rowsUpdated": 208,
+        "rowsSkipped": 13,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "Etat General Versement",
+        "schema": "etat",
+        "rowsRead": 1275,
+        "rowsImported": 1096,
+        "rowsUpdated": 155,
+        "rowsSkipped": 24,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "BON ",
+        "schema": "bon",
+        "rowsRead": 16,
+        "rowsImported": 2,
+        "rowsUpdated": 0,
+        "rowsSkipped": 14,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "Devis",
+        "schema": "devis",
+        "rowsRead": 188,
+        "rowsImported": 0,
+        "rowsUpdated": 0,
+        "rowsSkipped": 188,
+        "rowsRejected": 0
+      },
+      {
+        "sheet": "REF",
+        "schema": "ref",
+        "rowsRead": 26,
+        "rowsImported": 26,
+        "rowsUpdated": 0,
+        "rowsSkipped": 0,
+        "rowsRejected": 0
+      }
+    ],
+    "warningsCount": 10798,
+    "warningsSample": [
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 55021780"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 6603690796"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 6603690796"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 6603690796"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 6603690796"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 6603690796"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 7704046052"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 7704046052"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "enum",
+        "message": "Valeur « 3AP  » non autorisée pour « niveau ». Valeurs attendues : PRIM, COLG, LYC, GS, MS, PS, TPS, AUTISTE, "
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 5501847654"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 5553180504"
+      },
+      {
+        "sheet": "ETAT 20262027",
+        "rule": "phone",
+        "message": "Numéro(s) invalide(s) : 5553180504"
+      }
+    ],
+    "errorsCount": 0,
+    "parents": 2561,
+    "students": 4993,
+    "ledgerEntries": 33344,
+    "paymentRows": 27627,
+    "installmentRows": 24232,
+    "oracle_etat_20262027": {
+      "rows": 1312,
+      "pass": 1124,
+      "fail": 188,
+      "failures": [
+        {
+          "nom": "ZIREG LEA",
+          "row": 2,
+          "oracleBalance": 0,
+          "ledgerBalance": -299500
+        },
+        {
+          "nom": "ZERGANI MAHDI",
+          "row": 7,
+          "oracleBalance": 0,
+          "ledgerBalance": -291000
+        },
+        {
+          "nom": "ZERGANI YAHIA",
+          "row": 9,
+          "oracleBalance": 0,
+          "ledgerBalance": -374000
+        },
+        {
+          "nom": "BENYOUCEF ANAIS",
+          "row": 22,
+          "oracleBalance": 0,
+          "ledgerBalance": -271000
+        },
+        {
+          "nom": "BICHA MED",
+          "row": 48,
+          "oracleBalance": 0,
+          "ledgerBalance": null
+        },
+        {
+          "nom": "KHELOUI INES",
+          "row": 52,
+          "oracleBalance": 0,
+          "ledgerBalance": -260000
+        },
+        {
+          "nom": "KHELOUI HADJER",
+          "row": 53,
+          "oracleBalance": 0,
+          "ledgerBalance": -293000
+        },
+        {
+          "nom": "ABADA YAHIA",
+          "row": 55,
+          "oracleBalance": 0,
+          "ledgerBalance": -297000
+        },
+        {
+          "nom": "AZIBI MAISSA",
+          "row": 56,
+          "oracleBalance": 150000,
+          "ledgerBalance": -141000
+        },
+        {
+          "nom": "AZIBI AMIR",
+          "row": 57,
+          "oracleBalance": 198000,
+          "ledgerBalance": -136000
+        },
+        {
+          "nom": "CHIRIFI  ACIF",
+          "row": 64,
+          "oracleBalance": 163000,
+          "ledgerBalance": null
+        },
+        {
+          "nom": "HALIMI SIRINE",
+          "row": 73,
+          "oracleBalance": 112000,
+          "ledgerBalance": -302600
+        },
+        {
+          "nom": "HALIMI HADJER",
+          "row": 74,
+          "oracleBalance": 140000,
+          "ledgerBalance": -375700
+        },
+        {
+          "nom": "HALIMI MAHDI",
+          "row": 75,
+          "oracleBalance": 210000,
+          "ledgerBalance": null
+        },
+        {
+          "nom": "GETAF ANIS",
+          "row": 79,
+          "oracleBalance": 238000,
+          "ledgerBalance": -270000
+        },
+        {
+          "nom": "GETAF NASSIM",
+          "row": 80,
+          "oracleBalance": 223000,
+          "ledgerBalance": -292000
+        },
+        {
+          "nom": "TOUBAL YOUNES",
+          "row": 82,
+          "oracleBalance": 203000,
+          "ledgerBalance": -253500
+        },
+        {
+          "nom": "TOUBAL ADEL",
+          "row": 83,
+          "oracleBalance": 145000,
+          "ledgerBalance": -118600
+        },
+        {
+          "nom": "DRIF LINA",
+          "row": 93,
+          "oracleBalance": 215000,
+          "ledgerBalance": -205000
+        },
+        {
+          "nom": "ROUIBET CHAKIB",
+          "row": 100,
+          "oracleBalance": 185000,
+          "ledgerBalance": -235400
+        },
+        {
+          "nom": "AFRA ZINEDINE",
+          "row": 106,
+          "oracleBalance": 0,
+          "ledgerBalance": -318000
+        },
+        {
+          "nom": "ZIANI ILINE",
+          "row": 114,
+          "oracleBalance": 0,
+          "ledgerBalance": -233000
+        },
+        {
+          "nom": "ZIANI IDRIS",
+          "row": 115,
+          "oracleBalance": 0,
+          "ledgerBalance": -312900
+        },
+        {
+          "nom": "ABED ANES",
+          "row": 121,
+          "oracleBalance": 248000,
+          "ledgerBalance": -273000
+        },
+        {
+          "nom": "BOUDALIA NIHAL",
+          "row": 127,
+          "oracleBalance": 222000,
+          "ledgerBalance": -268000
+        }
+      ]
+    },
+    "egv_groundTruth": {
+      "rows": 1251,
+      "totalOwed": 349017080,
+      "totalPaid": 302131790
+    },
+    "client_critiq_groundTruth": {
+      "families": 23,
+      "children": 48,
+      "totalMontant": 31584600
+    },
+    "callCounts": {
+      "parents": {
+        "search": 4,
+        "createParentTracked": 2561
+      },
+      "students": {
+        "search": 4,
+        "createStudentTracked": 4993,
+        "updateStudent": 429
+      },
+      "ledger": {
+        "listImportLedgerSourceKeys": 1,
+        "observe": 1,
+        "bulkAppendWithProgress": 1
+      },
+      "payments": {
+        "listImportPaymentNumbers": 1,
+        "bulkCollectWithProgress": 1
+      },
+      "installments": {
+        "listImportInstallmentIdentities": 1,
+        "resolveImportAcademicYearId": 3,
+        "bulkImportInstallmentsWithProgress": 1
+      }
+    },
+    "ledgerEntriesByField": {
+      "DEVIS_ANNUEL": {
+        "count": 4879,
+        "sum": 1355001811
+      },
+      "V2": {
+        "count": 3573,
+        "sum": -337317750
+      },
+      "FI": {
+        "count": 3433,
+        "sum": -122111600
+      },
+      "V2_ALT": {
+        "count": 3177,
+        "sum": -227614120
+      },
+      "SEPTEMBRE": {
+        "count": 3020,
+        "sum": -373308350
+      },
+      "DECEMBRE": {
+        "count": 2885,
+        "sum": -270177170
+      },
+      "V3": {
+        "count": 2760,
+        "sum": -206163900
+      },
+      "MARS": {
+        "count": 2176,
+        "sum": -185344700
+      },
+      "REGLEMENTS_DETTES": {
+        "count": 1259,
+        "sum": -47665400
+      },
+      "T1": {
+        "count": 1238,
+        "sum": -24366450
+      },
+      "ORTH2": {
+        "count": 1178,
+        "sum": -132096590
+      },
+      "RATRAPAGE": {
+        "count": 1057,
+        "sum": -76707750
+      },
+      "T2": {
+        "count": 696,
+        "sum": -8933900
+      },
+      "REMBOURSEMENT": {
+        "count": 531,
+        "sum": -69336330
+      },
+      "T3": {
+        "count": 530,
+        "sum": -5742800
+      },
+      "EPLANT": {
+        "count": 372,
+        "sum": -33204750
+      },
+      "DETTES": {
+        "count": 307,
+        "sum": 86825650
+      },
+      "ORTH1": {
+        "count": 222,
+        "sum": -3286600
+      },
+      "PSY1": {
+        "count": 22,
+        "sum": -190000
+      },
+      "PSY2": {
+        "count": 21,
+        "sum": -1657500
+      },
+      "PSY3": {
+        "count": 8,
+        "sum": -80000
+      }
+    }
+  },
+  "runD_clientCritiqAlone": {
+    "stats": {
+      "sheetsProcessed": 0,
+      "rowsRead": 0,
+      "rowsImported": 0,
+      "rowsUpdated": 0,
+      "rowsSkipped": 0,
+      "rowsRejected": 0,
+      "warnings": 1
+    },
+    "sheetResults": [],
+    "warnings": [
+      {
+        "sheet": "CLIENT CRITIQ",
+        "rule": "unknown_schema",
+        "message": "Feuille « CLIENT CRITIQ » ignorée (schéma inconnu)"
+      }
+    ],
+    "parents": 0,
+    "students": 0,
+    "ledgerEntries": 0
+  },
+  "runE_idempotency": {
+    "before": {
+      "ledger": 3342,
+      "payments": 2198,
+      "installments": 5956,
+      "students": 1137,
+      "parents": 741
+    },
+    "after": {
+      "ledger": 3342,
+      "payments": 2198,
+      "installments": 5956,
+      "students": 1137,
+      "parents": 741
+    },
+    "delta": {
+      "ledger": 0,
+      "payments": 0,
+      "installments": 0,
+      "students": 0,
+      "parents": 0
+    }
+  },
+  "runF_failureInjection": {
+    "surfacedError": "Échec de l'écriture en base (flush bulk) — écritures du journal (3342): INJECTED: flush died after first chunk (23505-style). L'import a été annulé. ATTENTION : ÉTAT PARTIEL — 0 écriture(s) du journal, 2198 paiement(s) et 5956 tranche(s) de cet import SONT DÉJÀ ÉCRITS en base (blocs commités indépendamment ; les écritures financières sont immuables côté application et le rollback ne peut PAS les annuler). Sur 3342 / 2198 / 5956 tentées. Ne relancez pas l'import avant d'avoir inspecté/nettoyé ces",
+    "rollbackOutcome": {
+      "studentsDeleted": 1137,
+      "parentsDeleted": 741,
+      "failedStudents": 0,
+      "failedParents": 0
+    },
+    "ledgerRowsLanded": 500,
+    "parentsRemaining": 0,
+    "studentsRemaining": 0
+  },
+  "runG_scale5x": {
+    "syntheticRows": 6589,
+    "wallClockMs": 12766,
+    "heapDeltaMb": 197,
+    "rssMb": 758,
+    "stats": {
+      "sheetsProcessed": 1,
+      "rowsRead": 6589,
+      "rowsImported": 1308,
+      "rowsUpdated": 5252,
+      "rowsSkipped": 29,
+      "rowsRejected": 0,
+      "warnings": 700
+    },
+    "parents": 871,
+    "students": 1308,
+    "ledgerEntries": 3694,
+    "paymentRows": 2419,
+    "installmentRows": 6544
+  }
+}

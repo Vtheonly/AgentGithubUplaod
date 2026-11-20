@@ -1,0 +1,41 @@
+{
+  "generated": "2026-11-20T13:06:57.481Z",
+  "results": [
+    {
+      "file": "2027-2026.xlsx",
+      "sheet": "ETAT 20262027",
+      "workbookLoadMs": 556,
+      "iteratePlusValidateMs": 2060,
+      "totalMs": 2615,
+      "rows": 1141,
+      "coercedRows": 1139,
+      "warnings": 74,
+      "heapDeltaMb": 74,
+      "rssMb": 314
+    },
+    {
+      "file": "ETAT 2024 -205.xlsx",
+      "sheet": "ETAT 20262027",
+      "workbookLoadMs": 1488,
+      "iteratePlusValidateMs": 2469,
+      "totalMs": 3957,
+      "rows": 1317,
+      "coercedRows": 1312,
+      "warnings": 88,
+      "heapDeltaMb": 95,
+      "rssMb": 541
+    },
+    {
+      "file": "ETAT 2024 -205.xlsx",
+      "sheet": "Etat General Versement",
+      "workbookLoadMs": 1246,
+      "iteratePlusValidateMs": 871,
+      "totalMs": 2117,
+      "rows": 1275,
+      "coercedRows": 1251,
+      "warnings": 7229,
+      "heapDeltaMb": 55,
+      "rssMb": 673
+    }
+  ]
+}
