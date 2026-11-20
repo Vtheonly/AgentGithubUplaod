@@ -12,7 +12,7 @@
 
 ### 1.1 What this application actually is
 
-A multi-tenant school-management platform ("El-Imtiyaz", Oran) whose hub repository contains a **desktop terminal** (`elimtiyaz-desktop/`: Electron + React + TypeScript + Vite, 961 source files, ~318k lines) over a **Supabase backend** (152 migrations, 100 tables / 14 views / 5 matviews, heavy RLS (324 policies, 69 executable `auth.uid()` refs), canonical financial RPCs, 16 Edge Function folders). Sibling client repos (Android `Vtheonly/elimtiyaz-android`, web portal `portal.elimtiyaz.dz` on Vercel) are coupled through the shared Supabase project but not present here. The repository is developed through an unusually strict AI-session governance system (AGENTS.md, 181+ recorded sessions, task registry T-001..T-548 + the staged T-549..T-602, 35 ADRs).
+A multi-tenant school-management platform ("El-Imtiyaz", Oran) whose hub repository contains a **desktop terminal** (`elimtiyaz-desktop/`: Electron + React + TypeScript + Vite, 961 source files, ~318k lines) over a **Supabase backend** (152 migrations, 100 tables / 14 views / 5 matviews, heavy RLS (324 policies, 69 executable `auth.uid()` refs), canonical financial RPCs, 16 Edge Function folders). Sibling client repos (Android `Vtheonly/elimtiyaz-android`, web portal `portal.elimtiyaz.dz` on Vercel) are coupled through the shared Supabase project but not present here. The repository is developed through an unusually strict AI-session governance system (AGENTS.md, 181+ recorded sessions, task registry T-001..T-548 + the staged T-549..T-611 (incl. the S23 unified-Excel X-lane), 35 ADRs).
 
 The de-facto architecture is a **layered hexagon around a repository-provider service locator**:
 
@@ -69,7 +69,7 @@ Authoritative map: `Investigation Archive/Architecture Maps/unified-architecture
 | `domain/repository/` | 50+ interfaces | **KEEP — CONSOLIDATE** the duplicated academic interfaces (DUP-002 → T-564); **ADD** approvals + purge contracts (ADD-001) |
 | `infrastructure/supabase/` | live persistence | **KEEP — RESTRUCTURE** the 5,250-line shared-repositories file (ARCH-008); fix verified drifts; **gains the Stage A aggregation/batch RPCs and Stage B `LocalBackendAdapter` twin** |
 | `infrastructure/mock/` | mock mode + production-shared primitives | **KEEP with quarantine plan** (ARCH-006); fix domain import (ARCH-001) |
-| `infrastructure/{excel,export,backup,sync,ai,receipt-pdf,storage,experimental}` | engines | **KEEP** — remove `narrative-generator.ts` (DEAD-010); relocate `sync-indicator.tsx` (ARCH-004); the sync engine gains T-593 batch mutations + T-602 delta sync |
+| `infrastructure/{excel,export,backup,sync,ai,receipt-pdf,storage,experimental}` | engines | **KEEP** — remove `narrative-generator.ts` (DEAD-010); relocate `sync-indicator.tsx` (ARCH-004); the sync engine gains T-593 batch mutations + T-602 delta sync; the excel engine gains the unified Canonical Import Pipeline (**C-X** / T-603..T-611 — the X-lane: 8 format adapters → one CanonicalRow → one entity-resolution pipeline → one financial write pipeline; the S8-proven shell is reused, not rebuilt) |
 | `electron/` (main + preload) | window shell, zero supabase hits today | **GAINS** the Stage A/B main-process services: `BackendProfile` (T-573), `LocalDatabaseService` (T-599), IPC channels, single-instance lock (T-577) |
 | `features/*` | 10 UI areas | **KEEP** — dead files removed; business logic relocates to domain (ARCH-009); table/select consolidation (DUP-015); the D-19 experience lane (T-576..T-596) |
 | `shared/*` | UI kit + chrome | **KEEP** — dead symbols removed; 3 files relocate to fix upward imports (ARCH-003); white-theme tokenization (T-589) |
@@ -205,6 +205,11 @@ The exhaustive 14-code-row + 11-DB-disposition manifest with per-row pre-deletio
 ### C-9. The academic-year core (ARCH-039 → T-562; ARCH-041/043 ride the same seam)
 
 - ONE `AcademicYearContext` service — `attributeYear(row, kind: 'charge'|'payment_made'|'settlement')` delegating to the canonical debt-aging chain (persisted `academicYearId` → INV-14 date rule), with `resolveBillingAcademicYear` DELETED (its callers get the canonical chain + the AcademicYear table's `isCurrent` row), `DEFAULT_ACADEMIC_YEAR` removed in favor of the tenant's `isCurrent` year, and year codes where start ≥ end rejected at the repository boundary. The ARCH-043 four-period-grid parameterization folds at this seam (one school-calendar service per audience). Sections keep their own READ models (Payments filter by settlement/charge year per INV-18; Pedagogy owns class/subject/assessment scoping; Grades snapshot coefficients at entry) — no shared mutation, one shared attribution truth. **The T-590 dashboard aggregation RPCs and T-587 diagnostics both consume this seam** (academic-year-range query support).
+
+
+### C-X. The unified Excel engine — the Canonical Import Pipeline (DS/13 → the X-lane T-603..T-611; the label avoids the corrections register's C-10)
+
+- ONE pipeline for ALL spreadsheet formats (the S23 census: **8 ingestion-relevant formats** across the four real workbooks — two registered ETAT variants, a THIRD ETAT header variant, four historical year-sheets, the EGV payments ledger, and the family-level `CLIENT CRITIQ` debtor state): per-format **Adapters** (layout knowledge only — the ADR-026 registry document pattern, incl. per-sheet academic-year attribution + a reject gate that ends the `candidates[0]`/`?? nameMatch` auto-adopt) emit **one Canonical Normalized Import Record** (student/guardian/charges/payments/tranches/totals); **ONE entity-resolution pipeline** (the `domain/identity` ER-PMAE engine graduates from experimental-gated to THE resolver — auto-accept definite / propose probable+review / legacy exact fallback, with BatchParentIndex as its blocking fast-path and BUG-040's backfill landing at T-606); **ONE financial & DB write pipeline** (the S8-proven semantics — REMISE-no-entry, T-105 reconciliation, T-424 waterfall, the 3-bulk-RPC flush with 3-level dedup — refactored onto the canonical record, with year-scoped ledger sourceIds). BON/Devis/REF stop being tracked-only no-ops (real canonical targets or explicit excluded-with-reason). The performance envelope (T-611): keyset preflights replace the `search("")` full-table snapshots, a schema-projection cell walk, post-load sheet pruning, and real-checksum diff-skip re-imports. **Gate discipline: DS/13 §8's G1–G7 local oracle (100% of rows, 0 DZD delta, zero remote calls) before any live traffic.** Full task cards: EXECUTION-PLAN §13. ROADMAP rows: Phase 9.
 
 ---
 
@@ -347,6 +352,7 @@ Phases are strictly ordered by risk/leverage; every item is a registered T-task 
 - **Phase 5 — The experience overhaul (D-19):** the UI-unification arc (UI-U1..U7) **on a white/light foundation (T-589)** → the dashboard overhaul (T-596) → the modal text/jargon purge (T-586) → the payment-clarity UX (T-578/T-579/T-580) → the parser/automation/AI-hardening remainder (T-582/T-584/T-585) → the settings/OAuth/startup/Electron lanes (T-577/T-581/T-583/T-588/T-597).
 - **Stage B — Local primary persistence + hybrid sync (D-17):** LF-0 seam (T-550..T-553) → pipeline P-0..P-4 + LF-1 local engine (T-599) → LF-2 local auth (T-600, OAuth stays) → LF-3 EF ports + local storage (T-601) → the local↔Supabase delta sync (T-602, superseding the LF-4 relay and LF-5 demotion designs).
 - **Phase 8 — Pedagogy unification lane (parallel, own sequencing):** T-561 → (T-562..T-565, T-568) → (T-566, T-569) → T-570 → T-567 → T-571.
+- **Phase 9 — The unified Excel engine lane (parallel, own sequencing; DS/13):** T-603 (reject gate) → T-604 (year attribution) → T-605 (the CanonicalRow + variant table) → (T-606 ∥ T-607) → (T-608 ∥ T-609) → T-610 → T-611 (the performance envelope) — every task exits through the DS/13 §8 local oracle.
 - **Continuous:** every phase updates the findings register and moves newly verified items out of UNRESOLVED.
 
 ---
@@ -489,7 +495,7 @@ Before/after verification gates are part of the architecture, not an afterthough
 
 ---
 
-## 15. The Pedagogy Lane and the Relocation Lane (folded symmetrically with ROADMAP and EXECUTION-PLAN)
+## 15. The Pedagogy, Relocation and Unified-Excel Lanes (folded symmetrically with ROADMAP and EXECUTION-PLAN)
 
 ### 15.1 The pedagogy-unification lane (T-561..T-571 — the owner's Merge + Connect + Delete mandate)
 
@@ -498,6 +504,10 @@ Evidence: `Deep Sweep/10` (the entity census + P-U1..P-U8) + `Deep Sweep/11` (th
 ### 15.2 The Supabase-relocation lane (T-573..T-575 — Stage A's portability core)
 
 Evidence: `SUPABASE-RELOCATION-AND-RELOAD-GUIDE.md` (the six-layer audit: the build-time credential lockdown; the 152-migration chain's blank-project readiness incl. the bootstrap-9000 subset trap + the config.toml parity list; the 7-surface auth.users linkage map + both remedies; the EF/storage/realtime/cron estate; the complete local-estate inventory + Scenario A/B analysis; the cross-app coupling). Task cards: EXECUTION-PLAN §12 (T-573 BackendProfile / T-574 auth tooling / T-575 preflight; OPS-016 + ARCH-046 dispositions). ROADMAP rows: Phase 6 (Stage A). Blueprint anchors: ADD-9, §13.1.4, §8's migration table.
+
+### 15.3 The unified-Excel-engine lane (T-603..T-611 — the owner's ALL-formats/ONE-model mandate)
+
+Evidence: `Deep Sweep/13` + `Excel_Inspection/s23/` (the four-workbook census + the format comparison matrix + the 100%-row stress harness with its independent per-row oracle — the S8 discipline reproduced, then extended to the 21-sheet historical archive and the new family-level format). The lane's truth: **the two registered formats are oracle-exact and idempotent today** (the S8 baseline re-proven); the new archive's default drop imports 7 sheets and corrupts the money (BUG-066/067/068 — the root being the detection contract's auto-adopt + year-blind ledger sourceIds); `CLIENT CRITIQ` (the genuinely new format) is entirely unsupported. Sequencing: **T-603 → T-604 → T-605 → (T-606 ∥ T-607) → (T-608 ∥ T-609) → T-610 → T-611**; hard constraint: **DS/13 §8's G1–G7 local gates (100% of rows, 0 DZD delta, zero remote calls) before ANY live traffic**. Full task cards: EXECUTION-PLAN §13. ROADMAP rows: Phase 9. Blueprint anchors: C-X, §2 (the module dispositions).
 
 ---
 
@@ -526,9 +536,9 @@ Evidence: `SUPABASE-RELOCATION-AND-RELOAD-GUIDE.md` (the six-layer audit: the bu
 | 19 | v1.x's T-551 scope (bare hard-lock deletion) vs T-573 | **T-573 absorbs T-551's scope** (the profile switcher removes the lock by demoting the constants to factory defaults — same verification, richer mechanism, one commit instead of two |
 | 20 | The EXECUTION-PLAN version labels (v1.0/v1.1/v1.2/v1.3) | **Unified as v2.0** across BLUEPRINT / ROADMAP / EXECUTION-PLAN |
 
-**Registered-ID coverage note:** the archive's register carries **184 registered IDs** (DEAD-001..015, 017..023 — DEAD-016 was never assigned; DUP-001..032, 034..036 — DUP-033 never assigned; ARCH-001..046; BUG-001..065; OPS-001..016). All 184 map to execution homes in EXECUTION-PLAN §6 (the traceability matrix) — the orphan audit's PASS condition, verified Session 22.
+**Registered-ID coverage note:** the archive's register carries **190 registered IDs** (DEAD-001..015, 017..024 — DEAD-016 was never assigned; DUP-001..032, 034..036 — DUP-033 never assigned; ARCH-001..048; BUG-001..068; OPS-001..016 — S23 added BUG-066..068, ARCH-047/048, DEAD-024). All 190 map to execution homes in EXECUTION-PLAN §6 (the traceability matrix) — the orphan audit's PASS condition, verified Session 22, extended to Phase 9 in Session 23.
 
 ---
 
-*End of BLUEPRINT v2.0. Evidence base: `Investigation Archive/` Sessions 1–21 (FINDINGS_INDEX 184 registered IDs, corrections C-1..C-22); designs: LOCAL-FIRST-BLUEPRINT, 02-UNIFIED-PIPELINE-DESIGN, UI Component Audit 00–05, the DS/01–12 deep sweeps, the LF0-prep package, the relocation guide. The owner's locked-in decisions D-17/D-18/D-19 (OWNER-DECISION-PACKET Part F) govern wherever they apply. No application source, configuration, schema, or dependency was modified in producing this blueprint; the read-only regime is maintained until the owner green-lights execution on Issue #32.*
+*End of BLUEPRINT v2.0. Evidence base: `Investigation Archive/` Sessions 1–23 (FINDINGS_INDEX 190 registered IDs, corrections C-1..C-22); designs: LOCAL-FIRST-BLUEPRINT, 02-UNIFIED-PIPELINE-DESIGN, UI Component Audit 00–05, the DS/01–13 deep sweeps, the LF0-prep package, the relocation guide, the S23 Excel_Inspection/s23 evidence package. The owner's locked-in decisions D-17/D-18/D-19 (OWNER-DECISION-PACKET Part F) govern wherever they apply. No application source, configuration, schema, or dependency was modified in producing this blueprint; the read-only regime is maintained until the owner green-lights execution on Issue #32.*
 

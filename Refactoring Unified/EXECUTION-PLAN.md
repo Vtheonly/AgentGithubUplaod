@@ -1,7 +1,7 @@
 # Execution Plan — the El-Imtiyaz Consolidation, Stage A/B Hybrid & Experience Overhaul (v2.0)
 
-**Version:** 2.0 (Session 22, 2026-11-20 — the final consolidation: the complete `Investigation Archive/` Sessions 1–21 + the owner's locked-in decisions D-17/D-18/D-19 unified; every registered finding task-homed; the T-register complete T-549..T-602) · **Status:** the plan of record's *operational layer* — it converts `Refactoring Unified/BLUEPRINT.md` v2.0 + `Refactoring Unified/ROADMAP.md` v2.0 (Phases 0–8) and the `Investigation Archive/` evidence base into a single ordered, step-by-step, dependency-aware execution program. The implementation sessions execute directly from this file.
-**Companion documents (authoritative, never replaced by this file):** `Refactoring Unified/ROADMAP.md` v2.0 (the task table of record) · `Refactoring Unified/BLUEPRINT.md` v2.0 (the design of record, incl. §13 Stage A/B + §14 the query-minimization architecture) · `Investigation Archive/OWNER-DECISION-PACKET.md` (D-1..D-19 — Part F's locked-in decisions govern) · `Investigation Archive/Findings and Hypotheses/FINDINGS_INDEX.md` (every finding ID cited below; 184 registered IDs, all mapped in §6).
+**Version:** 2.0 (Sessions 22–23, 2026-11-20 — the final consolidation: the complete `Investigation Archive/` Sessions 1–23 + the owner's locked-in decisions D-17/D-18/D-19 and the S23 unified-Excel lane unified; every registered finding task-homed; the T-register complete T-549..T-611) · **Status:** the plan of record's *operational layer* — it converts `Refactoring Unified/BLUEPRINT.md` v2.0 + `Refactoring Unified/ROADMAP.md` v2.0 (Phases 0–9) and the `Investigation Archive/` evidence base into a single ordered, step-by-step, dependency-aware execution program. The implementation sessions execute directly from this file.
+**Companion documents (authoritative, never replaced by this file):** `Refactoring Unified/ROADMAP.md` v2.0 (the task table of record) · `Refactoring Unified/BLUEPRINT.md` v2.0 (the design of record, incl. §13 Stage A/B + §14 the query-minimization architecture) · `Investigation Archive/OWNER-DECISION-PACKET.md` (D-1..D-20 — Part F's locked-in decisions + Part G's S23 mandate core govern) · `Investigation Archive/Findings and Hypotheses/FINDINGS_INDEX.md` (every finding ID cited below; 190 registered IDs, all mapped in §6).
 
 ---
 
@@ -40,9 +40,9 @@
 
 ---
 
-## 2. The master execution sequence — nine stages + one parallel lane, dependency-tight
+## 2. The master execution sequence — nine stages + two parallel lanes, dependency-tight
 
-The ROADMAP's Phases 0–8 are re-sequenced here into execution stages E0–E8 + the parallel pedagogy lane. **The mapping is 1:1 — no roadmap row is dropped or reordered except where the Stage A/B interlocks dictate.**
+The ROADMAP's Phases 0–9 are re-sequenced here into execution stages E0–E8 + the parallel pedagogy and unified-Excel lanes. **The mapping is 1:1 — no roadmap row is dropped or reordered except where the Stage A/B interlocks dictate.**
 
 ```
 E0    Session-zero housekeeping (no app-code changes)          ──┐ can start immediately under G0 as *prep*,
@@ -60,6 +60,8 @@ E7B   STAGE B (Phase 7): the pipeline P-lanes (7.1..7.5) ∥/→ T-599 LF-1 engi
       T-601 LF-3 ports → T-602 local↔Supabase delta sync → the local seed ceremony (G2)
 E8    Verification & closeout (INV-2 kill-the-network gate, the egress gates, baseline moves, register sweep)
 PAR   Pedagogy lane (Phase 8, T-561..T-571) — G0-gated, own sequencing, runs parallel from E2 onward
+XL    Unified-Excel lane (Phase 9, T-603..T-611) — G0-gated, own sequencing, runs parallel from E2
+      onward (§13; DS/13 §8's local gates precede ANY live traffic — zero remote calls until G1–G7)
 ```
 
 **Parallelism map (for multi-agent execution):** E1∥E6 can run concurrently once started (disjoint file sets, except E1's 0.2 dashboard dead-file deletion vs T-596 — sequence E1.2 first); E4∥E5 likewise; the pedagogy lane parallels E2..E7 (its T-564 = E4.2's pedagogy-side execution — coordinate, never double-touch); inside Stage B: the pipeline facades (E7B-1) ∥ LF-0 entirely; T-599 rides the one-commit path (E7B-2); T-602 consumes T-593/T-592. Never parallelize anything onto the same repository file without a merge plan.
@@ -313,7 +315,7 @@ Target: proof, not assertion. Steps: 1) a measurement harness (boot / dashboard 
 3. **INV-2 gate** (the program's definition of success): network fully blocked on the packaged Windows build → boot, sign-in, read, write, backup, restore all work.
 4. **The egress gates** (T-595's artifacts): the four OPS-015 classes verified dead/collapsed (live numbers from the one-time window).
 5. **The numbers-equal test** (T-596's acceptance): Dashboard and Payments/Finance render identical totals for the same query.
-6. FINDINGS_INDEX sweep: every one of the 184 registered IDs moved to its terminal state (done / documented / owner-gated); corrections C-1..C-22 + the v2.0 reconciliation register R-1..R-5 recorded.
+6. FINDINGS_INDEX sweep: every one of the 190 registered IDs moved to its terminal state (done / documented / owner-gated); corrections C-1..C-22 + the v2.0 reconciliation register R-1..R-5 recorded.
 7. Final self-audit: only `Investigation Archive/` + `Refactoring Unified/` were ever touched during the investigation + blueprint phases; execution-phase commits cite T-tasks throughout.
 
 ---
@@ -341,7 +343,7 @@ Target: proof, not assertion. Steps: 1) a measurement harness (boot / dashboard 
 
 ---
 
-## 6. Finding → action traceability matrix (v2.0 — ALL 184 registered IDs → their execution homes)
+## 6. Finding → action traceability matrix (v2.0 — ALL 190 registered IDs → their execution homes)
 
 **Registered set:** DEAD-001..015, 017..023 (22) · DUP-001..032, 034..036 (35) · ARCH-001..046 (46) · BUG-001..065 (65) · OPS-001..016 (16) — **184**. (DEAD-016 and DUP-033 were never assigned — skipped placeholders in the numbering; DEAD-024/DUP-037/ARCH-047/BUG-066/OPS-017 are the next free.) "Doc" = documentation-only disposition. "Owner" = owner-gated (§5). Orphan check: **zero** — every registered ID has a home below.
 
@@ -425,6 +427,8 @@ Target: proof, not assertion. Steps: 1) a measurement harness (boot / dashboard 
 | ARCH-044 | T-569 | teacher model inversion |
 | ARCH-045 | T-570 | the enrollment chain |
 | ARCH-046 | E3.3 (2.4) / E7A-6 | config.toml ↔ functions/ (execute once) |
+| ARCH-047 | T-603/T-604/T-605 | the format-registry reject gate + year attribution + variant table |
+| ARCH-048 | T-608/T-609 | CLIENT CRITIQ + document-sheet canonical targets |
 | BUG-001..005, 010, 013, 016, 020, 021, 022..027 | E2.6 | per-fix T-tasks |
 | BUG-006/018 | E3.6..E3.9 | SQL repairs (permanent) |
 | BUG-007 | E3.2..E3.5 | EF repairs (permanent — D-17) |
@@ -469,6 +473,9 @@ Target: proof, not assertion. Steps: 1) a measurement harness (boot / dashboard 
 | BUG-060..063 | T-591 | the truncation family |
 | BUG-064 | T-567 | classless import |
 | BUG-065 | T-561 (precondition) | medical-bridge parity test |
+| BUG-066 | T-604 | multi-sheet year-archive ledger pollution (188 mismatches) |
+| BUG-067 | T-603 | EGV mis-detection + column-shift corruption |
+| BUG-068 | T-605 | 3rd ETAT variant ancillary mis-mapping |
 | OPS-001/005/006, L-11 | E5.4 (Owner) | deliverables |
 | OPS-002/008 | E1.9 | broken scripts |
 | OPS-003/004 | E5.3 | scripts archive (the pattern stays — D-17) |
@@ -591,5 +598,27 @@ The owner's focused relocation mandate produced `Investigation Archive/SUPABASE-
 
 ---
 
-*End of execution plan v2.0. Evidence base: `Investigation Archive/` Sessions 1–21 (FINDINGS_INDEX 184 registered IDs, corrections C-1..C-22); designs: BLUEPRINT v2.0 (§13 Stage A/B + §14 the query-minimization architecture), ROADMAP v2.0 (Phases 0–8), LOCAL-FIRST-BLUEPRINT, 02-UNIFIED-PIPELINE-DESIGN, UI Component Audit 00–05, the DS/01–12 deep sweeps, the LF0-prep package, the SUPABASE-RELOCATION-AND-RELOAD-GUIDE. The owner's locked-in decisions D-17/D-18/D-19 (OWNER-DECISION-PACKET Part F) govern wherever they apply; the v2.0 reconciliation register R-1..R-5 resolved every listed contradiction (E1.7↔T-573; E2.4↔ARCH-037; the withdrawn t-502 claim; T-561's 8-site scope; the census-corrected counts: 359 `useObservable`/105 files, 413 `.from()`, 194 `title=`/102 files, 69 executable `auth.uid()`, 40 hand-rolled table files, 70 modal files/114 usages, 17 `supabase-client` bypasses). Every registered finding (all 184) maps to an execution home in §6 — zero orphans. All version labels unified as v2.0. No application source, configuration, schema, or dependency was modified in producing this plan; the read-only regime is maintained until the owner green-lights execution on Issue #32.*
+## 13. The unified-Excel-engine lane (T-603..T-611 — folded at Session 23; evidence: Deep Sweep/13 + Excel_Inspection/s23)
+
+The owner's unified-Excel mandate ("ALL Excel spreadsheet processing engines unified… ALL supported Excel formats resolve through ONE unified underlying entity-resolution and financial-semantic model… performance a top priority") produced Deep Sweep/13 — the audit of record for this lane. The load-bearing discoveries: the S8 baseline STANDS (the two registered formats re-proven oracle-exact at 100% of rows; re-import a perfect no-op; the injected flush failure surfaces the honest `ÉTAT PARTIEL` sentence; rollback deletes every run-created row), while the new owner upload `ETAT 2024 -205.xlsx` is a 21-sheet historical archive whose default file-drop imports 7 sheets / 5,021 rows and **corrupts the money** (BUG-066/067/068: 188 current-year balance mismatches; EGV's mis-mapped import fabricates ≈ +281.6 M DZD charges / −68.3 M DZD refunds and silently drops ≈ 155 M DZD of real tuition payments; the 3rd variant's LIVRES data lands as psychology). `CLIENT CRITIQ` — the genuinely new family-level financial format — is entirely unsupported (23 families / 48 children / 31,584,600 DZD).
+
+**The design of record (DS/13 §5, the X-lane):** format Adapters (one per format family — layout knowledge ONLY, incl. the mandated CLIENT CRITIQ family-level adapter) → **one Canonical Normalized Import Record** (student/guardian/charges/payments/tranches/totals) → **ONE unified entity-resolution pipeline** (the `domain/identity` ER-PMAE engine graduates from experimental to THE resolver: auto-accept definite / propose probable+review / legacy exact fallback; BatchParentIndex becomes its blocking fast-path) → **ONE financial & DB write pipeline** (the S8-proven financial semantics — REMISE-no-entry, T-105 reconciliation, T-424 waterfall, 3-bulk-RPC flush, 3-level dedup — refactored onto the canonical record; year-scoped ledger sourceIds).
+
+- **T-603 (the reject gate):** tier-1 name matches that fail every adapter fingerprint → explicit `unknown_schema` skip; the `candidates[0]` + `?? nameMatch` auto-adopt paths are deleted. Acceptance: EGV alone imports 0 rows; the 21-sheet default drop selects only fingerprint-passing sheets.
+- **T-604 (year attribution):** per-sheet academic-year identity (sheet-name parsing + picker fallback) + year-scoped ledger sourceIds `imp:{year}:{studentId}:{field}`. Acceptance: the DS/13 §6.3 oracle — the 188 cross-sheet balance mismatches → 0.
+- **T-605 (the variant table):** the CanonicalRow + ONE `EtatColumnAdapter` core with 8 variant rows (2026/2027, 2027/2026, 3rd variant, 2023/2024, 2026/2025, 2024/2025, EGV, CLIENT CRITIQ's family form rides T-608). Acceptance: §8 G1's per-format oracle at 100% of rows; LIVRES@AB lands as books (80,000 DZD, 8 rows), not psy3.
+- **T-606 (the unified resolver):** the ER-PMAE graduation with the legacy exact-match as the definite-band fast-path; BUG-040's contact backfill (T-556's scope) lands here. Acceptance: er-engine parity + zero-split/zero-false-merge fixtures.
+- **T-607 (the write pipeline onto CanonicalRow):** the financial builders read the canonical record — semantics byte-identical (INV-1/INV-4 untouched). Acceptance: RUN A/B/E/F reproduction exact (1,137/741/3,342/2,198/5,956 + 390 + no-op + honest failure).
+- **T-608 (the ClientCritiqAdapter):** family-level debtor state — Montant → family outstanding charge snapshot, Garanti/Obs/roster markers as metadata, roster names resolved through the unified resolver, `critiq:` deterministic sourceIds. Acceptance: 23/48/31,584,600 imported once; re-import no-op.
+- **T-609 (the EGV + document-sheet adapters):** EGV as its own payments-ledger format; BON/Devis/REF get REAL canonical targets (receipt/quote documents) or explicit excluded-with-reason classification — the tracked-only no-op ends (ARCH-048). Acceptance: EGV ground truth (349,017,080 / 302,131,790 / 46,885,290) oracle-exact.
+- **T-610 (the sheet-selection UX):** per-sheet detected-adapter + row count; default = current-year family only; historical/auxiliary sheets excluded-with-reason (the 13 auxiliary sheets get a stable vocabulary).
+- **T-611 (the performance envelope):** the §7 blueprint — P1 keyset preflights (the `search("")` snapshots die), P2 schema-projection cell walk, P3 post-load sheet pruning, P4 real checksums + diff-skip re-import (DEAD-024's fix), P6 coercion-plan precompile. Acceptance: DS/13 §8 G6/G7 budgets at 1× and 5× scale + the S8 oracle still exact.
+
+**The lane's gate discipline (DS/13 §8 — LOCAL-FIRST, zero remote calls before every gate passes):** G1 100%-row oracle per format (0 DZD delta — the sampling prohibition is absolute); G2 entity-resolution fixtures; G3 idempotency (0 delta per format); G4 failure injection (fail-closed preflight + honest partial-state + compensating rollback); G5 the multi-year gate (the 21-sheet archive: current-year imports; historical sheets only under their own year; EGV never as an etat roster); G6 performance budgets; G7 the S8 regression slice. Only after G1–G7 does the live-lane ceremony request occur (OPS-011 cap-lift + the T-420 Phase-6 pattern).
+
+**Register linkage (S23):** BUG-066, BUG-067, BUG-068, ARCH-047, ARCH-048, DEAD-024; re-cited: BUG-040 (T-556 rides T-606), the S8 queue T-555..T-560 (unchanged), DS/04's engine verdict (the shell is reused, not rebuilt), DS/09's unbounded-SELECT family (T-611's P1 is its import-side sibling).
+
+---
+
+*End of execution plan v2.0. Evidence base: `Investigation Archive/` Sessions 1–23 (FINDINGS_INDEX 190 registered IDs, corrections C-1..C-22); designs: BLUEPRINT v2.0 (§13 Stage A/B + §14 the query-minimization architecture), ROADMAP v2.0 (Phases 0–8), LOCAL-FIRST-BLUEPRINT, 02-UNIFIED-PIPELINE-DESIGN, UI Component Audit 00–05, the DS/01–13 deep sweeps, the LF0-prep package, the SUPABASE-RELOCATION-AND-RELOAD-GUIDE, and the S23 Excel_Inspection/s23 evidence package (the four-workbook census + the 100%-row stress harness). The owner's locked-in decisions D-17/D-18/D-19 (OWNER-DECISION-PACKET Part F) govern wherever they apply; the v2.0 reconciliation register R-1..R-5 resolved every listed contradiction (E1.7↔T-573; E2.4↔ARCH-037; the withdrawn t-502 claim; T-561's 8-site scope; the census-corrected counts: 359 `useObservable`/105 files, 413 `.from()`, 194 `title=`/102 files, 69 executable `auth.uid()`, 40 hand-rolled table files, 70 modal files/114 usages, 17 `supabase-client` bypasses). Every registered finding (all 190) maps to an execution home in §6 — zero orphans (the S23 additions: BUG-066..068/ARCH-047/048/DEAD-024 → Phase 9's T-603..T-611, §13). All version labels unified as v2.0. No application source, configuration, schema, or dependency was modified in producing this plan; the read-only regime is maintained until the owner green-lights execution on Issue #32.*
 

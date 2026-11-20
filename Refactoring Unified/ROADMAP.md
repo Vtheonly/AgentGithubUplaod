@@ -1,6 +1,6 @@
 # Prioritized Refactoring Roadmap — Execution Table (v2.0)
 
-**Companion to `BLUEPRINT.md` v2.0.** Every row = one registered task series; all lanes now carry their T-numbers (the staged register T-549..T-602 — complete; **T-555 stays reserved/unused**). Ordering within a phase is the recommended execution order; the Dependency column encodes hard edges. **v2.0 changes:** the **Stage A** lane (the owner's immediate mandate, D-17 — egress survival, query minimization, portable relocation) is elevated to Phase 6 with its own rows; **Stage B** replaces the old Phase 6/7 split (Phase 7 = the unified pipeline + local-first hybrid, superseding the LF-4 relay and LF-5 demotion designs); **Phase 5 is re-scoped as the experience overhaul** (D-19: white theme, dashboard overhaul, modal purge + the S11/S12/S7/S9 UX-defect lanes); **Phase 8 = the pedagogy lane** (T-561..T-571, parallel with own sequencing); the relocation lane (T-573..T-575) lands in Phase 6. All counts census-corrected (C-8/C-10/C-11/C-13/C-14/C-15/C-19); the E1.7→T-573 and E2.4→ARCH-037 resolutions applied.
+**Companion to `BLUEPRINT.md` v2.0.** Every row = one registered task series; all lanes now carry their T-numbers (the staged register T-549..T-611 — complete; **T-555 stays reserved/unused**) — **Phase 9 (the unified-Excel X-lane, S23) extends the register**. Ordering within a phase is the recommended execution order; the Dependency column encodes hard edges. **v2.0 changes:** the **Stage A** lane (the owner's immediate mandate, D-17 — egress survival, query minimization, portable relocation) is elevated to Phase 6 with its own rows; **Stage B** replaces the old Phase 6/7 split (Phase 7 = the unified pipeline + local-first hybrid, superseding the LF-4 relay and LF-5 demotion designs); **Phase 5 is re-scoped as the experience overhaul** (D-19: white theme, dashboard overhaul, modal purge + the S11/S12/S7/S9 UX-defect lanes); **Phase 8 = the pedagogy lane** (T-561..T-571, parallel with own sequencing); the relocation lane (T-573..T-575) lands in Phase 6. All counts census-corrected (C-8/C-10/C-11/C-13/C-14/C-15/C-19); the E1.7→T-573 and E2.4→ARCH-037 resolutions applied.
 
 **Effort scale:** XS ≤ 1 day · S ≤ 3 days · M ≤ 2 weeks · L ≤ 1 month · XL = the T-599 engine build.
 
@@ -165,6 +165,22 @@ Escapes the quota lock for the desktop permanently while Supabase stays (sync + 
 | 8.10 | **T-567 · P-U5 — the pedagogy-workbook importer** (the BUG-064 class-resolution generalization; `معدل` ignored → recomputed) | BUG-064 | M | 8.1, 8.3, 8.7 | the S8-oracle discipline on a real filled workbook |
 | 8.11 | **T-571 · M-U9/M-U10 + P-U8 — the ADR batch + the exit gate** | DS/11 | S | all above | the §4.4 re-run; register closure |
 
+## Phase 9 — The unified Excel engine lane (parallel; own sequencing; evidence: DS/13 + Excel_Inspection/s23 — Session 23)
+
+**G0 governs the whole lane; D-20 carries ⏵ defaults (OWNER-DECISION-PACKET Part G).** Sequencing: **T-603 → T-604 → T-605 → (T-606 ∥ T-607) → (T-608 ∥ T-609) → T-610 → T-611**; every task's exit gate = DS/13 §8's local oracle (100% of rows, 0 DZD delta) on the format it touches — no sampling, zero remote calls. The lane runs on the S8-proven engine shell (event bus, dry-run, atomic commit, compensating rollback, reports, audit — reused verbatim).
+
+| # | Task | Findings | Effort | Dependency | Verification |
+|---|---|---|---|---|---|
+| 9.1 | **T-603 · X-U1 — the detect-reject gate** (a tier-1 name match that fails every adapter fingerprint → explicit `unknown_schema` skip; deletes the `candidates[0]` + `?? nameMatch` auto-adopt paths) | **BUG-067** (EGV), ARCH-047 | S | — | EGV alone → 0 rows; the 21-sheet archive drop → only fingerprint-passing sheets selected |
+| 9.2 | **T-604 · X-U1 — per-sheet academic-year attribution** (sheet-name year parsing `ETAT 2023\s*2024` → 2023-2024; explicit picker fallback; year-scoped ledger sourceIds `imp:{year}:{studentId}:{field}`) | **BUG-066** | S-M | 9.1 | the DS/13 §6.3 oracle: the 188 cross-sheet balance mismatches → 0 |
+| 9.3 | **T-605 · X-U2 — the CanonicalRow + the EtatColumnAdapter variant table** (ONE adapter core, 8 variant rows: the 2026/2027, 2027/2026, 3rd-variant, 2023/2024, 2026/2025, 2024/2025, EGV layouts; positional resolution keeps precedence; the duplicate-header last-wins hazard dies at the adapter) | **BUG-068**, ARCH-047 | M | 9.1 | the §8 G1 oracle per format; LIVRES@AB lands as books (8 rows, 80,000 DZD) — not psy3 |
+| 9.4 | **T-606 · X-U3 — the unified entity-resolution pipeline** (the `domain/identity` engine graduates: auto-accept definite / propose probable+review / legacy exact fallback; BatchParentIndex + findStudentInFamily become the blocking fast-path; the T-556/BUG-040 backfill lands here) | BUG-040 (S8), DS/13 §3.3 | M | 9.3 | er-engine parity + the zero-split/zero-false-merge fixtures + backfill pin |
+| 9.5 | **T-607 · X-U4 — the write pipeline onto CanonicalRow** (the §4 financial builders read the canonical record; INV-1 untouched: REMISE-no-entry, T-105 reconciliation, T-424 waterfall; the 3-bulk-RPC flush + 3-level dedup unchanged) | DS/13 §4 | M | 9.3 | RUN A/B/E/F reproduction byte-identical (1,137/741/3,342/2,198/5,956 + 390 + no-op + honest flush failure) |
+| 9.6 | **T-608 · X-U5 — the ClientCritiqAdapter** (family-level: Montant → family outstanding charge snapshot, Garanti/Obs/marker metadata, roster-panel resolution through the unified resolver, `critiq:` deterministic sourceIds) | **ARCH-048** (capability), DS/13 §5 | M | 9.4 | 23 families / 48 children / 31,584,600 DZD imported once; re-import no-op; N ENFANT vs panel cross-check warnings |
+| 9.7 | **T-609 · X-U2 — the EGV + document-sheet adapters** (EGV as the payments-ledger format — its own column contract; BON/Devis/REF get REAL canonical targets or explicit excluded-with-reason classification — the tracked-only no-op ends) | **ARCH-048**, DS/13 §6.7 | S-M | 9.3 | EGV ground truth (349,017,080 / 302,131,790 / 46,885,290) oracle-exact under its own adapter |
+| 9.8 | **T-610 · X-U6 — the sheet-selection UX contract** (detected adapter + row count per sheet; default = current-year family only; historical/auxiliary listed as excluded-with-reason) | DS/13 §5 | S | 9.1–9.7 | the modal's default drop = current-year sheets only |
+| 9.9 | **T-611 · X-U7 — the performance envelope** (P1 keyset preflights replace `search("")` snapshots; P2 schema-projection cell walk; P3 post-load sheet pruning; P4 real checksums + diff-skip re-import — DEAD-024's fix; P6 coercion-plan precompile) | DS/13 §7, DEAD-024 | M | 9.5 | §8 G6/G7: wall-clock + RSS + round-trip budgets at 1× and 5×; the S8 oracle still exact |
+
 ## Standing rules for all phases
 
 1. One T-task per commit; five-question commit body; push after commit.
@@ -177,7 +193,7 @@ Escapes the quota lock for the desktop permanently while Supabase stays (sync + 
 
 ## Findings coverage map (the orphan check — every registered ID → its phase row)
 
-The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001..032, 034..036 · ARCH-001..046 · BUG-001..065 · OPS-001..016; DEAD-016/DUP-033 were never assigned — skipped placeholders). Full evidence per ID: `FINDINGS_INDEX.md`; full task cards: `EXECUTION-PLAN.md` §6 (the 1:1 traceability matrix). Compact map:
+The register carries **190 registered IDs** (DEAD-001..015, 017..023, 024 · DUP-001..032, 034..036 · ARCH-001..048 · BUG-001..068 · OPS-001..016; DEAD-016/DUP-033 were never assigned — skipped placeholders; S23 added BUG-066..068, ARCH-047/048, DEAD-024). Full evidence per ID: `FINDINGS_INDEX.md`; full task cards: `EXECUTION-PLAN.md` §6 (the 1:1 traceability matrix). Compact map:
 
 | IDs | Phase row (this file) |
 |---|---|
@@ -192,6 +208,7 @@ The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001.
 | DEAD-018 | 5.19 (T-588) |
 | DEAD-019 | 6.3 (T-590) |
 | DEAD-020/021/022 | 8.6 / 8.9 (T-568/T-570) |
+| DEAD-024 | 9.9 (T-611 — the real checksum + diff-skip) |
 | DUP-001/005 | 1.3–1.7 |
 | DUP-002 | 3.2 ∥ 8.4 (T-564) |
 | DUP-003/004 | 2.1/2.2 + 7.7 |
@@ -241,6 +258,8 @@ The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001.
 | ARCH-038 | 5.19 (T-588) |
 | ARCH-041..045 | 8.1 (T-561) / 8.7 (T-566) / 8.2 (T-562) / 8.8 (T-569) / 8.9 (T-570) |
 | ARCH-046 | 2.4 / 6.11 (once) |
+| ARCH-047 | 9.1–9.3 (T-603/T-604/T-605 — the reject gate + year attribution + variant table) |
+| ARCH-048 | 9.6/9.7 (T-608/T-609 — CLIENT CRITIQ + the document-sheet canonical targets) |
 | BUG-001..005, 010, 013, 015, 016, 020, 021, 022..028 | 1.9 (BUG-015's backup half → 5.13 T-581) |
 | BUG-006/018 | 2.6–2.9 |
 | BUG-007 | 2.3–2.5 |
@@ -264,6 +283,9 @@ The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001.
 | BUG-060..063 | 6.4 (T-591) |
 | BUG-064 | 8.10 (T-567) |
 | BUG-065 | 8.1 (T-561 precondition) |
+| BUG-066 | 9.2 (T-604 — year-scoped sourceIds; the 188→0 oracle) |
+| BUG-067 | 9.1 (T-603 — the reject gate; EGV never imports as an etat roster) |
+| BUG-068 | 9.3 (T-605 — the variant table; LIVRES@AB = books) |
 | OPS-001/005/006 | 4.4 (Owner) |
 | OPS-003/004 | 4.3 |
 | OPS-009 | 4.6 |
@@ -274,4 +296,4 @@ The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001.
 | OPS-016 | 6.10 (T-575; + 6.8 T-573) |
 | R-1..R-15 (pipeline hardening) | 7.1–7.4 as mapped in EXECUTION-PLAN §6 |
 
-**Orphan check verdict: zero orphans** — every registered ID maps to a phase row here and to a task card in `EXECUTION-PLAN.md` §6 (verified Session 22, programmatically).
+**Orphan check verdict: zero orphans** — every registered ID maps to a phase row here and to a task card in `EXECUTION-PLAN.md` §6 (verified Session 22, programmatically; the S23 additions map to Phase 9 above and §13's task cards — verified Session 23).
