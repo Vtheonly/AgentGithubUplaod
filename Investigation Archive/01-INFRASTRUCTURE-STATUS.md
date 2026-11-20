@@ -405,3 +405,35 @@ H3   extensions uuid-ossp / pgjwt              → NOT loadable in PGlite (as LF
 3. **The NEW management token is the first VALID one in the program's history** (200 on the management API; the OLD token remains 401-invalid). This unblocks the management-API side of any future relocation ceremony.
 4. **Relocation implications (registered for the T-573..T-575 lane):** the target project is ready and reachable; what it lacks is exactly the SCHEMA — which is what this session's consolidated single-file schema (`0001_initial_consolidated_schema.sql`) produces. No live write was performed against the new project this session (GET-only protocol maintained; the schema-consolidation verification ran on a local PGlite instance instead — see H1-H3 and the S24 schema-verification record).
 5. The OLD project's spend cap still gates the OLD project's live census/export ceremonies (T-598, E7B-9) — unchanged; but the relocation lane (and hence the desktop's escape from OPS-011) is no longer blocked on anything owner-side except the execution green-light itself.
+
+---
+
+## Session 25 probe run (2026-11-21) — the standing gate check + the two-project refresh (OPS-011 20-run-stable)
+
+**Context:** the recurring sweep (S25). The owner remains silent on Issue #32 (0 comments — the 20th consecutive silent run; G0 stays ACTIVE; the run stayed read-only). Between S24 and this run the owner held an interactive setup chat: the consolidated credential inventory (both Supabase projects, the GitHub PAT, the four-repo list) was supplied in chat with the instruction to perform the Google OAuth setup directly — that chat's evidence record enters the archive this run as `02-NEW-PROJECT-VERIFICATION.md`. The Firebase and Vercel tokens are NOT in the current env set (P8/P11 skipped, per the S4 not-re-tested precedent). Probe set re-run (keyless script outside the repo; keys via the chmod-600 env file; masked output):
+
+```
+P1  GET {OLD}/rest/v1/ (publishable)             -> 401 key-type gate (key recognized)
+P2  GET {OLD}/rest/v1/ (secret)                  -> 402 exceed_egress_quota
+P3  GET {OLD}/rest/v1/students?select=id&limit=1 -> 402 exceed_egress_quota
+P4  GET {OLD}/auth/v1/.well-known/jwks.json      -> 402 exceed_egress_quota
+P5  GET {OLD}/auth/v1/health (secret)            -> 402 exceed_egress_quota
+P5b GET {OLD}/auth/v1/health (publishable)       -> 402 exceed_egress_quota
+P5c GET {OLD}/auth/v1/settings (publishable)     -> 402 exceed_egress_quota
+P7a mgmt: OLD token -> OLD project               -> 401 invalid (unchanged since S2)
+P7b mgmt: NEW token -> OLD project               -> 403 (the two-account split — no cross-account reach)
+P7c mgmt: NEW token -> NEW project               -> 200 ACTIVE_HEALTHY (OPS-017 refresh)
+P7d mgmt: NEW token -> /v1/projects list         -> 200, list = [the NEW project] only
+P8  Firebase format check                        -> SKIPPED (token not in the current env set)
+P9  pooler :6543 / :5432                         -> OPEN both; the direct db host DNS still unresolvable (sandbox-side variance)
+P10 GET api.github.com/user (PAT)                -> 200 (+ this run's clone/push verified the write path)
+P11 Vercel PAT                                   -> SKIPPED (token not in the current env set)
+N2  GET {NEW}/rest/v1/ (secret)                  -> 200 (REST alive)
+N3  GET {NEW}/rest/v1/students                   -> 404 PGRST205 (fresh schema, unchanged)
+N4  GET {NEW}/auth/v1/health (secret)            -> 200 (GoTrue alive)
+N6  GET {NEW}/auth/v1/admin/users                -> 200 (0 users — fresh auth)
+N7  GET {NEW}/auth/v1/settings (publishable)     -> 200 (external: google=true, email=true, all others false)
+Nc  mgmt auth-config (booleans only)             -> google_enabled=true, client_id SET, secret SET; site_url still the localhost default
+```
+
+**Verdict:** OPS-011 is now **20-run-stable** (S2→S25) — the identical restriction signature; the blocker remains the OLD account's plan/spend-cap layer, not the credentials. The NEW project stays fully alive (OPS-017), and the S25 configuration audit adds the NEW datum registered as **OPS-019**: Google sign-in is ALREADY fully wired on the NEW project's Supabase side (enabled + client ID + secret set from the owner's earlier attempt) — the remaining OAuth blocker is Google-side (the client's authorized redirect URIs; the owner's single manual step; two completion paths in `02-NEW-PROJECT-VERIFICATION.md` §3). OPS-015 sequencing unchanged (T-559/T-560/T-594 before ANY live traffic on ANY project). The three OLD-project ceremonies stay owner-gated; the G2R lane's first live step (the consolidated-baseline deployment to the NEW project) stays G0-gated. **Credential hygiene escalation:** the full inventory (both projects' key sets + the access token) was pasted in plaintext chat — the OPS-012 rotation recommendation now covers the COMPLETE set, to execute once the OAuth setup completes.
