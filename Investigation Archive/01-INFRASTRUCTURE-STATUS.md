@@ -437,3 +437,40 @@ Nc  mgmt auth-config (booleans only)             -> google_enabled=true, client_
 ```
 
 **Verdict:** OPS-011 is now **20-run-stable** (S2→S25) — the identical restriction signature; the blocker remains the OLD account's plan/spend-cap layer, not the credentials. The NEW project stays fully alive (OPS-017), and the S25 configuration audit adds the NEW datum registered as **OPS-019**: Google sign-in is ALREADY fully wired on the NEW project's Supabase side (enabled + client ID + secret set from the owner's earlier attempt) — the remaining OAuth blocker is Google-side (the client's authorized redirect URIs; the owner's single manual step; two completion paths in `02-NEW-PROJECT-VERIFICATION.md` §3). OPS-015 sequencing unchanged (T-559/T-560/T-594 before ANY live traffic on ANY project). The three OLD-project ceremonies stay owner-gated; the G2R lane's first live step (the consolidated-baseline deployment to the NEW project) stays G0-gated. **Credential hygiene escalation:** the full inventory (both projects' key sets + the access token) was pasted in plaintext chat — the OPS-012 rotation recommendation now covers the COMPLETE set, to execute once the OAuth setup completes.
+
+---
+
+## Session 26 probe run (2026-11-21) — the readiness-audit session (OPS-011 21-run-stable; P8/P11 RESTORED)
+
+**Context:** the S26 pre-coding readiness audit (read-only; G0 ACTIVE — Issue #32 at 0 comments, the 21st consecutive silent run). The owner re-supplied the full credential inventory in the session prompt (including the Firebase web key and the Vercel PAT) — **P8/P11 were therefore RESTORED this run** after their S25 skip. Keys in-memory only, masked below; probe script outside the repo.
+
+```
+GitHub
+P10  GET api.github.com/user (PAT)                  -> 200 (login Vtheonly; the run's clone verified the read path)
+P10b GET /repos/Vtheonly/AgentGithubUplaod/issues/32/comments (PAT) -> 200; body [] — 0 comments (the 21st silent run; G0 ACTIVE)
+
+Vercel
+P11  GET api.vercel.com/v2/user (PAT)              -> 200 (VALID — user merselfares2@…; RESTORED after the S25 skip: the token was in this session's env set)
+
+OLD project (vebfehrpzajhstyhinnw — the quota-blocked source)
+P1o  GET /rest/v1/ (publishable)                   -> 401 key-type gate (key recognized)
+P2o  GET /rest/v1/ (secret)                        -> 402 exceed_egress_quota
+P3o  GET /rest/v1/students?select=id&limit=1       -> 402 exceed_egress_quota
+P4o  GET /auth/v1/.well-known/jwks.json            -> 402 exceed_egress_quota
+P5o  GET /auth/v1/health (secret)                  -> 402 exceed_egress_quota
+
+NEW project (gvuvibcsfjhwcjikgxql — the relocation target)
+P2n  GET /rest/v1/ (secret)                        -> 200 (Swagger descriptor — alive, not quota-blocked)
+P3n  GET /rest/v1/students?select=id&limit=1       -> 404 PGRST205 (schema-empty — unchanged)
+P5n  GET /auth/v1/health (secret)                  -> 200 (GoTrue v2.198.0 healthy)
+
+Supabase management API
+P7a  GET /v1/projects/<OLD> (OLD mgmt token)        -> 401 Invalid access token (unchanged since S2)
+P7c  GET /v1/projects/<NEW> (NEW mgmt token)        -> 200 (ACTIVE_HEALTHY; the OPS-017 state unchanged)
+P7d  GET /v1/projects list (NEW mgmt token)         -> 200 (list = the NEW project only)
+
+Firebase
+P8   GET identitytoolkit.googleapis.com/v1/projects?name=projects/elimtiyaz-android (FB web key, X-Goog-Api-Key) -> 400 CONFIGURATION_NOT_FOUND (format-accepted; RESTORED after the S25 skip — the S19-S24 signature unchanged)
+```
+
+**Verdict:** OPS-011 is now **21-run-stable** (S2→S26) — the identical 402 signature on every OLD-project lane; the blocker remains the plan/spend-cap layer. The NEW project is unchanged (alive, schema-empty, OPS-017). P8/P11 are back in the standing set while their tokens remain in the session env. The OPS-019 Google-side blocker is unchanged (the S26 session made no Supabase-side config change; the owner's D-21 manual step stands). Zero live writes anywhere; every probe GET-only.

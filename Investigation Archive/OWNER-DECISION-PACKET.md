@@ -217,3 +217,15 @@ The billing-side enrollment table is consumed only by the website portal (`useSe
 **Standing hygiene escalation (OPS-012 family, widened):** the full inventory — including BOTH projects' secret keys and the management access token — was pasted in plaintext chat. Rotation of the complete set is recommended immediately after the OAuth setup completes; the archive holds masked references only (no key material in any file).
 
 *The D-21 addendum records console/API work the owner explicitly mandated for the assistant outside the repository; the app-source read-only charter was not implicated — zero files beyond `Investigation Archive/` were touched in executing it.*
+
+---
+
+## Session 26 addendum (2026-11-21) — the readiness audit's decision record (no new decisions)
+
+**Channel:** the S26 session prompt (read-only mandate; Issue #32 stays at 0 comments — the 21st consecutive silent run). **No new decision IDs were opened and no ⏵ default changed** — this addendum records the state check only:
+
+1. **D-21 / OPS-019 — UNCHANGED, still the owner's single manual step:** the S26 GET-only re-probe confirms the NEW project's Supabase side is exactly as S25 audited it (Google provider enabled + client ID + secret set; REST 200; schema-empty; 0 users). The Google-side client edit (add `https://gvuvibcsfjhwcjikgxql.supabase.co/auth/v1/callback` + the origin; confirm the consent screen) remains the one blocker. The widened **OPS-012 rotation** (the full inventory was re-pasted in plaintext chat this session too) still follows the OAuth completion.
+2. **D-13..D-16 / D-20 — unchanged by the workbook datum:** the newly placed `Excel/متابعة تمدرس التلاميذ.xlsx` is BYTE-IDENTICAL to the S14 blank template (S26 programmatic re-inspection) — no rosters, no formulas, no averaging rules; every S14 open question stays open. The ⏵ defaults govern.
+3. **D-5/D-6/D-8..D-16's ⏵ defaults remain the execution posture** (the v2.2 triad carries them; nothing in the S26 audits changed their premises).
+
+*The readiness verdict itself (the Go/No-Go list of owner actions) is in `Session Reports/session-26-report.md` §6; the archive-only discipline held all session.*
