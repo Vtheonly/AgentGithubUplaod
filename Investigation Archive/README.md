@@ -159,3 +159,16 @@ The permanent, complete research record behind the El-Imtiyaz unified refactorin
 - **`Findings and Hypotheses/FINDINGS_INDEX.md` S25 addendum** — 1 new ID (OPS-019 the Google-side OAuth blocker) + the next-free pointer advanced (DEAD-026, DUP-039, ARCH-051, BUG-071, OPS-020; C-27).
 - **`OWNER-DECISION-PACKET.md` D-21** — the owner's chat mandate (assistant-executed OAuth setup; the one owner-manual Google-side step) + the widened OPS-012 rotation recommendation (the full inventory was pasted in plaintext chat).
 - Issue #32: 0 comments (the 20th consecutive silent run); G0 ACTIVE; the run stayed read-only; the app source byte-identical; token-hygiene clean on every commit.
+
+### Session 26 (2026-11-21) — the pre-coding readiness audit (the v2.2 sync, the empirical baseline, the charter, the workbook)
+
+| Artifact | What it is |
+|---|---|
+| `MIGRATION-CONSOLIDATION-AND-EGRESS-CHARTER.md` | **OPS-020 — the PERMANENT standing rule** for every future migration consolidation / baseline regeneration / relocation seed: never concatenate; egress-first design; 100% local from-scratch validation before any remote touch; zero production writes during consolidation; the guard + path-reference census kept whole. Carries the S26 re-validation census (2,348 statements / ZERO failures / census-equal) + the egress-gap audit + the `0002+` append-only recommendation |
+| `AGENTS-CHARTER-AMENDMENT-DRAFT.md` | the VERBATIM, ready-to-commit AGENTS.md §11.6 + AGENTS_supabase.md §6.7 adoption text — **G0-gated** (applied only when the gate lifts) |
+| `OPS-018-COMMIT-1-BLUEPRINT.md` | the exact, line-numbered 39-site (35 literal + 4 constructed-path) post-consolidation path-fix spec — the FIRST commit after G0 lifts; empirically cut from the S26 full-ladder run (33 failed files = 25+7 OPS-018 + the one pre-existing t-502 red) |
+| `Excel_Inspection/s26/` | the NEW workbook's re-inspection: byte-identical to the S14 blank template (SHA-256 match; 0 formulas; all values dumps identical); the s26 verdict JSON + the README record; `ETAT 2024 -205.xlsx` still external-only |
+| `Refactoring Unified/` v2.2 | the triad's self-containment sync: every S24 §14 delta inline at its card; S25 folded (OPS-019/D-21); the register at 197 IDs / 0 orphans; the relocation counts re-based; the OPS-015 no-live-builds lock; BLUEPRINT §18 / EXECUTION-PLAN §15 / ROADMAP addendum |
+| `Findings and Hypotheses/FINDINGS_INDEX.md` S26 addendum | OPS-020 registered; the next-free pointer advanced (DEAD-027, DUP-040, ARCH-052, BUG-072, OPS-021) |
+| `01-INFRASTRUCTURE-STATUS.md` S26 run | OPS-011 21-run-stable; the NEW project unchanged (alive, schema-empty); **P8/P11 RESTORED** (tokens re-supplied: P11 200 VALID, P8 400 format-accepted); Issue #32 at 0 comments — the 21st silent run |
+| `Session Reports/session-26-report.md` + `Handoffs/handoff-session-26.md` | the full readiness report + the Go/No-Go verdict + the next session's bootstrap |
