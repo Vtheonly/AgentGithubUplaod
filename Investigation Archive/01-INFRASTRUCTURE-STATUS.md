@@ -351,3 +351,57 @@ Issue #32: 200; comments → 0 (the 18th consecutive silent run — no owner act
 ```
 
 **Verdict:** OPS-011 is now **18-run-stable** — the blocker remains the plan/spend-cap layer (not credentials). GitHub PAT valid (clone + this session's pushes); Vercel PAT valid; poolers OPEN. The unified-Excel X-lane's live ceremony (T-603..T-611 execution + the DS/13 §8 G1-G7 local gates first) stays owner-gated exactly like every other execution lane.
+
+---
+
+## Session 24 run (2026-11-20 — the final-unified-blueprint verification + consolidated-schema session; the 19th consecutive probe run AND the first full TWO-PROJECT probe set)
+
+**Context:** the owner's consolidated mandate (codebase audit re-verification, the final unified-blueprint completeness audit, and the single-file schema consolidation). The GET-only probe set was extended this session to probe BOTH Supabase projects (OLD `vebfehrpzajhstyhinnw` AND NEW `gvuvibcsfjhwcjikgxql`) plus both management tokens — the first run to do so. Keys in-memory only, masked below; script outside the repo (`/home/z/my-project/scripts/s24_infra_probe.sh`).
+
+```
+GitHub
+P10  GET api.github.com /repos/Vtheonly/AgentGithubUplaod (PAT) → 200
+P10b GET /repos/.../issues/32 (PAT)           → 200; comments → 0 (the 19th consecutive silent run; G0 gates unchanged)
+
+Vercel
+P11  GET api.vercel.com/v2/user (PAT)          → 200 (VALID — user merselfares2, team default)
+
+OLD project (vebfehrpzajhstyhinnw — the quota-blocked source)
+P1o  GET /rest/v1/ (publishable)               → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2o  GET /rest/v1/ (secret)                    → 402 exceed_egress_quota
+P3o  GET /rest/v1/students?select=id&limit=1   → 402 exceed_egress_quota
+P4o  GET /auth/v1/.well-known/jwks.json        → 402 exceed_egress_quota
+P5o  GET /auth/v1/health (secret)              → 402 exceed_egress_quota
+
+NEW project (gvuvibcsfjhwcjikgxql — the relocation target)
+P1n  GET /rest/v1/ (publishable)               → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2n  GET /rest/v1/ (secret)                    → 200 (Swagger descriptor returned — THE NEW PROJECT IS ALIVE AND NOT QUOTA-BLOCKED)
+P3n  GET /rest/v1/students?select=id&limit=1   → 404 PGRST205 "Could not find the table 'public.students' in the schema cache"
+                                                 → THE NEW PROJECT IS SCHEMA-EMPTY (a blank relocation target)
+P4n  GET /auth/v1/.well-known/jwks.json        → 200 (ES256 keys present)
+P5n  GET /auth/v1/health (secret)              → 200 (GoTrue v2.198.0 healthy)
+
+Supabase management API
+P7o  GET api.supabase.com /v1/projects/<OLD> (OLD mgmt token) → 401 Invalid access token (unchanged)
+P7n  GET api.supabase.com /v1/projects/<NEW> (NEW mgmt token) → 200 — FIRST-EVER VALID management token
+     (project "digitalforgedv-max_elemtiyaz", ref gvuvibcsfjhwcjikgxql, region eu-west-1)
+
+Firebase / network
+P8   identitytoolkit probe (FB web key)        → 400 CONFIGURATION_NOT_FOUND (format-accepted, unchanged)
+P9   TCP pooler aws-1-eu-west-1 :6543 OPEN, :5432 OPEN
+
+Local verification harness (new this session — supports the schema-consolidation mandate)
+H1   PGlite 0.5.17 (PostgreSQL 18.7 wasm32)    → AVAILABLE in the sandbox, in-memory
+H2   extensions pgcrypto / pg_trgm / btree_gist → ALL LOADABLE via the PGlite contrib plugins
+     (gen_random_uuid works; the % trigram operator works; btree_gist EXCLUDE constraints work)
+H3   extensions uuid-ossp / pgjwt              → NOT loadable in PGlite (as LF0-PREP-CENSUS documented —
+     the consolidated schema's verification run uses the same skip-guard discipline)
+```
+
+**Verdict — a MATERIAL infrastructure change, the first since OPS-011 stabilized:**
+
+1. **OPS-011 is now 19-run-stable** on the OLD project — the blocker remains the plan/spend-cap layer (not credentials).
+2. **The NEW project (`gvuvibcsfjhwcjikgxql`) is alive, healthy, and NOT quota-blocked**: its REST root answers 200 with the secret key, its auth service is healthy, and its JWKS endpoint is live. **Its public schema is EMPTY** (the `students` probe 404s with `PGRST205`) — it is exactly a blank, spend-cap-free relocation target.
+3. **The NEW management token is the first VALID one in the program's history** (200 on the management API; the OLD token remains 401-invalid). This unblocks the management-API side of any future relocation ceremony.
+4. **Relocation implications (registered for the T-573..T-575 lane):** the target project is ready and reachable; what it lacks is exactly the SCHEMA — which is what this session's consolidated single-file schema (`0001_initial_consolidated_schema.sql`) produces. No live write was performed against the new project this session (GET-only protocol maintained; the schema-consolidation verification ran on a local PGlite instance instead — see H1-H3 and the S24 schema-verification record).
+5. The OLD project's spend cap still gates the OLD project's live census/export ceremonies (T-598, E7B-9) — unchanged; but the relocation lane (and hence the desktop's escape from OPS-011) is no longer blocked on anything owner-side except the execution green-light itself.
