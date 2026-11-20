@@ -304,3 +304,27 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
 **Verdict:** OPS-011 is now **16-run-stable** (S2→S19; S18 cited S17's run rather than re-probing): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys recognized; GitHub PAT fully working incl. push; Vercel PAT still valid). The three owner-gated ceremonies and the E7.9 final export stay gated; the **OPS-015 sequencing constraint stands unchanged** (T-559/T-560 five-site family + the BUG-058 probe fix MUST land before any cap lift).
 
 **S19 integrity datum (the recycle check, recorded for the file):** `git diff 6c0b007e..d5534a6f` contains **zero non-archive changes** (7 files, all under `Investigation Archive/` + `Refactoring Unified/`) — the S18 guide's verification commit is the current app-source state, so its claims carry unchanged. Spot re-verified the guide's three most load-bearing claims personally at HEAD: the build-time hardcode constants (`supabase-client.ts:35-38`), the packager's canonical-key guard Set (`build-windows.mjs:161-163`), and the payload assertions (`build-windows.mjs:303-315` family) — all intact; zero `.env*` files anywhere (re-confirmed).
+
+## Session 21 probe run (2026-11-20) — the phase-transition cleanup + the owner-token verification (OPS-011 17-run-stable)
+
+**Context:** the owner's post-phase-transition instruction — "They're still 20 branches — I want all branches merged and only the main to be kept" — plus the newest full credential set ("test if it works, make sure it works"). The Session 20 consolidation had already verified every investigation branch merged; this session re-ran the deletion safety gate (`git rev-list --count main..<branch>` = **0 for every branch**, all 19 remote + the 2 local refs) and executed the cleanup: **all 19 remote investigation branches deleted via regular `git push origin --delete` (no force-push), both local refs deleted (`investigation/session-20`, `backup/pre-merge-archive`) — only `main` remains** (`git ls-remote --heads origin` = `refs/heads/main` alone, at `2bde3363`; the REST `/repos/…/branches` endpoint transiently returned 404 right after the mass ref deletion — a GitHub-side anomaly, the repo still lists normally via `/user/repos` and the git transport is the confirmation of record). Tokens live only in the chmod-600 env file outside the repo; GET-only probe set re-run with the newest owner-supplied values:
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P5b GET /auth/v1/settings (publishable)      → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (the FRESH owner-supplied management token) → 401 {"message":"Invalid access token"}
+P8  identitytoolkit probe (FB web key)       → 400 CONFIGURATION_NOT_FOUND (format-accepted, as S19)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P9c direct db host db.vebfehrpzajhstyhinnw.supabase.co — DOES NOT RESOLVE this run (the sandbox DNS
+    variance continues; poolers remain the operative path; the DB password remains a
+    [YOUR-PASSWORD] placeholder in every supplied URL — login untestable)
+P10 GET api.github.com/user (PAT)            → 200 (authenticates as the owner account; the 19 branch
+    deletions + this session's pushes verify the git write path)
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (VALID)
+```
+
+**Verdict:** OPS-011 is now **17-run-stable** — the fresh Supabase key set changes nothing; the blocker remains the **plan/spend-cap layer, not the credentials** (the exact 402 body: "The project owner must upgrade their plan or remove spend caps to restore service"). **The freshly supplied management token is ALSO 401-invalid** ("Invalid access token" — the same verdict as every prior management token; the live-census ceremony remains token-gated on the owner side too). GitHub PAT fully working (200s; the deletion pushes prove the write path); Vercel PAT valid; Firebase web key format-accepted; poolers OPEN. The **OPS-015 sequencing constraint stands unchanged** (T-559/T-560 five-site loop family + the BUG-058 fix BEFORE any cap lift). **The direct "does it work" answer:** repository operations (read/merge/push/branch management) — **WORKING** (proven by this cleanup); Vercel — **WORKING**; the Supabase data plane — **STILL BLOCKED** by the spend cap (an owner billing action, 17-run-proven, not a credential problem); the Supabase management API — **token-rejected**; the database — TCP-reachable via both pooler ports but login untested (placeholder password). The blueprint phase proceeds unaffected (the schema is fully in-source; all backend code is in-repo).
