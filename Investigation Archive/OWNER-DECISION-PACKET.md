@@ -203,3 +203,17 @@ The billing-side enrollment table is consumed only by the website portal (`useSe
 *The lane's own gate discipline (DS/13 §8 G1–G7 — 100% of rows, 0 DZD delta, zero remote calls) precedes ANY live traffic; the standing OPS-011 cap-lift order is unchanged.*
 
 *End of packet. Decisions can be answered piecemeal in GitHub Issue #32; unanswered items follow the ⏵ DEFAULTs above from Session 5 onward — EXCEPT where D-17/D-18/D-19 (locked in, Session 22) and the Session-23 mandate core (D-20's header) supersede them. No application source, configuration, schema, or dependency was modified in producing this packet or the v2.0 blueprint it governs.* No application source, configuration, schema, or dependency was modified in producing this packet or the v2.0 blueprint it governs.*
+
+---
+
+## Session 25 addendum (2026-11-21) — the interactive setup chat (D-21)
+
+**Channel: direct chat (Issue #32 stays at 0 comments — the 20th consecutive silent run).** The owner supplied the consolidated credential inventory (both Supabase projects' key sets, the GitHub PAT, and the four-repo list: the audit hub, the web portal, the Android app, the original desktop repo) and mandated that the Google OAuth client setup be performed directly ("do it yourself") rather than hand-discovered in the console.
+
+| ID | Decision | Content | Status |
+|---|---|---|---|
+| **D-21** | **Google OAuth for the NEW project — assistant-executed setup, one owner step** | The assistant completed everything reachable with the supplied credentials: the two-project verification (`02-NEW-PROJECT-VERIFICATION.md`), the Google-provider state audit (the Supabase side fully wired — OPS-019), and the exact console values prepared. The owner-manual remainder (the only step behind the owner's Google login, for which no API path exists): create the OAuth client with the prepared URIs — or edit the existing client to add them — then paste the resulting credentials into the new project (dashboard, or hand them to the assistant for the Management-API apply + verify). | Executed 2026-11-21; the owner's single manual step pending |
+
+**Standing hygiene escalation (OPS-012 family, widened):** the full inventory — including BOTH projects' secret keys and the management access token — was pasted in plaintext chat. Rotation of the complete set is recommended immediately after the OAuth setup completes; the archive holds masked references only (no key material in any file).
+
+*The D-21 addendum records console/API work the owner explicitly mandated for the assistant outside the repository; the app-source read-only charter was not implicated — zero files beyond `Investigation Archive/` were touched in executing it.*
