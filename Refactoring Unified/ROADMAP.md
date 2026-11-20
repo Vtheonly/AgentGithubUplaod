@@ -1,4 +1,6 @@
-# Prioritized Refactoring Roadmap — Execution Table (v2.0)
+# Prioritized Refactoring Roadmap — Execution Table (v2.1)
+
+**Companion to `BLUEPRINT.md` v2.1.** **v2.1 (Session 24):** the S24 verification homed five new findings (DUP-037 → 1.4-1.7's mock-adoption step; ARCH-049 → 6.5 (T-592 — the volley blast radius 30 instances/18 files); BUG-069 → 6.4 (T-591 — the unscoped reconcile/collectDebtors reads); OPS-017 → Phase 6's relocation lane (the NEW project is alive, uncapped, schema-empty — the target is READY); OPS-018 → the G0-lift execution preamble (31 test-path updates after the consolidation)); three corrections folded (C-23: T-594/6.2 narrows — mock mode is already silent, ~120/h configured; C-24: 8.8's T-569 DB-side deletion scope empties — TeacherSubjectAssignment is app-only, class_subjects is the DB truth; C-25: 5.19's T-588 store inventory widens to 13+); the migration chain is now the consolidated single-file baseline (`0001_initial_consolidated_schema.sql` + `migrations_archive/` — append-only continues from 0002). Original v2.0 header follows.
 
 **Companion to `BLUEPRINT.md` v2.0.** Every row = one registered task series; all lanes now carry their T-numbers (the staged register T-549..T-611 — complete; **T-555 stays reserved/unused**) — **Phase 9 (the unified-Excel X-lane, S23) extends the register**. Ordering within a phase is the recommended execution order; the Dependency column encodes hard edges. **v2.0 changes:** the **Stage A** lane (the owner's immediate mandate, D-17 — egress survival, query minimization, portable relocation) is elevated to Phase 6 with its own rows; **Stage B** replaces the old Phase 6/7 split (Phase 7 = the unified pipeline + local-first hybrid, superseding the LF-4 relay and LF-5 demotion designs); **Phase 5 is re-scoped as the experience overhaul** (D-19: white theme, dashboard overhaul, modal purge + the S11/S12/S7/S9 UX-defect lanes); **Phase 8 = the pedagogy lane** (T-561..T-571, parallel with own sequencing); the relocation lane (T-573..T-575) lands in Phase 6. All counts census-corrected (C-8/C-10/C-11/C-13/C-14/C-15/C-19); the E1.7→T-573 and E2.4→ARCH-037 resolutions applied.
 
@@ -297,3 +299,18 @@ The register carries **190 registered IDs** (DEAD-001..015, 017..023, 024 · DUP
 | R-1..R-15 (pipeline hardening) | 7.1–7.4 as mapped in EXECUTION-PLAN §6 |
 
 **Orphan check verdict: zero orphans** — every registered ID maps to a phase row here and to a task card in `EXECUTION-PLAN.md` §6 (verified Session 22, programmatically; the S23 additions map to Phase 9 above and §13's task cards — verified Session 23).
+
+
+---
+
+## Session 24 addendum (v2.1) — the new-ID coverage rows
+
+| IDs | Phase row (this file) |
+|---|---|
+| DUP-037 | 1.4–1.7 (E2.4 — the FIFTH billing site; the mock-adoption step absorbs it) |
+| ARCH-049 | 6.5 (T-592 — the volley's 30-instance/18-file blast radius) |
+| BUG-069 | 6.4 (T-591 — the unscoped+uncapped reconcile()/collectDebtors() reads) |
+| OPS-017 | Phase 6 (G2R/T-573..T-575 — the NEW project is a READY blank target; the consolidated schema is its seed) |
+| OPS-018 | the G0-lift execution preamble (31 src/tests migration-path updates, one mechanical pass) |
+
+**Orphan check after S24: still zero** — the register now carries 195 IDs (190 + the five above); all 195 map to phase rows here and to EXECUTION-PLAN §6 task homes (verified programmatically, range-aware, Session 24 — Deep Sweep/14 Part B).

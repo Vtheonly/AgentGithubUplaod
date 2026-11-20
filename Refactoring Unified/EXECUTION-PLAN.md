@@ -1,6 +1,6 @@
-# Execution Plan — the El-Imtiyaz Consolidation, Stage A/B Hybrid & Experience Overhaul (v2.0)
+# Execution Plan — the El-Imtiyaz Consolidation, Stage A/B Hybrid & Experience Overhaul (v2.1)
 
-**Version:** 2.0 (Sessions 22–23, 2026-11-20 — the final consolidation: the complete `Investigation Archive/` Sessions 1–23 + the owner's locked-in decisions D-17/D-18/D-19 and the S23 unified-Excel lane unified; every registered finding task-homed; the T-register complete T-549..T-611) · **Status:** the plan of record's *operational layer* — it converts `Refactoring Unified/BLUEPRINT.md` v2.0 + `Refactoring Unified/ROADMAP.md` v2.0 (Phases 0–9) and the `Investigation Archive/` evidence base into a single ordered, step-by-step, dependency-aware execution program. The implementation sessions execute directly from this file.
+**Version:** 2.1 (Session 24, 2026-11-20 — the S24 verification + consolidated-baseline addendum: five new findings homed in §6 (DUP-037→E2.4, ARCH-049→E7A-3/T-592, BUG-069→E7A-2/T-591, OPS-017→the §1 G2R gate, OPS-018→the §0 execution preamble); three card corrections folded (T-594 narrows per C-23; T-569's DB-side deletion scope empties per C-24; T-588's store inventory widens per C-25); the migration chain is now the consolidated single-file baseline — the append-only regime continues from `0002_*.sql`; the verification verdict (Deep Sweep/14): 78 families re-verified, zero substance refutations, the 190→195-ID orphan check passes programmatically). · **v2.0** (Sessions 22–23, 2026-11-20 — the final consolidation: the complete `Investigation Archive/` Sessions 1–23 + the owner's locked-in decisions D-17/D-18/D-19 and the S23 unified-Excel lane unified; every registered finding task-homed; the T-register complete T-549..T-611) · **Status:** the plan of record's *operational layer* — it converts `Refactoring Unified/BLUEPRINT.md` v2.0 + `Refactoring Unified/ROADMAP.md` v2.0 (Phases 0–9) and the `Investigation Archive/` evidence base into a single ordered, step-by-step, dependency-aware execution program. The implementation sessions execute directly from this file.
 **Companion documents (authoritative, never replaced by this file):** `Refactoring Unified/ROADMAP.md` v2.0 (the task table of record) · `Refactoring Unified/BLUEPRINT.md` v2.0 (the design of record, incl. §13 Stage A/B + §14 the query-minimization architecture) · `Investigation Archive/OWNER-DECISION-PACKET.md` (D-1..D-20 — Part F's locked-in decisions + Part G's S23 mandate core govern) · `Investigation Archive/Findings and Hypotheses/FINDINGS_INDEX.md` (every finding ID cited below; 190 registered IDs, all mapped in §6).
 
 ---
@@ -622,3 +622,32 @@ The owner's unified-Excel mandate ("ALL Excel spreadsheet processing engines uni
 
 *End of execution plan v2.0. Evidence base: `Investigation Archive/` Sessions 1–23 (FINDINGS_INDEX 190 registered IDs, corrections C-1..C-22); designs: BLUEPRINT v2.0 (§13 Stage A/B + §14 the query-minimization architecture), ROADMAP v2.0 (Phases 0–8), LOCAL-FIRST-BLUEPRINT, 02-UNIFIED-PIPELINE-DESIGN, UI Component Audit 00–05, the DS/01–13 deep sweeps, the LF0-prep package, the SUPABASE-RELOCATION-AND-RELOAD-GUIDE, and the S23 Excel_Inspection/s23 evidence package (the four-workbook census + the 100%-row stress harness). The owner's locked-in decisions D-17/D-18/D-19 (OWNER-DECISION-PACKET Part F) govern wherever they apply; the v2.0 reconciliation register R-1..R-5 resolved every listed contradiction (E1.7↔T-573; E2.4↔ARCH-037; the withdrawn t-502 claim; T-561's 8-site scope; the census-corrected counts: 359 `useObservable`/105 files, 413 `.from()`, 194 `title=`/102 files, 69 executable `auth.uid()`, 40 hand-rolled table files, 70 modal files/114 usages, 17 `supabase-client` bypasses). Every registered finding (all 190) maps to an execution home in §6 — zero orphans (the S23 additions: BUG-066..068/ARCH-047/048/DEAD-024 → Phase 9's T-603..T-611, §13). All version labels unified as v2.0. No application source, configuration, schema, or dependency was modified in producing this plan; the read-only regime is maintained until the owner green-lights execution on Issue #32.*
 
+
+
+---
+
+## 14. The Session 24 addendum (v2.1) — the S24 verification, the new homes, and the consolidated baseline
+
+### 14.1 The verification verdict (Deep Sweep/14)
+
+The S24 mandate re-verified this plan's underlying claims against actual code (four read-only agents; 78 claim families): **67 exact-confirmed, 10 confirmed-with-corrections, 3 scope-refuted — zero substance refutations.** The Step 6 completeness audit: **the orphan check passes programmatically (190/190 pre-S24; 195/195 after the addendum below); T-549..T-611 complete; BUG-001..068 complete; the hard orderings verified** (T-549→C-2; T-559→T-560→T-594 before any cap lift; T-561→T-567; greps→deletions; G1–G7→live traffic).
+
+### 14.2 The new-ID homes (§6 extension)
+
+| Finding IDs | Execution home | Notes |
+|---|---|---|
+| DUP-037 | E2.4 | the FIFTH billing site (mock batchRegister, remise-on-sticker divergence) — the devis consolidation's mock-adoption step absorbs it |
+| ARCH-049 | E7A-3 (T-592) | the re-seed volley's true blast radius: 30 CacheFreshness instances / 18 files |
+| BUG-069 | E7A-2 (T-591) | reconcile() + collectDebtors() unscoped AND uncapped — add tenant filters + keyset walks |
+| OPS-017 | §1 G2R + E7A-6..10 | the NEW project is a READY blank target (REST 200, not capped, schema-empty, valid mgmt token) — the consolidated schema is its seed; the lane's first live step |
+| OPS-018 | §0 execution preamble (G0-lift) | 31 src/tests files' `supabase/migrations/0NNN` paths → one mechanical prefix update, the FIRST post-consolidation execution commit |
+
+### 14.3 The card corrections
+
+- **T-594 (§3 Step 5.3 / 6.2) — C-23:** the probe does NOT fire in mock/unconfigured mode (zero requests by design); the drip is ~120/h in configured mode (+1 per online event / manual check). The fix narrows to: resolve the probe URL from the effective runtime config (the T-573 single-source fix generalizes it). The offline network-census verification is unchanged.
+- **T-569 (§10) — C-24:** no `teacher_subject_assignments` table exists in the chain — the DB side has been `class_subjects` all along. The DB-side deletion scope is EMPTY; the deletion is the app-side model + mock store + UI surfaces (the 13-file phantom census stands).
+- **T-588 (E6.19) — C-25:** the store inventory widens from 8 to 13+ (add dashboard-layout, placement-draft, custom-themes, sync.lastSyncAt, ai-passphrase) — the unification map covers the full inventory.
+
+### 14.4 The consolidated baseline (the ADR-001 amendment)
+
+`supabase/migrations/` now holds the single-pass consolidated baseline (`0001_initial_consolidated_schema.sql` — 99 tables / 14 views / 5 matviews / 147 functions / 90 triggers / 242+22 policies / 11 buckets / canonical seeds; single-pass-verified with ZERO failures, census equal to the chain replay; Deep Sweep/14 Part C); the 152 originals are VERBATIM in `supabase/migrations_archive/`; the append-only guard recognizes the archive move and enforces archive immutability. **Every future SQL change ships as a NEW numbered migration (0002, 0003, …) beside the baseline.** Execution-session consequence: before the first SQL/EF task, run the OPS-018 path update (§14.2); the E3-lane's live-verify ceremony now targets the consolidated baseline's objects (the names are identical — the census proofs in Deep Sweep/14 Part C.3 are the equivalence evidence).
