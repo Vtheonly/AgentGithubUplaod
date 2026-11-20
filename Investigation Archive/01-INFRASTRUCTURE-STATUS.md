@@ -328,3 +328,26 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (VALID)
 ```
 
 **Verdict:** OPS-011 is now **17-run-stable** — the fresh Supabase key set changes nothing; the blocker remains the **plan/spend-cap layer, not the credentials** (the exact 402 body: "The project owner must upgrade their plan or remove spend caps to restore service"). **The freshly supplied management token is ALSO 401-invalid** ("Invalid access token" — the same verdict as every prior management token; the live-census ceremony remains token-gated on the owner side too). GitHub PAT fully working (200s; the deletion pushes prove the write path); Vercel PAT valid; Firebase web key format-accepted; poolers OPEN. The **OPS-015 sequencing constraint stands unchanged** (T-559/T-560 five-site loop family + the BUG-058 fix BEFORE any cap lift). **The direct "does it work" answer:** repository operations (read/merge/push/branch management) — **WORKING** (proven by this cleanup); Vercel — **WORKING**; the Supabase data plane — **STILL BLOCKED** by the spend cap (an owner billing action, 17-run-proven, not a credential problem); the Supabase management API — **token-rejected**; the database — TCP-reachable via both pooler ports but login untested (placeholder password). The blueprint phase proceeds unaffected (the schema is fully in-source; all backend code is in-repo).
+
+---
+
+## Session 23 run (2026-11-20 — the unified-Excel audit; the 18th consecutive probe run)
+
+```
+P1  GET /rest/v1/ (publishable)             → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                  → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1 → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json     → 402 exceed_egress_quota
+P4b GET /auth/v1/health                    → 402 exceed_egress_quota
+P4c GET /auth/v1/settings                  → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (management token) → 401 Invalid access token
+P8  identitytoolkit probe (FB web key)     → 400 CONFIGURATION_NOT_FOUND (format-accepted, as S19-S22)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P9c direct db host db.vebfehrpzajhstyhinnw.supabase.co — DOES NOT RESOLVE this run (the sandbox DNS
+    variance continues; poolers remain the operative path)
+P10 GET api.github.com/user (PAT)          → 200 (the session's clone/push path verified)
+P11 GET api.vercel.com/v2/user (Vercel PAT)→ 200 (VALID)
+Issue #32: 200; comments → 0 (the 18th consecutive silent run — no owner activity; G0 gates unchanged)
+```
+
+**Verdict:** OPS-011 is now **18-run-stable** — the blocker remains the plan/spend-cap layer (not credentials). GitHub PAT valid (clone + this session's pushes); Vercel PAT valid; poolers OPEN. The unified-Excel X-lane's live ceremony (T-603..T-611 execution + the DS/13 §8 G1-G7 local gates first) stays owner-gated exactly like every other execution lane.

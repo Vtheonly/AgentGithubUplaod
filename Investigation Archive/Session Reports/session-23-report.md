@@ -1,0 +1,24 @@
+# Session 23 Report — The Unified Excel Engine, Entity Resolution & Performance Audit
+
+**Date:** 2026-11-20 · **HEAD at start:** `f9368e19` (main, clean tree — the sandbox re-cloned from GitHub; OPS-011 protocol + the keyless probe script reused from outside the repo) · **Charter:** strictly audit-only — no application source, SQL migrations, or configuration files modified; scripts live outside the repo (`/home/z/my-project/scripts/s23*` + the tsx runner); outputs strictly inside `Investigation Archive/` (+ the `Refactoring Unified/` blueprint fold the mandate ordered).
+
+## The mandate
+
+The owner's unified-Excel mandate: unify ALL Excel processing engines; make ALL supported formats resolve through ONE unified entity-resolution and financial-semantic model (identifying families/students/enrollments, Tranche 2, Tranche 3, owed, paid, remaining — regardless of input format); keep the NEW distinct financial spreadsheet format (`CLIENT CRITIQ`) as a separate input format; performance a top priority without compromising 100% accuracy or DB integrity; 100% of rows tested, zero sampling, strictly local, zero remote writes.
+
+## What was delivered
+
+1. **The 21-sheet census of the new upload** (`Excel_Inspection/s23/`): `ETAT 2024 -205.xlsx` is not one format but the school's historical archive — the family-level `CLIENT CRITIQ` debtor state (23 families / 48 children / 31,584,600 DZD / a 122-slot roster panel), four more ETAT year-sheet variants (incl. a THIRD header variant and a leading-space sheet name), the `Etat General Versement` payments ledger, BON/Devis/REF, and 13 auxiliary sheets. The mandated **Format Comparison Matrix** maps all 9 formats side by side (identity / Tranche 2 / Tranche 3 / owed / paid / remaining / status today).
+2. **The full code census re-verified** (Deep Sweep/13 §3-4): the engine tree end-to-end (the 2,961-line repository-adapter fully read; the detect contract's auto-adopt failure mode pinned; the ETAT-only persistence vs the BON/Devis/REF no-op; the three entity-resolution layers with the ER-PMAE engine gated OFF).
+3. **The 100%-row stress harness** (RUN A-G + per-sheet isolation + parse benchmarks, all against instrumented stub repositories, zero remote calls): the S8 baseline re-proven EXACT (1,137/741/3,342/2,198/5,956 + 390; perfect no-op re-import; honest `ÉTAT PARTIEL` failure + full compensating rollback) — then the new archive's default file-drop proven catastrophic: **7 sheets / 5,021 rows imported in one run, 188 corrupted current-year balances, the EGV sheet's column-shift corruption quantified in DZD (+281.6M fabricated charges / −68.3M fabricated refunds / −132.1M as speech-therapy / ~155M DZD of real payments silently dropped), the 3rd variant's LIVRES→psychology mis-category, and CLIENT CRITIQ entirely unsupported.** Six new finding IDs registered (BUG-066/067/068, ARCH-047/048, DEAD-024).
+4. **The unified design of record** (the X-lane, DS/13 §5): 8 format adapters (layout knowledge only; the detect-reject gate; per-sheet academic-year attribution) → ONE Canonical Normalized Import Record → ONE entity-resolution pipeline (the ER-PMAE engine graduates from experimental; BUG-040's backfill lands with it) → ONE financial & DB write pipeline (the S8-proven semantics refactored onto the canonical record; year-scoped ledger sourceIds). Folded as **T-603..T-611** (ROADMAP Phase 9 / EXECUTION-PLAN §13 / BLUEPRINT C-X) + **D-20 staged with ⏵ defaults** (OWNER-DECISION-PACKET Part G).
+5. **The performance audit** (DS/13 §7): measured profile (parse-dominated on stubs; the ExcelJS DOM as the memory ceiling at 5× scale), the P1..P7 optimization blueprint each with its accuracy/atomicity proof, and the projected 5× targets.
+6. **The local-first validation plan** (DS/13 §8): the G1–G7 acceptance gates (100%-row oracles per format, entity-resolution fixtures, idempotency, failure injection, the multi-year gate, performance budgets, the S8 regression slice) — zero remote calls before every gate passes; the live ceremony stays owner-gated behind OPS-011.
+
+## Infra
+
+OPS-011 **18-run-stable** (REST/JWKS/auth 402 exceed_egress_quota; P1 401 key-type gate; GitHub + Vercel PATs VALID; poolers OPEN; the direct-db host DNS again unresolvable — sandbox variance); Issue #32: 0 comments (the 18th consecutive silent run — G0 gates unchanged).
+
+## State
+
+Read-only regime maintained end-to-end: `git status` shows only `Investigation Archive/` writes (this report, Deep Sweep/13, Excel_Inspection/s23/, the registers, OWNER-DECISION-PACKET Part G) + the `Refactoring Unified/` v2.0 fold (ROADMAP Phase 9, EXECUTION-PLAN §13, BLUEPRINT C-X/§15.3) — zero application source, SQL, or config changes; `node_modules/` installed gitignored for the harness only. The implementation lane (T-603..T-611) awaits the owner's green-light; its first session must execute the DS/13 §8 gates locally before any live traffic.

@@ -173,6 +173,9 @@ The billing-side enrollment table is consumed only by the website portal (`useSe
 - **Dashboard overhaul** (ARCH-040 + BUG-059 + D-U1..D-U5 → T-590/T-596): fast, minimalist, uncluttered, non-amateurish, self-explanatory for an average user; **one single calculation engine shared by Dashboard and Payments/Finance so the numbers can never diverge**.
 - **Modal text & jargon purge** (Deep Sweep/07 §B6/E12 → T-586): cut bloated modal text, purge all 45+ internal jargon leaks (`INV-`, `T-`, `ADR-`, `§`, `DATA-`, `waterfall`) from user-facing strings, standardize Payment Details around **Prix / Prix justifié / Couverture**, and fix BUG-057 (unify the four formatters on `formatDzd*`, kill the raw `toLocaleString` NaNs, standardize the `DZD` suffix).
 
+
+
+
 ### The v2.0 reconciliation register (record-level corrections folded into the blueprint phase)
 
 | # | The prior-draft conflict | The v2.0 resolution |
@@ -183,4 +186,20 @@ The billing-side enrollment table is consumed only by the website portal (`useSe
 | R-4 | T-561's M-U2 scope ("six dual-condition sites") | **Corrected to 8 sites** (class-detail-page.tsx:205 and academic-year-detail-drawer.tsx:248 added — DS/12 §3) + the BUG-065 medical-bridge parity test as a deletion precondition. |
 | R-5 | Mixed counts across v1.x drafts (496 `.from()`; 89 `auth.uid()`; 39 table files; 90 title=; 165 useObservable; 68 modal importers; "~14/16" bypasses) | **The census-corrected counts govern everywhere:** 413 real `.from()` table queries (C-14) · 69 executable `auth.uid()` (C-8) · 40 hand-rolled `<table>` files (C-15) · 194 `title=` / 102 files (C-10) · 359 `useObservable` / 105 files (C-13) · 70 modal files / 114 usages (C-19) · 17 `supabase-client` bypass files (C-11). |
 
-*End of packet. Decisions can be answered piecemeal in GitHub Issue #32; unanswered items follow the ⏵ DEFAULTs above from Session 5 onward — EXCEPT where D-17/D-18/D-19 (locked in, Session 22) supersede them. No application source, configuration, schema, or dependency was modified in producing this packet or the v2.0 blueprint it governs.*
+## Part G — Session 23 addendum (2026-11-20): the unified-Excel-engine lane (D-20 — the owner's mandate, staged with ⏵ defaults)
+
+**The mandate core is LOCKED by the owner's own words** (Session 23, the unified-Excel mandate): ALL Excel processing engines unified; ALL supported formats resolve through ONE unified entity-resolution and financial-semantic model; the new distinct financial format (`CLIENT CRITIQ` — the family-level critical-debtor state) MUST remain supported as a separate input format; performance is a top priority without compromising 100% calculation accuracy or DB integrity. The architecture of record: DS/13 §5 (the X-lane, X-U1..X-U8) → ROADMAP Phase 9 / EXECUTION-PLAN §13 / BLUEPRINT C-X (T-603..T-611).
+
+### D-20 · The unified-Excel-lane semantic choices — staged with ⏵ DEFAULTs (gate T-604/T-608/T-609)
+
+| # | Question | ⏵ DEFAULT (executes unless the owner answers otherwise in Issue #32) | Evidence / consequence |
+|---|---|---|---|
+| 1 | **Multi-sheet historical workbooks — what imports by default?** | **Current-year sheets only.** Every other `^ETAT`-family sheet is listed excluded-with-reason (its own year identity available on explicit selection); the detection contract gains the reject gate (T-603) so nothing auto-adopts. | BUG-066/067 (the 188 corrupted balances; the EGV catastrophe); DS/13 §6.2–6.4 |
+| 2 | **`CLIENT CRITIQ` mapping** | **Family-level debtor state:** Montant → the family's outstanding-charge snapshot (charge, `critiq:` deterministic sourceId); Garanti/Obs/markers → metadata; the roster panel resolves students through the unified resolver; `N ENFANT` vs panel length cross-checks → warnings, never silent drops. | DS/13 §5 X-U5; RUN D (23 families / 48 children / 31,584,600 DZD) |
+| 3 | **`Etat General Versement` disposition** | **Its own adapter (the payments-ledger format)** — its column contract honored, never auto-detected as an ETAT roster; ground-truth oracle = its own owed/paid/remaining columns. | DS/13 §6.4 (the mis-mapping quantification); T-609 |
+| 4 | **BON / Devis / REF sheets** | **Canonical targets OR explicit excluded-with-reason** — the tracked-only no-op ends (either receipts/quotes become importable documents, or the sheets are visibly classified out). ⏵ default: the explicit classification first (documents later, on request). | ARCH-048 |
+| 5 | **ER-PMAE graduation mode** | **Definite-band auto-accept + probable/review proposals + legacy exact fallback** (INV-50 unchanged: nothing merges without confirmation outside the definite band; BUG-040's backfill lands with it). | DS/13 §3.3/§5 X-U3; the t-438/t-439 contracts |
+
+*The lane's own gate discipline (DS/13 §8 G1–G7 — 100% of rows, 0 DZD delta, zero remote calls) precedes ANY live traffic; the standing OPS-011 cap-lift order is unchanged.*
+
+*End of packet. Decisions can be answered piecemeal in GitHub Issue #32; unanswered items follow the ⏵ DEFAULTs above from Session 5 onward — EXCEPT where D-17/D-18/D-19 (locked in, Session 22) and the Session-23 mandate core (D-20's header) supersede them. No application source, configuration, schema, or dependency was modified in producing this packet or the v2.0 blueprint it governs.* No application source, configuration, schema, or dependency was modified in producing this packet or the v2.0 blueprint it governs.*
