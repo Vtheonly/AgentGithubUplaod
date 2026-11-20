@@ -54,6 +54,7 @@ BackendProfile {
 Sequenced phases with verification gates; every phase is automatable — the end user at most clicks "Relocate backend…" and picks a profile file. Preconditions in **bold** are hard.
 
 ### Phase 0 — Preconditions (owner/engineer)
+- **S26 (OPS-020 — the Charter):** the local-validation gate precedes ANY remote apply on this runbook's path — a fresh PGlite from-scratch reconstruction of the consolidated baseline (`0001`) with the full census pass (2,348 statements, zero failures; `Investigation Archive/MIGRATION-CONSOLIDATION-AND-EGRESS-CHARTER.md`).
 - **T-559/T-560 + BUG-058 fix executed** (single-source config; no canonical fallback anywhere).
 - **ARCH-029 fixed** (restore replays to the live store) or the restore verification in Phase 4 done out-of-band.
 - **BUG-061 fixed** (reconcile over full collections) so the Phase-4 gate is trustworthy.

@@ -57,8 +57,8 @@ The old project's URL and public key are locked into the packaged application in
 
 ### 2.1 The chain (the schema IS in-source — verified)
 
-- **152 migration files** in `elimtiyaz-desktop/supabase/migrations/` (0001 → 0157). The S2 live census (reconstructed from this chain, then live-confirmed where possible) is the authority: **100 tables, 14 views, 5 materialized views**.
-- **RLS census at HEAD (grep, method recorded):** 109 `enable row level security` statements; 331 `create policy` statements; `auth.uid()` appears 90 times across 28 migration files. (S13's 108/324 count predates 0154-0157; both methods cited.)
+- **Historical chain: 152 migration files (0001 → 0157) — now VERBATIM in `elimtiyaz-desktop/supabase/migrations_archive/` (frozen forensic record, per S24).** The S2 live census (reconstructed from that chain, then live-confirmed where possible) recorded **100 tables, 14 views, 5 materialized views** — the historical basis. **The baseline of record since S24 is `supabase/migrations/0001_initial_consolidated_schema.sql` — the corrected final state: 99 tables (the chain census's "100" counted `receipts`, dropped 0079), 14 views, 5 matviews, 147 functions, 90 triggers, 264 policies (242 public + 22 storage), 11 buckets, 226 FKs, 512 indexes (Deep Sweep/14 Part C.3; re-proven from-scratch by the S26 PGlite audit).**
+- **RLS census at HEAD (grep, method recorded):** 109 `enable row level security` statements; 331 `create policy` statements; `auth.uid()` appears 90 times across 28 migration files. (S13's 108/324 count predates 0154-0157; both methods cited. **S26 correction:** these are chain-cumulative grep counts; the FINAL live set is **264 policies — 242 public + 22 storage — per the consolidated-baseline census**, and the relocation verification gates below use the corrected figures.)
 - **Extensions (0001_extensions.sql:20-37):** `pgcrypto`, `pgjwt`, `uuid-ossp`, `pg_trgm`, `btree_gist` — all `create extension if not exists … with schema extensions`; `pg_stat_statements` attempted with a graceful `exception` skip. **No `pg_cron`/`pg_net` requirement** — all scheduling is Edge-Function-side (config.toml).
 - **Materialized views (0021_views.sql):** exactly 5 — `mv_dashboard_kpis` (:12), `mv_debt_aging` (:57), `mv_top_debtors` (:84), `mv_revenue_by_month` (:103), `mv_grade_summary` (:122). Refresh: the `refresh-materialized-views` Edge Function on a **daily 01:00 UTC cron** (config.toml:114-116). Desktop consumers: **none** (DEAD-019) — the desktop computes from base tables; the MVs serve reporting/portal only.
 - **Seeds:** `0023_seed.sql` (24 inserts — the role/permission catalog: super_admin, financial_officer, teacher, support_staff, manager, buyer, driver, warehouse_worker, worker, parent, student + permission rows + role_permissions grants; 0157 later deletes the tournee-specific trio). **There is NO `supabase/seed.sql`** — reference data (tenants, academic years, pricing) is NOT seeded by the chain; it must be exported/imported (§A.3/A.4).
@@ -222,13 +222,17 @@ The desktop session builder (`supabase-auth-repository.ts:96-100`) does `user_pr
 
 ## A.2 — Schema & backend deployment (both paths, identical)
 
+> **Standing rule (S26, OPS-020 — the Charter):** any apply of the schema to a real target runs ONLY after a fresh **100% local from-scratch validation pass** (PGlite + the `0000_local_compat` prologue; the full census on every axis) — see `Investigation Archive/MIGRATION-CONSOLIDATION-AND-EGRESS-CHARTER.md`. The S26 re-validation of `0001`: 2,348 statements, ZERO failures, census-equal on every axis.
+
 ```bash
 # 1. Link the CLI to the new project (requires the management token):
 cd elimtiyaz-desktop
 npx supabase login            # paste the NEW access token
 npx supabase link --project-ref <NEW_PROJECT_REF>
 
-# 2. Push the full chain (152 migrations; 0099 rides along — the 54001 fix):
+# 2. Apply the CONSOLIDATED BASELINE (ONE single-pass file — `0001_initial_consolidated_schema.sql`;
+#    the 152-file historical chain is frozen forensic history in migrations_archive/, never re-pushed;
+#    0099's 54001 fix is inside the baseline; the append-only regime continues from 0002_* beside it):
 npx supabase db push          # dry-run first with --dry-run if desired
 
 # 3. Deploy the 15 Edge Functions + set their secrets:
@@ -258,17 +262,17 @@ npx supabase secrets set GROQ_API_KEY=… OPENROUTER_API_KEY=… \
 
 **Verification gate (do not proceed until ALL pass):**
 ```sql
-select count(*) from supabase_migrations.schema_migrations;      -- expect 152
+select count(*) from supabase_migrations.schema_migrations;      -- expect 1 (version '0001' — the consolidated baseline; the 152 historical rows are NOT registered)
 select count(*) from information_schema.tables
-  where table_schema = 'public';                                  -- expect 100 (+14 views, 5 matviews)
+  where table_schema = 'public';                                  -- expect 99 (+14 views, 5 matviews, 147 functions, 90 triggers)
 -- THE 54001 regression test (the previous relocation's failure mode):
 select proname, prosecdef, proconfig from pg_proc
  where proname in ('current_user_profile_id','current_tenant_id',
                    'has_role','has_any_role','has_permission');
 -- expect: every row prosecdef = true AND proconfig includes search_path=public
-select count(*) from pg_policies;                                  -- expect ~331
+select count(*) from pg_policies;                                  -- expect 264 (242 public + 22 storage — the final live set, drops included)
 select matviewname from pg_matviews where schemaname='public';     -- expect the 5 mv_* views
-select count(*) from storage.buckets;                              -- expect 10
+select count(*) from storage.buckets;                              -- expect 11 (0018's ten + attendance-justifications)
 ```
 Plus the functional parity proof — **"N/N applied" is NOT parity** (AGENTS_supabase.md rule): run `scripts/verify_t-376.sql` (12/12 PASS expected: authenticated REST reads with JWT claims, BEGIN/ROLLBACK-safe) against the new project. Then an authenticated REST smoke: `GET /rest/v1/tenants?select=id&limit=1` with a real logged-in user's token → 200 (not 401/500).
 
@@ -277,7 +281,7 @@ Plus the functional parity proof — **"N/N applied" is NOT parity** (AGENTS_sup
 ### A.3.1 Export from the old project
 1. **Data:** `pg_dump` through the pooler (ports verified OPEN, S13-S17 probes): `pg_dump "postgresql://postgres.<OLD_REF>:<DB_PASSWORD>@aws-1-eu-west-1.pooler.supabase.com:6543/postgres" --schema=public --schema=storage --data-only --inserts` (or the staged E7.9 canonical export via the app's full-export ZIP — the unified pipeline format). `pg_dump` needs **egress headroom on the old project** — the owner must lift the old project's cap for the window.
 2. **Auth users:** the admin API (a working management token): `GET /v1/projects/{ref}/auth/users?per_page=…` — capture `id`, `email`, `raw_user_meta_data`, `app_metadata`, `created_at`. **Passwords are not exportable — plan a reset flow.**
-3. **Storage:** object listing + download per bucket (10 buckets; the `storage.objects` table lists paths; download via signed URLs or the CLI).
+3. **Storage:** object listing + download per bucket (11 buckets; the `storage.objects` table lists paths; download via signed URLs or the CLI).
 
 ### A.3.2 Reload into the new project (FK-ordered)
 1. **Auth users with PRESERVED UUIDs** — the admin `createUser` API honors an explicit `user_id`: for each exported user, `POST /v1/projects/{NEW_REF}/auth/users` with the SAME `id` + email, then trigger a password reset. **This single decision keeps every `user_profiles.auth_user_id`, `parents.auth_user_id`, `students.auth_user_id`, activation binding, personnel link, and audit attribution valid with ZERO remapping.**
