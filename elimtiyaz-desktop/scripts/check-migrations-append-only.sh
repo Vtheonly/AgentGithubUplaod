@@ -20,6 +20,24 @@
 #      with a `--` SQL comment line naming the migration (what/why), and
 #      must match NNNN_name.sql (4-digit zero-padded prefix, .sql).
 #
+# CONSOLIDATED-BASELINE LAYOUT (Session 24, 2026-11-20 — the 152-file
+# historical chain was squashed into ONE single-pass baseline):
+#
+#   supabase/migrations/          — 0001_initial_consolidated_schema.sql
+#                                   (the definitive final state; NEW schema
+#                                   changes append here with the next free
+#                                   number: 0002_, 0003_, ...)
+#   supabase/migrations_archive/  — the 152 original files, verbatim
+#                                   (forensic history; ADR-001 evidence).
+#
+#   The guard recognizes exactly ONE non-append-only event: the ARCHIVE
+#   MOVE — a file that leaves migrations/ and appears, byte-identical,
+#   under migrations_archive/ (git rename R-status or D+A pair). Anything
+#   else (edits, true deletions, renames to other paths) remains a
+#   violation. migrations_archive itself is immutable: no modification or
+#   deletion of archived files is ever permitted, and files may only enter
+#   it via the recognized archive move.
+#
 # Usage:
 #   scripts/check-migrations-append-only.sh [--dir <migrations-dir>] [--base <git-ref>]
 #
@@ -53,6 +71,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 MIG_DIR="${MIG_DIR:-$DEFAULT_DIR}"
+ARCHIVE_DIR="$(dirname "$MIG_DIR")/migrations_archive"
 # Resolve the nearest EXISTING ancestor so a fully deleted migrations
 # directory is still diagnosable (git rm prunes empty dirs).
 PROBE="$MIG_DIR"
@@ -111,17 +130,101 @@ while IFS= read -r line; do
     continue # new staged migration — allowed
   fi
   if [[ "$X" =~ [MDRC] ]] || { [[ "$X" == " " ]] && [[ "$Y" =~ [MDRC] ]]; }; then
+    # CONSOLIDATION EXCEPTION (the recognized archive move): either
+    #   (a) a rename whose destination is under migrations_archive/
+    #       (byte-identical by git-rename semantics), or
+    #   (b) a deletion whose file exists under migrations_archive/ in the
+    #       worktree or the index (the D-half of a D+A move pair —
+    #       git status --porcelain splits git-mv into D+A without rename
+    #       detection). Both forms are re-validated in Check 2.
+    DEST="${ENTRY#* -> }"
+    if [[ "$X" == "R" ]] && [[ "$DEST" == "$ARCHIVE_DIR"* ]]; then
+      continue
+    fi
+    if [[ "$X" == "D" ]] || { [[ "$X" == " " ]] && [[ "$Y" == "D" ]]; }; then
+      BASE_NAME="$(basename "$ENTRY")"
+      if [[ -f "$ARCHIVE_DIR/$BASE_NAME" ]] \
+         || [[ -n "$(git -C "$REPO_ROOT" ls-files -- "$(dirname "$ARCHIVE_DIR")/migrations_archive/$BASE_NAME")" ]]; then
+        continue
+      fi
+    fi
     VIOLATIONS+=("worktree: existing migration modified/deleted/renamed (status '${X}${Y}'): $ENTRY")
   fi
 done < <(git -C "$REPO_ROOT" status --porcelain -- "$MIG_REL")
 
-# --- Check 2: baseline diff (additions only) ---------------------------------
+# --- Check 2: baseline diff (additions + recognized archive moves only) ------
+# Resolve the migrations_archive pathspec relative to the repo root. No
+# filesystem gate: when the archive is absent (throwaway test repos, or a
+# wholesale git-rm that pruned the dir) the git pathspecs below simply match
+# nothing for additions — while deletions of tracked archive files are still
+# caught by the baseline diff, which is exactly the case the -d gate used to
+# miss (a removed archive directory must never disable the archive checks).
+ARCHIVE_REL="${ARCHIVE_DIR#"$REPO_ROOT"/}"
 while IFS=$'\t' read -r status file; do
   [[ -z "${status:-}" ]] && continue
-  if [[ "$status" != "A" ]]; then
-    VIOLATIONS+=("diff vs $BASE: migration not added but '${status}': $file")
+  if [[ "$status" == "A" ]]; then continue; fi
+  if [[ "$status" == "R" ]]; then
+    # split "old -> new"
+    OLD_PATH="${file%% -> *}"
+    NEW_PATH="${file#* -> }"
+    if [[ -n "$ARCHIVE_REL" ]] && [[ "$NEW_PATH" == "$ARCHIVE_REL"* ]]; then
+      continue # recognized archive move (rename form)
+    fi
+    VIOLATIONS+=("diff vs $BASE: migration renamed but not into migrations_archive: $file")
+    continue
   fi
+  if [[ "$status" == "D" ]]; then
+    # permitted ONLY as the archive move's deletion half: the same filename
+    # must exist under migrations_archive in the current tree (worktree or index)
+    BASE_NAME="$(basename "$file")"
+    if [[ -n "$ARCHIVE_REL" ]] && { [[ -f "$ARCHIVE_DIR/$BASE_NAME" ]] \
+         || [[ -n "$(git -C "$REPO_ROOT" ls-files -- "$ARCHIVE_REL/$BASE_NAME")" ]]; }; then
+      continue
+    fi
+    VIOLATIONS+=("diff vs $BASE: migration deleted without an archive move: $file")
+    continue
+  fi
+  VIOLATIONS+=("diff vs $BASE: migration not added but '${status}': $file")
 done < <(git -C "$REPO_ROOT" diff --name-status "$BASE" -- "$MIG_REL")
+
+# --- Check 2b: migrations_archive immutability --------------------------------
+# The archive is frozen history: modifications, deletions and renames of
+# archived files are ALWAYS violations; additions are allowed only in the
+# same change that removed the same file from migrations/ (the move).
+if [[ -n "$ARCHIVE_REL" ]]; then
+  while IFS=$'\t' read -r status file; do
+    [[ -z "${status:-}" ]] && continue
+    if [[ "$status" == "A" ]]; then continue; fi
+    VIOLATIONS+=("archive: migrations_archive file not added but '${status}': $file (the archive is frozen history)")
+  done < <(git -C "$REPO_ROOT" diff --name-status "$BASE" -- "$ARCHIVE_REL")
+  while IFS=$'\t' read -r status file; do
+    [[ -z "${status:-}" ]] && continue
+    X="${status:0:1}"; Y="${status:1:1}"
+    # The archive is FROZEN: the only permitted states are
+    #   'A?'/'A ' — the staged half of a recognized archive move (content
+    #               re-validated by Check 2's D+A pairing), and
+    #   '??'      — the worktree half of an UNSTAGED manual move, allowed
+    #               only when the same basename is deleted from migrations/.
+    # Anything else — 'AM' (tampered after staging), ' M', 'MM', 'D', 'R'… —
+    # is a violation.
+    if [[ "$X" == "A" && ( -z "$Y" || "$Y" == " " ) ]]; then
+      continue
+    fi
+    if [[ "$X" == "?" && "$Y" == "?" ]]; then
+      BASE_NAME="$(basename "$file")"
+      # LEGIT unstaged-move half: the same basename is tracked under
+      # migrations/ in the index but gone from the migrations/ worktree.
+      # STRAY COPY (violation): the file still sits in migrations/ worktree
+      # (a copy, not a move) or was never a tracked migration at all.
+      if [[ -f "$MIG_DIR/$BASE_NAME" ]] \
+         || ! git -C "$REPO_ROOT" ls-files --error-unmatch "$MIG_REL/$BASE_NAME" >/dev/null 2>&1; then
+        VIOLATIONS+=("archive: stray untracked file (no move from migrations/): $file")
+      fi
+      continue
+    fi
+    VIOLATIONS+=("archive: archived file modified/deleted/renamed (status '${X}${Y}'): $file")
+  done < <(git -C "$REPO_ROOT" status --porcelain -- "$ARCHIVE_REL")
+fi
 
 # --- Check 3: header + naming discipline ------------------------------------
 shopt -s nullglob
@@ -151,5 +254,6 @@ fi
 ADDED_STATUS="$(git -C "$REPO_ROOT" status --porcelain -- "$MIG_REL" | grep -cE '^\?\?|^A' || true)"
 ADDED_DIFF="$(git -C "$REPO_ROOT" diff --name-status "$BASE" -- "$MIG_REL" | grep -cE $'^A\t' || true)"
 FILES="$(ls -1 "$MIG_DIR"/*.sql 2>/dev/null | wc -l)"
-echo "append-only guard OK: $FILES migration file(s), +${ADDED_DIFF:-0} added vs $BASE, +${ADDED_STATUS:-0} new in worktree."
+ARCHIVE_FILES="$(ls -1 "$ARCHIVE_DIR"/*.sql 2>/dev/null | wc -l)"
+echo "append-only guard OK: $FILES migration file(s) (+${ADDED_DIFF:-0} added vs $BASE, +${ADDED_STATUS:-0} new in worktree); $ARCHIVE_FILES archived historical file(s)."
 exit 0
