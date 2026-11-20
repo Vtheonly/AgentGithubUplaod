@@ -1,0 +1,73 @@
+{
+ "new_sha256": "15174e1b77e82e34e4878868d8a6d240fc7e93e6d5d827943b6e462e9bf69958",
+ "s14_sha256": "15174e1b77e82e34e4878868d8a6d240fc7e93e6d5d827943b6e462e9bf69958",
+ "byte_identical": true,
+ "dump_diffs": [
+  [
+   "Feuil7_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "Feuil7_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "Feuil8_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "Feuil8_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "الرياضات_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "الرياضات_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "تسيير واقتصاد_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "تسيير واقتصاد_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "تقني رياضي_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "تقني رياضي_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "جع مشترك_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "جع مشترك_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "علوم تجريبية_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "علوم تجريبية_values.csv",
+   "IDENTICAL"
+  ],
+  [
+   "لغات اجنبية_formulas.csv",
+   "DIFFERS"
+  ],
+  [
+   "لغات اجنبية_values.csv",
+   "IDENTICAL"
+  ]
+ ],
+ "formula_count_total": 0,
+ "formulas_dump_note": "S14 *_formulas.csv files are full-grid empty-cell dumps; S26 ones are two-column cell,formula catalogs; both contain ZERO formulas (blank template). All *_values.csv are byte-identical to S14."
+}
