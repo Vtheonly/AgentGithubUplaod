@@ -275,3 +275,32 @@ P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
 **Verdict:** OPS-011 is now **15-run-stable** (S2→S17): the identical restriction signature persists on REST root/table, JWKS, and auth-health; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (both Supabase keys recognized; GitHub PAT fully working; Vercel PAT still valid). The three owner-gated ceremonies (live census; S8 §8 re-verification; S11 §A1.5 ×10/legacy-row reconciliation) and the E7.9 final export remain staged, and the **OPS-015 sequencing constraint stands unchanged**: T-559/T-560 (now the five-site loop family) + the BUG-058 probe fix MUST land before the cap is lifted, else the app immediately re-burns egress through five request loops + the 30 s probe drip.
 
 **Session 17 note (the direct answer to the owner's question, recorded for the file):** the restriction does NOT block schema access — the complete schema is in-source (152 migration files under `elimtiyaz-desktop/supabase/migrations/`, censused at 100 tables in S2 from the migration chain) and every edge function/RPC/policy is in the repo. What the cap blocks is live runtime verification only (data reads, auth flows, the three staged ceremonies). The cap lift itself is exclusively an owner billing action (Supabase Dashboard → Project Settings → spend cap / plan upgrade) — the 402 body states it verbatim; no credential rotation can substitute (15-run-proven). Lane note: no new investigation lane was due this run — the S16 runtime-item backlog is EMPTY; this session is the standing gate check + the infrastructure-question reply.
+
+---
+
+## Session 19 probe run (2026-11-20) — the standing 6-hour sweep (OPS-011 16-run-stable)
+
+**Context:** the standing recurring sweep, owner silent (Issue #32 open, **0 comments**, `updated_at 2026-11-19T00:06:59Z` — unchanged since S16; the 19th consecutive silent run). The sandbox had recycled again: the repo was re-cloned from `main` at `d5534a6f` (the S18 merge commit); the credentials env (chmod-600) + the keyless probe script survived at `/home/z/my-project/scripts/` and were reused — no token material in any committed artifact. GET-only probe set re-run at session start:
+
+```
+P1  GET /rest/v1/ (publishable)              → 401 {"message":"Secret API key required"} (key-type gate — key recognized)
+P2  GET /rest/v1/ (secret)                   → 402 exceed_egress_quota
+P3  GET /rest/v1/students?select=id&limit=1  → 402 exceed_egress_quota
+P4  GET /auth/v1/.well-known/jwks.json       → 402 exceed_egress_quota
+P5  GET /auth/v1/health (publishable)        → 402 exceed_egress_quota
+P7  GET api.supabase.com/v1/projects/… (mgmt token) → 401 Invalid access token
+P8  GET identitytoolkit (FB web key)         → 400 CONFIGURATION_NOT_FOUND (format-accepted)
+P9  TCP pooler :6543 OPEN, :5432 OPEN
+P9c direct db host db.vebfehrpzajhstyhinnw.supabase.co — DOES NOT RESOLVE this run
+    (flips back from S16/S17's "resolves"; a sandbox-side DNS variance, not a project
+    change — the poolers remain the operative path; login still untested per charter,
+    the password remains a [YOUR-PASSWORD] placeholder)
+P10 GET api.github.com/user + /repos/… + Issue #32 (PAT) → 200s (authenticates as the
+    owner account; Issue #32 open, 0 comments — no owner activity; gates unchanged)
+    + this session's branch push verifies the write path
+P11 GET api.vercel.com/v2/user (Vercel PAT)  → 200 (still VALID)
+```
+
+**Verdict:** OPS-011 is now **16-run-stable** (S2→S19; S18 cited S17's run rather than re-probing): REST root/table, JWKS, and auth-health all return the identical `exceed_egress_quota` 402; the management token stays 401-invalid; the blocker remains the **plan/spend-cap layer, not the credentials** (P1's key-type gate + P2's quota body prove both Supabase keys recognized; GitHub PAT fully working incl. push; Vercel PAT still valid). The three owner-gated ceremonies and the E7.9 final export stay gated; the **OPS-015 sequencing constraint stands unchanged** (T-559/T-560 five-site family + the BUG-058 probe fix MUST land before any cap lift).
+
+**S19 integrity datum (the recycle check, recorded for the file):** `git diff 6c0b007e..d5534a6f` contains **zero non-archive changes** (7 files, all under `Investigation Archive/` + `Refactoring Unified/`) — the S18 guide's verification commit is the current app-source state, so its claims carry unchanged. Spot re-verified the guide's three most load-bearing claims personally at HEAD: the build-time hardcode constants (`supabase-client.ts:35-38`), the packager's canonical-key guard Set (`build-windows.mjs:161-163`), and the payload assertions (`build-windows.mjs:303-315` family) — all intact; zero `.env*` files anywhere (re-confirmed).
