@@ -560,7 +560,7 @@ Standing gates at every phase boundary: typecheck + full suite → INV-2 (kill-t
 
 ---
 
-## 11. The standing S8–S13 queue (T-555..T-560, T-572 — folded v1.2; scope corrections intact)
+## 11. The standing S8–S13 queue (T-555..T-560, T-572 — folded at Session 16; scope corrections intact)
 
 **Sequencing within the folded set:** T-559 → T-560 (×5 sites) — both BEFORE any cap lift; T-556/T-557/T-558 independent import-engine items (T-557 wants the owner's fail-closed-vs-remove call — D-12); T-572 independent. **T-555 stays reserved/unused.**
 
@@ -575,7 +575,7 @@ Standing gates at every phase boundary: typecheck + full suite → INV-2 (kill-t
 
 ---
 
-## 12. The Supabase-relocation lane (T-573..T-575 — folded v1.3; the Stage A portability core)
+## 12. The Supabase-relocation lane (T-573..T-575 — folded at Session 18; the Stage A portability core)
 
 The owner's focused relocation mandate produced `Investigation Archive/SUPABASE-RELOCATION-AND-RELOAD-GUIDE.md` — the operational successor to the S13 RELOCATION-RUNBOOK, with the six-layer audit personally verified at HEAD `6c0b007e`. The execution-relevant outcomes:
 

@@ -35,6 +35,9 @@
 | 1.8 | Formatting/INV-4 consolidation batch (isoWindow, DZD, dates, attendanceRate, label maps, periodMinutes, mapStudentRow, CYCLE_OF_GRADE, toIsoDate/currentAcademicYear, WhatsApp; S-U1/S-U4/S-U5 fold here) | DUP-008..014, 019, 020, 022, BUG-014 | M | — | affected suites; visual spot-check money copy |
 | 1.9 | Fix client-side verified defects: BUG-001 terms, BUG-002 gpa args, BUG-003 revenue label, BUG-004 student-code filter (+Android check), BUG-005 sort, BUG-016 memo, BUG-022 names, BUG-023 nulls, BUG-024 redaction, BUG-025 header drop, BUG-026 tab sync, BUG-013 role strings, BUG-027 copy (+ BUG-010/020/021) | BUG-001..005, 010, 013, 015, 016, 020..027 | M | — | per-fix tests (each its own T-task per governance) |
 | 1.10 | Fix render-phase setState (5 files) | BUG-011 | S | — | React suites + manual |
+| 1.11 | **T-556 — BUG-040 contact backfill on placeholder-family merge** (the phone-bearing row enriches the placeholder family before the student upsert) | BUG-040 | S | — | the B-test (placeholder-first → backfilled) |
+| 1.12 | **T-557 — dead-abort-mode removal** (D-12 default (b): remove the unreachable `ATOMIC_IMPORT_ABORTED`/`STRICT_MODE_REJECTED` branches, or restore fail-closed behind a flag — owner call) | DEAD-013, R-3.6 | S | decision | import engine tests |
+| 1.13 | **T-558 — dry-run audit tag** (suppress `import.run_completed` for dry-runs or tag `dry_run: true`) | DS/04 §7.3 | XS | — | audit-assertion test |
 
 ## Phase 2 — Verified backend defect repair (SQL/EF, append-only + live ceremony — **dual-valid and PERMANENT under D-17**)
 
@@ -171,3 +174,104 @@ Escapes the quota lock for the desktop permanently while Supabase stays (sync + 
 5. Findings register updated as items complete; UNRESOLVED items re-verified or escalated to the owner.
 6. **OPS-015 ordering (absolute):** no cap lift before 6.0 (T-559) + 6.1 (T-560 ×5) + 6.2 (T-594/BUG-058).
 7. **The kill-switch invariant (Stage B):** the previous backend stays selectable until the next stage is green; the INV-2 gate is the definition of success.
+
+## Findings coverage map (the orphan check — every registered ID → its phase row)
+
+The register carries **184 registered IDs** (DEAD-001..015, 017..023 · DUP-001..032, 034..036 · ARCH-001..046 · BUG-001..065 · OPS-001..016; DEAD-016/DUP-033 were never assigned — skipped placeholders). Full evidence per ID: `FINDINGS_INDEX.md`; full task cards: `EXECUTION-PLAN.md` §6 (the 1:1 traceability matrix). Compact map:
+
+| IDs | Phase row (this file) |
+|---|---|
+| DEAD-001/002/023, OPS-007 | 0.1 · OPS-002/008 → 0.9 |
+| DEAD-003/010/011 | 0.2 (DEAD-011's test-only half → 0.4) |
+| DEAD-004 | 0.3 (Owner) |
+| DEAD-005 | 4.2 (ARCH-013 rides; R-3.8) |
+| DEAD-006/007/008/009/012/014 | 0.5 |
+| DEAD-013 | 1.12 (T-557; D-12) |
+| DEAD-015 | 4.1 + 7.3 |
+| DEAD-017 | 5.1 (T-589) |
+| DEAD-018 | 5.19 (T-588) |
+| DEAD-019 | 6.3 (T-590) |
+| DEAD-020/021/022 | 8.6 / 8.9 (T-568/T-570) |
+| DUP-001/005 | 1.3–1.7 |
+| DUP-002 | 3.2 ∥ 8.4 (T-564) |
+| DUP-003/004 | 2.1/2.2 + 7.7 |
+| DUP-006/007 | 4.3 |
+| DUP-008..014, 019, 020, 022 | 1.8 |
+| DUP-015 | 4.5 |
+| DUP-016/017 | 1.2 / 3.6 |
+| DUP-018 | Doc (4.6 context; Phase 2 consolidates the redefinitions) |
+| DUP-021 | 8.8 (T-569; absorbs 3.9) |
+| DUP-023/028 | 5.2 |
+| DUP-024 | 5.4/5.5 |
+| DUP-025 | 5.3 |
+| DUP-026 | 5.6 |
+| DUP-027 | 5.9 (E6.8) + 5.21 (T-596) |
+| DUP-029 | 5.10 (E6.9) + 6.5/5.21 |
+| DUP-030 | 5.12 (E6.11) + 5.19 (T-588) |
+| DUP-031 | 7.1 |
+| DUP-032 | 7.4 |
+| DUP-034 | 5.7 (T-576) |
+| DUP-035 | 8.5 (T-565) |
+| DUP-036 | 8.8 (T-569) |
+| ARCH-001 | 3.1 |
+| ARCH-002/005/020 | 3.8 (the ADR batch; ARCH-020 + 6.5) |
+| ARCH-003/004 | 3.4 |
+| ARCH-006 | 3.7 → 7.3 final |
+| ARCH-007 | 3.2 |
+| ARCH-008 | 3.3 |
+| ARCH-009 | 3.5 + 5.21 (T-596) |
+| ARCH-010 | 0.8 (+ 5.15 completes) |
+| ARCH-011 | 1.9 (its own T-task within the batch) |
+| ARCH-012 | 3.6 / 5.12 / 5.19 |
+| ARCH-013 | 4.2 + 3.8 |
+| ARCH-014/015 | 4.1 |
+| ARCH-016 | 4.6 |
+| ARCH-017 | 4.4 (Owner) |
+| ARCH-018 | 5.7 (T-576) |
+| ARCH-019 | 7.0 (T-552; + 3.4 tenant-switcher) |
+| ARCH-021 | 5.5 (E6.4) |
+| ARCH-022/023/024/034 | 6.8 (T-573 — absorbs T-551) |
+| ARCH-025/031/032 | 7.6/7.7/7.3 |
+| ARCH-026/027/028/029 | 7.4 |
+| ARCH-030 | 7.1 |
+| ARCH-033 | 7.0 |
+| ARCH-035 | 7.3 gate |
+| ARCH-036/039/040 | 5.1 (T-589) / 8.2 (T-562) / 6.3 (T-590) + 5.21 (T-596) |
+| ARCH-037 | 5.18 (T-587; + 1.3–1.7's pricing basis) |
+| ARCH-038 | 5.19 (T-588) |
+| ARCH-041..045 | 8.1 (T-561) / 8.7 (T-566) / 8.2 (T-562) / 8.8 (T-569) / 8.9 (T-570) |
+| ARCH-046 | 2.4 / 6.11 (once) |
+| BUG-001..005, 010, 013, 015, 016, 020, 021, 022..028 | 1.9 (BUG-015's backup half → 5.13 T-581) |
+| BUG-006/018 | 2.6–2.9 |
+| BUG-007 | 2.3–2.5 |
+| BUG-008/009 | 2.2 / 2.1 |
+| BUG-011 | 1.10 |
+| BUG-012/019 | 1.2 (+ T-549 §3) |
+| BUG-014 | 1.8 |
+| BUG-017 | 5.19 (T-588; absorbs 4.7) |
+| BUG-025 | 5.7 (T-576) |
+| BUG-026/029/030 | 1.9 / 3.6 / 0.6 |
+| BUG-031/043 | 5.19 (T-588) |
+| BUG-032 | 7.7 (T-601) |
+| BUG-033..037 | 7.4 / 7.5 (+ 7.8) |
+| BUG-038 | 1.1 (T-549 — §3 of EXECUTION-PLAN) |
+| BUG-039..041 | 5.1 (T-589) / 5.7 (T-576) / 1.11 (T-556) |
+| BUG-042/044 | 6.0/6.1 (T-559/T-560) / 5.22 (T-572) |
+| BUG-045..051 | 5.8 (T-577) · 5.10 (T-578) · 5.11 (T-579) · 5.12 (T-580) · 5.13 (T-581) |
+| BUG-052..057 | 5.14 (T-582) · 5.15 (T-583) · 5.16 (T-584) · 5.17 (T-585) · 5.22 (T-572) · 5.9 (T-586) |
+| BUG-058 | 6.2 (T-594) |
+| BUG-059 | 6.3 (T-590) + 5.21 (T-596) |
+| BUG-060..063 | 6.4 (T-591) |
+| BUG-064 | 8.10 (T-567) |
+| BUG-065 | 8.1 (T-561 precondition) |
+| OPS-001/005/006 | 4.4 (Owner) |
+| OPS-003/004 | 4.3 |
+| OPS-009 | 4.6 |
+| OPS-010 | Doc (Phase 2 ceremony context) |
+| OPS-011/012/013 | The gates / Owner actions (§5 of EXECUTION-PLAN) |
+| OPS-014 | 5.8 (T-577) |
+| OPS-015 | 6.7 (T-595) + the standing rule 6 |
+| OPS-016 | 6.10 (T-575; + 6.8 T-573) |
+| R-1..R-15 (pipeline hardening) | 7.1–7.4 as mapped in EXECUTION-PLAN §6 |
+
+**Orphan check verdict: zero orphans** — every registered ID maps to a phase row here and to a task card in `EXECUTION-PLAN.md` §6 (verified Session 22, programmatically).
