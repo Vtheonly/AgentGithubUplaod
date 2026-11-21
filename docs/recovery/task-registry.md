@@ -6858,3 +6858,60 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Session-36 implementation record — E2.3 (2026-11-21, commit `61b8ec12`):** NEW `src/tests/domain/pricing/fixtures/devis/` (era-2026-2027.json — the verified REAL matrix as the E2.4-consumable artifact: the FI grid, FI autiste, the per-grade tuition schedules, the remise-on-V2-only + early-payment-5%-of-scolarisation-only + 40/30/30 policies, representative Devis vectors; era-2027-2026.json — the per-class pricing census derived LIVE from workbook B's own ETAT sheet [30 classes, header-addressed CLASSE/niveau/DEVIS ANNUEL/V1/2V/v3 modes — e.g. 1AAM devis 315 000, tranches 132k/99k/99k]; REGISTER.json — the school workbook SHA-pinned + ETAT 2024 -205.xlsx recorded as the owner-supplied external fixture [ABSENT — an Owner Blocker note for its lanes, never a silent skip]) + NEW `src/tests/domain/t-e23-devis-fixtures.test.ts` (14 tests: the runtime SHA provenance gate for EACH workbook ALONE [9decf3f7…05c7 / b293b22b…79ca — the plan's own pins]; the era-A fixture↔matrix shape-lock + the recomputed Devis vectors; the era-B extractor re-run against workbook B ALONE deep-compared to the fixture; the era-separation delta [the UPDATED 2027-2026 pricing genuinely differs from the 2026-2027 matrix arithmetic — R-2's whole point]; the register gates; E23_REGENERATE=1 re-cuts both fixtures). **Ladder:** t-e23 14/14 · the pricing neighborhood 57/57 (real-school-corpus, discounts, pricing domain) · tsc 0.
 
 **Session-36 closeout census (2026-11-21):** **the five-shard full-vitest census 338 test files (337 passed + 1 skipped) / 5,606 passed / 0 failed / 5 skipped** (the +4 files / +60 tests over the S35 record attributed exactly to t-595 [9] + t-577 [19] + t-e22 [18] + t-e23 [14]) · `npx tsc --noEmit` 0 · `npx tsc -p electron/tsconfig.json --noEmit` 0 · the append-only guard OK (5 migrations, +0) · the unbounded-read guard OK (12 raw sites, 9 allowlisted, 0 active) · **Layer 2 RE-MEASURED GREEN — identical to the S35 record** (the desktop runner 810/0/10, the mirror 774/0/10/36, tier-4 784 equivalent / 0 errors / 0 warnings, sanity 820/820, canonical 319/319 — the E2.2 financial-domain changes preserved the equivalence corpus exactly) · the baseline moved citing T-595+T-577+E2.2+E2.3. **OPS-015/G2 live locks STAND** (zero live traffic beyond the standing GET-only probe set; zero deploys; zero cap lifts; zero packaged builds). **T-614 STILL OWNER-BLOCKED** (no Vercel cutover window + D-21 unconfirmed in-chat — the first task the moment the owner opens the window). Next: **E2.4 (the Devis service — devis.ts with the per-year pricingBasis, consuming the E2.3 fixtures)**.
+
+---
+
+## E2.4 — The Devis service (ROADMAP Phase 1 / 1.4–1.7): THE billing preview engine with the per-year pricingBasis
+
+**Problem IDs:** DUP-001 (FOUR billing engines, THREE remise strategies) · DUP-005 (mock↔supabase billing drift) · DUP-037 (the FIFTH site — the mock's remise-on-sticker divergence) · ARCH-037 (R-2 — the per-year pricing basis; the REAL_TUITION_BY_GRADE regen/delete itself stays in T-587/§16) · BUG-028 (the mock refund actorId parity pin, homed here per §6).
+
+**Status:** IN_PROGRESS (Session 37, 2026-11-22 — registered per §13 BEFORE code; the queue head after S36's E2.3).
+
+**Contract (per EXECUTION-PLAN §4 E2.4 / ROADMAP 1.4–1.7):** (1) NEW `src/domain/calc/pricing/devis.ts` — the ONE domain engine composing matrix+tuition, parameterized by a per-year `pricingBasis` (DUP-001 dies at the engine level): `DevisPricingBasis` (fiByGrade + scolariteByGrade + trancheStickersByGrade + per-class overrides + transportMatrix + early-payment policy + provenance) with `ERA_2026_2027_BASIS` (the REAL_* matrix — identical to the era-A fixture) and `ERA_2027_2026_BASIS` (consumed from the E2.3 era-B census: the per-class V1/2V/v3 stickers summing to FI+scolarité — the FI FOLDED into V1, remise on V1 only — verified against workbook B's own ETAT formulas: `=FI+scolarité[+transport]−remise`, the same FI/scolarité components as era A, the structural change being the folded tranche split; the diverging class codes 3AP/4AP/5AP + the special tracks registered as per-class overrides/side-entries) + `resolveDevisPricingBasis(academicYearStartYear)` (monotone newest-known-≤-year — never cementing the stale 2026-2027 fallback) + `computeStudentDevisPlan` (the canonical per-student installment plan — the policy reproducing today's #4 wiring per-era) + `computeFamilyDevis` (the family preview: per-student detail, totals, the 5%-of-scolarité early payment); (2) `compute-billing.ts` switches to the engine (the BillingInput/Billing shapes frozen — outputs identical for era A); (3) `registration-billing-wires.ts` maps the canonical plan onto the wire shapes (mapping only — the wire field contract unchanged; the per-student FI replaces the family-level flat fee; the proportional net-split amounts die); (4) the mock `buildRegistrationBilling` adopts the canonical wire construction (the `void remiseApplied` sticker divergence dies — mock and live produce the SAME installment plan for the same wizard input) + BUG-028: the mock `refund` actorId becomes required (the domain contract's own signature).
+
+**Verification:** NEW `src/tests/domain/t-e24-devis-service.test.ts` GREEN — the era-A equivalence matrix (the engine's outputs vs the pre-conversion computeBilling outputs on the representative workbook-A vectors — the E2.3 fixture's own representativeDevis + the sibling/sticker/full-annual/transport lanes), the era-B per-class gates (each class individually: sticker conservation V1+2V+v3 = FI+scolarité; the census cross-check; the remise-on-V1 arithmetic; the 3AP/4AP/5AP overrides), the era-separation delta (the same grade prices DIFFERENTLY per era), the resolveDevisPricingBasis monotone matrix, the mock↔live installment-plan parity (the SAME amounts/labels/dues from buildRegistrationBillingWires and the mock's buildRegistrationBilling for the same wizard input), and the BUG-028 signature parity pin · the affected existing suites (batch-registration family, t-437/t-439 re-enroll wires, t-060, t-517, real-school-corpus, pricing neighborhood) GREEN with the re-pinned canonical amounts · `npx tsc --noEmit` 0 · the full-vitest census at closeout.
+
+**Scope fences:** `src/domain/calc/pricing/devis.ts` (NEW) + `src/domain/calc/pricing/index.ts` (the barrel export) + `src/features/crm/batch-registration/compute-billing.ts` + `src/infrastructure/supabase/repositories/registration-billing-wires.ts` + `src/infrastructure/mock/repositories/student-repository.ts` (the buildRegistrationBilling region) + `src/infrastructure/mock/repositories/financial-repository.ts` (the refund signature ONLY) + `src/tests/domain/t-e24-devis-service.test.ts` (NEW) + the re-pinned existing suites + the docs/baseline closeout. NO migration files; NO workbook changes (read-only inputs); NO changes to the E2.3 fixtures (consumed as-is); the REAL_* constants stay (their regen/delete is T-587/§16's lane); the diagnostics consumption of the basis is T-587's lane.
+
+---
+
+## E2.7 — The render-phase setState fixes (ROADMAP Phase 1 / 1.10): the 5 files (BUG-011)
+
+**Problem IDs:** BUG-011 (render-phase setState in 5 files).
+
+**Status:** IN_PROGRESS (Session 37, 2026-11-22 — registered per §13 BEFORE code; the S-sized Phase-1 remainder executed second for the clean-stop rule — no dependency on E2.5/E2.6).
+
+**Contract (per EXECUTION-PLAN §4 E2.7 / ROADMAP 1.10):** the 5 BUG-011 files' render-phase `setState` calls relocated to effects/handlers (the exact file:line census re-verified at HEAD before the edit); zero behavior change beyond the re-render loop death.
+
+**Verification:** the affected React suites GREEN + NEW/extended per-file regression tests (the state derives from props/render inputs WITHOUT the render-phase write) · `npx tsc --noEmit` 0 · the full-vitest census at closeout.
+
+**Scope fences:** ONLY the 5 BUG-011 files + their tests + the docs/baseline closeout. NO migration files; no unrelated refactors.
+
+---
+
+## E2.5 — The formatting consolidation batch (ROADMAP Phase 1 / 1.8): the shared primitives
+
+**Problem IDs:** DUP-008..014, 019, 020, 022 (the duplicated formatting/label/date idioms) · BUG-014 (the date/timezone split) · S-U1 (person display helpers) · S-U4 (attendance date-key) · S-U5 (contact-actions).
+
+**Status:** IN_PROGRESS (Session 37, 2026-11-22 — registered per §13 BEFORE code; the Phase-1 remainder after E2.4/E2.7).
+
+**Contract (per EXECUTION-PLAN §4 E2.5 / ROADMAP 1.8):** the shared primitives (isoWindow, DZD formatting, dates, attendanceRate, label maps, periodMinutes, mapStudentRow, CYCLE_OF_GRADE, toIsoDate/currentAcademicYear, WhatsApp) with the BUG-014 date/timezone split folded into the shared dates primitive + the S-U1/S-U4/S-U5 folds; T-586's money-formatter unification (BUG-057) stays in T-586's lane.
+
+**Verification:** the affected suites GREEN + the visual spot-check of money copy pinned by the byte-format tests (the fr-FR space-grouping contract) · `npx tsc --noEmit` 0 · the full-vitest census at closeout.
+
+**Scope fences:** the shared primitive homes (NEW under the established shared/format homes) + the converted call sites + their tests + the docs/baseline closeout. NO migration files; no behavior changes (byte-identical outputs pinned per site).
+
+---
+
+## E2.6 — The client-side defect batch (ROADMAP Phase 1 / 1.9): each verified defect = its own fix + test
+
+**Problem IDs:** BUG-001 (terms) · BUG-002 (gpa args) · BUG-003 (revenue label) · BUG-004 (student-code filter, + the Android check) · BUG-005 (sort) · BUG-016 (memo) · BUG-022 (names) · BUG-023 (nulls) · BUG-024 (redaction) · BUG-025 (header drop) · BUG-026 (tab sync) · BUG-013 (role strings) · BUG-027 (copy) · BUG-010 (SuperAdmin stamp) · BUG-020 (pricing hardcode) · BUG-021 (cross-check overwrite) · BUG-028's mock-refund lane is E2.4's; the remainder here if any.
+
+**Status:** IN_PROGRESS (Session 37, 2026-11-22 — registered per §13 BEFORE code; the Phase-1 tail).
+
+**Contract (per EXECUTION-PLAN §4 E2.6 / ROADMAP 1.9):** each verified defect fixed with its own per-fix test (the defect list re-verified at HEAD before each edit — stale findings get corrections, not blind edits).
+
+**Verification:** per-fix tests GREEN · the affected neighborhoods GREEN · `npx tsc --noEmit` 0 · the full-vitest census at closeout.
+
+**Scope fences:** only the defect sites + their tests + the docs/baseline closeout. NO migration files; no drive-by refactors.
+
