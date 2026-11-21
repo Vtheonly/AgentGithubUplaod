@@ -69,8 +69,10 @@ const TEST_MANAGEMENT_TOKEN = "sbp_local-test-token";
 
 describe("T-575 A — the consolidated-baseline constants (the charter's audit of record)", () => {
   it("pins every census axis to the charter Part-2 table", () => {
-    expect(CONSOLIDATED_BASELINE.migrationCount).toBe(1);
-    expect(CONSOLIDATED_BASELINE.migrationVersion).toBe("0001");
+    // T-590..T-593 / Session 35: the Stage-A chain (0002..0005) moved the
+    // census to the whole applied chain.
+    expect(CONSOLIDATED_BASELINE.migrationCount).toBe(5);
+    expect(CONSOLIDATED_BASELINE.migrationVersion).toBe("0005");
     expect(CONSOLIDATED_BASELINE.publicTables).toBe(99);
     expect(CONSOLIDATED_BASELINE.views).toBe(14);
     expect(CONSOLIDATED_BASELINE.matviews).toBe(5);
@@ -153,7 +155,7 @@ const BASELINE_VIEWS = Array.from({ length: 14 }, (_, i) => `v_baseline_${i}`);
 
 function baselineCensus() {
   return {
-    migrations: { count: 1, version: "0001" },
+    migrations: { count: 5, version: "0005" },
     publicTables: 99,
     views: [...BASELINE_VIEWS],
     matviews: [...CONSOLIDATED_BASELINE.matviewNames],
@@ -605,7 +607,11 @@ function rowsForQuery(query: string, overrides: QueryOverrides = {}): Array<Reco
   if (query.includes("pg_trigger") && query.includes("'auth'")) return [{ n: "1" }];
   if (query.includes("pg_trigger")) return [{ n: "89" }];
   if (query.includes("relrowsecurity")) return [{ n: "99" }];
-  if (query.includes("supabase_migrations.schema_migrations")) return [{ version: "0001" }];
+  // T-590..T-593 / Session 35: the applied chain is 0001..0005 (the Stage-A
+  // SQL beside the consolidated baseline).
+  if (query.includes("supabase_migrations.schema_migrations")) return [
+    { version: "0001" }, { version: "0002" }, { version: "0003" }, { version: "0004" }, { version: "0005" },
+  ];
   if (query.includes("pg_proc")) return [{ n: "147" }];
   return [];
 }
@@ -768,7 +774,15 @@ describe("T-575 M — the migrations layout lane + deriveTargetRef", () => {
     const realFiles = readdirSync(join(repoDir, "supabase", "migrations")).filter((name) => name.endsWith(".sql"));
     const real = evaluateMigrationsLayout(realFiles);
     expect(real.ok).toBe(true);
-    expect(real.files).toEqual(["0001_initial_consolidated_schema.sql"]);
+    // T-590..T-593 / Session 35: the append-only chain grew — the Stage-A
+    // SQL ships beside the baseline (0002..0005); the baseline still leads.
+    expect(real.files).toEqual([
+      "0001_initial_consolidated_schema.sql",
+      "0002_stage_a_dashboard_aggregation.sql",
+      "0003_read_reconcile_inputs.sql",
+      "0004_pull_installments_for_sync.sql",
+      "0005_sync_apply_batch.sql",
+    ]);
 
     expect(evaluateMigrationsLayout(["0002_next.sql"]).ok).toBe(false); // the baseline is missing
     expect(evaluateMigrationsLayout(["0000_smuggled_before.sql", "0001_initial_consolidated_schema.sql"]).ok).toBe(false); // something sorts before it

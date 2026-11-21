@@ -366,3 +366,70 @@ export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
     throw err;
   }
 }
+
+// ============================================================================
+// T-593 (E7A-4 / ROADMAP 6.6) — the transactional batch sync dispatcher
+// ============================================================================
+
+/**
+ * T-593: the bounded batch size — one `sync_apply_batch` round trip carries
+ * at most 50 queued mutations (the 60 s statement timeout inside the RPC
+ * matches the ~50-entry apply+mark budget; a larger import drains as a
+ * handful of chunks — the 1,000-row import = ~20 requests instead of
+ * ~3-4,000, the OPS-015 class 4 collapse).
+ */
+export const SYNC_APPLY_BATCH_SIZE = 50;
+
+/**
+ * T-593: build ONE mutation object for `sync_apply_batch(p_mutations)` —
+ * the queue entry's own fields (the audit row the RPC upserts inside its
+ * transaction) + the payload verbatim. The RPC applies per-mutation
+ * through the SAME canonical upsert RPCs the per-item dispatcher maps to
+ * (the server-side mapping mirrors this file's camel/snake fallbacks +
+ * the blank→NULL/uuid-or-NULL normalization — migration 0005).
+ */
+function toBatchMutation(entry: SyncQueueEntry): Record<string, unknown> {
+  return {
+    id: entry.id,
+    entity: entry.entity,
+    operation: entry.operation,
+    tenant_id: entry.tenantId,
+    actor_id: entry.actorId ?? null,
+    payload: entry.payload ?? {},
+    source_file: entry.sourceFile ?? null,
+    import_run_id: entry.importRunId ?? null,
+    queued_at: entry.queuedAt ?? null,
+  };
+}
+
+/**
+ * T-593: the batch push dispatcher — ONE `sync_apply_batch` round trip per
+ * bounded chunk (the RPC's single transaction applies every mutation,
+ * upserts the queue rows, and bulk-marks them synced; a mid-batch failure
+ * RAISES and rolls back the applies AND the queue rows — the atomicity
+ * contract the failure-injection suite pins).
+ *
+ * The atomicity is ALL-or-NOTHING per chunk: when the RPC fails, this
+ * dispatcher THROWS the original error — the SyncService drain's
+ * soak-period fallback re-pushes the chunk per-item through
+ * `defaultPushHandler` (the unchanged per-entry attempts/backoff
+ * bookkeeping).
+ */
+export async function defaultBatchPushHandler(entries: SyncQueueEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  const { getSupabaseClient } = await import("../supabase/backend-access");
+  const client = getSupabaseClient();
+  for (let i = 0; i < entries.length; i += SYNC_APPLY_BATCH_SIZE) {
+    const chunk = entries.slice(i, i + SYNC_APPLY_BATCH_SIZE);
+    const { error } = await client.rpc("sync_apply_batch", {
+      p_mutations: chunk.map(toBatchMutation),
+    });
+    if (error) {
+      // FAIL LOUD (the SYNC-100 doctrine): the atomic chunk rolled back
+      // server-side; the drain's fallback owns the per-item retry.
+      throw error instanceof Error
+        ? error
+        : new Error(`sync_apply_batch failed: ${String((error as { message?: string })?.message ?? error)}`);
+    }
+  }
+}

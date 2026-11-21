@@ -23,7 +23,7 @@ import type {
   DemographicSlice,
 } from "../../../domain/model/operations";
 import { calculateAttendanceRate } from "../../../domain/model/academic";
-import type { AgingBucket } from "../../../domain/model/payment";
+import type { AgingBucket, Payment, Installment } from "../../../domain/model/payment";
 import { GRADE_LEVELS, GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER } from "../../../domain/model/student";
 import {
   agingBucketFromDays,
@@ -381,6 +381,57 @@ export class MockDashboardRepository implements DashboardRepository {
       };
     }
     return { fromMs: yearStart, toMs: yearEnd };
+  }
+
+  // ==========================================================================
+  // T-590 (E7A-1) — the bounded row-level reads (mock parity with the
+  // Supabase path's paymentsForRange / installmentsForYear).
+  // ==========================================================================
+
+  /**
+   * T-590: the payments inside [range.from, range.to) — the SAME UTC
+   * midnight / exclusive-end window semantics the Supabase keyset walk
+   * applies server-side and `inRange` applies client-side.
+   */
+  async paymentsForRange(range: DateRange): Promise<Result<readonly Payment[]>> {
+    await delay(120);
+    const fromMs = Date.parse(`${range.from.slice(0, 10)}T00:00:00Z`);
+    const toMs = Date.parse(`${range.to.slice(0, 10)}T00:00:00Z`);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+      return Ok([]);
+    }
+    return Ok(
+      store.payments.filter((p) => {
+        const t = Date.parse(p.collectedAt);
+        return Number.isFinite(t) && t >= fromMs && t < toMs;
+      }),
+    );
+  }
+
+  /**
+   * T-590: the installments inside the academic year's billing window
+   * ([Sept 1 start, Sept 1 next) over dueDate — the T-353 scoping,
+   * `installmentsForAcademicYear`'s exact semantics kept local to respect
+   * the boundaries rule [infrastructure never imports features]: an
+   * unparsed year code returns the stream unchanged; an invalid due date
+   * is excluded when a window exists.
+   */
+  async installmentsForYear(academicYear: string): Promise<Result<readonly Installment[]>> {
+    await delay(120);
+    const m = /^(\d{4})-(\d{4})$/.exec(academicYear);
+    if (!m) {
+      return Ok([...store.installments]);
+    }
+    const start = parseInt(m[1], 10);
+    const fromMs = Date.parse(`${start}-09-01T00:00:00Z`);
+    const toMs = Date.parse(`${start + 1}-09-01T00:00:00Z`);
+    return Ok(
+      store.installments.filter((i) => {
+        const due = Date.parse(i.dueDate);
+        if (Number.isNaN(due)) return false;
+        return due >= fromMs && due < toMs;
+      }),
+    );
   }
 }
 

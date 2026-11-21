@@ -1,0 +1,61 @@
+{
+  "_comment": "T-591 (E7A-2) — the unbounded-read guard's ALLOWLIST. Every entry is an EXISTING site the guard's heuristic flags but that is bounded by an equality/point/projection context the heuristic cannot see, or a documented legacy fallback. New unbounded reads are NOT allowlisted — add an entry only with a reason that names the bound. The guard (scripts/check-unbounded-reads.mjs) honors {file, lineStart, lineEnd?, table?, reason}.",
+  "entries": [
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "lineStart": 364,
+      "table": "students",
+      "reason": "The enrolledByClass census — a ONE-COLUMN projection (class_id) over the alive set feeding the per-class count map (the card count and the roster length can never disagree). ~1,137 rows × 1 short column; the aggregation-RPC lane supersedes it when the class census RPC is wired."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "lineStart": 1106,
+      "lineEnd": 1174,
+      "table": "attendance_records",
+      "reason": "The attendance tab's per-class reads — equality-bounded by (class_id, record_date) [the day reads] or (class_id, record_date range ≤ 7 days) [the 7-day read]. A class-day's roster is ≤ ~50 rows by construction (the uq_attendance_canonical unique key family)."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "lineStart": 1352,
+      "lineEnd": 1366,
+      "table": "attendance_records",
+      "reason": "The promotion-family absence census — bounded by the .in(\"student_id\", candidates) point set + the term window + the two absence statuses (the candidate roster, not the table)."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "lineStart": 1425,
+      "table": "attendance_records",
+      "reason": "The re-enrollment absence census — the same candidate-set + term-window bounds as the promotion-family read above."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+      "lineStart": 622,
+      "table": "calendar_events",
+      "reason": "The manual-events month read — [bounds.start, bounds.end) date-window bounded (the calendar's visible month; the population is the tenant's manual events inside one month)."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+      "lineStart": 641,
+      "table": "calendar_events",
+      "reason": "The exam population read — target_entity_type='exam' equality-scoped (the whole population IS the deliverable for the exams observable; a narrow, slow-growing slice by construction)."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "lineStart": 237,
+      "table": "attendance_records",
+      "reason": "The KPI legacy fallback's attendance-day slice — .eq(\"date\", todayStr) day-equality-bounded (the day's records only). The PRIMARY path is the 0002 read_dashboard_kpis RPC."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "lineStart": 631,
+      "table": "students",
+      "reason": "The demographics LEGACY fallback (version-skew / flag-off path) — the compact read_dashboard_demographics RPC is the primary path; this fallback projects 5 columns over the alive set and runs only when the RPC is absent."
+    },
+    {
+      "file": "src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts",
+      "lineStart": 455,
+      "table": "notifications",
+      "reason": "The stale-alert dedupe census — chunked .in(\"link_entity_id\", ≤100 ids) point-lookup pattern + the tenant/type/dismissed equality filters (the T-432 chunk convention; bounded by the tracked installment set, never the table)."
+    }
+  ]
+}

@@ -22,16 +22,77 @@ import type {
   DebtByAgingBucket,
   DemographicSlice,
 } from "../../../domain/model/operations";
-import type { AgingBucket } from "../../../domain/model/payment";
-import { buildWindowAnchoredBuckets, daysBetweenFloor, isStrictlyPast } from "../../../domain/calc/shared/dates";
+import type { AgingBucket, Installment, Payment } from "../../../domain/model/payment";
+import { buildWindowAnchoredBuckets, daysBetweenFloor, isStrictlyPast, MONTH_LABELS_FR } from "../../../domain/calc/shared/dates";
 import { agingBucketFromDays, isInstallmentOverdue } from "../../../domain/calc/payment/queries";
 import {
   callCollectionRpc,
   paginateKeyset,
   readWithSeedRetry,
+  mapPaymentRow,
+  mapInstallmentRow,
+  isRpcUnavailableError,
 } from "./supabase-shared-repositories";
 import type { PaymentRow, InstallmentRow } from "../types";
 import { GRADE_LEVEL_LABELS_FR, IMPORTED_BIRTH_DATE_PLACEHOLDER, type GradeLevel } from "../../../domain/model/student";
+
+// ============================================================================
+// T-590 (E7A-1 / ROADMAP 6.3) — the compact-RPC dashboard data path
+// ============================================================================
+
+/**
+ * T-590: the feature flag for the compact-RPC dashboard data path. Default
+ * ON — the aggregation RPCs (migration 0002) are the egress-minimal shape;
+ * `localStorage["el-imtiyaz.flags.dashboardRpc"] = "0"` forces the legacy
+ * client-side collection path (the documented fallback — the version-skew
+ * wire falls back automatically when the RPC is absent on the target DB).
+ */
+const DASHBOARD_RPC_FLAG_KEY = "el-imtiyaz.flags.dashboardRpc";
+function dashboardRpcPathEnabled(): boolean {
+  try {
+    return localStorage.getItem(DASHBOARD_RPC_FLAG_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+/** The compact KPI row shape `read_dashboard_kpis` returns (camelCase keys). */
+interface KpiRpcRow {
+  totalStudents: number | string;
+  totalParents: number | string;
+  totalStaff: number | string;
+  monthlyRevenue: number | string;
+  outstandingDebt: number | string;
+  overdueAlerts: number | string;
+  overdueAmount: number | string;
+  pendingExpenses: number | string;
+  attendancePresent: number | string;
+  attendanceTotal: number | string;
+}
+
+/** The month-bucket row `read_dashboard_revenue_by_month` returns. */
+interface RevenueMonthRpcRow {
+  year: number | string;
+  month: number | string;
+  amount: number | string;
+}
+
+/** The aging-bucket row `read_dashboard_debt_aging` returns. */
+interface AgingRpcRow {
+  bucket: string;
+  amount: number | string;
+  debtorCount: number | string;
+}
+
+/** The compact demographics census `read_dashboard_demographics` returns. */
+interface DemographicsCensusRow {
+  classes: Array<{ class_id: string; class_name: string | null; grade_code: string | null; student_count: number | string }> | null;
+  unassignedByLevel: Array<{ grade_level_code: string; count: number | string }> | null;
+  unassignedUnknown: number | string;
+  gender: { male: number | string; female: number | string; unspecified: number | string } | null;
+  ageBuckets: Array<{ min: number; max: number; count: number | string }> | null;
+  unknownBirthDate: number | string;
+}
 
 export class SupabaseDashboardRepository implements DashboardRepository {
   constructor(private readonly client: SupabaseClient) {}
@@ -84,6 +145,31 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     const tenantId = this.getTenantId();
 
     try {
+      // T-590 (E7A-1): the compact-RPC data path — ONE jsonb round trip
+      // (migration 0002's read_dashboard_kpis) instead of the full-collection
+      // reads below. Version skew (the RPC absent on the target DB) or the
+      // feature flag falls through to the legacy client-side path; a
+      // transient RPC failure rides the SAME retry ladder (readWithSeedRetry,
+      // the T-504 doctrine) and surfaces the SAME honest-Err (the "—"
+      // placeholders, never fabricated zeroes).
+      if (dashboardRpcPathEnabled()) {
+        const outcome = await readWithSeedRetry(() =>
+          this.callAggregateRpc<KpiRpcRow>("read_dashboard_kpis", {
+            p_academic_year: academicYear,
+            p_from: range?.from ? range.from.slice(0, 10) : null,
+            p_to: range?.to ? range.to.slice(0, 10) : null,
+            p_as_of: new Date().toISOString().slice(0, 10),
+          }),
+        );
+        if (outcome.ok && outcome.rows) {
+          return Ok(this.mapKpiRpcRow(outcome.rows));
+        }
+        if (!outcome.ok) {
+          console.warn("[SupabaseDashboard] kpisForRange RPC failed (honest Err):", outcome.error);
+          return Err(Errors.unknown(outcome.error instanceof Error ? outcome.error : new Error(String(outcome.error))));
+        }
+        // outcome.ok && !rows → version skew → the legacy path below.
+      }
       const now = new Date();
       // TIME-001 (T-426 Phase C, issue #24 Track 1 item 3): the KPI's
       // month window is constructed at UTC MIDNIGHT — the SAME convention
@@ -346,6 +432,36 @@ export class SupabaseDashboardRepository implements DashboardRepository {
           ? { from: range.from, to: range.to }
           : (this.academicYearWindow(academicYear) ?? undefined);
 
+      // T-590 (E7A-1): the compact-RPC path — the window-anchored month
+      // buckets (read_dashboard_revenue_by_month) in ONE round trip. The
+      // labels map client-side (MONTH_LABELS_FR — the SAME engine the
+      // legacy path's buildWindowAnchoredBuckets uses); an absent window
+      // keeps the legacy "[]" contract on both paths.
+      if (window && dashboardRpcPathEnabled()) {
+        const outcome = await readWithSeedRetry(() =>
+          this.callAggregateRpc<RevenueMonthRpcRow[]>("read_dashboard_revenue_by_month", {
+            p_from: window.from.slice(0, 10),
+            p_to: window.to.slice(0, 10),
+          }),
+        );
+        if (outcome.ok && outcome.rows) {
+          return Ok(
+            outcome.rows.map((r) => ({
+              label: MONTH_LABELS_FR[Number(r.month)] ?? String(r.month),
+              amount: Number(r.amount) || 0,
+            })),
+          );
+        }
+        if (!outcome.ok) {
+          console.warn("[SupabaseDashboard] revenueForRange RPC failed — degrading to [] (the legacy path's contract):", outcome.error);
+          return Ok([]);
+        }
+        // version skew → the legacy path below.
+      }
+      if (!window) {
+        return Ok([]);
+      }
+
       // T-424 (DATA-043): the RPC payments collection (every paid row —
       // the old single read was capped at 1,000 of 2,198 live), filtered
       // client-side with the SAME window semantics.
@@ -380,6 +496,40 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     const tenantId = this.getTenantId();
 
     const bucketKeys: AgingBucket[] = ["0_30", "31_60", "61_90", "91_180", "180_plus"];
+
+    // T-590 (E7A-1): the compact-RPC path — the per-installment aging
+    // aggregation (read_dashboard_debt_aging) in ONE round trip. Only
+    // past-due rows with a REAL remaining balance age (DATA-046 — the
+    // RPC's WHERE clause is the SQL twin of isStrictlyPast + the INV-4
+    // remaining predicate); every bucket row renders, missing buckets as
+    // honest zeros (the legacy shape).
+    if (dashboardRpcPathEnabled()) {
+      const outcome = await readWithSeedRetry(() =>
+        this.callAggregateRpc<AgingRpcRow[]>("read_dashboard_debt_aging", {
+          p_academic_year: academicYear,
+          p_as_of: new Date().toISOString().slice(0, 10),
+        }),
+      );
+      if (outcome.ok && outcome.rows) {
+        const byBucket = new Map(outcome.rows.map((r) => [String(r.bucket), r]));
+        return Ok(
+          bucketKeys.map((k) => {
+            const row = byBucket.get(k);
+            return {
+              bucket: k,
+              amount: Number(row?.amount) || 0,
+              debtorCount: Number(row?.debtorCount) || 0,
+            };
+          }),
+        );
+      }
+      if (!outcome.ok) {
+        console.warn("[SupabaseDashboard] debt aging RPC failed (honest Err, no fabricated buckets):", outcome.error);
+        return Err(Errors.unknown(outcome.error instanceof Error ? outcome.error : new Error(String(outcome.error))));
+      }
+      // version skew → the legacy path below.
+    }
+
     const bucketTotals = new Map<AgingBucket, { amount: number; parents: Set<string> }>();
     for (const k of bucketKeys) {
       bucketTotals.set(k, { amount: 0, parents: new Set<string>() });
@@ -446,6 +596,27 @@ export class SupabaseDashboardRepository implements DashboardRepository {
     const tenantId = this.getTenantId();
 
     try {
+      // T-590 (E7A-1): the compact-RPC path — the demographics census
+      // (read_dashboard_demographics: per-class counts, unassigned-by-level,
+      // gender, age buckets) in ONE round trip. The French label mapping
+      // stays HERE (GRADE_LEVEL_LABELS_FR — the SAME mapping the legacy
+      // loop applies), so the parity contract is the mapping + the census,
+      // not a second engine.
+      if (dashboardRpcPathEnabled()) {
+        const outcome = await readWithSeedRetry(() =>
+          this.callAggregateRpc<DemographicsCensusRow>("read_dashboard_demographics", {
+            p_as_of: new Date().toISOString().slice(0, 10),
+          }),
+        );
+        if (outcome.ok && outcome.rows) {
+          return Ok(this.mapDemographicsCensus(outcome.rows));
+        }
+        if (!outcome.ok) {
+          console.warn("[SupabaseDashboard] demographics RPC failed — degrading to empty slices (the legacy path's contract):", outcome.error);
+          return Ok({ grade: [], gender: [], age: [] });
+        }
+        // version skew → the legacy path below.
+      }
       // 1. Fetch only verified columns on students (no 'level' or 'grade_year').
       // T-339 (STATS-400): the classes query drops `capacity` — the fill-rate
       // slice was REMOVED (a class has no artificial maximum; the replacement
@@ -599,5 +770,241 @@ export class SupabaseDashboardRepository implements DashboardRepository {
         age: [],
       });
     }
+  }
+
+  // ==========================================================================
+  // T-590 (E7A-1) — the bounded row-level reads (the dashboard page's
+  // entity data): the full-tenant observable subscriptions DIE; the page
+  // fetches the range-bounded / year-bounded sets through these instead.
+  // ==========================================================================
+
+  /**
+   * T-590: the payments inside [range.from, range.to) — the dashboard's
+   * tab-level entity data (the analytics filters / the weekly rhythm / the
+   * see-details modal all consume the RANGE-bounded slice). A bounded
+   * keyset walk (server-side window filters + the id-cursor pages + the
+   * mapPaymentRow column projection) — never a full-tenant download.
+   */
+  async paymentsForRange(range: DateRange): Promise<Result<Payment[]>> {
+    const tenantId = this.getTenantId();
+    if (!range?.from || !range?.to) {
+      return Err(Errors.validation("paymentsForRange: a bounded from/to range is required"));
+    }
+    // The house window convention: UTC midnight bounds, exclusive end —
+    // the SAME bounds `applyAnalyticsFilters`/`inRange` apply client-side.
+    const fromTs = `${range.from.slice(0, 10)}T00:00:00Z`;
+    const toTs = `${range.to.slice(0, 10)}T00:00:00Z`;
+    const outcome = await readWithSeedRetry(async () => {
+      const rows = await paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("payments")
+          .select(
+            "id, tenant_id, parent_id, student_id, amount, method, category, status, collected_at, collected_by, created_at, updated_at, receipt_number, payment_number, installment_id, proof_path, notes, check_number, check_bank_name, check_issue_date, check_clearance_date, transfer_reference, transfer_source_bank, expected_amount, excess_amount, excess_remark, academic_year_id",
+          )
+          .eq("tenant_id", tenantId)
+          .gte("collected_at", fromTs)
+          .lt("collected_at", toTs);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as PaymentRow[],
+          error: error as { message: string } | null,
+        };
+      });
+      return rows.map(mapPaymentRow);
+    });
+    if (!outcome.ok) {
+      console.warn("[SupabaseDashboard] paymentsForRange failed (honest Err):", outcome.error);
+      return Err(Errors.unknown(outcome.error instanceof Error ? outcome.error : new Error(String(outcome.error))));
+    }
+    return Ok(outcome.rows);
+  }
+
+  /**
+   * T-590: the installments inside the academic year's billing window
+   * ([Sept 1 start, Sept 1 next) over due_date — the T-353 scoping the
+   * page previously applied client-side over the FULL tenant stream). A
+   * bounded keyset walk with the year window server-side; an unparseable
+   * year code keeps the honest no-window full walk (the client's
+   * "cannot scope" behavior). Mapped through the SAME mapInstallmentRow
+   * the shared cache uses — parity by construction.
+   */
+  async installmentsForYear(academicYear: string): Promise<Result<Installment[]>> {
+    const tenantId = this.getTenantId();
+    const window = this.academicYearWindow(academicYear);
+    const outcome = await readWithSeedRetry(async () => {
+      const rows = await paginateKeyset(async (lastId) => {
+        let base = this.client
+          .from("installments")
+          .select(
+            "id, tenant_id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note, academic_year_id",
+          )
+          .eq("tenant_id", tenantId);
+        if (window) {
+          base = base.gte("due_date", window.from).lt("due_date", window.to);
+        }
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as InstallmentRow[],
+          error: error as { message: string } | null,
+        };
+      });
+      // The shared cache's observable order contract: due_date ascending
+      // (ISO dates sort correctly as strings; Array.sort is stable).
+      return rows
+        .slice()
+        .sort((a, b) => String(a.due_date ?? "").localeCompare(String(b.due_date ?? "")))
+        .map(mapInstallmentRow);
+    });
+    if (!outcome.ok) {
+      console.warn("[SupabaseDashboard] installmentsForYear failed (honest Err):", outcome.error);
+      return Err(Errors.unknown(outcome.error instanceof Error ? outcome.error : new Error(String(outcome.error))));
+    }
+    return Ok(outcome.rows);
+  }
+
+  // ==========================================================================
+  // T-590 (E7A-1) — the compact-RPC helpers
+  // ==========================================================================
+
+  /**
+   * T-590: call one of the 0002 aggregation RPCs. Returns null on the
+   * unavailable class (version skew — the DB without 0002, a
+   * permission-deny shape, a client without the .rpc surface at all —
+   * the T-423 contract `callCollectionRpc` already established; the
+   * caller falls back to the legacy client-side path, the §15.62c
+   * convention); transient/other errors THROW (the readWithSeedRetry
+   * ladder upstream).
+   */
+  private async callAggregateRpc<T>(
+    fn: "read_dashboard_kpis" | "read_dashboard_revenue_by_month" | "read_dashboard_debt_aging" | "read_dashboard_demographics",
+    args: Record<string, unknown>,
+  ): Promise<T | null> {
+    let res: Awaited<ReturnType<SupabaseClient["rpc"]>>;
+    try {
+      res = await this.client.rpc(fn, args);
+    } catch (e) {
+      if (isRpcUnavailableError(e as { message?: string })) {
+        return null;
+      }
+      throw e;
+    }
+    if (res.error) {
+      if (isRpcUnavailableError(res.error as { code?: string; message?: string })) {
+        return null;
+      }
+      throw res.error;
+    }
+    return (res.data ?? null) as T | null;
+  }
+
+  /**
+   * T-590: map the compact KPI row. The attendance ratio is computed +
+   * rounded HERE (the SAME toFixed(2) arithmetic the legacy path applies —
+   * the RPC returns the raw present/total counts, so zero rounding drift).
+   */
+  private mapKpiRpcRow(row: KpiRpcRow): DashboardKpi {
+    const present = Number(row.attendancePresent) || 0;
+    const total = Number(row.attendanceTotal) || 0;
+    const attendanceRateToday = total > 0 ? Number(((present / total).toFixed(2))) : 1.0;
+    return {
+      totalStudents: Number(row.totalStudents) || 0,
+      totalParents: Number(row.totalParents) || 0,
+      totalStaff: Number(row.totalStaff) || 0,
+      monthlyRevenue: Number(row.monthlyRevenue) || 0,
+      outstandingDebt: Number(row.outstandingDebt) || 0,
+      overdueAmount: Number(row.overdueAmount) || 0,
+      pendingExpenses: Number(row.pendingExpenses) || 0,
+      attendanceRateToday,
+      overdueAlerts: Number(row.overdueAlerts) || 0,
+    };
+  }
+
+  /**
+   * T-590: map the compact demographics census — the EXACT mapping loop
+   * the legacy path applies over the student rows (class grade_code → the
+   * FR label, else the class name; an unassigned student groups by their
+   * enrolled grade_level_code, else "Non assigné"; counts MERGE by final
+   * label). The age buckets use the fixed ladder labels + the placeholder
+   * convention (DATA-018: NULL and 2000-01-01 are "Non renseigné").
+   */
+  private mapDemographicsCensus(c: DemographicsCensusRow): {
+    grade: DemographicSlice[];
+    gender: DemographicSlice[];
+    age: DemographicSlice[];
+  } {
+    const gradeCounts = new Map<string, number>();
+    for (const cls of c.classes ?? []) {
+      let gradeKey = "Non assigné";
+      if (cls.grade_code && cls.grade_code in GRADE_LEVEL_LABELS_FR) {
+        gradeKey = GRADE_LEVEL_LABELS_FR[cls.grade_code as GradeLevel];
+      } else {
+        gradeKey = cls.class_name || cls.class_id;
+      }
+      gradeCounts.set(gradeKey, (gradeCounts.get(gradeKey) ?? 0) + (Number(cls.student_count) || 0));
+    }
+    for (const lvl of c.unassignedByLevel ?? []) {
+      const gradeKey =
+        lvl.grade_level_code && lvl.grade_level_code in GRADE_LEVEL_LABELS_FR
+          ? GRADE_LEVEL_LABELS_FR[lvl.grade_level_code as GradeLevel]
+          : "Non assigné";
+      gradeCounts.set(gradeKey, (gradeCounts.get(gradeKey) ?? 0) + (Number(lvl.count) || 0));
+    }
+    const unassignedUnknown = Number(c.unassignedUnknown) || 0;
+    if (unassignedUnknown > 0) {
+      gradeCounts.set("Non assigné", (gradeCounts.get("Non assigné") ?? 0) + unassignedUnknown);
+    }
+    const totalStudents =
+      [...gradeCounts.values()].reduce((s, n) => s + n, 0) || 1;
+
+    const grade: DemographicSlice[] = Array.from(gradeCounts.entries()).map(([label, count]) => ({
+      label,
+      count,
+      percent: Math.round((count / totalStudents) * 100),
+    }));
+
+    const maleCount = Number(c.gender?.male) || 0;
+    const femaleCount = Number(c.gender?.female) || 0;
+    const unspecifiedCount = Number(c.gender?.unspecified) || 0;
+    const gender: DemographicSlice[] = [
+      { label: "Garçons", count: maleCount, percent: Math.round((maleCount / totalStudents) * 100) },
+      { label: "Filles", count: femaleCount, percent: Math.round((femaleCount / totalStudents) * 100) },
+    ];
+    if (unspecifiedCount > 0) {
+      gender.push({
+        label: "Non spécifié",
+        count: unspecifiedCount,
+        percent: Math.round((unspecifiedCount / totalStudents) * 100),
+      });
+    }
+
+    // The fixed age-bucket ladder (the legacy labels); the RPC counts by
+    // (as-of year − birth year) — the same year-minus-year convention.
+    const AGE_LADDER: Array<{ label: string; min: number; max: number }> = [
+      { label: "< 6 ans", min: 0, max: 5 },
+      { label: "6–8 ans", min: 6, max: 8 },
+      { label: "9–11 ans", min: 9, max: 11 },
+      { label: "12–14 ans", min: 12, max: 14 },
+      { label: "15–17 ans", min: 15, max: 17 },
+      { label: "18+ ans", min: 18, max: 120 },
+    ];
+    const age: DemographicSlice[] = AGE_LADDER.map((b) => {
+      const row = (c.ageBuckets ?? []).find((r) => Number(r.min) === b.min && Number(r.max) === b.max);
+      const count = Number(row?.count) || 0;
+      return { label: b.label, count, percent: Math.round((count / totalStudents) * 100) };
+    });
+    const unknownBirthDate = Number(c.unknownBirthDate) || 0;
+    if (unknownBirthDate > 0) {
+      age.push({
+        label: "Non renseigné",
+        count: unknownBirthDate,
+        percent: Math.round((unknownBirthDate / totalStudents) * 100),
+      });
+    }
+
+    return { grade, gender, age };
   }
 }

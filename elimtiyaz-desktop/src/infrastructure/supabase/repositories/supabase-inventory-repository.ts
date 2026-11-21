@@ -66,7 +66,7 @@ import type {
   InventoryItem,
   InventoryTransaction,
 } from "../../../domain/model/operations-workforce";
-import { getTenantId } from "./supabase-shared-repositories";
+import { getTenantId, paginateKeyset } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -423,30 +423,51 @@ export class SupabaseInventoryRepository implements InventoryRepository {
 
   private async refresh(): Promise<void> {
     try {
-      const { data: items, error: itemsError } = await this.client
-        .from("inventory_items")
-        .select("*")
-        .eq("tenant_id", getTenantId())
-        .is("deleted_at", null)
-        .order("name", { ascending: true })
-        .limit(1000);
-      if (itemsError) throw itemsError;
-      const mapped = (items ?? []).map((row: Record<string, unknown>) =>
-        mapItemRow(row as unknown as InventoryItemRow),
-      );
+      // T-591 (E7A-2 / BUG-063 h): the inventory pair walks the tenant-scoped
+      // KEYSET pages — the old two reads were capped at 1 000 items /
+      // 500 transactions (a catalog or a movement history silently truncated
+      // on mature tenants); the display orders (name ASC / transaction_at
+      // DESC) are restored in-memory (the paginateKeyset convention).
+      const [itemRows, txRows] = await Promise.all([
+        paginateKeyset(async (lastId) => {
+          const base = this.client
+            .from("inventory_items")
+            .select("*")
+            .eq("tenant_id", getTenantId())
+            .is("deleted_at", null);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: error as { message: string } | null,
+          };
+        }),
+        paginateKeyset(async (lastId) => {
+          const base = this.client
+            .from("inventory_transactions")
+            .select("*")
+            .eq("tenant_id", getTenantId());
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: error as { message: string } | null,
+          };
+        }),
+      ]);
+      const mapped = (itemRows as Array<Record<string, unknown>>)
+        .slice()
+        .sort((a, b) => String(a["name"] ?? "").localeCompare(String(b["name"] ?? "")))
+        .map((row) => mapItemRow(row as unknown as InventoryItemRow));
       this.itemsCache.set(mapped);
 
-      const { data: txs, error: txError } = await this.client
-        .from("inventory_transactions")
-        .select("*")
-        .eq("tenant_id", getTenantId())
-        .order("transaction_at", { ascending: false })
-        .limit(500);
-      if (txError) throw txError;
       this.txCache.set(
-        (txs ?? []).map((row: Record<string, unknown>) =>
-          mapTxRow(row as unknown as InventoryTransactionRow, mapped),
-        ),
+        (txRows as Array<Record<string, unknown>>)
+          .slice()
+          .sort((a, b) => String(b["transaction_at"] ?? "").localeCompare(String(a["transaction_at"] ?? "")))
+          .map((row) => mapTxRow(row as unknown as InventoryTransactionRow, mapped)),
       );
     } catch {
       // Silently degrade to the current caches.

@@ -92,7 +92,7 @@ export interface SyncActions {
   resolveConflict: (entryId: string, choices: ConflictChoices) => Promise<SyncQueueEntry | null>;
 }
 
-import { defaultPushHandler } from "../../infrastructure/sync/default-push-handler";
+import { defaultPushHandler, defaultBatchPushHandler } from "../../infrastructure/sync/default-push-handler";
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -114,6 +114,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       isSupabaseConfigured: () => isSupabaseConfigured(),
       isMockMode: () => !isSupabaseConfigured(),
       push: defaultPushHandler,
+      // T-593 (E7A-4): the transactional batch seam — the drain's ready set
+      // rides ONE `sync_apply_batch` round trip per bounded chunk (the
+      // per-item handler above stays the soak-period fallback).
+      pushBatch: defaultBatchPushHandler,
       autoStart: true,
       // T-298 (OFFLINE-400): the 3-way no-silent-overwrite guard — fetches
       // the live server row and parks entries whose payload diverges from it

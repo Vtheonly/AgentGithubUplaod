@@ -18,7 +18,7 @@ import { Ok, Err } from "../../../core/result";
 import { Errors } from "../../../core/app-error";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { SubjectBehavior } from "../../mock/subject-behavior";
-import { getTenantId, isUuid } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, paginateKeyset } from "./supabase-shared-repositories";
 import type {
   ErAggregationEvent,
   ErIdentityEdge,
@@ -201,13 +201,25 @@ export class SupabaseIdentityResolutionRepository implements IdentityResolutionR
   async listPriorObservations(): Promise<readonly ErPriorObservation[]> {
     const tenantId = getTenantId();
     if (!tenantId) return [];
-    const { data, error } = await this.client
-      .from("er_source_observations")
-      .select("source_system, source_record_id, payload_hash")
-      .eq("tenant_id", tenantId)
-      .limit(20000);
-    if (error || !data) return [];
-    return (data as Array<{ source_system: string; source_record_id: string; payload_hash: string }>).map(
+    // T-591 (E7A-2 / BUG-063 f): the observation census walks the
+    // tenant-scoped KEYSET pages — the old single read was capped at
+    // 20 000 rows (a dedupe census that silently truncated feeds the
+    // matcher a partial observation history — a WRONG match risk, not
+    // just an egress problem).
+    const rows = await paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("er_source_observations")
+        .select("id, source_system, source_record_id, payload_hash")
+        .eq("tenant_id", tenantId);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as Array<{ id: string }>,
+        error: error as { message: string } | null,
+      };
+    }).catch(() => [] as Array<{ source_system: string; source_record_id: string; payload_hash: string }>);
+    return ((rows as Array<{ source_system: string; source_record_id: string; payload_hash: string }>) ?? []).map(
       (r) => ({ sourceSystem: r.source_system, sourceRecordId: r.source_record_id, payloadHash: r.payload_hash }),
     );
   }
@@ -264,29 +276,60 @@ export class SupabaseIdentityResolutionRepository implements IdentityResolutionR
     try {
       const tenantId = getTenantId();
       if (!tenantId) return;
+      // T-591 (E7A-2 / BUG-063 f): the er_* quartet walks the tenant-scoped
+      // KEYSET pages — the old three parallel reads were capped at
+      // 2 000/4 000/2 000 rows (a proposal/edge/event census that silently
+      // truncated); the display order (created_at DESC) is restored
+      // in-memory per table (ISO timestamps sort correctly; stable sort).
+      const byCreatedDesc = (a: { created_at?: string | null }, b: { created_at?: string | null }) =>
+        String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
       const [p, e, v] = await Promise.all([
-        this.client
-          .from("er_match_proposals")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(2000),
-        this.client
-          .from("er_identity_edges")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(4000),
-        this.client
-          .from("er_aggregation_events")
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .order("created_at", { ascending: false })
-          .limit(2000),
+        paginateKeyset(async (lastId: string) => {
+          const base = this.client
+            .from("er_match_proposals")
+            .select("*")
+            .eq("tenant_id", tenantId);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: error as { message: string } | null,
+          };
+        }),
+        paginateKeyset(async (lastId: string) => {
+          const base = this.client
+            .from("er_identity_edges")
+            .select("*")
+            .eq("tenant_id", tenantId);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: error as { message: string } | null,
+          };
+        }),
+        paginateKeyset(async (lastId: string) => {
+          const base = this.client
+            .from("er_aggregation_events")
+            .select("*")
+            .eq("tenant_id", tenantId);
+          const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: error as { message: string } | null,
+          };
+        }),
       ]);
-      if (!p.error && p.data) this.proposals$.set((p.data as ErProposalRow[]).map(mapProposalRow));
-      if (!e.error && e.data) this.edges$.set((e.data as ErEdgeRow[]).map(mapEdgeRow));
-      if (!v.error && v.data) this.events$.set((v.data as ErEventRow[]).map(mapEventRow));
+      const proposals = (p as ErProposalRow[]).slice().sort(byCreatedDesc);
+      const edges = (e as ErEdgeRow[]).slice().sort(byCreatedDesc);
+      const events = (v as ErEventRow[]).slice().sort(byCreatedDesc);
+      this.proposals$.set(proposals.map(mapProposalRow));
+      this.edges$.set(edges.map(mapEdgeRow));
+      this.events$.set(events.map(mapEventRow));
     } finally {
       this.refreshing = false;
     }
