@@ -1,0 +1,12 @@
+{
+  "schoolWorkbook": {
+    "workbook": "Excel/متابعة تمدرس التلاميذ.xlsx",
+    "sha256": "15174e1b77e82e34e4878868d8a6d240fc7e93e6d5d827943b6e462e9bf69958",
+    "sizeBytes": 195516,
+    "note": "the school (attendance follow-up) workbook — registered where applicable (the pedagogy lane T-561..T-571 and the §16 gates)"
+  },
+  "external": {
+    "workbook": "ETAT 2024 -205.xlsx",
+    "status": "owner-supplied external fixture — ABSENT from the repo (an Owner Blocker for its lanes: the T-598 oracle + the §16 One-By-One gates where applicable); never a silent skip"
+  }
+}
