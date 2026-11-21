@@ -567,3 +567,27 @@ IS32 GET issue #32 comments (PAT)                        -> N/A (PAT not recover
 ```
 
 **Verdict:** OPS-011 is now **25-run-stable** (S2→S31) — the identical 402 signature on the OLD-project lane (re-confirmed through the recovered ANON lane; the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project answered (401 without a key = alive, uncapped — consistent with every prior run). **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-552 — the 17 bypass files' import-seam routing), which is G2-independent (zero live traffic, zero deploys, zero cap lifts, zero packaged builds).
+
+## Session 33 probe run (2026-11-21) — the Track 3 preflight-of-record session (T-575; OPS-011 26-run-stable)
+
+> **Environment note (fresh sandbox, fully recovered):** a brand-new sandbox opened this session — no clones, no node_modules, no `.secrets`. Reconstructed from the owner's in-chat credentials block: the three repos re-cloned (the PAT re-validated 200 below), `npm ci` clean in `elimtiyaz-desktop/`, the secrets re-stored OUTSIDE the repos (the S28 discipline). The full probe set ran this window (every lane answered).
+
+```
+Old project (vebfehrpzajhstyhinnw — quota-blocked source)
+P3oa GET /rest/v1/tenants?select=id&limit=1 (ANON)     -> 402 exceed_egress_quota (the quota body — UNCHANGED, the 26th identical signature)
+
+New project (gvuvibcsfjhwcjikgxql — the relocation target)
+P5n  GET /rest/v1/tenants?select=id&limit=1 (publishable) -> 404 PGRST205 "Could not find the table 'public.tenants' in the schema cache" (alive, uncapped, SCHEMA-EMPTY — the honest today-state; exactly the shape T-575's new preflight of record rejects as NOT parity until the §A.2 apply lands)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                       -> 200 VALID (this session's pushes landed through it: main 305f54ec→c67d053c + execution/session-33-t575-preflight)
+VC1  GET api.vercel.com/v2/user (PAT)                    -> 200 VALID
+
+Website lane
+W1   GET https://elimtiyaz-website.vercel.app/            -> 200 (the portal live; still OLD-project-pinned per the S27 audit — the T-614 redeploy pending, owner-gated)
+
+Owner gate
+IS32 GET issues/32/comments (AgentGithubUplaod, PAT)     -> 200, 0 comments (the 26th consecutive silent run; the execution authority remains the owner's standing chat directive of 2026-11-21 — G0 LIFTED permanently)
+```
+
+**Verdict:** OPS-011 is now **26-run-stable** (S2→S33) — the identical 402 signature on the OLD-project lane (the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged — the exact state T-575's census verdicts are built to name honestly). **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-575 — the preflight of record), which is G2-independent: zero live traffic, zero deploys, zero cap lifts, zero packaged builds (the new remote preflight lanes execute only inside a real packaging run, the t-573 precedent).
