@@ -52,7 +52,7 @@ Stage A lands) via a fresh Rules 1–5 pass — never mid-flight.
 ## Block B — to be appended at the END of `AGENTS_supabase.md` §6 ("Rules that came out of this (never violate)"), as item 7
 
 ```markdown
-7. **Migration consolidation is a CHARITY-FREE, egress-first discipline (OPS-020).**
+7. **Migration consolidation is a CONCATENATION-FREE, egress-first discipline (OPS-020).**
    It is never a concatenation of the historical chain, and it is never applied
    to a live project without a 100% local from-scratch reconstruction proof
    first (the full census: tables/views/matviews/functions/triggers/RLS
