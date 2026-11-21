@@ -497,3 +497,25 @@ IS32 GET repos/Vtheonly/AgentGithubUplaod/issues/32/comments (PAT) -> 200, 0 com
 ```
 
 **Verdict:** OPS-011 is now **22-run-stable** (S2→S28) — the identical 402 signature on the OLD-project lane; the blocker remains the plan/spend-cap layer (an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (the OPS-017 state unchanged). **G0 = LIFTED** per the owner's standing directive (2026-11-21) — the execution sessions are GO from Session 28 onward; OPS-015 + G2 still gate all live traffic/deploys/cap-lifts.
+
+## Session 29 probe run (2026-11-21) — the first full execution session (Track 1 + Track 2 complete; OPS-011 23-run-stable)
+
+```
+Old project (vebfehrpzajhstyhinnw)
+P2o  GET /rest/v1/ (secret)                           -> 402 (exceed_egress_quota — UNCHANGED, the 23rd identical signature)
+
+New project (gvuvibcsfjhwcjikgxql)
+P2n  GET /rest/v1/ (secret)                           -> 200 (alive, uncapped — unchanged)
+P3n  GET /rest/v1/students?select=id&limit=1 (secret) -> 404 PGRST205 (schema-empty — unchanged)
+P5n  GET /auth/v1/health (secret)                     -> 200 (GoTrue healthy)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                    -> 200 (VALID — the session's 8 commits + the merge all landed on origin/main)
+VC1  GET api.vercel.com/v2/user (PAT)                 -> 200 (VALID — ready for T-614's owner window)
+
+Owner gate
+IS32 GET repos/Vtheonly/AgentGithubUplaod/issues/32/comments (PAT) -> 200, 0 comments (the 24th consecutive silent run; the execution authority remains the owner's standing chat directive of 2026-11-21 — G0 LIFTED permanently)
+IS32 (android/website repos)                         -> not-an-array (issue #32 exists only on the hub repo — the established pattern)
+```
+
+**Verdict:** OPS-011 is now **23-run-stable** (S2→S29) — the identical 402 signature on the OLD-project lane; the blocker remains the plan/spend-cap layer (an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty. **The OPS-015 Track 2 code precondition (T-559 + T-560 + T-594) went GREEN this session** — the live-traffic/zero-deploy/zero-cap-lift locks still STAND (G2 unlifted), but their code-side precondition is satisfied; the remaining gates for any live window are the owner-side actions (D-21, the cutover-time secrets, the cap lift itself).
