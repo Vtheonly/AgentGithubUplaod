@@ -2,19 +2,13 @@
  * T-546 (UI-352 · UI-353 · UI-354) — the Clair Épuré + tooltip-math
  * regression suite. Pins the three legs of the owner's mandate:
  *
- *   1. LIGHT-THEME TOKEN SYSTEM (UI-352):
- *      - the Clair Épuré palette's border token is the strengthened slate
- *        (#94a3b8) and the index.css `.light` block carries the SAME value
- *        plus the channel twins + the 0% card-border strength;
- *      - the tailwind utilities map to the `rgb(var(--x-rgb) / <alpha>)`
- *        channel variables (the systemic rewiring that retired the
- *        !important override block);
- *      - the chart token mirrors are LIVE (each access re-reads the DOM
- *        token — the stale module-load capture is gone);
- *      - AGING_COLORS is a live proxy;
- *      - gridStroke/tooltip shadow flip with the active theme;
- *      - the SVG hardcoded whites were replaced by themed classes
- *        (source-scan: dag-canvas + insights-rail).
+ *   1. LIGHT-THEME TOKEN SYSTEM (UI-352) — extended by T-589 (D-19) with
+ *      the FULL-LIGHT FLIP pins: :root IS the light set, the boot chain
+ *      (index.html class + meta, electron backgroundColor, DEFAULTS.theme,
+ *      preset order) boots light, --radius-pill is defined (BUG-039), the
+ *      accordion keyframes are gone (DEAD-017), the blue-deep/blue-light
+ *      channel twins exist (ARCH-036), and the mix-cards stale capture is
+ *      dead (BUG-075).
  *
  *   2. THE SHARED TOOLTIP CONTRACT (UI-353):
  *      - TooltipContent no longer carries overflow-hidden, sits at z-[70]
@@ -82,21 +76,37 @@ describe("T-546 (UI-352) — the Clair Épuré token system", () => {
     expect(light?.colors.statusDanger).toBe("#dc2626");
   });
 
-  it("index.css: the .light block aligns border/status with the palette, carries the channel twins and the 0% card-border strength", () => {
+  it("T-589: :root IS the light set — the midnight values live under .dark (the inversion)", () => {
     const css = readModule("index.css");
-    // The light block (scoped slice between .light and the closing brace).
-    const lightStart = css.indexOf('.light,');
-    expect(lightStart).toBeGreaterThan(0);
-    const lightBlock = css.slice(lightStart, css.indexOf("}", css.indexOf("--ring", lightStart)));
-    expect(lightBlock).toContain("--status-success: #059669;");
-    expect(lightBlock).toContain("--brand-blue: #2563eb;");
-    expect(lightBlock).toContain("--brand-blue-rgb: 37 99 235;");
-    expect(lightBlock).toContain("--surface-panel-rgb: 255 255 255;");
-    expect(lightBlock).toContain("--border: 215 20% 62%;"); // #94a3b8 aligned
-    expect(lightBlock).toContain("--card-border-strength: 0%;");
-    expect(lightBlock).toContain("--brand-blue-light: #60a5fa;");
-    // The root (dark) keeps the softened card chrome.
-    expect(css).toContain("--card-border-strength: 60%;");
+    // The :root block (the default) carries the LIGHT surface set.
+    const rootStart = css.indexOf(":root {");
+    expect(rootStart).toBeGreaterThan(0);
+    const rootBlock = css.slice(rootStart, css.indexOf("}", css.indexOf("--ring", rootStart)));
+    expect(rootBlock).toContain("--status-success: #059669;");
+    expect(rootBlock).toContain("--brand-blue: #2563eb;");
+    expect(rootBlock).toContain("--brand-blue-rgb: 37 99 235;");
+    expect(rootBlock).toContain("--surface-panel: #ffffff;");
+    expect(rootBlock).toContain("--surface-panel-rgb: 255 255 255;");
+    expect(rootBlock).toContain("--border: 215 20% 62%;"); // #94a3b8 aligned
+    expect(rootBlock).toContain("--card-border-strength: 0%;");
+    expect(rootBlock).toContain("--brand-blue-light: #60a5fa;");
+    // T-589 (ARCH-036): the blue-deep/blue-light channel twins exist.
+    expect(rootBlock).toContain("--brand-blue-deep-rgb: 33 109 155;");
+    expect(rootBlock).toContain("--brand-blue-light-rgb: 96 165 250;");
+    // T-589 (BUG-039): the pill radius is defined at last.
+    expect(rootBlock).toContain("--radius-pill: 9999px;");
+
+    // The .dark block carries the midnight canvas — SELECTABLE, not default.
+    const darkStart = css.indexOf('.dark,\n  [data-theme="dark"] {');
+    expect(darkStart).toBeGreaterThan(rootStart);
+    const darkBlock = css.slice(darkStart, css.indexOf("}", css.indexOf("--ring", darkStart)));
+    expect(darkBlock).toContain("--status-success: #10b981;");
+    expect(darkBlock).toContain("--brand-blue: #349bd4;");
+    expect(darkBlock).toContain("--surface-background: #0b0d14;");
+    expect(darkBlock).toContain("--card-border-strength: 60%;");
+    // The dark twins follow the midnight hues.
+    expect(darkBlock).toContain("--brand-blue-light-rgb: 82 182 235;");
+
     // The retired override block is gone (the systemic rewiring replaced it).
     expect(css).not.toContain(".bg-surface-panel {");
     expect(css).not.toContain("color-mix(\n    in srgb,\n    var(--surface-panel) 95%");
@@ -109,9 +119,18 @@ describe("T-546 (UI-352) — the Clair Épuré token system", () => {
     expect(cfg).toContain('"rgb(var(--status-success-rgb) / <alpha-value>)"');
     expect(cfg).toContain('"rgb(var(--brand-blue-rgb) / <alpha-value>)"');
     expect(cfg).toContain('"rgb(var(--surface-panel-rgb) / <alpha-value>)"');
+    // T-589 (ARCH-036): blue-deep/blue-light join the channel variables.
+    expect(cfg).toContain('"rgb(var(--brand-blue-deep-rgb) / <alpha-value>)"');
+    expect(cfg).toContain('"rgb(var(--brand-blue-light-rgb) / <alpha-value>)"');
     // The static midnight hexes are gone from the utility mapping.
     expect(cfg).not.toContain('success: "#10b981"');
     expect(cfg).not.toContain('panel: "#111523"');
+    expect(cfg).not.toContain('"blue-deep": "#216d9b"');
+    expect(cfg).not.toContain('"blue-light": "#52b6eb"');
+    // T-589 (DEAD-017): the accordion keyframes/animations are deleted.
+    expect(cfg).not.toContain("accordion-down");
+    expect(cfg).not.toContain("accordion-up");
+    expect(cfg).not.toContain("radix-accordion-content-height");
   });
 
   it("the theme engine sets the -rgb channel twins for every hex token (custom palettes drive the utilities)", () => {
@@ -133,11 +152,15 @@ describe("T-546 (UI-352) — the Clair Épuré token system", () => {
     // The LIVE property: a token change AFTER first access is observed.
     fakeVars["--brand-blue"] = "#222222";
     expect(chartPalette.primary).toBe("#222222");
-    // Falls back to the canonical midnight hex when the DOM has nothing.
+    // T-589: falls back to the LIGHT-first hex when the DOM has nothing
+    // (:root IS the light set — the fallback mirrors the default theme).
     delete fakeVars["--brand-blue"];
-    expect(chartPalette.primary).toBe("#349bd4");
+    expect(chartPalette.primary).toBe("#2563eb");
+    expect(chartPalette.primaryLight).toBe("#60a5fa");
     // The status accents resolve live too.
     fakeVars["--status-success"] = "#059669";
+    expect(chartPalette.success).toBe("#059669");
+    delete fakeVars["--status-success"];
     expect(chartPalette.success).toBe("#059669");
   });
 
@@ -151,25 +174,31 @@ describe("T-546 (UI-352) — the Clair Épuré token system", () => {
     expect(AGING_COLORS["0_30"]).toBe("#059669");
     fakeVars["--status-success"] = "#10b981";
     expect(AGING_COLORS["0_30"]).toBe("#10b981");
-    // The canonical fallback holds when the DOM is silent.
+    // T-589: the canonical fallbacks are LIGHT-first when the DOM is silent.
     delete fakeVars["--status-success"];
-    expect(AGING_COLORS["0_30"]).toBe("#10b981");
-    expect(AGING_COLORS["91_180"]).toBe("#ef4444");
+    expect(AGING_COLORS["0_30"]).toBe("#059669");
+    expect(AGING_COLORS["91_180"]).toBe("#dc2626");
     expect(AGING_COLORS["180_plus"]).toBe("#836c68");
   });
 
-  it("gridStroke and the tooltip shadow are theme-aware; isDarkThemeActive follows the html class", () => {
+  it("gridStroke and the tooltip shadow are theme-aware; isDarkThemeActive follows the html class (T-589: light default)", () => {
+    // T-589 (D-19): no class at all = the LIGHT default (the pre-JS boot).
     document.documentElement.className = "";
-    expect(isDarkThemeActive()).toBe(true);
-    expect(DASHBOARD_THEME.gridStroke).toBe("rgba(255, 255, 255, 0.08)");
-
-    document.documentElement.className = "light";
     expect(isDarkThemeActive()).toBe(false);
     expect(DASHBOARD_THEME.gridStroke).toBe("rgba(15, 23, 42, 0.12)");
     expect(DASHBOARD_THEME.tooltipStyle.boxShadow).toContain("rgba(15, 23, 42, 0.18)");
 
+    document.documentElement.className = "light";
+    expect(isDarkThemeActive()).toBe(false);
+    expect(DASHBOARD_THEME.gridStroke).toBe("rgba(15, 23, 42, 0.12)");
+
     document.documentElement.className = "dark";
+    expect(isDarkThemeActive()).toBe(true);
+    expect(DASHBOARD_THEME.gridStroke).toBe("rgba(255, 255, 255, 0.08)");
     expect(DASHBOARD_THEME.tooltipStyle.boxShadow).toContain("rgba(0, 0, 0, 0.6)");
+    // T-589: the tooltip var() fallbacks are light-first.
+    expect(DASHBOARD_THEME.tooltipStyle.backgroundColor).toBe("var(--surface-elevated, #f4f7fc)");
+    expect(DASHBOARD_THEME.tooltipStyle.color).toBe("var(--foreground-bright, #16233b)");
   });
 
   it("the SVG hardcoded whites are gone: the DAG dot grid and the gauge track use themed classes", () => {
@@ -187,8 +216,68 @@ describe("T-546 (UI-352) — the Clair Épuré token system", () => {
   it("the sparkline tone stroke rides the live tokens (source contract)", () => {
     const spark = readModule("features/dashboard/components/sparkline-kpi-card.tsx");
     expect(spark).not.toContain("const STROKE_BY_TONE");
-    expect(spark).toContain('resolveToken("--brand-blue", "#349bd4")');
-    expect(spark).toContain('resolveToken("--status-success", "#10b981")');
+    // T-589: the fallbacks mirror the LIGHT :root set (the default).
+    expect(spark).toContain('resolveToken("--brand-blue", "#2563eb")');
+    expect(spark).toContain('resolveToken("--status-success", "#059669")');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. T-589 (D-19) — the full-light flip: the boot chain + BUG-075
+// ---------------------------------------------------------------------------
+
+describe("T-589 (D-19) — the full-light primary flip", () => {
+  it("the preset order puts Clair Épuré FIRST and the midnight set stays selectable", () => {
+    expect(PRESET_THEMES[0].id).toBe("light");
+    expect(PRESET_THEMES[0].isDark).toBe(false);
+    expect(PRESET_THEMES[0].name).toContain("Défaut");
+    const dark = PRESET_THEMES.find((t) => t.id === "dark");
+    expect(dark).toBeDefined();
+    expect(dark?.isDark).toBe(true);
+    // The rename: midnight is no longer "(Défaut)".
+    expect(dark?.name).toBe("Sombre Minuit");
+  });
+
+  it("the boot chain is light end to end: index.html class + meta, electron backgroundColor, DEFAULTS.theme", () => {
+    const html = readModule("../index.html");
+    expect(html).toContain('<html lang="fr" class="light">');
+    expect(html).not.toContain('class="dark"');
+    expect(html).toContain('<meta name="theme-color" content="#f7f9fb" />');
+
+    const mainCts = readModule("../electron/main.cts");
+    expect(mainCts).toContain('backgroundColor: "#f7f9fb"');
+    expect(mainCts).not.toContain('"#242526"');
+
+    const prefs = readModule("app/providers/user-preferences-provider.tsx");
+    expect(prefs).toContain('theme: "light"');
+    expect(prefs).not.toContain('theme: "dark"');
+  });
+
+  it("BUG-075: the mix-cards module-level color captures are dead (live resolvers)", () => {
+    const mix = readModule("features/dashboard/components/analytics/mix-cards.tsx");
+    expect(mix).not.toContain("const METHOD_COLORS");
+    expect(mix).not.toContain("const CATEGORY_COLORS");
+    expect(mix).toContain("function methodColor(");
+    expect(mix).toContain("function categoryColor(");
+  });
+
+  it("the AI chart/diagram SVGs ride the live tokens (no hardcoded midnight hexes)", () => {
+    const chart = readModule("features/ai/chart-svg.tsx");
+    expect(chart).not.toContain('"#2f8fd6"');
+    expect(chart).not.toContain('"#10b981"');
+    expect(chart).toContain('resolveToken("--brand-blue", "#2563eb")');
+
+    const diagram = readModule("features/ai/diagram-svg.tsx");
+    expect(diagram).not.toContain('"#2f8fd6"');
+    expect(diagram).toContain('resolveToken("--brand-blue", "#2563eb")');
+  });
+
+  it("the dashboard see-details modal tiles are live getters (no import-time capture)", () => {
+    const modal = readModule("features/dashboard/see-details-modal.tsx");
+    expect(modal).not.toContain('color: "#349bd4"');
+    expect(modal).not.toContain('color: "#eab308"');
+    expect(modal).toContain("get color() {");
+    expect(modal).toContain("return chartPalette.primary;");
   });
 });
 

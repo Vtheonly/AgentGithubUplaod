@@ -1,9 +1,12 @@
 <!doctype html>
-<html lang="fr" class="dark">
+<html lang="fr" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#242526" />
+    <!-- T-589 (D-19): light is the app-wide primary — the pre-JS boot surface
+         matches index.css :root (--surface-background) so there is no dark
+         flash before the theme engine applies the stored preference. -->
+    <meta name="theme-color" content="#f7f9fb" />
     <!--
       DESK-CSP-202 (T-108, 17th session): Content-Security-Policy for the
       Electron renderer. Removes the "Insecure Content-Security-Policy"

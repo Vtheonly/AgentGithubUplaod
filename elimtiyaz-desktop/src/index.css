@@ -11,8 +11,14 @@
  * and the palette gains --brand-violet / --brand-coral / --surface-hover.
  *
  * Color tokens are exposed as CSS variables so the palette can be themed
- * (dark default / light fallback) without touching component code.
- * Per the plan's discipline rule: ALWAYS use tokens, never hard-code hex.
+ * without touching component code. Per the plan's discipline rule: ALWAYS
+ * use tokens, never hard-code hex.
+ *
+ * T-589 (D-19, the owner's locked mandate): LIGHT is the app-wide PRIMARY.
+ * The :root block below IS the light surface set (Clair Épuré); the midnight
+ * values live under .dark/[data-theme="dark"] and remain SELECTABLE. The
+ * boot defaults (index.html class, meta theme-color, electron/main.cts
+ * backgroundColor, DEFAULTS.theme) all boot light in the SAME commit.
  *
  * PARITY CONTRACT (do not break, T-546-amended): every brand/status/surface
  * hex token below carries a `-rgb` channel twin ("r g b") consumed by
@@ -24,111 +30,39 @@
  * .light overrides, the theme-types.ts palette, AND the TS hex fallbacks
  * that mirror the tokens (`src/shared/ui/dashboard-theme.ts` chartPalette
  * getters, `tabs/types.ts` AGING_COLORS, `sparkline-kpi-card.tsx` tone
- * resolver) MUST change in the SAME commit.
+ * resolver) MUST change in the SAME commit. T-589: those TS fallbacks now
+ * mirror the LIGHT :root set (the default), and ARCH-036 adds the
+ * --brand-blue-deep/--brand-blue-light `-rgb` twins so NO tailwind entry
+ * stays a static hex.
  */
 @layer base {
   :root {
-    /* === Brand palette (plan §03.01, refreshed T-246) — T-546: each hex
-       carries its `-rgb` channel twin for the tailwind alpha utilities === */
-    --brand-blue: #349bd4;
-    --brand-blue-rgb: 52 155 212;
+    /* === Brand palette — T-589: the :root block IS the LIGHT set (the
+       app-wide primary, D-19); the midnight values live under .dark below.
+       T-546: every hex carries its `-rgb` channel twin for the tailwind
+       alpha utilities. T-589 (ARCH-036): blue-deep/blue-light gain their
+       twins — the last static-hex tailwind entries are re-mapped. === */
+    --brand-blue: #2563eb;
+    --brand-blue-rgb: 37 99 235;
     --brand-blue-deep: #216d9b;
-    --brand-blue-light: #52b6eb;
-    --brand-cyan: #3dd6d0;
-    --brand-cyan-rgb: 61 214 208;
-    --brand-violet: #8b5cf6;
-    --brand-violet-rgb: 139 92 246;
+    --brand-blue-deep-rgb: 33 109 155;
+    --brand-blue-light: #60a5fa;
+    --brand-blue-light-rgb: 96 165 250;
+    --brand-cyan: #0891b2;
+    --brand-cyan-rgb: 8 145 178;
+    --brand-violet: #7c3aed;
+    --brand-violet-rgb: 124 58 237;
     --brand-coral: #f43f5e;
     --brand-coral-rgb: 244 63 94;
     --brand-slate: #3b464c;
     --brand-slate-rgb: 59 70 76;
     --brand-brown: #836c68;
     --brand-brown-rgb: 131 108 104;
-    --brand-gold: #eab308;
-    --brand-gold-rgb: 234 179 8;
+    --brand-gold: #d97706;
+    --brand-gold-rgb: 217 119 6;
 
-    /* === Status palette (refreshed T-246 — crisper hues on midnight) === */
-    --status-success: #10b981;
-    --status-success-rgb: 16 185 129;
-    --status-warning: #f59e0b;
-    --status-warning-rgb: 245 158 11;
-    --status-danger: #ef4444;
-    --status-danger-rgb: 239 68 68;
-    --status-info: #0ea5e9;
-    --status-info-rgb: 14 165 233;
-    --status-neutral: #3b464c;
-    --status-neutral-rgb: 59 70 76;
-
-    /* === Dark theme (DEFAULT) — professional midnight (T-246) === */
-    --surface-background: #0b0d14;
-    --surface-background-rgb: 11 13 20;
-    --surface-panel: #111523;
-    --surface-panel-rgb: 17 21 35;
-    --surface-elevated: #181d30;
-    --surface-elevated-rgb: 24 29 48;
-    --surface-hover: #222842;
-    --surface-hover-rgb: 34 40 66;
-    --foreground-bright: #f8fafc;
-
-    /* T-546 (UI-352): how much of the panel color washes the card border
-       (the .dashboard-card / .card-header-clean mixes). Dark keeps the
-       historical 60%/70% softening on midnight; light sets 0% — the border
-       token is used at FULL strength so cards never dissolve into the
-       white canvas (the "borders that disappear" root cause). */
-    --card-border-strength: 60%;
-    --card-header-border-strength: 70%;
-
-    /* === shadcn/ui token mapping (dark theme default, midnight) === */
-    --background: 226 39% 6%;
-    --foreground: 210 40% 98%;
-
-    --card: 224 35% 10%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 224 35% 10%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 201 68% 52%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 223 28% 16%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 223 25% 14%;
-    --muted-foreground: 217 19% 65%;
-
-    --accent: 45 60% 55%;
-    --accent-foreground: 226 39% 6%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 223 24% 18%;
-    --input: 223 24% 18%;
-    --ring: 201 68% 52%;
-
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 24px;
-
-    --sidebar-width: 248px;
-    --sidebar-width-collapsed: 72px;
-    --topbar-height: 56px;
-  }
-
-  .light,
-  [data-theme="light"] {
-    /* Light theme — for daytime operation / low-glare environments.
-       Dark is the platform default (set in index.html <html class="dark">).
-       T-246: status accents get darker light-mode variants for text contrast
-       on white (the dark-mode values are tuned for the midnight canvas).
-       T-546 (UI-352): the variants now match theme-types.ts Clair Épuré
-       EXACTLY (success #059669 — the old #0e9f6e never reached the tailwind
-       utilities anyway), the border token is strengthened to #94a3b8
-       (slate-400 — visible at 1px on white, not heavy), the channel twins
-       follow, the focus ring rides the themed --brand-blue, and the card
-       chrome stops washing borders toward the white panel. */
+    /* === Status palette (T-246/T-546: the darker white-surface variants —
+       the midnight hues under .dark below are tuned for the dark canvas) === */
     --status-success: #059669;
     --status-success-rgb: 5 150 105;
     --status-warning: #d97706;
@@ -137,17 +71,10 @@
     --status-danger-rgb: 220 38 38;
     --status-info: #0284c7;
     --status-info-rgb: 2 132 199;
+    --status-neutral: #3b464c;
+    --status-neutral-rgb: 59 70 76;
 
-    --brand-blue: #2563eb;
-    --brand-blue-rgb: 37 99 235;
-    --brand-cyan: #0891b2;
-    --brand-cyan-rgb: 8 145 178;
-    --brand-violet: #7c3aed;
-    --brand-violet-rgb: 124 58 237;
-    --brand-gold: #d97706;
-    --brand-gold-rgb: 217 119 6;
-    --brand-blue-light: #60a5fa;
-
+    /* === Light theme (DEFAULT — T-589, D-19) === */
     --surface-background: #f7f9fb;
     --surface-background-rgb: 247 249 251;
     --surface-panel: #ffffff;
@@ -158,10 +85,12 @@
     --surface-hover-rgb: 238 242 249;
     --foreground-bright: #16233b;
 
-    /* T-546: light cards use the border token at full strength. */
+    /* T-546 (UI-352): light cards use the border token at full strength —
+       cards never dissolve into the white canvas. */
     --card-border-strength: 0%;
     --card-header-border-strength: 0%;
 
+    /* === shadcn/ui token mapping (light theme default — T-589) === */
     --background: 210 30% 98%;
     --foreground: 215 28% 17%;
 
@@ -190,6 +119,96 @@
     --border: 215 20% 62%;
     --input: 215 20% 62%;
     --ring: 201 68% 42%;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    /* BUG-039 (T-589): the pill radius the scrollbar thumb always referenced
+       but nobody defined — resolving to `initial` (0) since day one. */
+    --radius-pill: 9999px;
+
+    --sidebar-width: 248px;
+    --sidebar-width-collapsed: 72px;
+    --topbar-height: 56px;
+  }
+
+  /* T-589 (D-19): the midnight canvas of T-246 — SELECTABLE, no longer the
+     default. Source order after :root so the equal-specificity class wins
+     when the engine (or a stale stored preference) applies dark. */
+  .dark,
+  [data-theme="dark"] {
+    --brand-blue: #349bd4;
+    --brand-blue-rgb: 52 155 212;
+    --brand-blue-deep: #216d9b;
+    --brand-blue-deep-rgb: 33 109 155;
+    --brand-blue-light: #52b6eb;
+    --brand-blue-light-rgb: 82 182 235;
+    --brand-cyan: #3dd6d0;
+    --brand-cyan-rgb: 61 214 208;
+    --brand-violet: #8b5cf6;
+    --brand-violet-rgb: 139 92 246;
+    --brand-coral: #f43f5e;
+    --brand-coral-rgb: 244 63 94;
+    --brand-slate: #3b464c;
+    --brand-slate-rgb: 59 70 76;
+    --brand-brown: #836c68;
+    --brand-brown-rgb: 131 108 104;
+    --brand-gold: #eab308;
+    --brand-gold-rgb: 234 179 8;
+
+    --status-success: #10b981;
+    --status-success-rgb: 16 185 129;
+    --status-warning: #f59e0b;
+    --status-warning-rgb: 245 158 11;
+    --status-danger: #ef4444;
+    --status-danger-rgb: 239 68 68;
+    --status-info: #0ea5e9;
+    --status-info-rgb: 14 165 233;
+    --status-neutral: #3b464c;
+    --status-neutral-rgb: 59 70 76;
+
+    --surface-background: #0b0d14;
+    --surface-background-rgb: 11 13 20;
+    --surface-panel: #111523;
+    --surface-panel-rgb: 17 21 35;
+    --surface-elevated: #181d30;
+    --surface-elevated-rgb: 24 29 48;
+    --surface-hover: #222842;
+    --surface-hover-rgb: 34 40 66;
+    --foreground-bright: #f8fafc;
+
+    /* T-546: the historical 60%/70% softening returns on midnight. */
+    --card-border-strength: 60%;
+    --card-header-border-strength: 70%;
+
+    --background: 226 39% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 35% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 224 35% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 201 68% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 223 28% 16%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 223 25% 14%;
+    --muted-foreground: 217 19% 65%;
+
+    --accent: 45 60% 55%;
+    --accent-foreground: 226 39% 6%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 223 24% 18%;
+    --input: 223 24% 18%;
+    --ring: 201 68% 52%;
   }
 
   * {

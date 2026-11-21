@@ -188,7 +188,10 @@ function createWindow(): void {
     minHeight: MIN_WINDOW_HEIGHT,
     show: false,
     frame: false,
-    backgroundColor: "#242526",
+    // T-589 (D-19): light is the app-wide primary — the window boots the
+    // Clair Épuré canvas (index.css :root --surface-background) so the
+    // pre-render frame never flashes the retired midnight charcoal.
+    backgroundColor: "#f7f9fb",
     title: "El-Imtiyaz — Terminal Desktop",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),

@@ -41,14 +41,15 @@ export const AGING_COLORS: Record<string, string> = new Proxy(
     get(_target, prop: string | symbol): string | undefined {
       if (typeof prop !== "string") return undefined;
       switch (prop) {
+        // T-589: the fallbacks mirror the LIGHT :root set (the app default).
         case "0_30":
-          return resolveToken("--status-success", "#10b981");
+          return resolveToken("--status-success", "#059669");
         case "31_60":
-          return resolveToken("--status-info", "#0ea5e9");
+          return resolveToken("--status-info", "#0284c7");
         case "61_90":
-          return resolveToken("--status-warning", "#f59e0b");
+          return resolveToken("--status-warning", "#d97706");
         case "91_180":
-          return resolveToken("--status-danger", "#ef4444");
+          return resolveToken("--status-danger", "#dc2626");
         case "180_plus":
           return resolveToken("--brand-brown", "#836c68");
         default:

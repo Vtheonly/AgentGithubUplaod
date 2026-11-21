@@ -18,9 +18,10 @@
  * re-resolves the CSS variable on each ACCESS — the export shapes are
  * byte-compatible (`chartPalette.primary`, `DASHBOARD_THEME.gridStroke`
  * keep compiling; consumers need no change), and the values always reflect
- * the ACTIVE palette. The fallbacks remain the midnight hexes (the jsdom
- * test environment has no theme applied — parity with the previous
- * snapshots) and are the PARITY-CONTRACT twins of index.css/:root.
+ * the ACTIVE palette. T-589 (D-19): the fallbacks are now the LIGHT-first
+ * values — :root IS the light set, so a silent DOM mirrors the default
+ * theme, and the midnight values are only reached under .dark (parity
+ * with the index.css blocks in the SAME commit).
  */
 
 /** Resolve a CSS custom property with a canonical fallback (the ONE shared
@@ -39,14 +40,16 @@ export function resolveToken(name: string, fallback: string): string {
 }
 
 /** Is the app currently on a DARK palette? (the engine toggles
- *  documentElement.dark/.light + data-theme on every apply). */
+ *  documentElement.dark/.light + data-theme on every apply).
+ *  T-589 (D-19): LIGHT is the default — no class at all (the pre-JS boot
+ *  or a fresh jsdom) reads LIGHT; only an explicit .dark class reads dark. */
 export function isDarkThemeActive(): boolean {
   try {
-    if (typeof document === "undefined") return true;
+    if (typeof document === "undefined") return false;
     const root = document.documentElement;
-    return !root.classList.contains("light");
+    return root.classList.contains("dark");
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -65,22 +68,22 @@ export const chartPalette: Record<
   string
 > = {
   get primary() {
-    return resolveToken("--brand-blue", "#349bd4");
+    return resolveToken("--brand-blue", "#2563eb");
   },
   get primaryDeep() {
     return resolveToken("--brand-blue-deep", "#216d9b");
   },
   get primaryLight() {
-    return resolveToken("--brand-blue-light", "#52b6eb");
+    return resolveToken("--brand-blue-light", "#60a5fa");
   },
   get cyan() {
-    return resolveToken("--brand-cyan", "#3dd6d0");
+    return resolveToken("--brand-cyan", "#0891b2");
   },
   get violet() {
-    return resolveToken("--brand-violet", "#8b5cf6");
+    return resolveToken("--brand-violet", "#7c3aed");
   },
   get gold() {
-    return resolveToken("--brand-gold", "#eab308");
+    return resolveToken("--brand-gold", "#d97706");
   },
   get coral() {
     return resolveToken("--brand-coral", "#f43f5e");
@@ -89,16 +92,16 @@ export const chartPalette: Record<
     return resolveToken("--brand-slate", "#3b464c");
   },
   get success() {
-    return resolveToken("--status-success", "#10b981");
+    return resolveToken("--status-success", "#059669");
   },
   get danger() {
-    return resolveToken("--status-danger", "#ef4444");
+    return resolveToken("--status-danger", "#dc2626");
   },
   get warning() {
-    return resolveToken("--status-warning", "#f59e0b");
+    return resolveToken("--status-warning", "#d97706");
   },
   get info() {
-    return resolveToken("--status-info", "#0ea5e9");
+    return resolveToken("--status-info", "#0284c7");
   },
 };
 
@@ -130,10 +133,11 @@ export const DASHBOARD_THEME = {
    *  shadow softens on light (the midnight rgba(0,0,0,0.6) read as mud). */
   get tooltipStyle(): Record<string, string> {
     return {
-      backgroundColor: "var(--surface-elevated, #181d30)",
+      // T-589: the var() fallbacks are light-first (:root IS the light set).
+      backgroundColor: "var(--surface-elevated, #f4f7fc)",
       border: "1px solid hsl(var(--border) / 0.8)",
       borderRadius: "10px",
-      color: "var(--foreground-bright, #f8fafc)",
+      color: "var(--foreground-bright, #16233b)",
       fontSize: "12px",
       padding: "8px 12px",
       boxShadow: isDarkThemeActive()

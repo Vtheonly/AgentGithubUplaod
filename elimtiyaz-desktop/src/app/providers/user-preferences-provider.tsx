@@ -45,7 +45,8 @@ export interface UserPreferencesContextValue extends UserPreferences {
 const STORAGE_KEY = "el-imtiyaz:prefs";
 
 const DEFAULTS: UserPreferences = {
-  theme: "dark",
+  // T-589 (D-19): light is the app-wide primary — Clair Épuré boots by default.
+  theme: "light",
   locale: "fr",
   timezone: "Africa/Algiers",
   currency: "DZD",
@@ -141,7 +142,8 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
       saveStoredCustomThemes(next);
       return next;
     });
-    setPrefs((prev) => (prev.theme === id ? { ...prev, theme: "dark" } : prev));
+    // T-589: deleting the active custom theme falls back to the light default.
+    setPrefs((prev) => (prev.theme === id ? { ...prev, theme: "light" } : prev));
   }, []);
 
   const reset = useCallback(() => {

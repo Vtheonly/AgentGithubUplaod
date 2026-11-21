@@ -65,13 +65,16 @@ module.exports = {
         // T-546 (UI-352): mapped to the `-rgb` CHANNEL variables so every
         // utility (text/bg/border/fill/stroke + opacity modifiers) follows
         // the ACTIVE palette at runtime — the channel twins are defined in
-        // index.css (:root dark + .light) AND set inline by the theme engine
-        // for custom palettes. The static-hex era (which froze Clair Épuré
-        // onto the midnight values) ended here.
+        // index.css (:root light [T-589 default] + .dark) AND set inline by
+        // the theme engine for custom palettes. The static-hex era (which
+        // froze Clair Épuré onto the midnight values) ended here.
         brand: {
           blue: "rgb(var(--brand-blue-rgb) / <alpha-value>)",
-          "blue-deep": "#216d9b",
-          "blue-light": "#52b6eb",
+          // T-589 (ARCH-036): the last two static hexes join the channel
+          // variables — the twins now live in index.css :root (light) AND
+          // .dark, so deep/light utilities follow the active palette too.
+          "blue-deep": "rgb(var(--brand-blue-deep-rgb) / <alpha-value>)",
+          "blue-light": "rgb(var(--brand-blue-light-rgb) / <alpha-value>)",
           cyan: "rgb(var(--brand-cyan-rgb) / <alpha-value>)",
           violet: "rgb(var(--brand-violet-rgb) / <alpha-value>)",
           coral: "rgb(var(--brand-coral-rgb) / <alpha-value>)",
@@ -139,14 +142,9 @@ module.exports = {
           from: { transform: "translateY(8px)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
         },
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
+        // DEAD-017 (T-589): the Radix accordion keyframes + their animation
+        // entries deleted — no Radix Accordion exists in the dependency tree
+        // and no component ever consumed the animate-accordion-* classes.
       },
       animation: {
         "fade-in": "fade-in 200ms ease-out",
@@ -156,8 +154,6 @@ module.exports = {
         "slide-in-right": "slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)",
         "slide-out-right": "slide-out-right 200ms ease-in",
         "slide-up": "slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1)",
-        "accordion-down": "accordion-down 200ms ease-out",
-        "accordion-up": "accordion-up 200ms ease-out",
       },
     },
   },
