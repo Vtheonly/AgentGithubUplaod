@@ -7,14 +7,16 @@
 > Track 3 (T-550 → T-573 → T-552 → ARCH-046 → T-575 → T-574 → Cutover/Website T-614 → T-590..T-593 → T-595)
 > → T-577 (early right-click) → then Phases 1–5 (E2..E6) → §16 overhaul (T-587+T-612+T-613) per §2's parallelism.
 
+**Session-29 execution closeout (2026-11-21):** the FIRST full execution session — Track 1 + Track 2 COMPLETE (7 commits, all pushed on `execution/session-29-track1-baseline-green`: OPS-018 `ec376728` · T-549 `84acce5a` · T-559 `ab219ca7` · T-560 `5201dd64` · T-594 `2aa6c8e8` · the registrations `69b581bc`/`df3db783`; merged to main at the session close). The closeout census: **324 test files / 5,284 passed / 0 failed / 5 skipped · tsc 0 · Layer 2 equivalence GREEN** — `scripts/test-baseline.json` moved citing T-549 then T-559+T-560+T-594. RED-then-GREEN evidence on record for all three Track-2 tasks. **The OPS-015 Track 2 code precondition is GREEN; the live-traffic/zero-deploy/zero-cap-lift locks STAND pending the owner-side G2 actions.** The next session starts at **T-550 (the port seam) — Track 3 head**.
+
 **Session-28 G0-lift bootstrap closeout (2026-11-21, docs-only):** the queue installed per EXECUTION-PLAN §0.1; G0 marked LIFTED (here + EXECUTION-PLAN §1 + SESSION_LOG row 28); the GET-only probe set re-run (OPS-011 22-run-stable — the OLD-project cap UNCHANGED; the NEW project alive/uncapped/schema-empty; the GitHub + Vercel PATs VALID; recorded in 01-INFRASTRUCTURE-STATUS.md's Session 28 run). **Owner Blockers (unchanged, from §1/§5):** D-21 Google Auth Console redirect URI; the live DB password/EF/Vercel secrets at cutover time; the spend-cap lift on `vebfehrpzajhstyhinnw` (owner billing action); the external `ETAT 2024 -205.xlsx` + the filled `متابعة تمدرس التلاميذ.xlsx`.
 
 | Task | State | Next pointer |
 |---|---|---|
-| Commit 1 (OPS-018 path fix) | NOT STARTED | §3 Step 3 → then T-549 |
-| T-549 (BUG-038 clock) | NOT STARTED | §3 Step 4 → then Track 2 |
-| T-559 → T-560 ×5 → T-594 | NOT STARTED | §3 Step 5 → then Track 3 |
-| T-550 | NOT STARTED | → T-573 |
+| Commit 1 (OPS-018 path fix) | ✅ DONE — S29 `ec376728` (the 39 sites re-pointed; gates 1-5 green) | done |
+| T-549 (BUG-038 clock) | ✅ DONE — S29 `84acce5a` (t-502 8/8; the ladder green; baseline moved) | done |
+| T-559 → T-560 ×5 → T-594 | ✅ DONE — S29 `ab219ca7`/`5201dd64`/`2aa6c8e8` (13 new tests; RED controls on record) — **the OPS-015 Track 2 precondition GREEN** | done |
+| T-550 | NOT STARTED — **the next session's FIRST task** (Track 3 head) | → T-573 |
 | T-573 (relocation, Path 2 — no G2 needed) | NOT STARTED | → T-552 |
 | T-552 | NOT STARTED | → ARCH-046 |
 | ARCH-046 | NOT STARTED | → T-575 |
