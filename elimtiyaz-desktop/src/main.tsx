@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./app/app";
 import { initUserPreferences } from "./app/providers/user-preferences-provider";
 // T-388 (I18N-501): the webfonts are BUNDLED LOCALLY via @fontsource — the
@@ -33,19 +32,18 @@ import { startFinancialRealtime } from "./infrastructure/supabase/financial-real
 // the same values on mount (idempotent).
 initUserPreferences();
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
-// Finance uses repository Observables rather than TanStack Query, so keep its
-// cache freshness and Supabase Realtime bridge outside the query client.
+// T-592 (E7A-3) — THE ONE-COHERENT-CACHING-ARCHITECTURE DECISION
+// (ARCH-020 / F-U4 / L-13): the `QueryClientProvider` phantom mount is
+// PRUNED together with its `@tanstack/react-query` dependency. The app's
+// data layer is the repository-Observable stack (useObservable + the
+// SubjectBehavior caches + the CacheFreshness TTL policy + the T-592 delta
+// cache layer) — react-query was mounted but NEVER consumed (zero
+// useQuery/useMutation/useQueryClient sites; the provider below its own
+// comment admitted "Finance uses repository Observables rather than
+// TanStack Query"). ONE documented architecture; the E4.8 ADR lands in
+// its own lane.
+// Finance uses repository Observables — its cache freshness and the
+// Supabase Realtime bridge stay in the data layer itself.
 void startFinancialRealtime();
 
 const container = document.getElementById("root");
@@ -55,10 +53,8 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <HashRouter>
-        <App />
-      </HashRouter>
-    </QueryClientProvider>
+    <HashRouter>
+      <App />
+    </HashRouter>
   </StrictMode>,
 );

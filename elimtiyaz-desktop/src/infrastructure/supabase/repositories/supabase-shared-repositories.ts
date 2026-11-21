@@ -23,6 +23,16 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CacheFreshness } from "../cache-freshness";
+// T-592 (E7A-3): the delta cache layer — the import is RUNTIME-ONLY (the
+// pull/patch calls happen inside methods, never at module init), so the
+// delta-cache → shared-repositories edge (its isRpcUnavailableError
+// classification) forms a safe ESM cycle.
+import {
+  TableDeltaCursor,
+  pullTableDelta,
+  splitSoftDeletes,
+  applyRowsById,
+} from "../delta-cache";
 import type {
   ParentRepository,
   StudentRepository,
@@ -1178,6 +1188,8 @@ export class SupabaseParentRepository implements ParentRepository {
   private readonly byIdCache = new Map<string, SubjectBehavior<Parent | null>>();
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-592 (E7A-3): the incremental delta cursor — lives with the cache.
+  private readonly deltaCursor = new TableDeltaCursor("parents");
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -1186,6 +1198,34 @@ export class SupabaseParentRepository implements ParentRepository {
     this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
+      // T-592 (E7A-3): THE DELTA LANE — the 30 s / focus re-seed pulls ONLY
+      // the rows changed since the instance cursor (the 0143 composite
+      // keyset over pull_parents_for_sync — its NULL p_since branch IS the
+      // full cold walk); the cold start walks the full roster through the
+      // SAME primitive. The re-seed volley dies; a soft-deleted parent
+      // row (0011 — deleted_at + updated_at bump) propagates as a
+      // REMOVAL. last_name asc restored in-memory on both paths (lastName
+      // is the raw column verbatim — identical ordering).
+      const delta = await pullTableDelta(this.client, "parents", {
+        tenantId,
+        cursor: this.deltaCursor.get(),
+      });
+      if (delta) {
+        if (delta.isColdStart) {
+          this.deltaCursor.set(delta.cursor);
+          this.cache.set(sortByRawColumn(delta.rows as unknown as ParentRow[], "last_name", true).map(mapParentRow));
+          return;
+        }
+        const { alive, deadIds } = splitSoftDeletes(delta.rows);
+        const patched = applyRowsById(
+          this.cache.get(),
+          alive.map((r) => mapParentRow(r as unknown as ParentRow)),
+          { removeIds: deadIds },
+        );
+        this.deltaCursor.set(delta.cursor);
+        this.cache.set(patched.slice().sort((a, b) => String(a.lastName).localeCompare(String(b.lastName))));
+        return;
+      }
       // T-423 (Phase A3 / DATA-040 — the class sweep): keyset-paginated for
       // the same cap reason as the students seed (live parents = 741, under
       // the cap today — one growth-year away from silently dropping the
@@ -1223,6 +1263,9 @@ export class SupabaseParentRepository implements ParentRepository {
    */
   async refresh(): Promise<void> {
     this.freshness.forceRefresh();
+    // T-592 (E7A-3): the manual refresh is the COLD path — the cursor
+    // resets and the next seed walks the full roster.
+    this.deltaCursor.reset();
     await this.seed();
   }
 
@@ -1494,6 +1537,15 @@ export class SupabaseStudentRepository implements StudentRepository {
     this.freshness.markSeeded();
     try {
       const tenantId = requireTenantId();
+      // T-592 (E7A-3) — THE DOCUMENTED DEVIATION: the students cache KEEPS the
+      // full keyset walk (no delta lane): the seed's embedded composition
+      // (SYNC-110 documents + T-402 histories composed INTO the student
+      // rows) makes a student-rows-only delta incomplete — a patched student
+      // would arrive without its documents/history. The students volley
+      // (1,137 rows — ~9% of the class) stays on the TTL full walk; the fix
+      // lane is the E7B-2 document/history delta (the one-commit path's
+      // own primitive). The OTHER four caches (payments · installments ·
+      // ledger · parents — 12,244 rows/cycle) ride the delta lane above.
       // T-423 (Phase A3 / DATA-040 — the class sweep): the students seed was
       // ONE unpaginated read — PostgREST's 1,000-row cap silently dropped
       // every student past the first thousand ordered by last_name (live:
@@ -2318,6 +2370,8 @@ export class SupabasePaymentRepository implements PaymentRepository {
   private readonly cache = new SubjectBehavior<Payment[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-592 (E7A-3): the incremental delta cursor — lives with the cache.
+  private readonly deltaCursor = new TableDeltaCursor("payments");
   // T-411 (DATA-029): the allocations stream state.
   private readonly allocationsCache = new SubjectBehavior<readonly PaymentAllocation[]>([]);
   private readonly allocationsFreshness = new CacheFreshness();
@@ -2335,6 +2389,31 @@ export class SupabasePaymentRepository implements PaymentRepository {
     // rendered 57014 timeouts as confident 0 DZD KPIs).
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
+      // T-592 (E7A-3): THE DELTA LANE — the 30 s / focus re-seed pulls ONLY
+      // the rows changed since the instance cursor (the 0143 composite
+      // keyset over pull_payments_for_sync); the cold start (a fresh
+      // repository instance — the cursor lives with the cache) walks the
+      // full set through the SAME primitive. Version skew (the pull RPC
+      // absent) falls through to the collection read below. The re-seed
+      // volley (the whole payments collection every TTL tick) dies.
+      const delta = await pullTableDelta(this.client, "payments", {
+        tenantId,
+        cursor: this.deltaCursor.get(),
+      });
+      if (delta) {
+        if (delta.isColdStart) {
+          this.deltaCursor.set(delta.cursor);
+          return sortByRawColumn(delta.rows as unknown as PaymentRow[], "collected_at", false).map(mapPaymentRow);
+        }
+        const { alive, deadIds } = splitSoftDeletes(delta.rows);
+        const patched = applyRowsById(
+          this.cache.get(),
+          alive.map((r) => mapPaymentRow(r as unknown as PaymentRow)),
+          { removeIds: deadIds },
+        );
+        this.deltaCursor.set(delta.cursor);
+        return patched.slice().sort((a, b) => String(b.collectedAt).localeCompare(String(a.collectedAt)));
+      }
       // T-423 (Phase B / PERF-505): RPC FIRST — the SECURITY DEFINER
       // read_payments_collection (migration 0123) bypasses the per-row RLS
       // policy chain that makes the direct reads 6.5–19.9 s at 80–90%
@@ -2368,6 +2447,9 @@ export class SupabasePaymentRepository implements PaymentRepository {
    */
   async refresh(): Promise<void> {
     this.freshness.forceRefresh();
+    // T-592 (E7A-3): the manual refresh is the COLD path — the cursor
+    // resets and the next seed walks the full set.
+    this.deltaCursor.reset();
     await this.seed();
   }
 
@@ -3054,6 +3136,8 @@ export class SupabaseLedgerRepository implements LedgerRepository {
   private readonly cache = new SubjectBehavior<LedgerEntry[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-592 (E7A-3): the incremental delta cursor — lives with the cache.
+  private readonly deltaCursor = new TableDeltaCursor("ledger_entries");
 
   constructor(private readonly client: SupabaseClient) {}
 
@@ -3065,6 +3149,31 @@ export class SupabaseLedgerRepository implements LedgerRepository {
     // empty ledger — the receipts and diagnostic surfaces showed nothing).
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
+      // T-592 (E7A-3): THE DELTA LANE — the 30 s / focus re-seed pulls ONLY
+      // the rows changed since the instance cursor (the 0143 composite
+      // keyset over pull_ledger_entries_for_sync); the cold start walks the
+      // full ledger through the SAME primitive. The 3,342-row re-seed
+      // volley dies. The warm patch restores entry_date-desc order through
+      // the mapped `at` field (at ?? entry_date — identical for the at-null
+      // majority; the at-carrying rows sort by their true display instant).
+      const delta = await pullTableDelta(this.client, "ledger_entries", {
+        tenantId,
+        cursor: this.deltaCursor.get(),
+      });
+      if (delta) {
+        if (delta.isColdStart) {
+          this.deltaCursor.set(delta.cursor);
+          return sortByRawColumn(delta.rows as unknown as LedgerEntryRow[], "entry_date", false).map(mapLedgerRow);
+        }
+        const { alive, deadIds } = splitSoftDeletes(delta.rows);
+        const patched = applyRowsById(
+          this.cache.get(),
+          alive.map((r) => mapLedgerRow(r as unknown as LedgerEntryRow)),
+          { removeIds: deadIds },
+        );
+        this.deltaCursor.set(delta.cursor);
+        return patched.slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      }
       // T-423 (Phase B / PERF-505): RPC FIRST — read_ledger_entries_collection
       // (migration 0123): the full ledger in one immune round trip. Direct
       // keyset fallback for version skew.
@@ -3097,6 +3206,9 @@ export class SupabaseLedgerRepository implements LedgerRepository {
    */
   async refresh(): Promise<void> {
     this.freshness.forceRefresh();
+    // T-592 (E7A-3): the manual refresh is the COLD path — the cursor
+    // resets and the next seed walks the full ledger.
+    this.deltaCursor.reset();
     await this.seed();
   }
 
@@ -3642,6 +3754,8 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   private readonly cache = new SubjectBehavior<Installment[]>([]);
   // T-034/CROSS-104: TTL + focus freshness policy (replaces the one-shot seeded flag)
   private readonly freshness = new CacheFreshness();
+  // T-592 (E7A-3): the incremental delta cursor — lives with the cache.
+  private readonly deltaCursor = new TableDeltaCursor("installments");
   /**
    * T-436 (ADR-030): the tenant's academic-year windows for the import
    * stamping — fetched once per repository lifetime (the same rows the
@@ -3709,6 +3823,31 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
     // "Aucune tranche T1/T2/T3" with zero error indication.
     const outcome = await readWithSeedRetry(async () => {
       const tenantId = requireTenantId();
+      // T-592 (E7A-3): THE DELTA LANE — the 30 s / focus re-seed pulls ONLY
+      // the rows changed since the instance cursor (the 0143 composite
+      // keyset over pull_installments_for_sync, migration 0004); the cold
+      // start walks the full schedule through the SAME primitive. The
+      // 5,963-row re-seed volley dies. Version skew → the collection read
+      // below. due_date asc restored in-memory on both paths (dueDate is
+      // the raw column verbatim — identical ordering).
+      const delta = await pullTableDelta(this.client, "installments", {
+        tenantId,
+        cursor: this.deltaCursor.get(),
+      });
+      if (delta) {
+        if (delta.isColdStart) {
+          this.deltaCursor.set(delta.cursor);
+          return sortByRawColumn(delta.rows as unknown as InstallmentRow[], "due_date", true).map(mapInstallmentRow);
+        }
+        const { alive, deadIds } = splitSoftDeletes(delta.rows);
+        const patched = applyRowsById(
+          this.cache.get(),
+          alive.map((r) => mapInstallmentRow(r as unknown as InstallmentRow)),
+          { removeIds: deadIds },
+        );
+        this.deltaCursor.set(delta.cursor);
+        return patched.slice().sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+      }
       // T-423 (Phase B / PERF-505): RPC FIRST — read_installments_collection
       // (migration 0123): the whole schedule (all tranches, T1+T2+T3) in one
       // immune round trip. Direct keyset fallback for version skew.
@@ -3740,6 +3879,9 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
    */
   async refresh(): Promise<void> {
     this.freshness.forceRefresh();
+    // T-592 (E7A-3): the manual refresh is the COLD path — the cursor
+    // resets and the next seed walks the full schedule.
+    this.deltaCursor.reset();
     await this.seed();
   }
 
