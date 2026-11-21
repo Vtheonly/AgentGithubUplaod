@@ -591,3 +591,28 @@ IS32 GET issues/32/comments (AgentGithubUplaod, PAT)     -> 200, 0 comments (the
 ```
 
 **Verdict:** OPS-011 is now **26-run-stable** (S2→S33) — the identical 402 signature on the OLD-project lane (the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged — the exact state T-575's census verdicts are built to name honestly). **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-575 — the preflight of record), which is G2-independent: zero live traffic, zero deploys, zero cap lifts, zero packaged builds (the new remote preflight lanes execute only inside a real packaging run, the t-573 precedent).
+
+## Session 34 probe run (2026-11-21) — the relocation-auth-tooling session (T-574; OPS-011 27-run-stable)
+
+> **Environment note (fresh sandbox, fully recovered):** the secrets store (`/home/z/my-project/.secrets/credentials.env` + `github.pat`) survived this window — the PAT re-validated 200 below and both session commits (`033a89e5` → `0f9af36c`) pushed through it. The full GET-only probe set ran (every lane answered).
+
+```
+Old project (vebfehrpzajhstyhinnw — quota-blocked source)
+P3oa GET /rest/v1/tenants?select=id&limit=1 (ANON)     -> 402 exceed_egress_quota (the quota body message — UNCHANGED, the 27th identical signature)
+
+New project (gvuvibcsfjhwcjikgxql — the relocation target)
+P3n  GET /rest/v1/tenants?select=id&limit=1 (publishable) -> 404 PGRST205 "Could not find the table 'public.tenants' in the schema cache" (alive, uncapped, SCHEMA-EMPTY — the honest today-state; exactly the state T-575's preflight of record rejects as NOT parity until the §A.2 apply lands)
+P5n  GET /auth/v1/health (publishable)                    -> 200 (GoTrue healthy — version v2.198.0; the lane T-574's auth tooling targets)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                        -> 200 VALID (this session's pushes landed through it: execution/session-34-t574-relocation-auth)
+VC1  GET api.vercel.com/v2/user (PAT)                     -> 200 VALID (user merselfares2-9361 — ready for T-614's owner window)
+
+Website lane
+W1   GET https://elimtiyaz-website.vercel.app/            -> 200 (the portal live; still OLD-project-pinned per the S27 audit — the T-614 redeploy pending, owner-gated)
+
+Owner gate
+IS32 GET issues/32/comments (AgentGithubUplaod, PAT)      -> 200, 0 comments (the 27th consecutive silent run; the execution authority remains the owner's standing chat directive of 2026-11-21 — G0 LIFTED permanently)
+```
+
+**Verdict:** OPS-011 is now **27-run-stable** (S2→S34) — the identical 402 signature on the OLD-project lane (the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged) — and its GoTrue service answered healthy (v2.198.0), the exact lane T-574's tooling addresses at the owner's cutover window. **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-574 — the relocation auth tooling), which is G2-independent: zero live traffic beyond the standing GET-only probe set, zero deploys, zero cap lifts, zero packaged builds (the tool's remote lanes execute only at the owner's cutover window, the t-575 precedent).
