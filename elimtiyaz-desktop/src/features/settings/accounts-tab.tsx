@@ -22,7 +22,7 @@
  * assign_role surface is the registered SEC-107 escalation).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
@@ -57,27 +57,44 @@ export function AccountsTab() {
   const [pendingDelete, setPendingDelete] = useState<AccountOverviewEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const lastLoadErrorRef = useRef<string | null>(null);
+
   const refreshAccounts = useCallback(async () => {
     setLoadingAccounts(true);
     const result = await repos.userAccounts.listAccounts();
     if (result.ok) {
       setAccounts(result.value);
+      lastLoadErrorRef.current = null;
     } else {
       setAccounts(null);
-      showError(
-        "Chargement impossible",
-        result.error.userMessage ?? result.error.message,
-      );
+      // T-560: the identical-consecutive-error-toast dedupe — the SAME
+      // failure twice in a row renders ONE toast, not N (the loop's visible
+      // symptom); a different message still toasts (honest failures).
+      const message = result.error.userMessage ?? result.error.message;
+      if (lastLoadErrorRef.current !== message) {
+        lastLoadErrorRef.current = message;
+        showError("Chargement impossible", message);
+      }
     }
     setLoadingAccounts(false);
   }, [repos.userAccounts, showError]);
 
+  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
+  // the load fires on MOUNT + role arrival and on EXPLICIT refresh only
+  // (create/delete flows call `refreshAccounts` directly). The callback is
+  // read through a ref so no identity churn (toast context, repos object,
+  // parent re-render) can ever re-fire the network load.
+  const refreshAccountsRef = useRef(refreshAccounts);
+  refreshAccountsRef.current = refreshAccounts;
+  const loadGenerationRef = useRef(0);
+
   useEffect(() => {
     // SuperAdmin-only surface — the list is RLS-gated server-side too.
     if (session?.role === Role.SuperAdmin) {
-      void refreshAccounts();
+      loadGenerationRef.current += 1;
+      void refreshAccountsRef.current();
     }
-  }, [session?.role, refreshAccounts]);
+  }, [session?.role]);
 
   function handleCreated(account: CreatedAccount): void {
     setCredentials(account);

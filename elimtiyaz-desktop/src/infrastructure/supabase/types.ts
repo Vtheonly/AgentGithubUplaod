@@ -786,7 +786,7 @@ export interface Database {
        * everything in BEGIN ... COMMIT. If any step fails, the entire
        * transaction rolls back — no partial state is ever visible.
        *
-       * Implementation: `supabase/migrations/0026_unified_financial.sql`.
+       * Implementation: `supabase/migrations_archive/0026_unified_financial.sql`.
        */
       collect_and_allocate_payment: {
         Args: {
@@ -818,7 +818,7 @@ export interface Database {
        * append reversal entry → revert installment amountPaid) with a
        * single RPC. Implements Invariant 5 (Reversal Balance).
        *
-       * Implementation: `supabase/migrations/0026_unified_financial.sql`.
+       * Implementation: `supabase/migrations_archive/0026_unified_financial.sql`.
        */
       revert_payment_allocation: {
         Args: {

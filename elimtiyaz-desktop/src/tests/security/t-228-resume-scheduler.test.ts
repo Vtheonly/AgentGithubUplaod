@@ -94,7 +94,7 @@ describe("T-228 — workflow-resume-scheduler contracts (source-pinned)", () => 
   });
 
   it("migration 0082 closes the insert-published gate gap (T-228 discovery)", () => {
-    const mig = read("supabase/migrations/0082_workflow_publish_insert_gate.sql");
+    const mig = read("supabase/migrations_archive/0082_workflow_publish_insert_gate.sql");
     expect(mig).toContain("workflows_publish_gate_insert");
     expect(mig).toContain("before insert on public.workflows");
     // Direct-insert publishes land at version 1 (the workflow_version_check

@@ -33,7 +33,7 @@ const EF = readFileSync(
   "utf8",
 );
 const MIGRATION = readFileSync(
-  join(APP_ROOT, "supabase/migrations/0116_student_application_approval.sql"),
+  join(APP_ROOT, "supabase/migrations_archive/0116_student_application_approval.sql"),
   "utf8",
 );
 

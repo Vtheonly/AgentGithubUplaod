@@ -495,7 +495,7 @@ describe("T-307 — source scans (wiring + billing drift fix)", () => {
 
   it("the migration wires the audit triggers on the pricing tables (T-306 companion)", () => {
     const mig = fs.readFileSync(
-      path.join(repoRoot, "supabase/migrations/0086_crm_pricing_mutation_audit.sql"),
+      path.join(repoRoot, "supabase/migrations_archive/0086_crm_pricing_mutation_audit.sql"),
       "utf-8",
     );
     for (const table of [

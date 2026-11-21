@@ -25,7 +25,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Repository root (…/elimtiyaz-desktop). */
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
-const MIGRATION = "supabase/migrations/0081_workflow_dag_execution_alignment.sql";
+const MIGRATION = "supabase/migrations_archive/0081_workflow_dag_execution_alignment.sql";
 
 const sql = readFileSync(join(DESKTOP_ROOT, MIGRATION), "utf8");
 

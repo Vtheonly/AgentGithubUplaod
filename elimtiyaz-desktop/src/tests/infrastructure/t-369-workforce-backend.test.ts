@@ -891,7 +891,7 @@ describe("T-369 D. Source guards", () => {
   });
 
   it("D4. migration 0095 exists with both RPCs + the append-only trigger + the registration row", () => {
-    const p = path.join(ROOT, "../supabase/migrations/0095_personnel_workforce_system.sql");
+    const p = path.join(ROOT, "../supabase/migrations_archive/0095_personnel_workforce_system.sql");
     expect(fs.existsSync(p)).toBe(true);
     const sql = fs.readFileSync(p, "utf8");
     expect(sql).toContain("create table if not exists public.staff_absences");

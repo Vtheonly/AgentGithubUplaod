@@ -7,7 +7,7 @@
  * actions (open / continue / inspect). Creating a cycle surfaces the NEXT
  * academic year as the primary source (the year being completed).
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GraduationCap, Plus, RefreshCcw, RotateCcw, CheckCircle2, XCircle, Eye, Users } from "lucide-react";
 import { Card, CardContent } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
@@ -49,17 +49,40 @@ export function PromotionCyclesTab() {
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<PromotionCycle | null>(null);
 
+  const lastLoadErrorRef = useRef<string | null>(null);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     const result = await repos.promotionCycles.listCycles();
-    if (result.ok) setCycles(result.value);
-    else toast.showError("Échec du chargement", result.error.userMessage);
+    if (result.ok) {
+      setCycles(result.value);
+      lastLoadErrorRef.current = null;
+    } else {
+      // T-560: the identical-consecutive-error-toast dedupe — the SAME
+      // failure twice in a row renders ONE toast, not N (the loop's visible
+      // symptom); a different message still toasts (honest failures).
+      const message = result.error.userMessage;
+      if (lastLoadErrorRef.current !== message) {
+        lastLoadErrorRef.current = message;
+        toast.showError("Échec du chargement", message);
+      }
+    }
     setLoading(false);
   }, [repos, toast]);
 
+  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
+  // the load fires ON MOUNT and on EXPLICIT refresh only (the create / open
+  // flows call `refresh` directly). The callback is read through a ref so no
+  // identity churn (toast context, repos object, parent re-render) can ever
+  // re-fire the network load.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const loadGenerationRef = useRef(0);
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    loadGenerationRef.current += 1;
+    void refreshRef.current();
+  }, []);
 
   // The next academic year = the CURRENT year being completed (the primary
   // source for a fresh cycle); the target is derived (+1).

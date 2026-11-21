@@ -361,7 +361,7 @@ describe("SupabaseLeaveRequestRepository (T-178)", () => {
 
   it("9b. source scan: migration 0072 widens (not narrows) the leave_type CHECK + adds reviewed_by_name", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0072_leave_requests_request_kinds.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0072_leave_requests_request_kinds.sql"),
       "utf8",
     );
     // The superset must include BOTH the legacy categories and the domain kinds.

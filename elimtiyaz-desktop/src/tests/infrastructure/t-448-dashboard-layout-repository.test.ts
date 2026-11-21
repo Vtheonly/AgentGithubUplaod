@@ -137,7 +137,7 @@ describe("T-448 — source guards (the dedicated store's architecture)", () => {
     "utf8",
   );
   const MIGRATION_SRC = readFileSync(
-    join(__dirname, "../../../supabase/migrations/0134_dashboard_layouts.sql"),
+    join(__dirname, "../../../supabase/migrations_archive/0134_dashboard_layouts.sql"),
     "utf8",
   );
   const EDITOR_SRC = readFileSync(

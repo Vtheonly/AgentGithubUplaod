@@ -684,7 +684,7 @@ describe("T-407 D. batchRegister — the classification the wizard collected", (
     expect(src).toMatch(/specialite_code:\s*normalizeTrackCode\(sInput\.specialiteCode\)/);
     // The RPC extraction exists in migration 0112 (the seam fix).
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../../supabase/migrations/0112_register_family_batch_classification.sql"),
+      path.resolve(__dirname, "../../../../supabase/migrations_archive/0112_register_family_batch_classification.sql"),
       "utf8",
     );
     expect(mig).toContain("filiere_code       text");

@@ -6562,3 +6562,69 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** nothing for the registered scope. The owner's acceptance pass: pull main + rebuild the desktop, then re-verify the reported flows (select an OLDER school year in the Year-Tracking manual-debt modal and in the school-years editor; enter a previous-year date; save, reopen, edit — the selection must survive every parent re-render and persist as chosen).
 
 **Related:** UI-355 · the INV-14 year-inference contract (unchanged) · §6 existing-implementation-first (canonical, not per-surface) · §15.110 (the permanent rule this task contributed: the rising-edge reset contract + the consumer-census precondition + the `[m` display-artifact trap + the owner's push-first directive).
+
+---
+
+## T-549 — The BUG-038 clock-injection fix: the finance wave adapter (`deriveTrancheWaves` in installment-schedule-tab.tsx) evaluates overdue verdicts against the wall clock — inject the evaluation clock per the T-470 explicit-evaluation-clock discipline (Track 1, baseline green)
+
+**Problem IDs:** BUG-038 (FINDINGS_INDEX S3-S5; the only red file in the full Vitest ladder since 2026-10-16) · E2.1 (t-502 settle — DONE-BY-T-549 per EXECUTION-PLAN v2.3 §3 Step 4).
+
+**Status:** RESOLVED-TESTED (Session 29, 2026-11-21 — commits 69b581bc (registration) → 84acce5a (the fix + the baseline move). The t-502 suite 8/8 GREEN; the full five-shard ladder 321 files / 5,271 passed / 0 failed / 5 skipped — the ladder's EMPTY failing set; scripts/test-baseline.json moved citing T-549; E2.1's t-502 settle DONE-BY-T-549.)
+
+**Root cause (BUG-038, S5-measured):** `src/features/financials/installment-schedule-tab.tsx:228-231` — the finance-strip adapter `deriveTrancheWaves(rows, thresholds)` takes NO clock parameter and hard-codes `Date.now()` at the `:246` `derivePooledTrancheWaves(rows, Date.now(), thresholds)` call, while the Statistics twin (`executive-statistics.ts:173`) takes an explicit `nowEpochMs`. The t-502 PARITY test pins a fixed clock (2026-10-11) → the test compares DIFFERENT instants across surfaces; green by accident through 2026-10-15, deterministically red from 2026-10-16 onward (the date bomb). The three surfaces DO agree at a common instant (one shared predicate since T-502/STATS-403) — this is a HERMETICITY defect, not a predicate divergence (C-9 withdrew the S1 DUP-016/BUG-012 corroboration). Unticketed wall reads also sit at `:330` (daysLate, presentation) and `:708` (overdueDays, collect-modal presentation).
+
+**Fix contract (EXECUTION-PLAN v2.3 §3 Step 4):** (1) add the optional clock parameter `nowEpochMs` (default `Date.now()`) to the adapter signature and thread it into the `derivePooledTrancheWaves` call — parameter order mirrors the Statistics twin (`rows, nowEpochMs, thresholds`) so the two same-named adapters carry IDENTICAL shapes (the T-424/T-502 parity-by-construction discipline); the one production caller (`:538`) passes `Date.now()` explicitly (behavior unchanged); the two secondary wall reads (`:330`, `:708`) stay wall-clock BY DESIGN with explanatory comments (presentation-layer display counters; the VERDICT comes from the derived wave — no behavior change in production rendering); (2) pass the fixed `NOW` constant into the t-502 finance adapter calls (`:159`, `:180` — the PARITY test's finance surface + the default-grace finance call; the S3 finding's "three finance calls" counts the PARITY block's three adapter families — pooled and statistics already receive NOW). Zero predicate/semantic change: overdue math, thresholds wiring, wave grouping, financial numbers all untouched.
+
+**Scope fences:** `installment-schedule-tab.tsx` (signature + threading + 2 comments) + `t-502-wave-meter-thresholds.test.ts` (clock passes) ONLY. NO domain-module change (`tranche-waves.ts` already takes `nowEpochMs`); NO Statistics-adapter change (already takes it); NO new tests required (the t-502 suite IS the acceptance pin — 8/8); NO baseline move outside the file's own `_comment` rule.
+
+**Plan:** this registration → the implementation → the gates (t-502 8/8; `tsc --noEmit` 0; the full five-shard ladder with an EMPTY failing set; `scripts/test-baseline.json` moved citing T-549 per its `_comment` rule) → the docs closeout (registry status, change-log, next-task queue, SESSION_LOG row 29).
+
+
+---
+
+## T-559 — The toast provider's context-split: the ACTIONS context stops identity-churning on toast traffic (the S10 egress-loop engine killed at the provider level)
+
+**Problem IDs:** the S10 loop family (EGRESS-LOOP; OPS-015's Track 2 precondition) · the T-485/REALTIME-105 amplification-loop class, generalized.
+
+**Status:** RESOLVED-TESTED (Session 29, 2026-11-21 — commits df3db783 (registration) → ab219ca7. The t-559 suite 4/4 incl. the A/B contrast pin; tsc 0; the affected existing suites green.)
+
+**Root cause:** `toast-provider.tsx:57-69` — ONE context whose value was memoized on `[toasts, show, dismiss]`: every toast landing/expiring produced a NEW context identity → every `useToast()` consumer re-rendered and every effect depending on a toast action re-fired — a failing load surfacing its error through `showError` re-armed itself (unbounded doomed egress requests; the audit-toaster variant pinned live in T-485).
+
+**Fix contract:** TWO contexts — the ACTIONS context (memo keyed ONLY on `[show, dismiss]`, both useCallback-stable; identity PERMANENT for the provider's lifetime) + the LIST context (`useToastList()`, subscribed by the viewport alone). `useToast()`'s type loses `toasts` (census: only the viewport reads it — the 126 other consumers typecheck unchanged); the viewport switches to `useToastList()`. Verified by `src/tests/app/t-559-toast-context-stability.test.tsx` (4 tests: identity stability + no consumer re-render under lands/dismisses/clears; the list/viewport contract; the S10 worst-case `[toast]`-dep consumer with a failing async load fires EXACTLY once under a toast barrage; the A/B contrast — an inline verbatim replica of the PRE-FIX provider re-arms the same consumer from its own error toast (the loop engine, bounded by a bail for testability)).
+
+**Scope fences:** `toast-provider.tsx` + `toast-viewport.tsx` ONLY. Zero consumer edits (the census proved only the viewport reads `.toasts`); zero behavior change in toast stacking/durations/semantics.
+
+---
+
+## T-560 — The five loop-capable sites' load-generation-ref gate (load-on-mount + explicit refresh only, + the identical-consecutive-error-toast dedupe)
+
+**Problem IDs:** the S10 loop family (EGRESS-LOOP; OPS-015's Track 2 precondition).
+
+**Status:** RESOLVED-TESTED (Session 29, 2026-11-21 — commit 5201dd64. The t-560 suite 5/5 (per-site effect counts + the dedupe + the cycle.id dimension); the stash-round RED control (the gates stashed → the dedupe pin fails); the seven existing surface suites green (100 tests).)
+
+**Root cause:** the five sites' load effects keyed on the load-callback identity (`useEffect(() => { void refresh(); }, [refresh])`) with toast actions in the callback deps — the pre-T-559 churn re-fired the loads; defense-in-depth now makes the surfaces loop-safe PERMANENTLY (even under future dep churn).
+
+**Fix contract (all five sites):** the load callback is read through a REF; the effect pins the legitimate reactive dimension ONLY — mount (`configuration-tab`, `pricing-year-config-bar`, `promotion-cycles-tab`), mount + role arrival (`accounts-tab`), per-cycle `cycle.id` (`promotion-cycle-detail`) — and increments a load-generation counter; the explicit-refresh paths (buttons/flows) call the callback directly, unchanged; the identical-consecutive-error-toast dedupe (`lastLoadErrorRef`: the SAME failure twice renders ONE toast; reset on success; a different message still toasts). Verified by `src/tests/features/t-560-load-loop-guards.test.tsx` (5 per-site effect-count tests: exactly ONE load on mount under the toast barrage + parent re-renders; « Rafraîchir » = the second load (explicit refresh works); the dedupe pin; the cycle.id dimension = exactly one more load, pinned again). RED controls: the stash-round (the five gates stashed → the dedupe pin fails — two identical error toasts stack) + the t-559 A/B (the engine).
+
+**Scope fences:** the five named files ONLY; zero load-logic/Result/semantic changes; the refresh flows' contracts preserved verbatim.
+
+---
+
+## T-594 — BUG-058: the online-detector's /auth/v1/health probe respects the EFFECTIVE runtime config (mock/offline mode drips ZERO requests)
+
+**Problem IDs:** BUG-058 (C-23 narrowing) · the OPS-015 two-gates seam (third member).
+
+**Status:** RESOLVED-TESTED (Session 29, 2026-11-21 — commit 2aa6c8e8. The t-594 suite 4/4; the stash-round RED control ('expected 1 to be +0' — the pre-fix drip); the detector's existing suites green.)
+
+**Root cause:** `online-detector.ts` `getOnlineDetector()` resolved the probe URL from `supabaseUrl` ALONE — the compiled/env/local-config URL stays NON-EMPTY in mock mode (`useSupabase === false`), so the detector dripped ~120 doomed requests/hour against the configured (quota-capped OLD) project in sessions that never touch the network.
+
+**Fix contract:** `probeUrl = useSupabase ? resolveProbeUrl(supabaseUrl) : null` — CONFIGURED mode keeps its by-design heartbeat (T-050/CACHE-101); mock/unconfigured mode is navigator-only with ZERO probes (C-23). Verified by `src/tests/infrastructure/t-594-online-detector-runtime-config.test.ts` (4 tests: mock-mode-with-URL → ZERO fetch calls; configured mode → the immediate probe runs + probeOk; the class's 5s throttle floor unit; the pure helpers' regression guard) with the t-472-sanctioned localStorage-pin + resetModules + dynamic-import harness. RED control: the stash-round (the gate stashed → the mock-mode pin fails with `expected 1 to be +0` — the pre-fix drip).
+
+**Scope fences:** `online-detector.ts` `getOnlineDetector()` ONLY; zero changes to the class's probe/throttle/fail-closed semantics (pinned by the suite).
+
+
+---
+
+## Session 29 closeout (2026-11-21) — Track 1 + Track 2 COMPLETE: the first execution session's delivered batch
+
+**Delivered (5 commits + 2 docs commits on `execution/session-29-track1-baseline-green`):** Commit 1 / OPS-018 `ec376728` (the 39 stale migration-path references re-pointed to `migrations_archive/` — 35 literal + 4 constructed; the S26 run's 33 consolidation-caused failed files GONE); T-549 / BUG-038 `84acce5a` (the finance wave adapter's explicit evaluation clock, mirroring the Statistics twin's shape; the t-502 PARITY pin deterministic again — 8/8; the baseline moved to 321/5,271/0/5); T-559 `ab219ca7` (the toast provider's context split — the ACTIONS identity permanent, the LIST in a second context; the S10 egress-loop engine killed at the provider level); T-560 `5201dd64` (the five loop-capable sites' load-generation-ref gates + the identical-consecutive-error-toast dedupe); T-594 / BUG-058 `2aa6c8e8` (the online-detector's runtime-config gate — mock mode drips ZERO probes). **The closeout census: 324 test files / 5,284 passed / 0 failed / 5 skipped; tsc 0 errors; Layer 2 equivalence GREEN (identical numbers); the baseline moved citing T-559+T-560+T-594.** RED-then-GREEN evidence: T-594's stash-round (the pre-fix drip), T-560's stash-round (the pre-fix duplicate error toast), T-559's inline legacy A/B (the pre-fix loop engine). **OPS-015's Track 2 precondition (T-559 + T-560 + T-594) is now GREEN — the egress-loop safety family is closed at the code level; the live-traffic/cap-lift/website-deploy locks stand until the owner-side G2 actions.** Next: Track 3 (T-550 the port seam → T-573 the BackendProfile switcher → T-552 the 17 bypass files → ARCH-046 → T-575 → T-574 → T-614 → T-590..T-593 → T-595).

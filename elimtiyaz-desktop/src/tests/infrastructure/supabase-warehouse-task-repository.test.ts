@@ -447,7 +447,7 @@ describe("SupabaseWarehouseTaskRepository (T-479 / WORKFORCE-507)", () => {
 
     // The 0139 migration widens the dispatch CHECK with 'preparing'.
     const migration = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0139_pending_dispatches_preparing_status.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0139_pending_dispatches_preparing_status.sql"),
       "utf8",
     );
     expect(migration.includes("'pending', 'preparing', 'dispatched', 'delivered', 'cancelled'")).toBe(true);

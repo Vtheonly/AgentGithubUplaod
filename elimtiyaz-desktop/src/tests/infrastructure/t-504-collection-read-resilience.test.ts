@@ -559,7 +559,7 @@ describe("T-504 (PERF-510) — errorMessage (the [object Object] class)", () => 
 describe("T-504 (PERF-510) — migration 0151 (the read-RPC statement-timeout headroom)", () => {
   const migrationPath = join(
     __dirname,
-    "../../infrastructure/../../supabase/migrations/0151_read_rpc_statement_timeout_headroom.sql",
+    "../../infrastructure/../../supabase/migrations_archive/0151_read_rpc_statement_timeout_headroom.sql",
   );
 
   it("A: the six ALTER FUNCTION … SET statement_timeout = '30s' statements are present — and NO function body is redefined", () => {

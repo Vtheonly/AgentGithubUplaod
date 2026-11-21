@@ -35,7 +35,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** …/elimtiyaz-desktop (this file lives in src/tests/infrastructure/). */
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
 const SCRIPT = join(DESKTOP_ROOT, "scripts", "policy_census.sh");
-const REAL_MIGRATIONS = join(DESKTOP_ROOT, "supabase", "migrations");
+const REAL_MIGRATIONS = join(DESKTOP_ROOT, "supabase", "migrations_archive");
 
 type Census = { count: number; policies: Record<string, string> };
 

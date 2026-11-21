@@ -483,7 +483,7 @@ describe("T-371 F. source scans — the wiring stays on the account id space", (
 
   it("migration 0097 exists with the overload drop + the unique index", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0097_personnel_account_linkage.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0097_personnel_account_linkage.sql"),
       "utf8",
     );
     expect(mig).toContain("p_personnel_id");

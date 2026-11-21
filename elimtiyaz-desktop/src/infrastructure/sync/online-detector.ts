@@ -19,7 +19,7 @@
  * `navigator.onLine` only.
  */
 
-import { supabaseUrl, supabaseAnonKey } from "../supabase/supabase-client";
+import { supabaseUrl, supabaseAnonKey, useSupabase } from "../supabase/supabase-client";
 
 export interface OnlineState {
   /** Whether the browser reports `navigator.onLine`. */
@@ -172,9 +172,17 @@ export class OnlineDetector {
 let _detector: OnlineDetector | null = null;
 export function getOnlineDetector(): OnlineDetector {
   if (!_detector) {
-    // T-050 (CACHE-101): probe OUR backend, not a third-party host; no probe at all
-    // when the Supabase URL is unconfigured (mock/dev mode).
-    const probeUrl = resolveProbeUrl(supabaseUrl);
+    // T-050 (CACHE-101): probe OUR backend, not a third-party host; no probe
+    // at all when the Supabase URL is unconfigured (mock/dev mode).
+    // T-594 (BUG-058): the probe respects the EFFECTIVE runtime config —
+    // mock/offline mode (`useSupabase === false`: the local mock toggle,
+    // VITE_USE_SUPABASE=false, or the Vitest hermetic default) drips ZERO
+    // requests (C-23: the /auth/v1/health heartbeat exists ONLY in
+    // CONFIGURED mode, where it is the by-design health signal; the pre-fix
+    // code keyed the probe on `supabaseUrl` alone, which stays non-empty in
+    // dev even while the app runs on mocks — the ~120 doomed requests/hour
+    // egress drip). CONFIGURED mode keeps its heartbeat unchanged.
+    const probeUrl = useSupabase ? resolveProbeUrl(supabaseUrl) : null;
     const headers: Record<string, string> = supabaseAnonKey ? { apikey: supabaseAnonKey } : {};
     _detector = new OnlineDetector(probeUrl, DEFAULT_PROBE_INTERVAL_MS, headers);
   }

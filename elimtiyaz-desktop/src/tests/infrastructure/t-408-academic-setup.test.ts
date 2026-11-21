@@ -538,7 +538,7 @@ describe("T-408 — the Algerian curriculum catalog (ACAD-508)", () => {
 
   it("the migration SQL mirrors the TS catalog (parity spot checks)", () => {
     const migration = readRoot(
-      "supabase/migrations/0114_algerian_curriculum_catalog.sql",
+      "supabase/migrations_archive/0114_algerian_curriculum_catalog.sql",
     );
     for (const subject of ALGERIAN_SUBJECTS) {
       expect(migration).toContain(`'${subject.code}'`);

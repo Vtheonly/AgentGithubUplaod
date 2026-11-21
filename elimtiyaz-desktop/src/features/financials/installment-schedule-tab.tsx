@@ -224,9 +224,17 @@ const SCHEDULE_STRIP_SCOPE: ThresholdsConfigScope = {
  * uncleared non-cash), pct (paid/due, 0–100). `isNextTarget` marks the
  * first wave with a canonical remaining balance (the active collection
  * target for the highlight).
+ *
+ * T-549 (BUG-038): `nowEpochMs` — the explicit evaluation clock (the T-470
+ * discipline), defaulting to the wall clock for production rendering. The
+ * parameter order mirrors the Statistics twin
+ * (`executive-statistics.ts` `deriveTrancheWaves`) exactly, so the two
+ * same-named adapters carry IDENTICAL shapes and the t-502 PARITY test
+ * pins every surface at ONE common instant.
  */
 export function deriveTrancheWaves(
   rows: readonly Installment[],
+  nowEpochMs: number = Date.now(),
   thresholds: Pick<DebtAgingThresholds, "gracePeriodDays"> = DEFAULT_DEBT_AGING_THRESHOLDS,
 ): TrancheWave[] {
   // T-424 (DATA-042) — the grouping and the math live in the CANONICAL
@@ -243,7 +251,9 @@ export function deriveTrancheWaves(
   // period (the caller passes the tenant's active thresholds; the
   // default is the documented DEFAULTS — the same fallback every wave
   // consumer applies).
-  const pooled = derivePooledTrancheWaves(rows, Date.now(), thresholds);
+  // T-549 (BUG-038): the injected clock — never a bare `Date.now()` here
+  // (the adapter's verdicts stay hermetic and comparable across surfaces).
+  const pooled = derivePooledTrancheWaves(rows, nowEpochMs, thresholds);
   const byIndex = new Map(pooled.map((w) => [w.wave, w]));
   const firstWithRemaining = pooled
     .filter((w) => w.remainingTotal > 0)
@@ -327,6 +337,12 @@ export function TrancheWaveHeader({
         // row carries a parseable date — a hardcoded hint can silently lie
         // after the data drifts; the derived range never can.
         const dueRangeLabel = formatDueDateRange(w.dueDate, w.dueDateMax);
+        // T-549 (BUG-038) survey: presentation-layer display counter, wall-clock
+        // BY DESIGN — the card's late-days hint reflects "as of rendering". The
+        // VERDICT (w.isOverdue) comes from the derived wave, whose clock is the
+        // adapter's injected `nowEpochMs` — no behavior change here (T-470's
+        // explicit-evaluation-clock discipline applies to derivations, not to
+        // render-time display counters).
         const daysLate = w.dueDate ? daysBetweenFloor(w.dueDate, Date.now()) : 0;
         const claimsLateness = w.isOverdue && w.remaining > 0;
         const dueLineTone = claimsLateness ? "text-status-danger" : "text-muted-foreground";
@@ -534,8 +550,12 @@ export function InstallmentScheduleTab({
   // thresholds (the configured grace period) — parity with the Statistics
   // wave meters by construction. T-507 (UI-338): the EFFECTIVE thresholds
   // (the live preview included).
+  // T-549 (BUG-038): the production strip renders against the WALL CLOCK —
+  // passed EXPLICITLY (the adapter default is the same `Date.now()`; the
+  // explicit pass documents that this surface, unlike the t-502 PARITY
+  // pin, is the live-instant consumer).
   const waves = useMemo(
-    () => deriveTrancheWaves(filtered, thresholdsCfg.effective),
+    () => deriveTrancheWaves(filtered, Date.now(), thresholdsCfg.effective),
     [filtered, thresholdsCfg.effective],
   );
 
@@ -704,6 +724,11 @@ export function InstallmentScheduleTab({
     // DYNAMIC predicate, never the `status` string (live statuses carry
     // paid/unpaid/partial — the string never says "overdue").
     const isOverdue = isInstallmentOverdue(collectFor);
+    // T-549 (BUG-038) survey: presentation-layer display counter, wall-clock BY
+    // DESIGN — the collect modal's "days overdue" hint reflects "as of
+    // rendering"; the overdue VERDICT itself is the canonical dynamic predicate
+    // above (T-426/DATA-045). No behavior change (the §15.81 wall-clock class:
+    // derivations take injected clocks, display counters may read the wall).
     const overdueDays = isOverdue
       ? Math.max(0, Math.floor((Date.now() - new Date(collectFor.dueDate).getTime()) / 86_400_000))
       : undefined;

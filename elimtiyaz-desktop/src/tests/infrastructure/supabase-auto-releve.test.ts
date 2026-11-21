@@ -440,7 +440,7 @@ function read(rel: string): string {
 
 describe("T-482 source guards", () => {
   it("7. migration 0141: the scoped trigger + the SECURITY DEFINER RPC + the registration", () => {
-    const mig = read("supabase/migrations/0141_releve_auto_entries.sql");
+    const mig = read("supabase/migrations_archive/0141_releve_auto_entries.sql");
     expect(mig).toContain("add column if not exists entry_source");
     expect(mig).toContain("add column if not exists auto_kind");
     // The §09.05 ban is re-scoped to manual rows (the auto early-return).

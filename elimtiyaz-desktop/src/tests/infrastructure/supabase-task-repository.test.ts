@@ -514,7 +514,7 @@ describe("SupabaseTaskRepository (T-180)", () => {
 
   it("11b. source scan: migration 0074 adds BOTH display-name columns + registration", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0074_tasks_display_names.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0074_tasks_display_names.sql"),
       "utf8",
     );
     expect(mig).toContain("add column if not exists created_by_name text");

@@ -406,7 +406,7 @@ describe("T-502 / ACAD-510 — the classes.notes column wiring", () => {
 
   it("2. migration 0149 exists and adds the column", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0149_classes_notes.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0149_classes_notes.sql"),
       "utf8",
     );
     expect(mig).toMatch(/alter table public\.classes add column if not exists notes text/);
@@ -414,7 +414,7 @@ describe("T-502 / ACAD-510 — the classes.notes column wiring", () => {
 
   it("3. migration 0148 exists with the narrative table + unique + policies", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0148_student_narratives.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0148_student_narratives.sql"),
       "utf8",
     );
     expect(mig).toMatch(/create table if not exists public\.student_narratives/);

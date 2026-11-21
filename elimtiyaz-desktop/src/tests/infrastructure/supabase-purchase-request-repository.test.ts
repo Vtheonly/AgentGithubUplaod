@@ -396,7 +396,7 @@ describe("SupabasePurchaseRequestRepository (T-238)", () => {
     );
     expect(wiring).toContain("purchaseRequests, // T-238");
     const migration = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0084_operations_display_names.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0084_operations_display_names.sql"),
       "utf8",
     );
     expect(migration).toContain("requested_by_name");

@@ -3,7 +3,7 @@
  * Fixed to bottom-right; auto-dismisses per toast duration.
  */
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
-import { useToast, type ToastSeverity } from "../../app/providers/toast-provider";
+import { useToast, useToastList, type ToastSeverity } from "../../app/providers/toast-provider";
 import { cn } from "../ui/cn";
 
 const SEVERITY_STYLES: Record<ToastSeverity, { container: string; icon: typeof Info }> = {
@@ -21,7 +21,10 @@ const SEVERITY_ICON_CLASS: Record<ToastSeverity, string> = {
 };
 
 export function ToastViewport() {
-  const { toasts, dismiss } = useToast();
+  // T-559: the actions (dismiss — the stable context) + the LIST (the
+  // toast-traffic context, subscribed HERE and essentially only here).
+  const { dismiss } = useToast();
+  const toasts = useToastList();
   if (toasts.length === 0) return null;
   return (
     <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
