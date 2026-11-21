@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from "electron";
+import type { BackendProfileSnapshot, BackendProfileWriteResult } from "./backend-profile-contract";
 
 export interface SaveFileResult {
   saved: boolean;
@@ -110,6 +111,38 @@ export type ExternalOpenResult =
       error: string;
     };
 
+/**
+ * T-573 (ADD-9): the BackendProfile snapshot — ONE `sendSync` at preload-init,
+ * cached in this closure. The renderer's `supabase-client.ts` reads it through
+ * `window.elImtiyaz.backendProfile.getSync()` at MODULE INIT (synchronously —
+ * the same ordering the compiled-in constants used to have, so the provider
+ * tree's module-scope `selectDefaultRepositories()` sees the EFFECTIVE target,
+ * not a stale one). The snapshot is already validated + fail-closed by the
+ * main-process service; the renderer re-validates defensively.
+ */
+const backendProfileSnapshot = (() => {
+  try {
+    return ipcRenderer.sendSync("backend-profile:get-sync") as BackendProfileSnapshot | null;
+  } catch {
+    // No listener (a stale preload against an old main) — the factory default governs.
+    return null;
+  }
+})();
+
+const backendProfileApi = {
+  /** The cached init-time snapshot (synchronous; null outside Electron). */
+  getSync: (): BackendProfileSnapshot | null => backendProfileSnapshot,
+  /** Re-read from disk (invalidates the main-side cache). */
+  get: (): Promise<BackendProfileSnapshot | null> =>
+    ipcRenderer.invoke("backend-profile:get") as Promise<BackendProfileSnapshot | null>,
+  /** Validate + persist a profile (an invalid profile never reaches disk). */
+  write: (profile: unknown): Promise<BackendProfileWriteResult> =>
+    ipcRenderer.invoke("backend-profile:write", profile) as Promise<BackendProfileWriteResult>,
+  /** Remove the profile file — the factory default governs again. */
+  clear: (): Promise<BackendProfileWriteResult> =>
+    ipcRenderer.invoke("backend-profile:clear") as Promise<BackendProfileWriteResult>,
+};
+
 const api = {
   window: {
     minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
@@ -122,6 +155,31 @@ const api = {
   // T-502 (UI-332): the app-level zoom (webFrame — the SAME zoom level the
   // Affichage menu roles drive; one mechanism, two entry points).
   zoom: zoomApi,
+  // T-573 (R-1): the app-lifecycle members declared in vite-env.d.ts are NOW
+  // REAL (pre-T-573 they were phantom — system-config's restart fell back to
+  // a silent page reload and isElectron() lied with a constant false).
+  app: {
+    getVersion: (): Promise<string> => ipcRenderer.invoke("app:get-version") as Promise<string>,
+    getPath: (name: string): Promise<{ ok: true; path: string } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("app:get-path", name) as Promise<{ ok: true; path: string } | { ok: false; error: string }>,
+    restart: (): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("app:restart") as Promise<{ ok: true } | { ok: false; error: string }>,
+    isElectron: (): Promise<boolean> => ipcRenderer.invoke("app:is-electron") as Promise<boolean>,
+  },
+  // T-573 (R-1): the config members are NOW REAL — the LOCAL config round-trips
+  // through the userData config.json (pre-T-573 the IPC branches in
+  // system-config.ts were dead code and everything lived in localStorage only).
+  config: {
+    read: (): Promise<{ ok: true; config: Record<string, unknown> } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("config:read") as Promise<{ ok: true; config: Record<string, unknown> } | { ok: false; error: string }>,
+    write: (config: Record<string, unknown>): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("config:write", config) as Promise<{ ok: true } | { ok: false; error: string }>,
+    delete: (): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("config:delete") as Promise<{ ok: true } | { ok: false; error: string }>,
+  },
+  // T-573 (ADD-9): the backend profile switcher (the packaged app re-points
+  // WITHOUT a rebuild — see electron/backend-profile-contract.ts).
+  backendProfile: backendProfileApi,
   shell: {
     openExternal: (url: string): Promise<ExternalOpenResult> =>
       ipcRenderer.invoke("shell:open-external", url) as Promise<ExternalOpenResult>,

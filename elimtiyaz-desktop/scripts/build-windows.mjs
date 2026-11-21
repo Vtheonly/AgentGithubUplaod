@@ -15,14 +15,19 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+// T-573 (the OPS-016 unlock): the target-readiness resolution + probe.
+import {
+  isValidTargetKey,
+  isValidTargetUrl,
+  probeTargetReadiness,
+  resolvePackageTarget,
+} from "./package-target.mjs";
 
 const scriptDir = join(fileURLToPath(new URL(".", import.meta.url)));
 const projectDir = join(scriptDir, "..");
 const packagePath = join(projectDir, "package.json");
 const lockPath = join(projectDir, "package-lock.json");
 const releaseDir = join(projectDir, "release");
-
-const CANONICAL_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
 
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";
@@ -77,20 +82,14 @@ function assertPayloadContainsText(rootPath, expectedText, label) {
   fail(`${label} was not found in the generated renderer payload.`);
 }
 
-async function verifyCanonicalSupabase(url, publicKey) {
-  try {
-    const response = await fetch(`${url}/rest/v1/tenants?select=id&limit=1`, {
-      headers: { apikey: publicKey },
-    });
-    if (!response.ok) {
-      fail(
-        `Canonical Supabase preflight rejected the configured public key (HTTP ${response.status}). ` +
-          "The Windows package was not built.",
-      );
-    }
-  } catch (error) {
+async function verifyTargetReadiness(url, publicKey) {
+  // T-573: the preflight probes THE RESOLVED TARGET (readiness, not the
+  // canonical identity). A quota-blocked target (402) fails honestly and
+  // points the owner at EL_IMTIYAZ_TARGET_URL / the G2 action.
+  const verdict = await probeTargetReadiness(url, publicKey);
+  if (!verdict.ok) {
     fail(
-      `Canonical Supabase preflight failed: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Target-readiness preflight rejected the packaged target (HTTP ${verdict.status}). ${verdict.detail} ` +
         "The Windows package was not built.",
     );
   }
@@ -148,63 +147,44 @@ if (!existsSync(join(projectDir, "node_modules"))) {
   run(npm, ["ci"]);
 }
 
-// Resolve the public key from the project's actual environment conventions.
-// Prefer VITE_* values used by the renderer; also support the canonical
-// SUPABASE_* names used by the shared deployment configuration.
-//
-// Deterministic default (publishable PUBLIC key only — safe to embed in the
-// client bundle; never a secret/service-role key): the canonical NEW project
-// vebfehrpzajhstyhinnw. An explicit env value (VITE_* file, SUPABASE_* or
-// process env) overrides this default; an explicit non-empty but FOREIGN
-// project key is a hard failure (fail-closed: never package a production
-// build against the wrong backend).
-const CANONICAL_PUBLIC_KEYS = new Set([
-  "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg",
-]);
+// T-573 — resolve the packaged TARGET (target-readiness, NOT canonical
+// identity): EL_IMTIYAZ_TARGET_URL/KEY win, then the VITE_* / SUPABASE_* env
+// chain, then the FACTORY DEFAULT (the canonical project — identical to the
+// pre-T-573 behavior when nothing is set). The foreign-key hard-fail rule is
+// GONE: re-pointing a packaged build at a healthy target is the whole point
+// (the RUNTIME re-point without a rebuild is the BackendProfile's job —
+// electron/backend-profile-contract.ts). Deterministic default = the
+// canonical public key (PUBLIC only — a secret/service-role key is still a
+// hard failure via isValidTargetKey).
 const { loadEnv } = await import("vite");
 const viteEnv = loadEnv("production", projectDir, "VITE_");
 const allEnv = loadEnv("production", projectDir, "");
-const explicitPublicKey = (
-  viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  viteEnv.VITE_SUPABASE_ANON_KEY ??
-  allEnv.SUPABASE_PUBLISHABLE_KEY ??
-  allEnv.SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_PUBLISHABLE_KEY ??
-  process.env.SUPABASE_ANON_KEY ??
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.VITE_SUPABASE_ANON_KEY
-)?.trim();
-if (explicitPublicKey && !CANONICAL_PUBLIC_KEYS.has(explicitPublicKey)) {
+const target = resolvePackageTarget({ processEnv: process.env, viteEnv, allEnv });
+const resolvedPublicKey = target.key;
+
+if (!isValidTargetUrl(target.url)) {
   fail(
-    "Refusing to package: the configured public Supabase key does not match " +
-      "the canonical NEW project (vebfehrpzajhstyhinnw). Remove the override " +
-      "or set the canonical sb_publishable_ key.",
+    `The resolved target URL is not a valid https origin: ${target.url}. ` +
+      "Set EL_IMTIYAZ_TARGET_URL (or VITE_SUPABASE_URL) to a healthy Supabase project.",
   );
 }
-const resolvedPublicKey =
-  explicitPublicKey || "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
-
-if (!resolvedPublicKey) {
+if (!resolvedPublicKey || !isValidTargetKey(resolvedPublicKey)) {
   fail(
-    "No public Supabase key could be resolved. Set SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY " +
-      "or the VITE_* equivalent before packaging.",
+    "No valid PUBLIC Supabase key could be resolved (or the value is still a placeholder/secret). " +
+      "Set EL_IMTIYAZ_TARGET_KEY / SUPABASE_PUBLISHABLE_KEY / SUPABASE_ANON_KEY or the VITE_* equivalent before packaging.",
   );
 }
 
-if (/^(?:changeme|change-me|your[-_]?key|placeholder|replace[-_]?me)$/i.test(resolvedPublicKey)) {
-  fail("The resolved public Supabase key is still a placeholder. The Windows package was not built.");
-}
-
-console.log(`\n[package:win] Supabase target: ${CANONICAL_SUPABASE_URL}`);
-console.log("[package:win] Supabase mode : forced production / live Supabase");
+console.log(`\n[package:win] Supabase target: ${target.url} (${target.source})`);
+console.log("[package:win] Supabase mode : forced production / live Supabase (re-pointable at runtime via backend-profile.json)");
 console.log("[package:win] Public key   : resolved (value hidden)");
 
-await verifyCanonicalSupabase(CANONICAL_SUPABASE_URL, resolvedPublicKey);
-console.log("[package:win] Canonical Supabase preflight: OK");
+await verifyTargetReadiness(target.url, resolvedPublicKey);
+console.log("[package:win] Target-readiness preflight: OK");
 
 const buildEnv = {
   ...process.env,
-  VITE_SUPABASE_URL: CANONICAL_SUPABASE_URL,
+  VITE_SUPABASE_URL: target.url,
   VITE_SUPABASE_PUBLISHABLE_KEY: resolvedPublicKey,
   VITE_SUPABASE_ANON_KEY: resolvedPublicKey,
   VITE_USE_SUPABASE: "true",
@@ -304,8 +284,8 @@ for (const payload of ["dist", "dist-electron"]) {
 
 assertPayloadContainsText(
   join(projectDir, "dist"),
-  CANONICAL_SUPABASE_URL,
-  "Canonical Supabase URL",
+  target.url,
+  "The packaged backend target URL",
 );
 
 // T-404 (packaging gate): the bundled native timetable solver MUST be in
@@ -392,7 +372,7 @@ console.log("  - Electron main/preload: dist-electron/**/*");
 console.log("  - Production npm dependencies: electron-builder application dependency packaging");
 console.log("  - Electron/Chromium runtime: provided by electron-builder");
 console.log("  - Windows icon: resources/icon.ico");
-console.log(`  - Canonical Supabase production project: ${CANONICAL_SUPABASE_URL}`);
+console.log(`  - Packaged backend target (readiness-probed): ${target.url}`);
 console.log("  - No generated .env files in packaged payloads");
 console.log("");
 console.log("Output directory: release/");

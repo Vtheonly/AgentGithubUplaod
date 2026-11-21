@@ -1,27 +1,43 @@
 /**
  * Supabase client singleton.
  *
- * Development may read a local configuration, but packaged production builds
- * are deliberately locked to the canonical production project. This prevents
- * an old Electron userData/localStorage configuration from silently selecting
- * an old public key or stale Supabase session after a project migration.
+ * T-573 (ADD-9) — the canonical hard-lock is DEMOTED: the compiled-in
+ * constants (previously `CANONICAL_*` here) are now the FACTORY DEFAULT,
+ * consulted only when no valid `BackendProfile` is present. The effective
+ * target resolves through `resolveEffectiveSupabaseTarget` (below):
+ *   1. the runtime BackendProfile — ONE main-process service → the preload
+ *      bridge's init-time snapshot: a packaged app can be re-pointed to a
+ *      new Supabase project WITHOUT a rebuild (the T-573 acceptance),
+ *   2. otherwise the pre-T-573 chain EXACTLY: production → factory default;
+ *      dev → local config → env → factory default (disabled in Vitest — the
+ *      T-472/T-314 hermeticity seam is UNCHANGED).
+ * Fail-closed semantics preserved: no valid target + useSupabase → the
+ * provider's selection still refuses to fall back to mock silently.
  *
  * The renderer only ever uses a PUBLIC Supabase key. Secret/service-role keys
  * must never be bundled into the desktop application.
  *
- * T-472 (TEST-503) — the hermeticity seam: inside Vitest the canonical
- * production fallbacks are DISABLED and the default mode is MOCK. The
- * f39eb17 fallback existed so a packaged build connects without env, but it
- * also made `isSupabaseConfigured()` TRUE inside every test suite — silently
- * repealing T-314's hermetic contract (the vault pair was uploading to the
- * REAL production bucket). A suite that genuinely needs a configured path
- * must pin it explicitly: localStorage `el-imtiyaz.local-config` +
- * `vi.resetModules()` + a dynamic import, or a partial `vi.mock` of this
- * module (the vault-suite pattern). Production, packaged builds and the
- * dev/browser default are unchanged.
+ * T-472 (TEST-503) — the hermeticity seam: inside Vitest the factory
+ * fallbacks are DISABLED and the default mode is MOCK. A suite that
+ * genuinely needs a configured path must pin it explicitly: localStorage
+ * `el-imtiyaz.local-config` + `vi.resetModules()` + a dynamic import, or a
+ * partial `vi.mock` of this module (the vault-suite pattern). Production,
+ * packaged builds and the dev/browser default are unchanged.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  deriveProjectRef,
+  FACTORY_DEFAULT_PROJECT_REF,
+  FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY,
+  FACTORY_DEFAULT_SUPABASE_URL,
+  validateBackendProfile,
+  type BackendKind,
+  type BackendProfileSnapshot,
+  type BackendProfileV1,
+} from "../../../electron/backend-profile-contract";
+
+export { deriveProjectRef, FACTORY_DEFAULT_PROJECT_REF, FACTORY_DEFAULT_SUPABASE_URL };
 
 function readEnv(name: string): string | undefined {
   try {
@@ -31,11 +47,6 @@ function readEnv(name: string): string | undefined {
     return undefined;
   }
 }
-
-const CANONICAL_PRODUCTION_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
-const CANONICAL_PRODUCTION_PUBLIC_KEY =
-  "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
-const CANONICAL_PROJECT_REF = "vebfehrpzajhstyhinnw";
 
 /**
  * T-472 (TEST-503): true only inside a Vitest run — the hermeticity seam.
@@ -114,10 +125,10 @@ const envSupabasePublishableKey = normalizePublicKey(
   readEnv("VITE_SUPABASE_PUBLISHABLE_KEY"),
 );
 const envSupabaseAnonKey = normalizePublicKey(readEnv("VITE_SUPABASE_ANON_KEY"));
-// T-472 (TEST-503): the canonical-key fallback is disabled inside Vitest —
+// T-472 (TEST-503): the factory-key fallback is disabled inside Vitest —
 // the hermetic contract is "no env ⇒ not configured".
 const envPublicKey =
-  envSupabasePublishableKey ?? envSupabaseAnonKey ?? (isVitestRun ? undefined : CANONICAL_PRODUCTION_PUBLIC_KEY);
+  envSupabasePublishableKey ?? envSupabaseAnonKey ?? (isVitestRun ? undefined : FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY);
 const isProductionDesktopBuild = readEnv("VITE_DESKTOP_PRODUCTION") === "true";
 
 function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: boolean } {
@@ -137,24 +148,138 @@ function readLocalConfigSync(): { url?: string; anonKey?: string; useSupabase?: 
   return {};
 }
 
+const envUseSupabase = readEnv("VITE_USE_SUPABASE");
+
 const localConfig = readLocalConfigSync();
 
+// ============================================================================
+// T-573 — the BackendProfile resolution (the DEMOTED factory default governs
+// only when no valid profile is present)
+// ============================================================================
+
 /**
- * Production is intentionally independent from persisted desktop settings.
- * A user can have an old config.json/localStorage value from before the DB
- * migration; allowing that value to override the production key makes the
- * packaged app appear disconnected even though the build itself is correct.
+ * The PURE resolver — the effective supabase target for one build/runtime.
+ * Exported for the t-573 switch-matrix tests; the module init below calls it
+ * with the real inputs (identical computation, now testable). Zero behavior
+ * change when no profile is present: every fallback matches the pre-T-573
+ * chain verbatim (production → factory; dev → localConfig → env → factory;
+ * vitest → unconfigured).
  */
-const productionSupabaseUrl = CANONICAL_PRODUCTION_SUPABASE_URL;
-const productionSupabaseKey = CANONICAL_PRODUCTION_PUBLIC_KEY;
+export function resolveEffectiveSupabaseTarget(input: {
+  profile: BackendProfileV1 | null;
+  localConfig: { url?: string; anonKey?: string; useSupabase?: boolean };
+  env: { url?: string; publicKey?: string; useSupabase?: string | undefined };
+  flags: { isProductionDesktopBuild: boolean; isVitestRun: boolean };
+}): {
+  url?: string;
+  anonKey?: string;
+  useSupabase: boolean;
+  backendKind: BackendKind;
+  profileApplied: boolean;
+} {
+  const { profile, localConfig, env, flags } = input;
+  // The profile GOVERNS when it declares a supabase target (any build mode —
+  // the packaged re-point path). Non-supabase kinds are declared-but-unbuilt
+  // renderer-side (Stage B/T-599, relay/T-601): they contribute NO target and
+  // the honest fallback is mock (useSupabase=false).
+  const profileTarget =
+    profile?.backendKind === "supabase" && profile.supabase ? profile.supabase : undefined;
+  const profileGoverned = profileTarget !== undefined;
 
-export const supabaseUrl = isProductionDesktopBuild
-  ? productionSupabaseUrl
-  : (localConfig.url ?? envSupabaseUrl ?? (isVitestRun ? undefined : CANONICAL_PRODUCTION_SUPABASE_URL));
+  const url = profileTarget
+    ? profileTarget.url
+    : flags.isProductionDesktopBuild
+      ? FACTORY_DEFAULT_SUPABASE_URL
+      : (localConfig.url ?? env.url ?? (flags.isVitestRun ? undefined : FACTORY_DEFAULT_SUPABASE_URL));
 
-export const supabaseAnonKey = isProductionDesktopBuild
-  ? productionSupabaseKey
-  : (localConfig.anonKey ?? envPublicKey);
+  const anonKey = profileTarget
+    ? profileTarget.anonKey
+    : flags.isProductionDesktopBuild
+      ? FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY
+      : (localConfig.anonKey ?? env.publicKey);
+
+  const useSupabase = profileTarget
+    ? (profileTarget.useSupabase ?? true)
+    : profile
+      // A DECLARED non-supabase kind (local/relay) is an honest "not wired
+      // yet" (Stage B/T-599, relay/T-601): the owner's explicit profile
+      // governs — the supabase wiring is NOT activated from it (mock).
+      ? false
+      : flags.isProductionDesktopBuild
+        ? true
+        : (localConfig.useSupabase ??
+          (env.useSupabase !== undefined ? env.useSupabase !== "false" : !flags.isVitestRun));
+
+  return {
+    url,
+    anonKey,
+    useSupabase,
+    backendKind: profile?.backendKind ?? "supabase",
+    profileApplied: profileGoverned,
+  };
+}
+
+/**
+ * The session storageKey PER TARGET: a JWT issued by project A is never
+ * restored against project B (the pre-T-573 pin's intent at the createClient
+ * storageKey, now derived from the EFFECTIVE target instead of the constant).
+ * With no profile and the factory default this yields the pre-T-573 string
+ * VERBATIM.
+ */
+export function supabaseSessionStorageKey(effectiveUrl?: string): string {
+  const ref = deriveProjectRef(effectiveUrl) ?? FACTORY_DEFAULT_PROJECT_REF;
+  return `el-imtiyaz.supabase.session.${ref}`;
+}
+
+/**
+ * The bridge snapshot (synchronous — ONE sendSync cached in the preload at
+ * init). Defensively re-validated HERE against the wire contract: even a
+ * misbehaving bridge cannot promote an invalid profile (fail-closed twice).
+ */
+function readBackendProfileSnapshotSync(): BackendProfileSnapshot | null {
+  try {
+    const bridge = (
+      window as unknown as
+        | { elImtiyaz?: { backendProfile?: { getSync?: () => BackendProfileSnapshot | null } } }
+        | undefined
+    )?.elImtiyaz?.backendProfile;
+    const snapshot = bridge?.getSync?.() ?? null;
+    if (!snapshot) return null;
+    if (snapshot.profile) {
+      const verdict = validateBackendProfile(snapshot.profile);
+      if (!verdict.ok) {
+        return {
+          profile: null,
+          source: "invalid",
+          invalidReason: `renderer re-validation rejected the bridge snapshot: ${verdict.reason}`,
+          filePath: snapshot.filePath,
+        };
+      }
+      return { ...snapshot, profile: verdict.profile };
+    }
+    return snapshot;
+  } catch {
+    return null; // outside Electron (browser/vitest) or a broken bridge
+  }
+}
+
+const backendProfileSnapshot = readBackendProfileSnapshotSync();
+/** The effective profile (null = absent/invalid → the factory default governs). */
+export const activeBackendProfile = backendProfileSnapshot;
+
+const effectiveTarget = resolveEffectiveSupabaseTarget({
+  profile: backendProfileSnapshot?.profile ?? null,
+  localConfig,
+  env: { url: envSupabaseUrl, publicKey: envPublicKey, useSupabase: envUseSupabase },
+  flags: { isProductionDesktopBuild, isVitestRun },
+});
+
+/** The declared backend kind (the settings/diagnostics surfaces' honest label). */
+export const activeBackendKind: BackendKind = effectiveTarget.backendKind;
+
+export const supabaseUrl = effectiveTarget.url;
+
+export const supabaseAnonKey = effectiveTarget.anonKey;
 
 /**
  * Live Supabase is the default whenever the application has a Supabase
@@ -166,14 +291,12 @@ export const supabaseAnonKey = isProductionDesktopBuild
  * explicitly (local-config or vi.mock) — including VITE_USE_SUPABASE via
  * vi.stubEnv + vi.resetModules() + a dynamic import when the env route is
  * the seam under test.
+ *
+ * T-573: a profile declaring a supabase target governs this flag in EVERY
+ * build mode (`useSupabase ?? true`); non-supabase profile kinds yield the
+ * honest mock fallback (false).
  */
-const envUseSupabase = readEnv("VITE_USE_SUPABASE");
-export const useSupabase = isProductionDesktopBuild
-  ? true
-  : (localConfig.useSupabase ??
-    (envUseSupabase !== undefined
-      ? envUseSupabase !== "false"
-      : !isVitestRun));
+export const useSupabase = effectiveTarget.useSupabase;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   if (useSupabase) {
@@ -199,10 +322,11 @@ export function getSupabaseClient(): SupabaseClient {
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
-        // Scope the persisted session to the NEW project. This prevents a JWT
-        // issued by the previous Supabase project from being restored after
-        // the production backend migration.
-        storageKey: `el-imtiyaz.supabase.session.${CANONICAL_PROJECT_REF}`,
+        // T-573: scope the persisted session to the EFFECTIVE target project
+        // (derived from supabaseUrl) — a JWT issued by project A is never
+        // restored against project B. With no profile this yields the
+        // pre-T-573 canonical string VERBATIM.
+        storageKey: supabaseSessionStorageKey(supabaseUrl),
       },
       realtime: {
         params: { eventsPerSecond: 10 },
@@ -222,6 +346,11 @@ export function isSupabaseConfigured(): boolean {
 /**
  * Non-secret runtime diagnostics for the production connection path.
  * NEVER includes the API key or session tokens — URL hostname only.
+ *
+ * T-573 additions: `backendKind` (the effective profile's declared kind —
+ * "supabase" when no profile exists) + `profileSource` (where the profile
+ * came from) + `projectRef` (the EFFECTIVE target's derived ref, the
+ * session-scoping key). Additive only — every pre-T-573 field is unchanged.
  */
 export function describeSupabaseConnection(): {
   url: string | undefined;
@@ -230,6 +359,9 @@ export function describeSupabaseConnection(): {
   useSupabase: boolean;
   configured: boolean;
   keyFormat: "publishable" | "anon-jwt" | "missing" | "other";
+  backendKind: BackendKind;
+  profileSource: "file" | "factory" | "invalid" | "none";
+  projectRef: string;
 } {
   let host: string | undefined;
   try {
@@ -251,6 +383,9 @@ export function describeSupabaseConnection(): {
     useSupabase,
     configured: isSupabaseConfigured(),
     keyFormat,
+    backendKind: activeBackendKind,
+    profileSource: activeBackendProfile?.source ?? "none",
+    projectRef: deriveProjectRef(supabaseUrl) ?? FACTORY_DEFAULT_PROJECT_REF,
   };
 }
 
