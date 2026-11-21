@@ -6635,7 +6635,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** ARCH-033 (the 54-slot factory exhaustiveness) · LF-0 step 1 (EXECUTION-PLAN §2/§3 Step 6).
 
-**Status:** IN_PROGRESS (Session 30, 2026-11-21 — the Track 3 head).
+**Status:** RESOLVED-TESTED (Session 30, 2026-11-21 — the t-550 suite 12/12 (the census equality + the five ports' implementability/call-through proofs); the ARCH-033 RED control on record: the factory slot renamed → `satisfies` fails tsc with TS2561/TS2552 on the literal → reverted, 0 errors; `npx tsc --noEmit` 0.)
 
 **Contract (per EXECUTION-PLAN §3 Step 6):** `src/infrastructure/backend/ports.ts` carries the FIVE port interfaces ONLY — `DataBackendPort`, `AuthPort`, `SyncTransportPort`, `StoragePort`, `DiagnosticsPort` — with the exact shapes from `LOCAL-FIRST-BLUEPRINT.md` §5 (the blueprint's v0 `ReadSpec`/`BackendChange` placeholders doc-noted; `StoragePort` derived from the migration-0018 vault surface per the v2.3 card's five-port naming — the blueprint's `NotificationPort` shape stays blueprint-side). ZERO runtime change: no factory/provider/consumer edits — the ports are the seam the T-552/T-599/T-601 lanes implement later. ARCH-033: the `satisfies Repositories` exhaustiveness check lands on the 54-slot Supabase factory map (`supabase-repositories.ts`) — a missing/typo'd slot is now a COMPILE error on the literal, not a silent structural pass.
 

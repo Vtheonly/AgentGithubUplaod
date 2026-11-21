@@ -420,7 +420,13 @@ export function getSupabaseRepositories(): Repositories {
 
   // Start with the mock layer as the base, then override the repositories
   // that have Supabase implementations.
-  const repositories: Repositories = {
+  //
+  // T-550 (ARCH-033): the 54-slot factory map carries `satisfies Repositories`
+  // — every slot is now checked EXHAUSTIVELY on THIS LITERAL at compile time.
+  // A slot added to `Repositories` but missing/typo'd here is a tsc error on
+  // this object (not a silent structural pass through the annotated-alias
+  // chain). Type-level only: the runtime value and its behavior are untouched.
+  const repositories = {
     ...mockRepositories,
     auth,
     userAccounts,
@@ -483,7 +489,7 @@ export function getSupabaseRepositories(): Repositories {
     // Other repositories remain on the mock layer for now. They will be
     // ported incrementally. Each port replaces the corresponding mock with
     // a Supabase-backed implementation.
-  };
+  } satisfies Repositories;
 
   // Attach the approvals repository as a non-standard property. Components
   // that need approval functionality can access it via:
