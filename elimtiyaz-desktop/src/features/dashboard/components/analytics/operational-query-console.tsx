@@ -32,6 +32,7 @@ import { Badge } from "../../../../shared/ui/badge";
 import { UnifiedModal } from "../../../../shared/ui/unified-modal";
 import { formatDzdPlain } from "../../../../core/format/currency";
 import { useAICopilot } from "../../../../app/providers/ai-copilot-provider";
+import { isInstallmentSettled } from "../../../../domain/calc/payment/queries";
 import { useRepositories } from "../../../../app/providers/repository-provider";
 import { useObservable } from "../../../../shared/hooks/use-observable";
 import {
@@ -345,12 +346,12 @@ function Student360Modal({
 
   const nextInstallment = useMemo(
     () =>
-      studentInstallments.find(
-        (item) =>
-          item.status !== "paid" &&
-          Math.max(0, item.amountDue - item.amountPaid - item.amountPending) >
-            0,
-      ) ?? null,
+      // E2.2 (INV-4): the inline `Math.max(0, …)` remaining computation and
+      // the raw status check both die — the canonical settled predicate owns
+      // the verdict (status "paid" OR nothing remaining, unclesed pending
+      // funds counting as coverage). Population-identical to the previous
+      // `status !== "paid" && remaining > 0` — one vocabulary.
+      studentInstallments.find((item) => !isInstallmentSettled(item)) ?? null,
     [studentInstallments],
   );
 

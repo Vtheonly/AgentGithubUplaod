@@ -642,12 +642,14 @@ export function InstallmentScheduleTab({
               Personnalisé
             </Badge>
           )}
-          {i.status === "overdue" && (
-            <Badge variant="outline" className="text-[9px] text-status-danger bg-status-danger/10 w-fit">
-              <AlertTriangle className="size-2.5 mr-0.5" /> Alerte auto
-            </Badge>
-          )}
-          {i.status !== "overdue" && isInstallmentOverdue(i) && (
+          {/*
+           * E2.2 (INV-4 / DUP-016): ONE overdue vocabulary — the canonical
+           * dynamic predicate. The former stored-status badge lane (the
+           * string snapshot nothing maintains — live census: ZERO such
+           * rows; no mock seeds either) is removed: exactly one badge,
+           * derived from (dueDate, now, remaining).
+           */}
+          {isInstallmentOverdue(i) && (
             <Badge variant="outline" className="text-[9px] text-status-danger bg-status-danger/10 w-fit">
               <AlertTriangle className="size-2.5 mr-0.5" /> En retard
             </Badge>
@@ -698,7 +700,10 @@ export function InstallmentScheduleTab({
       label: "Échéance",
       variant: "ghost",
       icon: <CalendarCog className="size-3.5" />,
-      disabled: (i) => i.status === "paid",
+      // E2.2 (INV-4): the canonical settled predicate — a row fully covered
+      // by amounts (paid + pending coverage) has no due date left to edit,
+      // exactly like the regeneration lane's settled skip.
+      disabled: (i) => isInstallmentSettled(i),
       onClick: (i) => setEditDueDateFor(i),
     },
     // T-510 (DEBT-105, issue #31): the per-tranche amount edit — available

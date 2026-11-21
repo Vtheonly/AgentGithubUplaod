@@ -41,7 +41,7 @@ import { installmentRemaining as canonicalInstallmentRemaining } from "../../../
 import { deriveTrancheWaveStats } from "../../../../domain/calc/payment/tranche-waves";
 // T-443 (DEBT-101): the configurable debt-aging thresholds — the SAME values
 // the canonical 4-tier status applies (financial-rules §15.1 INV-16f).
-import { DEFAULT_DEBT_AGING_THRESHOLDS } from "../../../../domain/calc/ledger/debt-aging";
+import { DEFAULT_DEBT_AGING_THRESHOLDS, computeDebtAgingStatus } from "../../../../domain/calc/ledger/debt-aging";
 import type { DebtAgingThresholds } from "../../../../domain/calc/ledger/debt-aging";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Student } from "../../../../domain/model/student";
@@ -467,12 +467,31 @@ export function deriveDebtTriage(
     const remaining = installmentRemaining(i);
     if (remaining <= 0) continue;
     const days = daysBetweenFloor(i.dueDate, nowEpochMs);
+    // E2.2 (DUP-016 / INV-4): the bucket EDGES are derived through the
+    // canonical domain engine — computeDebtAgingStatus owns the threshold
+    // arithmetic (one vocabulary; this file no longer compares against
+    // yellowDays/redDays itself). The explicit bridge between the two label
+    // systems: the aging engine's green (grace) and yellow levels coalesce
+    // into the triage's "current"; orange → "reminder"; red → "chronic";
+    // a not-yet-due row (days ≤ 0, clamped into the engine's green grace
+    // band) stays "not_due". The boundaries are IDENTICAL to the previous
+    // inline comparisons — the per-site regression suite pins the equality.
+    const agingLevel = computeDebtAgingStatus(
+      {
+        outstandingAmount: remaining,
+        debtAgeDays: Math.max(0, days),
+        // Presentation-only input inside the engine; neutralized so no
+        // active-payer note is built (the triage reads only the level).
+        inactivityDays: thresholds.activePayerGraceDays + 1,
+      },
+      thresholds,
+    ).level;
     const bucket: TriageBucket =
       days <= 0
         ? "not_due"
-        : days <= thresholds.yellowDays
+        : agingLevel === "green" || agingLevel === "yellow"
           ? "current"
-          : days <= thresholds.redDays
+          : agingLevel === "orange"
             ? "reminder"
             : "chronic";
     const a = acc.get(bucket)!;

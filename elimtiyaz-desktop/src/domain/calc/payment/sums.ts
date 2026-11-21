@@ -63,17 +63,23 @@ export function sumInstallmentsPaid(installments: readonly Installment[]): numbe
 }
 
 /**
- * Sum of `amount` for payments whose status is "pending" (T-168).
+ * Sum of `amount` for UNCLEARED payments — status `pending` OR
+ * `pending_clearance` (T-168; the BUG-019 alignment, E2.2).
  *
- * Uncleared non-cash funds (cheques / transfers awaiting bank clearance).
+ * Uncleared non-cash funds (cheques / transfers awaiting bank clearance) —
+ * BOTH statuses are the uncleared population. The financial-query-engine
+ * (:272/:423/:442/:520) and year-history (:517) always counted the PAIR
+ * while this helper counted `"pending"` alone, so a `pending_clearance`
+ * payment was counted in NO pending lane (the Family modal's pending card
+ * undercounted beside the engine's own verdicts — one vocabulary now).
  * `collect_and_allocate_payment` books these on `installments.amount_pending`,
  * so the derived reconciliation (`billing-breakdown.ts`) subtracts them
  * after the cleared total to honour the server balance exactly. Mirrors
- * `sumPaidPayments` semantics (status-strict, amount-positive).
+ * `sumPaidPayments` semantics (amount-positive).
  */
 export function sumPendingPayments(payments: readonly Payment[]): number {
   return sumOf(
-    payments.filter((p) => p.status === "pending"),
+    payments.filter((p) => p.status === "pending" || p.status === "pending_clearance"),
     (p) => p.amount,
   );
 }
