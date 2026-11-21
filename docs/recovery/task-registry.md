@@ -6931,3 +6931,51 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Session-37 implementation record — E2.5-partial (2026-11-22, commit `45831a9d`):** the 9 mechanical lanes — DUP-008 ONE FNV-1a (`fnv1a32` in core/format/id.ts; stableHash + deterministicActivationCode both route through it); DUP-009 the money copy → `formatDzdPlain` (the ~19 fr-FR+DZD sites across the AI tools/unified-payment-modal/test-studio-drawer) + the canonical fr-FR/DZD labels (search-index's fr-DZ/「DA」 + chart-svg's DA axis) + the ONE `isoWindow` (core/format/date.ts, date-only keys; the analysis-tools + workflow-tools private copies folded); DUP-010 insights → the canonical 2-decimal `calculateAttendanceRate` (the 3-decimal clone dead); DUP-011 year-history's `inv4Remaining` → `installmentRemaining` (the last INV-4 remaining clone); DUP-013 the exported `periodMinutesSafe` consumed by feasibility/greedy-solver/class-reports (the 4th derivation dead); DUP-014 the stale private `mapStudentRow` deleted (the promotion flow → the ONE shared mapper with middleName/filiere/specialite/origin); DUP-019 the core `toIsoDate` WIDENED to the infra union (undefined → null — no default param) with the registration-billing-wires + supabase-shared-repositories clones deleted + the dashboard's private `currentAcademicYear` → the core helper; DUP-020 the ONE `CYCLE_OF_GRADE` (domain/model/promotion-cycle.ts) — service-pricing-profile consumes it + `getNextGradeProgression` DERIVES nextCycle through it (the per-case literals dead, the progression outputs byte-identical — pinned per grade); DUP-022 parent-actions-menu → `buildWhatsAppUrl`/`openWhatsApp` (the hand-rolled cleaning dead; the 0550… → 213550… Algerian normalization it lacked) + NEW `src/tests/domain/t-e25-formatting-consolidation.test.ts` (10 tests — each lane's identity + the dead-source guards). **Ladder:** t-e25 10/10 · the affected neighborhoods 295/295 across 17 files (timetable, promotion, service-pricing, the AI suites, ledger, shared, t-436, t-134, t-503, core) · tsc 0. **The DEFERRED lanes:** DUP-012 (the label-map module — a per-surface copy decision), BUG-014 (the date-key timezone split — behavioral) + the S-U1/S-U4/S-U5 folds → the Session-38 queue head.
 
 **Session-37 closeout census (2026-11-22):** **the five-shard full-vitest census 341 test files (340 passed + 1 skipped) / 5,650 passed / 0 failed / 5 skipped** (the +3 files / +44 tests over the S36 record attributed exactly to t-e24 [28] + t-e27 [6] + t-e25 [10]) · `npx tsc --noEmit` 0 · `npx tsc -p electron/tsconfig.json --noEmit` 0 · the append-only guard OK (5 migrations, +0) · the unbounded-read guard OK (12 raw sites, 9 allowlisted, 0 active — the 3 line-shift entries updated for the E2.5 edit drift) · **Layer 2 RE-MEASURED GREEN — identical to the S36 record** (the desktop runner 810/0/10, the mirror 774/0/10/36, tier-4 784 equivalent / 0 errors / 0 warnings, sanity 820/820, canonical 319/319 — the E2.4 engine consolidation preserved the equivalence corpus exactly) · the baseline moved citing E2.4 + E2.7 + E2.5-partial. **OPS-015/G2 live locks STAND** (zero live traffic beyond the standing GET-only probe set — the Session-37 probe run: the OLD 402 cap UNCHANGED [29-run-stable OPS-011], the NEW alive/schema-empty [the 404 PGRST205 signature], the website 200, Issue #32 0 comments; zero deploys; zero cap lifts; zero packaged builds). **T-614 STILL OWNER-BLOCKED.** Next: **the E2.5 remainder (DUP-012 + BUG-014 + the S-U folds), then E2.6 (the client-side defect batch)**.
+
+---
+
+## Session-39 — The dashboard redesign lane (OWNER-DIRECTED QUEUE-JUMP, 2026-11-22)
+
+**Owner directive (chat, 2026-11-22):** "complete all the tasks related to the dashboard redesign… screenshot of the new dashboard showing the updated statistics, new theme, and all the other visual changes" — the dashboard lane jumps ahead of E2.6 (which stays registered next). T-590..T-593 (the dashboard's server-side aggregation data source) are GREEN since S35; the lane's remaining prerequisites are UI-side only.
+
+**Batch:** E1.2 (dead files — the D-U5 first move) → T-589 (the full-light theme flip) → E4.5 (dashboard analytics → domain, the one-engine half) → E6.9 (dashboard view-models, D-U1) → T-596 (the dashboard overhaul — L; lands this session if budget allows, else the next queue head with E6.7/E6.8/E6.10).
+
+## E1.2 — Dead-file batch (ROADMAP Phase 0 / 0.2): the D-U5 first move of T-596
+
+**Problem IDs:** DEAD-003 (dashboard-tab-layout-editor.tsx, 267 L, zero importers, orphaned storage prefix) · DEAD-010 (infrastructure/ai/narrative-generator.ts — generateReportCardNarrative zero production AND zero test consumers) · DEAD-011 (identity/index.ts barrel — production-dead, test-consumed; its relocation belongs to E1.4 per FINDINGS_INDEX's "relocate to tests/" decision).
+
+**Status:** IN_PROGRESS (Session 39).
+
+**Contract (per EXECUTION-PLAN E1.2):** delete the verified-dead files; grep each export for call sites first; full vitest; baseline move citing the task.
+
+## T-589 — The full-light theme flip (ROADMAP Phase 5 / 5.1): Light/White PRIMARY app-wide (D-19)
+
+**Problem IDs:** D-19/§E11 (the owner's locked mandate) · ARCH-036 (blue-deep/blue-light -rgb twins) · BUG-039 (--radius-pill undefined) · DEAD-017 (accordion keyframes) · BUG-075 (mix-cards stale capture + dashboard-theme midnight fallbacks).
+
+**Status:** IN_PROGRESS (Session 39).
+
+**Contract (per EXECUTION-PLAN §10 T-589):** (1) flip the default — index.html class="dark"→light, DEFAULTS.theme, preset order with "Clair Épuré" first, index.css :root becomes the LIGHT surface set with dark under .dark/[data-theme="dark"]; (2) the two stale boot colors (electron/main.cts backgroundColor #242526, index.html meta theme-color); (3) ARCH-036 -rgb twins + tailwind re-map; (4) BUG-039 --radius-pill defined; (5) DEAD-017 accordion keyframes deleted; (6) tokenize the hardcodes (timetable-grid 18 pastels, personnel token map → resolveToken, ai/chart-svg + diagram-svg, workflow.ts 5 hex, mock/workforce); (7) BUG-075 mix-cards live-getter + dashboard-theme light-first fallbacks; (8) t-546 extended to pin the light surfaces + the var(--x,#fallback) twin parity. Verify: full-dashboard + full-statistics visual pass on light (zero dark surfaces, zero low-contrast text); dark remains selectable.
+
+## E4.5 — Dashboard analytics → domain (ROADMAP Phase 3 / 3.5): the one-engine mandate's domain half (D-U2)
+
+**Problem IDs:** ARCH-009, L-6.
+
+**Status:** IN_PROGRESS (Session 39).
+
+**Contract (per EXECUTION-PLAN E4.5, after E2.2 ✓):** relocate analytics-derivations/executive-statistics/operational-query-engine thresholds to domain with settings-sourced thresholds. Verify: pinned-output comparison.
+
+## E6.9 — Dashboard view-models (ROADMAP Phase 5 / 5.10, D-U1, F-U2)
+
+**Problem IDs:** DUP-029.
+
+**Status:** IN_PROGRESS (Session 39).
+
+**Contract (per EXECUTION-PLAN E6.9):** use-overview-data/use-analytics-data extract the 6 subscriptions + 2 fetch blocks from dashboard-page.tsx (466 L); the F-U2 heaviest pages adopt the same idiom as budget allows. Verify: dashboard suites.
+
+## T-596 — The dashboard overhaul UX (ROADMAP Phase 5 / 5.21): the owner-designed dashboard (L)
+
+**Problem IDs:** ARCH-040 (UX) · BUG-059 (surface) · D-U1..U5 · BUG-075.
+
+**Status:** REGISTERED (Session 39 — the lane head after T-589; executes this session if budget allows, else the next queue head).
+
+**Contract (per EXECUTION-PLAN §10 T-589/T-596, v2.3):** the ENTIRE Dashboard AND Statistics UI rebuilt/styled as a clean, cohesive FULL LIGHT experience; ONE single calculation engine shared by Dashboard and Payments/Finance — the numbers-equal test is the acceptance gate. Verify: dashboard snapshot suites + the Dashboard↔Finance numbers-equal test + the full-light visual pass.
