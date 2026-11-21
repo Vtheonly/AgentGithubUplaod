@@ -37,6 +37,8 @@ import {
 } from "../../../domain/model/personnel";
 // E2.5 / S-U1: the shared person display helpers.
 import { personDisplayName, personInitials } from "../../../domain/model/person";
+// E2.5 / S-U5: the ONE contact-action helpers.
+import { openPhoneCall, openEmail } from "../../../shared/utils/contact-actions";
 import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
@@ -295,7 +297,7 @@ export function EmployeeProfileDrawer({
               variant="outline"
               size="sm"
               className="flex-1 h-8 text-xs"
-              onClick={() => window.open(`tel:${p.phone}`)}
+              onClick={() => openPhoneCall(p.phone)}
             >
               <Phone className="h-3.5 w-3.5 mr-1.5" /> Appeler
             </Button>
@@ -304,7 +306,7 @@ export function EmployeeProfileDrawer({
                 variant="outline"
                 size="sm"
                 className="flex-1 h-8 text-xs"
-                onClick={() => window.open(`mailto:${p.email}`)}
+                onClick={() => openEmail(p.email)}
               >
                 <Mail className="h-3.5 w-3.5 mr-1.5" /> Envoyer un E-mail
               </Button>

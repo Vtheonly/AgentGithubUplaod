@@ -18,6 +18,8 @@ import { Button } from "../../shared/ui/button";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { QrCode } from "../../shared/ui/qr-code";
 import { useToast } from "../../app/providers/toast-provider";
+// E2.5 / S-U5: the canonical WhatsApp handoff.
+import { buildWhatsAppUrl, openWhatsApp } from "../../shared/utils/whatsapp";
 
 export function ActivationCodeModal({
   open,
@@ -40,11 +42,15 @@ export function ActivationCodeModal({
 }) {
   const toast = useToast();
 
-  const waNumber = (whatsapp ?? phone ?? "").replace(/[\s+]/g, "");
+  // E2.5 / S-U5: the canonical WhatsApp handoff — the strip-spaces-only
+  // cleaning kept the leading 0 (a silent no-op through the interceptor);
+  // buildWhatsAppUrl normalizes 05xx → 213xx and encodes the text.
+  const waTarget = whatsapp ?? phone ?? "";
   const shareText =
     `Bonjour ${parentName}, voici votre code d'activation pour le portail El-Imtiyaz : ${code}. ` +
     "Ouvrez le portail, connectez-vous avec Google, puis saisissez ce code (ou scannez le QR code). " +
     "Il est à usage unique et lie votre compte au dossier de la famille.";
+  const waUrl = buildWhatsAppUrl(waTarget, shareText);
 
   return (
     <UnifiedModal
@@ -80,13 +86,11 @@ export function ActivationCodeModal({
           >
             Copier le code
           </Button>
-          {waNumber && (
+          {waUrl && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(shareText)}`)
-              }
+              onClick={() => void openWhatsApp(waTarget, shareText)}
             >
               <MessageCircle className="h-4 w-4" /> Envoyer via WhatsApp
             </Button>

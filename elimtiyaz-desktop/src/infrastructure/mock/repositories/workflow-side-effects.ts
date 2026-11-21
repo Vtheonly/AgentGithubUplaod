@@ -29,6 +29,8 @@ import type { DryRunNodeResult } from "../../../domain/calc/workflow/dry-run";
 import type { AppNotification, AlertPriority } from "../../../domain/model/operations";
 import type { TaskPriority } from "../../../domain/model/workforce";
 import { parentDisplayName, type Parent } from "../../../domain/model/parent";
+// E2.5 / S-U5: the canonical WhatsApp link builder.
+import { buildWhatsAppUrl } from "../../../shared/utils/whatsapp";
 
 /** Input for one side-effect application pass. */
 export interface SideEffectsInput {
@@ -238,7 +240,10 @@ function applyWhatsApp(
   const template = strConfig(config, "template", strConfig(config, "body", "Bonjour, votre solde de {{debt.amount}} DZD nécessite votre attention."));
   const resolved = resolveTemplate(template, context);
   const phone = parent?.phone?.replace(/[^\d+]/g, "") ?? null;
-  const link = phone ? `https://wa.me/${phone.replace("+", "")}` : null;
+  // E2.5 / S-U5: the canonical WhatsApp link builder — the hand-rolled
+  // "+-strip" kept the leading 0 (an invalid international number stored
+  // into the notification); buildWhatsAppUrl normalizes 05xx → 213xx.
+  const link = phone ? buildWhatsAppUrl(phone) : null;
   // The WhatsApp PREPARATION is a real staff notification (delivery is
   // out of scope in mock mode): the surveillant gets the ready-to-send
   // message so the action has a visible, actionable artifact.

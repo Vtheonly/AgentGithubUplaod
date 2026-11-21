@@ -54,6 +54,11 @@ import {
   CROSS_SERVICE_ROW_CATEGORIES,
   YEAR_SERVICE_GROUP_LABELS_FR,
 } from "../../domain/model/labels";
+import {
+  openPhoneCall,
+  openEmail,
+  buildWhatsAppShareUrl,
+} from "../../shared/utils/contact-actions";
 import { buildWhatsAppUrl } from "../../shared/utils/whatsapp";
 import {
   personDisplayName,
@@ -343,10 +348,10 @@ describe("E2.5 — the shared primitives' pins", () => {
     expect(personDisplayName({})).toBe("—"); // the canonical default fallback
     // The canonical resolvers delegate (byte-identical outputs):
     expect(parentDisplayName({ displayName: "Famille X", firstName: "P", lastName: "Q" })).toBe("Famille X");
-    expect(parentDisplayName({ firstName: "P", lastName: "Q" })).toBe("P Q");
-    expect(parentDisplayName({})).toBe("—");
+    expect(parentDisplayName({ firstName: "P", lastName: "Q", displayName: "" })).toBe("P Q");
+    expect(parentDisplayName({ displayName: "", firstName: "", lastName: "" })).toBe("—");
     expect(studentDisplayName({ displayName: "", firstName: "S", lastName: "T" })).toBe("S T");
-    expect(studentDisplayName({})).toBe("—");
+    expect(studentDisplayName({ displayName: "", firstName: "", lastName: "" })).toBe("—");
     // Initials: the parts-based avatar idiom, missing-part tolerant.
     expect(personInitials({ firstName: "Amine", lastName: "Benali" })).toBe("AB");
     expect(personInitials({ firstName: "Amine" })).toBe("A");
@@ -375,5 +380,50 @@ describe("E2.5 — the shared primitives' pins", () => {
     // parent/student models delegate to the shared core.
     expect(src("domain/model/parent.ts")).toContain("return personDisplayName(p);");
     expect(src("domain/model/student.ts")).toContain("return personDisplayName(s);");
+  });
+
+  it("S-U5: the ONE contact-actions module — the tel:/mailto:/share helpers + the wa.me hand-rolls die", () => {
+    // The helpers (fail-closed, then the handoff shape):
+    expect(openPhoneCall("0550 12 34 56")).toBe(true);
+    expect(openPhoneCall("  ")).toBe(false);
+    expect(openPhoneCall(null)).toBe(false);
+    expect(openEmail("parent@el-imtiyaz.dz")).toBe(true);
+    expect(openEmail("")).toBe(false);
+    // The no-phone share form (the financials-page reminder hand-roll):
+    expect(buildWhatsAppShareUrl("Bonjour")).toBe("https://wa.me/?text=Bonjour");
+    expect(buildWhatsAppShareUrl("a b&c")).toBe("https://wa.me/?text=a%20b%26c");
+    // In the vitest jsdom-ish environment window.open is stubbed by the
+    // setup; the handoff shape is pinned above through the return values.
+    // The dead-source guards: the 6 tel/mailto window.open sites and the
+    // 7 wa.me hand-rolls are dead (only the canonical modules carry them).
+    for (const rel of [
+      "shared/ui/parent-actions-menu.tsx",
+      "features/crm/parent-detail-drawer.tsx",
+      "features/personnel/management/employee-profile-drawer.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).toContain("openPhoneCall");
+      expect(s).not.toContain("window.open(`tel:");
+      expect(s).not.toContain("window.open(`mailto:");
+    }
+    for (const rel of [
+      "features/dashboard/components/insights-rail.tsx",
+      "features/financials/financial-query-console.tsx",
+      "features/financials/unified-payment-modal.tsx",
+      "features/crm/activation-code-modal.tsx",
+      "infrastructure/mock/repositories/workflow-side-effects.ts",
+      "features/financials/financials-page.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).not.toContain("wa.me/"); // the hand-rolled URL is dead
+    }
+    // parent-detail-drawer's WhatsApp leg rides the canonical openWhatsApp.
+    const pdd = src("features/crm/parent-detail-drawer.tsx");
+    expect(pdd).toContain("void openWhatsApp(p.whatsapp || p.phone)");
+    // unified-payment-modal's share rides the canonical openWhatsApp with
+    // the person resolver in the greeting.
+    const upm = src("features/financials/unified-payment-modal.tsx");
+    expect(upm).toContain("openWhatsApp(selectedParent.phone, msg)");
+    expect(upm).toContain("personDisplayName(selectedParent, \"\")");
   });
 });

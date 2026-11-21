@@ -96,6 +96,8 @@ import { computePayrollForecast } from "../../domain/calc/payroll/payroll-foreca
 import { overdueAmount } from "../../domain/calc/payment/queries";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import { ParentActionsMenu } from "../../shared/ui/parent-actions-menu";
+// E2.5 / S-U5: the no-phone WhatsApp share builder.
+import { buildWhatsAppShareUrl } from "../../shared/utils/contact-actions";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 
 type FinanceTab =
@@ -987,7 +989,9 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
         const debtor = debt.find((d) => d.parentId === parentId);
         if (debtor) {
           const msg = `Bonjour ${name}, votre solde dû envers El-Imtiyaz est de ${formatDzd(debtor.outstandingAmount)}. Merci de régulariser dans les meilleurs délais.`;
-          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
+          // E2.5 / S-U5: the no-phone WhatsApp share form — the canonical
+          // builder (was a hand-rolled share construction).
+          window.open(buildWhatsAppShareUrl(msg));
         }
       }
     } finally {
