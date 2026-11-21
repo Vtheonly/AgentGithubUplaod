@@ -41,6 +41,7 @@ import {
   stableHash,
 } from "../../core/format/id";
 import { toIsoDate, isoWindow } from "../../core/format/date";
+import { schoolLocalDateKey } from "../../domain/calc/shared/dates";
 import { formatDzdPlain } from "../../core/format/currency";
 import { calculateAttendanceRate } from "../../domain/model/academic";
 import { CYCLE_OF_GRADE } from "../../domain/model/promotion-cycle";
@@ -281,5 +282,48 @@ describe("E2.5 — the shared primitives' pins", () => {
     expect(yh).toContain('export { YEAR_SERVICE_GROUP_LABELS_FR } from "../../model/labels"');
     expect(yh).not.toContain("const YEAR_SERVICE_GROUP_LABELS_FR");
     expect(yh).not.toContain('"Frais d\'inscription (FI)"');
+  });
+
+  it("BUG-014/S-U4: the ONE school-local day key — the 00:30 Algiers band keys TODAY, not yesterday", () => {
+    // THE BUG-014 CASE: 23:30 UTC = 00:30 the NEXT day in Algiers (UTC+1).
+    // The UTC slice keys this instant YESTERDAY; the school-local key is
+    // the correct local day.
+    const lateNight = new Date("2026-11-22T23:30:00.000Z");
+    expect(schoolLocalDateKey(lateNight)).toBe("2026-11-23");
+    expect(lateNight.toISOString().slice(0, 10)).toBe("2026-11-22"); // the killed behavior
+    // Ordinary midday instants agree with the UTC date:
+    expect(schoolLocalDateKey(new Date("2026-11-22T10:00:00.000Z"))).toBe("2026-11-22");
+    // The staff idiom's output is PRESERVED verbatim (the helper IS it):
+    const handRolled = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Algiers",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(lateNight);
+    expect(schoolLocalDateKey(lateNight)).toBe(handRolled);
+    // Shape: a date-only key.
+    expect(schoolLocalDateKey()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The three student UTC slices are dead; the two staff hand-rolls are
+    // dead; the payroll formatToParts derivation is dead.
+    for (const rel of [
+      "features/academics/roll-call-screen.tsx",
+      "features/academics/class-attendance-tab.tsx",
+      "features/crm/student-detail/attendance-tab.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).toContain("schoolLocalDateKey");
+      expect(s).not.toContain("toISOString().slice(0, 10)");
+    }
+    expect(src("features/personnel/management/staff-attendance-center.tsx"))
+      .toContain("schoolLocalDateKey");
+    expect(src("features/personnel/management/staff-attendance-center.tsx"))
+      .not.toContain('Intl.DateTimeFormat("en-CA"');
+    expect(src("features/personnel/dashboards/worker-dashboard.tsx"))
+      .toContain("schoolLocalDateKey");
+    expect(src("features/personnel/dashboards/worker-dashboard.tsx"))
+      .not.toContain('Intl.DateTimeFormat("en-CA"');
+    const pm = src("features/personnel/management/payroll-management.tsx");
+    expect(pm).toContain("schoolLocalDateKey");
+    expect(pm).not.toContain("Intl.DateTimeFormat(\"en-US\"");
   });
 });

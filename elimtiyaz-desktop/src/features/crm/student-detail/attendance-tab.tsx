@@ -13,6 +13,9 @@ import { useObservable } from "../../../shared/hooks/use-observable";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../shared/ui/card";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { formatDate, formatRelative } from "../../../core/format/date";
+// BUG-014 / S-U4 (E2.5): the range keys resolve on the SCHOOL'S calendar
+// (Africa/Algiers) — never the UTC slice.
+import { schoolLocalDateKey } from "../../../domain/calc/shared/dates";
 import {
   ATTENDANCE_STATUS_LABELS_FR,
   SESSION_LABELS_FR,
@@ -29,8 +32,10 @@ export function AttendanceTab({ studentId }: { studentId: string }) {
   const attendance = useObservable(
     () => repos.attendance.observeByStudent(
       studentId,
-      from.toISOString().slice(0, 10),
-      to.toISOString().slice(0, 10),
+      // BUG-014 / S-U4: the school-local keys (Africa/Algiers) — the UTC
+      // slice shifted the window one day back inside the 00:00–00:59 band.
+      schoolLocalDateKey(from),
+      schoolLocalDateKey(to),
     ),
     [studentId],
   );

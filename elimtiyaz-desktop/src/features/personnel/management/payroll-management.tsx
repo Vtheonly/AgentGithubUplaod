@@ -60,15 +60,15 @@ import { generatePayslipPdf, downloadPdf } from "../../../infrastructure/receipt
 // T-412 — the canonical forecast section (upcoming personnel payments /
 // pre-payroll funding requirements), driven by computePayrollForecast.
 import { UpcomingPersonnelPayments } from "./upcoming-payroll-payments";
+// BUG-014 / S-U4 (E2.5): the current-period anchor resolves through the ONE
+// school-local day-key helper (was a private en-US formatToParts hand-roll).
+import { schoolLocalDateKey } from "../../../domain/calc/shared/dates";
 
 const PAYROLL_PERIOD_OPTIONS = (() => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Africa/Algiers",
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(new Date());
-  const currentYear = Number(parts.find((part) => part.type === "year")?.value);
-  const currentMonth = Number(parts.find((part) => part.type === "month")?.value);
+  // BUG-014 / S-U4: the current "YYYY-MM" derives from the school-local
+  // day key (Africa/Algiers) — the 12 rolling options stay pure UTC math
+  // from that anchor (labels still rendered in Africa/Algiers).
+  const [currentYear, currentMonth] = schoolLocalDateKey().split("-").map(Number);
   const firstMonth = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
 
   return Array.from({ length: 12 }, (_, offset) => {
