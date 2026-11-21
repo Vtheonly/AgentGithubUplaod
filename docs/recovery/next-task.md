@@ -1,3 +1,34 @@
+## AUTONOMOUS HANDOFF & NEXT-TASK QUEUE (the v2.3 protocol — maintained by every execution session)
+
+> **G0 = LIFTED (2026-11-21, Session 28 — the owner's standing directive in chat: the execution green-light is PERMANENT across every session; Issue #32's 0-comments state (the 23rd consecutive silent run, GET-verified this session) no longer holds the work. OPS-015 + G2 still gate live traffic/deploys/cap-lifts — EXECUTION-PLAN §1.)**
+> **Read ONLY this queue + the named T-cards in `Refactoring Unified/EXECUTION-PLAN.md` + the target code files.**
+> Never re-read `Investigation Archive/` in an execution session — the plan is self-contained (v2.2+ inline discipline).
+> Track order (EXECUTION-PLAN §2, v2.3 — HARD): Track 1 (baseline green) → Track 2 (T-559 → T-560 ×5 → T-594) →
+> Track 3 (T-550 → T-573 → T-552 → ARCH-046 → T-575 → T-574 → Cutover/Website T-614 → T-590..T-593 → T-595)
+> → T-577 (early right-click) → then Phases 1–5 (E2..E6) → §16 overhaul (T-587+T-612+T-613) per §2's parallelism.
+
+**Session-28 G0-lift bootstrap closeout (2026-11-21, docs-only):** the queue installed per EXECUTION-PLAN §0.1; G0 marked LIFTED (here + EXECUTION-PLAN §1 + SESSION_LOG row 28); the GET-only probe set re-run (OPS-011 22-run-stable — the OLD-project cap UNCHANGED; the NEW project alive/uncapped/schema-empty; the GitHub + Vercel PATs VALID; recorded in 01-INFRASTRUCTURE-STATUS.md's Session 28 run). **Owner Blockers (unchanged, from §1/§5):** D-21 Google Auth Console redirect URI; the live DB password/EF/Vercel secrets at cutover time; the spend-cap lift on `vebfehrpzajhstyhinnw` (owner billing action); the external `ETAT 2024 -205.xlsx` + the filled `متابعة تمدرس التلاميذ.xlsx`.
+
+| Task | State | Next pointer |
+|---|---|---|
+| Commit 1 (OPS-018 path fix) | NOT STARTED | §3 Step 3 → then T-549 |
+| T-549 (BUG-038 clock) | NOT STARTED | §3 Step 4 → then Track 2 |
+| T-559 → T-560 ×5 → T-594 | NOT STARTED | §3 Step 5 → then Track 3 |
+| T-550 | NOT STARTED | → T-573 |
+| T-573 (relocation, Path 2 — no G2 needed) | NOT STARTED | → T-552 |
+| T-552 | NOT STARTED | → ARCH-046 |
+| ARCH-046 | NOT STARTED | → T-575 |
+| T-575 | NOT STARTED | → T-574 |
+| T-574 | NOT STARTED | → T-614 |
+| T-614 (Website Cutover — RELOAD-GUIDE §A.7; needs the owner's Vercel window) | NOT STARTED | → T-590..T-593 |
+| T-590..T-593 | NOT STARTED | → T-595 |
+| T-595 | NOT STARTED | → T-577 |
+| T-577 (early right-click: Couper/Copier/Coller/Tout sélectionner) | NOT STARTED | → Phases 1–5 |
+| Phases 1–5 (E2..E6) per ROADMAP v2.3 | NOT STARTED | → §16 overhaul |
+| §16 overhaul (T-587 + T-612 + T-613 — G-DETECT-1..4) | NOT STARTED | per §2's parallelism |
+
+---
+
 # 2026-10-15 — The 182nd session COMPLETE (T-548 / UI-355): the school-year selection/persistence bug FIXED at the root and fully verified — the shared AutoFormModal's reset effect clobbered mid-edit form state on every parent re-render (every consumer passes an inline render-time `initialValues` literal; any live-observable emission silently reverted a manually selected OLDER school year to the current default BEFORE the save), and the owner-approved **Fix A** (ONE canonical rising-edge guard — reset ONLY on the closed→open transition) closed it for all 25+ modal surfaces at once. Commits: cccbf48a (registration, §13) → 87658d5f (the guard + the 2 regression pins, pushed immediately after the focused gates per the owner's push-first directive). The full ladder, run AFTER the push: tsc 0 · eslint 0 errors · the consumer battery 86/86 · **the five-chunk census 320 files / 5,250 passed / 0 failed / 5 skipped** (the +3 over baseline = +2 T-548 pins +1 pre-existing T-536/T-541 drift, attributed) · build green 24.03s. The RED-then-GREEN proof on the mid-edit-clobber pin is on record (the stash round). §15.110 records the permanent rules (the rising-edge reset contract, the consumer-census precondition, the `[m` display-artifact trap, the push-first directive).
 
 **The owner's acceptance pass (the one remaining gate):** pull main + rebuild the desktop, then re-verify the reported flows — select an OLDER school year in the Year-Tracking manual-debt modal and in the school-years editor; enter a previous-year date; save, reopen, edit — the selection must survive every parent re-render and persist as chosen. (The current year must still be the DEFAULT when creating a new record with no explicit selection — that behavior is preserved at open time.)
