@@ -26,9 +26,11 @@
  *            the canonical buildWhatsAppUrl/openWhatsApp (with the Algerian
  *            local-number normalization the hand-roll lacked).
  *
- * The DEFERRED lanes (re-queued, recorded in the registry): DUP-012 (the
- * label-map module — a per-surface copy decision) and BUG-014 (the
- * date-key timezone split — behavioral) + the S-U1/S-U4/S-U5 folds.
+ * The SESSION-38 lanes (this file's second half): DUP-012 (the ONE label
+ * module — the five scattered maps homed in domain/model/labels.ts with
+ * the per-surface copy decision documented), BUG-014/S-U4 (the ONE
+ * school-local day-key helper), S-U1 (the person display helpers) and
+ * S-U5 (the contact-actions helper).
  */
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
@@ -45,6 +47,12 @@ import { CYCLE_OF_GRADE } from "../../domain/model/promotion-cycle";
 import { getNextGradeProgression } from "../../domain/calc/academics/promotion";
 import { periodMinutesSafe } from "../../domain/calc/timetable/constraints";
 import { installmentRemaining } from "../../domain/calc/payment/queries";
+import {
+  SERVICE_LABELS_FR,
+  SERVICE_PROFILE_LEDGER_LABELS_FR,
+  CROSS_SERVICE_ROW_CATEGORIES,
+  YEAR_SERVICE_GROUP_LABELS_FR,
+} from "../../domain/model/labels";
 import { buildWhatsAppUrl } from "../../shared/utils/whatsapp";
 import { GRADE_LEVELS, type GradeLevel } from "../../domain/model/student";
 
@@ -195,5 +203,83 @@ describe("E2.5 — the shared primitives' pins", () => {
     expect(menu).toContain("buildWhatsAppUrl(parent.whatsapp || parent.phone");
     expect(menu).toContain("void openWhatsApp(parent.whatsapp || parent.phone");
     expect(menu).not.toContain("wa.me"); // the hand-rolled URL is dead
+  });
+
+  // ─── The SESSION-38 lanes ───────────────────────────────────────────────
+
+  it("DUP-012: the ONE label module — SERVICE_LABELS_FR moved verbatim, the home is unique", () => {
+    // The canonical service wording, byte-identical to the historical
+    // billing-breakdown copy (the cross-platform map):
+    expect(SERVICE_LABELS_FR).toEqual({
+      tuition: "Scolarité",
+      transport: "Transport",
+      canteen: "Cantine",
+      uniform: "Tenue / Uniforme",
+      books: "Fournitures & Livres",
+      extracurricular: "Activités parascolaires",
+      therapy_psychology: "Accompagnement psychologique",
+      therapy_speech: "Orthophonie",
+      second_apron: "Deuxième tablier",
+      parent_credit: "Crédit parent",
+      other: "Autres prestations",
+    });
+    // The old definition is dead — billing-breakdown imports + re-exports.
+    const bb = src("domain/calc/payment/billing-breakdown.ts");
+    expect(bb).toContain('import { SERVICE_LABELS_FR } from "../../model/labels"');
+    expect(bb).not.toContain("export const SERVICE_LABELS_FR");
+  });
+
+  it("DUP-012: the service-pricing-profile parity restoration — the per-category labels resolve for real", () => {
+    // THE RESTORATION: these were `undefined` (→ the generic "Autres
+    // prestations" fallback) under the profile's private pricing spread;
+    // the canonical service wording now resolves them.
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.therapy_psychology).toBe("Accompagnement psychologique");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.therapy_speech).toBe("Orthophonie");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.second_apron).toBe("Deuxième tablier");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.parent_credit).toBe("Crédit parent");
+    // The pricing-category labels the ledger carries stay byte-identical:
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.registration).toBe("Inscription");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.monthly).toBe("Mensualité");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.discount).toBe("Remise");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.additional).toBe("Service additionnel");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.complementary).toBe("Service complémentaire");
+    // The overlap keys agree in both maps (the spread order is irrelevant):
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.tuition).toBe("Scolarité");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.transport).toBe("Transport");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.other).toBe("Autres prestations");
+    // The private spread is dead — the profile imports the module.
+    const spp = src("domain/calc/payment/service-pricing-profile.ts");
+    expect(spp).toContain('import { SERVICE_PROFILE_LEDGER_LABELS_FR } from "../../model/labels"');
+    expect(spp).not.toContain("const SERVICE_LABEL_FR");
+    expect(spp).not.toContain("...PRICING_CATEGORY_LABELS_FR");
+  });
+
+  it("DUP-012: CROSS_SERVICE_ROW_CATEGORIES — the engine's ordered rows moved verbatim", () => {
+    expect(CROSS_SERVICE_ROW_CATEGORIES).toEqual([
+      { key: "tuition", label: "Scolarité Annuelle" },
+      { key: "transport", label: "Transport Scolaire" },
+      { key: "therapy_psychology", label: "Accompagnement Psychologique" },
+      { key: "therapy_speech", label: "Orthophonie" },
+      { key: "second_apron", label: "2ème Tablier" },
+      { key: "other", label: "Autres Services" },
+    ]);
+    // The inline array is dead — the engine consumes the module (order IS data).
+    const fq = src("domain/calc/payment/financial-query-engine.ts");
+    expect(fq).toContain('import { CROSS_SERVICE_ROW_CATEGORIES } from "../../model/labels"');
+    expect(fq).not.toContain('label: "Scolarité Annuelle"');
+  });
+
+  it("DUP-012: YEAR_SERVICE_GROUP_LABELS_FR moved verbatim — the §15.3 structural wording", () => {
+    expect(YEAR_SERVICE_GROUP_LABELS_FR).toEqual({
+      registration: "Frais d'inscription (FI)",
+      tuition: "Scolarité",
+      transport: "Transport",
+    });
+    // year-history re-exports (the consumers keep their import path); the
+    // local definition is dead.
+    const yh = src("domain/calc/ledger/year-history.ts");
+    expect(yh).toContain('export { YEAR_SERVICE_GROUP_LABELS_FR } from "../../model/labels"');
+    expect(yh).not.toContain("const YEAR_SERVICE_GROUP_LABELS_FR");
+    expect(yh).not.toContain('"Frais d\'inscription (FI)"');
   });
 });
