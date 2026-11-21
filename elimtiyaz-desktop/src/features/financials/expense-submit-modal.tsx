@@ -25,6 +25,8 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// E2.5 / S-U1: the shared person display resolver.
+import { personDisplayName } from "../../domain/model/person";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { FormField } from "../../shared/ui/form-field";
 import { Input } from "../../shared/ui/input";
@@ -88,7 +90,8 @@ export function ExpenseSubmitModal({
         .filter((p) => p.status === "active" && p.userId)
         .map((p) => ({
           value: p.userId as string,
-          label: `${p.firstName} ${p.lastName}${p.position ? ` — ${p.position}` : ""}`,
+          // E2.5 / S-U1: the shared person resolver.
+          label: `${personDisplayName(p, "")}${p.position ? ` — ${p.position}` : ""}`,
         })),
     [personnel],
   );

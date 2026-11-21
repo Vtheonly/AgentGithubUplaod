@@ -177,7 +177,8 @@ export function ReceiptsTab() {
               <SelectContent>
                 {parents.map((p: Parent) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.firstName} {p.lastName} · {p.code}
+                    {/* E2.5 / S-U1: the shared parent resolver. */}
+                    {parentDisplayName(p)} · {p.code}
                   </SelectItem>
                 ))}
               </SelectContent>

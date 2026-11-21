@@ -78,13 +78,10 @@ export const YEAR_HISTORY_EPSILON_DZD = 0.001;
  */
 export type YearServiceGroupKey = "registration" | "tuition" | "transport" | "service";
 
-/** The fixed French labels of the three structural groups (the §15.3
- * single-wording rule; service groups use PAYMENT_CATEGORY_LABELS_FR). */
-export const YEAR_SERVICE_GROUP_LABELS_FR: Record<Exclude<YearServiceGroupKey, "service">, string> = {
-  registration: "Frais d'inscription (FI)",
-  tuition: "Scolarité",
-  transport: "Transport",
-};
+// E2.5 / DUP-012: the structural-group labels live in the ONE label module —
+// re-exported here so the existing consumers (parent-year-history-section)
+// keep their import path. The definition below is dead.
+export { YEAR_SERVICE_GROUP_LABELS_FR } from "../../model/labels";
 
 /** One service group of a year's charges (T-442 / UI-323 — INV-20e). */
 export interface YearServiceGroup {

@@ -72,6 +72,9 @@ import { DebtMeter } from "./debt-meter";
 import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";
 import { downloadPdf } from "../../infrastructure/receipt-pdf/download";
 import { uploadPrivateMedia } from "../../infrastructure/storage/media-vault";
+// E2.5 / S-U1 + S-U5: the shared person resolver + the canonical WhatsApp handoff.
+import { personDisplayName } from "../../domain/model/person";
+import { openWhatsApp } from "../../shared/utils/whatsapp";
 
 type Stage = "form" | "success";
 type Alert = NonNullable<UnifiedModalProps["alert"]>;
@@ -530,13 +533,15 @@ export function UnifiedPaymentModal({
 
   function shareViaWhatsApp() {
     if (!receiptPayment || !selectedParent) return;
-    const msg = `Bonjour ${selectedParent.firstName} ${selectedParent.lastName},%0A` +
+    // E2.5 / S-U5: the canonical WhatsApp handoff — real newlines encode
+    // through buildWhatsAppUrl (the hand-rolled %0A literal + the strip-
+    // spaces-only phone cleaning kept the leading 0, a silent no-op
+    // through the app.tsx interceptor).
+    const msg = `Bonjour ${personDisplayName(selectedParent, "")},\n` +
       `Nous accusons réception de votre paiement de ${formatDzdPlain(receiptPayment.amount)} ` +
-      `(reçu N° ${receiptPayment.receiptNumber}, ${PAYMENT_METHOD_LABELS_FR[receiptPayment.method]}).%0A` +
+      `(reçu N° ${receiptPayment.receiptNumber}, ${PAYMENT_METHOD_LABELS_FR[receiptPayment.method]}).\n` +
       `Merci — EL-IMTIYAZ`;
-    const phone = selectedParent.phone?.replace(/[\s+]/g, "") ?? "";
-    const url = `https://wa.me/${phone}?text=${msg}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    void openWhatsApp(selectedParent.phone, msg);
   }
 
   // === Custom footer per stage ===

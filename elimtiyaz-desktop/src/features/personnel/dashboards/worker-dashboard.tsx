@@ -20,6 +20,9 @@ import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
+// BUG-014 / S-U4 (E2.5): the ONE school-local day-key helper — this surface's
+// hand-rolled en-CA/Africa/Algiers idiom became it (outputs preserved verbatim).
+import { schoolLocalDateKey } from "../../../domain/calc/shared/dates";
 import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { Button } from "../../../shared/ui/button";
@@ -35,13 +38,9 @@ import {
   type TaskStatus,
 } from "../../../domain/model/workforce";
 
-const todayIso = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Algiers",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+// BUG-014 / S-U4: the shared school-local day key (was a private
+// Intl en-CA/Africa/Algiers hand-roll — same output, one home).
+const todayIso = () => schoolLocalDateKey();
 
 const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
   pending: "neutral",

@@ -19,6 +19,8 @@ import { Button } from "./button";
 import { cn } from "./cn";
 import { usePersonNavigation } from "../navigation/person-navigation-context";
 import { buildWhatsAppUrl, openWhatsApp } from "../utils/whatsapp";
+// E2.5 / S-U5: the ONE contact-action helpers.
+import { openPhoneCall, openEmail } from "../utils/contact-actions";
 
 export interface ParentActionsMenuProps {
   parent: {
@@ -153,7 +155,8 @@ export function ParentActionsMenu({
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              window.open(`tel:${parent.phone}`);
+              // E2.5 / S-U5: the shared tel: handoff.
+              openPhoneCall(parent.phone);
             }}
             className="gap-2.5 cursor-pointer"
           >
@@ -168,7 +171,8 @@ export function ParentActionsMenu({
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              window.open(`mailto:${parent.email}`);
+              // E2.5 / S-U5: the shared mailto: handoff.
+              openEmail(parent.email);
             }}
             className="gap-2.5 cursor-pointer"
           >

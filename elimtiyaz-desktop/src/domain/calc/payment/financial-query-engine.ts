@@ -39,6 +39,10 @@ import type { Parent } from "../../model/parent";
 import type { Student } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
 import { installmentRemaining, isInstallmentSettled } from "./queries";
+// E2.5 / DUP-012: the CALC-001-trimmed ACTIVE row list lives in the ONE
+// label module (its header copy + row order are that report's presentation
+// facts — moved verbatim).
+import { CROSS_SERVICE_ROW_CATEGORIES } from "../../model/labels";
 import { computeParentSummary, displayParentCredit } from "../ledger/balance";
 // T-412 (ADR-024): the canonical payroll forecast — the treasury impact is a
 // CONSUMER of its totals, never a second derivation.
@@ -396,14 +400,9 @@ export function computeCrossServicePerformance(params: {
 }): ServicePerformanceRow[] {
   const { installments, payments, allocations } = params;
 
-  const categories: { key: PaymentCategory; label: string }[] = [
-    { key: "tuition", label: "Scolarité Annuelle" },
-    { key: "transport", label: "Transport Scolaire" },
-    { key: "therapy_psychology", label: "Accompagnement Psychologique" },
-    { key: "therapy_speech", label: "Orthophonie" },
-    { key: "second_apron", label: "2ème Tablier" },
-    { key: "other", label: "Autres Services" },
-  ];
+  // E2.5 / DUP-012: the ordered ACTIVE-row list (labels + order verbatim)
+  // is the label module's CROSS_SERVICE_ROW_CATEGORIES — the inline copy is dead.
+  const categories = CROSS_SERVICE_ROW_CATEGORIES;
 
   // Canonical attribution: allocation rows carry the CONCRETE category the
   // waterfall satisfied; the payment's status splits cleared vs pending.

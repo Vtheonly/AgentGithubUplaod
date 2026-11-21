@@ -26,9 +26,11 @@
  *            the canonical buildWhatsAppUrl/openWhatsApp (with the Algerian
  *            local-number normalization the hand-roll lacked).
  *
- * The DEFERRED lanes (re-queued, recorded in the registry): DUP-012 (the
- * label-map module — a per-surface copy decision) and BUG-014 (the
- * date-key timezone split — behavioral) + the S-U1/S-U4/S-U5 folds.
+ * The SESSION-38 lanes (this file's second half): DUP-012 (the ONE label
+ * module — the five scattered maps homed in domain/model/labels.ts with
+ * the per-surface copy decision documented), BUG-014/S-U4 (the ONE
+ * school-local day-key helper), S-U1 (the person display helpers) and
+ * S-U5 (the contact-actions helper).
  */
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
@@ -39,13 +41,32 @@ import {
   stableHash,
 } from "../../core/format/id";
 import { toIsoDate, isoWindow } from "../../core/format/date";
+import { schoolLocalDateKey } from "../../domain/calc/shared/dates";
 import { formatDzdPlain } from "../../core/format/currency";
 import { calculateAttendanceRate } from "../../domain/model/academic";
 import { CYCLE_OF_GRADE } from "../../domain/model/promotion-cycle";
 import { getNextGradeProgression } from "../../domain/calc/academics/promotion";
 import { periodMinutesSafe } from "../../domain/calc/timetable/constraints";
 import { installmentRemaining } from "../../domain/calc/payment/queries";
+import {
+  SERVICE_LABELS_FR,
+  SERVICE_PROFILE_LEDGER_LABELS_FR,
+  CROSS_SERVICE_ROW_CATEGORIES,
+  YEAR_SERVICE_GROUP_LABELS_FR,
+} from "../../domain/model/labels";
+import {
+  openPhoneCall,
+  openEmail,
+  buildWhatsAppShareUrl,
+} from "../../shared/utils/contact-actions";
 import { buildWhatsAppUrl } from "../../shared/utils/whatsapp";
+import {
+  personDisplayName,
+  personInitials,
+  personSortName,
+} from "../../domain/model/person";
+import { studentDisplayName } from "../../domain/model/student";
+import { parentDisplayName } from "../../domain/model/parent";
 import { GRADE_LEVELS, type GradeLevel } from "../../domain/model/student";
 
 const SRC_ROOT = path.join(__dirname, "../..");
@@ -195,5 +216,214 @@ describe("E2.5 — the shared primitives' pins", () => {
     expect(menu).toContain("buildWhatsAppUrl(parent.whatsapp || parent.phone");
     expect(menu).toContain("void openWhatsApp(parent.whatsapp || parent.phone");
     expect(menu).not.toContain("wa.me"); // the hand-rolled URL is dead
+  });
+
+  // ─── The SESSION-38 lanes ───────────────────────────────────────────────
+
+  it("DUP-012: the ONE label module — SERVICE_LABELS_FR moved verbatim, the home is unique", () => {
+    // The canonical service wording, byte-identical to the historical
+    // billing-breakdown copy (the cross-platform map):
+    expect(SERVICE_LABELS_FR).toEqual({
+      tuition: "Scolarité",
+      transport: "Transport",
+      canteen: "Cantine",
+      uniform: "Tenue / Uniforme",
+      books: "Fournitures & Livres",
+      extracurricular: "Activités parascolaires",
+      therapy_psychology: "Accompagnement psychologique",
+      therapy_speech: "Orthophonie",
+      second_apron: "Deuxième tablier",
+      parent_credit: "Crédit parent",
+      other: "Autres prestations",
+    });
+    // The old definition is dead — billing-breakdown imports + re-exports.
+    const bb = src("domain/calc/payment/billing-breakdown.ts");
+    expect(bb).toContain('import { SERVICE_LABELS_FR } from "../../model/labels"');
+    expect(bb).not.toContain("export const SERVICE_LABELS_FR");
+  });
+
+  it("DUP-012: the service-pricing-profile parity restoration — the per-category labels resolve for real", () => {
+    // THE RESTORATION: these were `undefined` (→ the generic "Autres
+    // prestations" fallback) under the profile's private pricing spread;
+    // the canonical service wording now resolves them.
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.therapy_psychology).toBe("Accompagnement psychologique");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.therapy_speech).toBe("Orthophonie");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.second_apron).toBe("Deuxième tablier");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.parent_credit).toBe("Crédit parent");
+    // The pricing-category labels the ledger carries stay byte-identical:
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.registration).toBe("Inscription");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.monthly).toBe("Mensualité");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.discount).toBe("Remise");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.additional).toBe("Service additionnel");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.complementary).toBe("Service complémentaire");
+    // The overlap keys agree in both maps (the spread order is irrelevant):
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.tuition).toBe("Scolarité");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.transport).toBe("Transport");
+    expect(SERVICE_PROFILE_LEDGER_LABELS_FR.other).toBe("Autres prestations");
+    // The private spread is dead — the profile imports the module.
+    const spp = src("domain/calc/payment/service-pricing-profile.ts");
+    expect(spp).toContain('import { SERVICE_PROFILE_LEDGER_LABELS_FR } from "../../model/labels"');
+    expect(spp).not.toContain("const SERVICE_LABEL_FR");
+    expect(spp).not.toContain("...PRICING_CATEGORY_LABELS_FR");
+  });
+
+  it("DUP-012: CROSS_SERVICE_ROW_CATEGORIES — the engine's ordered rows moved verbatim", () => {
+    expect(CROSS_SERVICE_ROW_CATEGORIES).toEqual([
+      { key: "tuition", label: "Scolarité Annuelle" },
+      { key: "transport", label: "Transport Scolaire" },
+      { key: "therapy_psychology", label: "Accompagnement Psychologique" },
+      { key: "therapy_speech", label: "Orthophonie" },
+      { key: "second_apron", label: "2ème Tablier" },
+      { key: "other", label: "Autres Services" },
+    ]);
+    // The inline array is dead — the engine consumes the module (order IS data).
+    const fq = src("domain/calc/payment/financial-query-engine.ts");
+    expect(fq).toContain('import { CROSS_SERVICE_ROW_CATEGORIES } from "../../model/labels"');
+    expect(fq).not.toContain('label: "Scolarité Annuelle"');
+  });
+
+  it("DUP-012: YEAR_SERVICE_GROUP_LABELS_FR moved verbatim — the §15.3 structural wording", () => {
+    expect(YEAR_SERVICE_GROUP_LABELS_FR).toEqual({
+      registration: "Frais d'inscription (FI)",
+      tuition: "Scolarité",
+      transport: "Transport",
+    });
+    // year-history re-exports (the consumers keep their import path); the
+    // local definition is dead.
+    const yh = src("domain/calc/ledger/year-history.ts");
+    expect(yh).toContain('export { YEAR_SERVICE_GROUP_LABELS_FR } from "../../model/labels"');
+    expect(yh).not.toContain("const YEAR_SERVICE_GROUP_LABELS_FR");
+    expect(yh).not.toContain('"Frais d\'inscription (FI)"');
+  });
+
+  it("BUG-014/S-U4: the ONE school-local day key — the 00:30 Algiers band keys TODAY, not yesterday", () => {
+    // THE BUG-014 CASE: 23:30 UTC = 00:30 the NEXT day in Algiers (UTC+1).
+    // The UTC slice keys this instant YESTERDAY; the school-local key is
+    // the correct local day.
+    const lateNight = new Date("2026-11-22T23:30:00.000Z");
+    expect(schoolLocalDateKey(lateNight)).toBe("2026-11-23");
+    expect(lateNight.toISOString().slice(0, 10)).toBe("2026-11-22"); // the killed behavior
+    // Ordinary midday instants agree with the UTC date:
+    expect(schoolLocalDateKey(new Date("2026-11-22T10:00:00.000Z"))).toBe("2026-11-22");
+    // The staff idiom's output is PRESERVED verbatim (the helper IS it):
+    const handRolled = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Africa/Algiers",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(lateNight);
+    expect(schoolLocalDateKey(lateNight)).toBe(handRolled);
+    // Shape: a date-only key.
+    expect(schoolLocalDateKey()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The three student UTC slices are dead; the two staff hand-rolls are
+    // dead; the payroll formatToParts derivation is dead.
+    for (const rel of [
+      "features/academics/roll-call-screen.tsx",
+      "features/academics/class-attendance-tab.tsx",
+      "features/crm/student-detail/attendance-tab.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).toContain("schoolLocalDateKey");
+      expect(s).not.toContain("toISOString().slice(0, 10)");
+    }
+    expect(src("features/personnel/management/staff-attendance-center.tsx"))
+      .toContain("schoolLocalDateKey");
+    expect(src("features/personnel/management/staff-attendance-center.tsx"))
+      .not.toContain('Intl.DateTimeFormat("en-CA"');
+    expect(src("features/personnel/dashboards/worker-dashboard.tsx"))
+      .toContain("schoolLocalDateKey");
+    expect(src("features/personnel/dashboards/worker-dashboard.tsx"))
+      .not.toContain('Intl.DateTimeFormat("en-CA"');
+    const pm = src("features/personnel/management/payroll-management.tsx");
+    expect(pm).toContain("schoolLocalDateKey");
+    expect(pm).not.toContain("Intl.DateTimeFormat(\"en-US\"");
+  });
+
+  it("S-U1: the ONE person display resolver — displayName-trim → join-trim → fallback", () => {
+    // The canonical chain (the shape parentDisplayName established):
+    expect(personDisplayName({ displayName: "  Amine B.  ", firstName: "A", lastName: "B" })).toBe("Amine B.");
+    expect(personDisplayName({ firstName: "Amine", lastName: "Benali" })).toBe("Amine Benali");
+    expect(personDisplayName({ firstName: "Amine", lastName: "Benali" }, "")).toBe("Amine Benali");
+    expect(personDisplayName({}, "Inconnu")).toBe("Inconnu");
+    expect(personDisplayName({})).toBe("—"); // the canonical default fallback
+    // The canonical resolvers delegate (byte-identical outputs):
+    expect(parentDisplayName({ displayName: "Famille X", firstName: "P", lastName: "Q" })).toBe("Famille X");
+    expect(parentDisplayName({ firstName: "P", lastName: "Q", displayName: "" })).toBe("P Q");
+    expect(parentDisplayName({ displayName: "", firstName: "", lastName: "" })).toBe("—");
+    expect(studentDisplayName({ displayName: "", firstName: "S", lastName: "T" })).toBe("S T");
+    expect(studentDisplayName({ displayName: "", firstName: "", lastName: "" })).toBe("—");
+    // Initials: the parts-based avatar idiom, missing-part tolerant.
+    expect(personInitials({ firstName: "Amine", lastName: "Benali" })).toBe("AB");
+    expect(personInitials({ firstName: "Amine" })).toBe("A");
+    expect(personInitials({})).toBe("");
+    // The last-first sort key.
+    expect(personSortName({ firstName: "Amine", lastName: "Benali" })).toBe("Benali Amine");
+    // The ad-hoc joins are dead at the converted surfaces (representative
+    // guards — the full conversion is 16 files): the id-fallback map, the
+    // mixed sort comparator, the drawer initials, the aging resolver.
+    const ec = src("features/dashboard/components/analytics/executive-cards.tsx");
+    expect(ec).toContain("personDisplayName(p, p.id)");
+    expect(ec).not.toContain("p.displayName || `${p.firstName} ${p.lastName}`");
+    const md = src("features/financials/manual-debt-modal.tsx");
+    expect(md).toContain("personSortName(a)");
+    expect(md).toContain("studentDisplayName(s)");
+    expect(md).toContain("parentDisplayName(p)");
+    expect(md).not.toContain("`${a.lastName} ${a.firstName}`");
+    const sdd = src("features/crm/student-detail-drawer.tsx");
+    expect(sdd).toContain("personInitials(s)");
+    expect(sdd).not.toContain("s.firstName[0]");
+    const da = src("features/financials/debt-aging-tab.tsx");
+    expect(da).toContain("studentDisplayName(s)");
+    expect(da).not.toContain("s.displayName ?? `${s.firstName} ${s.lastName}`");
+    const cam = src("features/settings/create-account-modal.tsx");
+    expect(cam).toContain("personSortName(a).localeCompare(personSortName(b)");
+    // parent/student models delegate to the shared core.
+    expect(src("domain/model/parent.ts")).toContain("return personDisplayName(p);");
+    expect(src("domain/model/student.ts")).toContain("return personDisplayName(s);");
+  });
+
+  it("S-U5: the ONE contact-actions module — the tel:/mailto:/share helpers + the wa.me hand-rolls die", () => {
+    // The helpers (fail-closed, then the handoff shape):
+    expect(openPhoneCall("0550 12 34 56")).toBe(true);
+    expect(openPhoneCall("  ")).toBe(false);
+    expect(openPhoneCall(null)).toBe(false);
+    expect(openEmail("parent@el-imtiyaz.dz")).toBe(true);
+    expect(openEmail("")).toBe(false);
+    // The no-phone share form (the financials-page reminder hand-roll):
+    expect(buildWhatsAppShareUrl("Bonjour")).toBe("https://wa.me/?text=Bonjour");
+    expect(buildWhatsAppShareUrl("a b&c")).toBe("https://wa.me/?text=a%20b%26c");
+    // In the vitest jsdom-ish environment window.open is stubbed by the
+    // setup; the handoff shape is pinned above through the return values.
+    // The dead-source guards: the 6 tel/mailto window.open sites and the
+    // 7 wa.me hand-rolls are dead (only the canonical modules carry them).
+    for (const rel of [
+      "shared/ui/parent-actions-menu.tsx",
+      "features/crm/parent-detail-drawer.tsx",
+      "features/personnel/management/employee-profile-drawer.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).toContain("openPhoneCall");
+      expect(s).not.toContain("window.open(`tel:");
+      expect(s).not.toContain("window.open(`mailto:");
+    }
+    for (const rel of [
+      "features/dashboard/components/insights-rail.tsx",
+      "features/financials/financial-query-console.tsx",
+      "features/financials/unified-payment-modal.tsx",
+      "features/crm/activation-code-modal.tsx",
+      "infrastructure/mock/repositories/workflow-side-effects.ts",
+      "features/financials/financials-page.tsx",
+    ]) {
+      const s = src(rel);
+      expect(s).not.toContain("wa.me/"); // the hand-rolled URL is dead
+    }
+    // parent-detail-drawer's WhatsApp leg rides the canonical openWhatsApp.
+    const pdd = src("features/crm/parent-detail-drawer.tsx");
+    expect(pdd).toContain("void openWhatsApp(p.whatsapp || p.phone)");
+    // unified-payment-modal's share rides the canonical openWhatsApp with
+    // the person resolver in the greeting.
+    const upm = src("features/financials/unified-payment-modal.tsx");
+    expect(upm).toContain("openWhatsApp(selectedParent.phone, msg)");
+    expect(upm).toContain("personDisplayName(selectedParent, \"\")");
   });
 });

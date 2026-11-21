@@ -25,6 +25,8 @@ import {
 import { useAuth } from "../../app/providers/auth-provider";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// E2.5 / S-U1: the shared person display resolver.
+import { personDisplayName } from "../../domain/model/person";
 import { PageHeader } from "../../shared/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
@@ -176,7 +178,8 @@ export function ProfilePage() {
             me={me}
             departmentName={departmentName}
             supervisorName={
-              supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null
+              // E2.5 / S-U1: the shared person resolver.
+              supervisor ? personDisplayName(supervisor, "") : null
             }
             openTasks={openTasks}
             completedTasks={completedTasks}
@@ -377,7 +380,8 @@ function EmployeeDossierCard(props: {
         {/* Identity + responsibilities */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">
-            {me.firstName} {me.lastName}
+            {/* E2.5 / S-U1: the shared person resolver. */}
+            {personDisplayName(me, "")}
           </span>
           <Badge variant="outline">{STAFF_CATEGORY_LABELS_FR[me.staffCategory]}</Badge>
           <StatusChip

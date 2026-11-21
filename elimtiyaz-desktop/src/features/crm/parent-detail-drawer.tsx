@@ -106,6 +106,11 @@ import {
   type Parent,
   type TransportDestination,
 } from "../../domain/model/parent";
+// E2.5 / S-U1: the shared person initials resolver.
+import { personInitials } from "../../domain/model/person";
+// E2.5 / S-U5: the ONE contact-action helpers + the canonical WhatsApp handoff.
+import { openPhoneCall, openEmail } from "../../shared/utils/contact-actions";
+import { openWhatsApp } from "../../shared/utils/whatsapp";
 import {
   GRADE_LEVEL_LABELS_FR,
   type Student,
@@ -439,11 +444,11 @@ export function ParentDetailDrawer({
                   size="sm"
                   className="h-8 text-xs text-status-success border-status-success/30 hover:bg-status-success/10"
                   onClick={() => {
-                    const clean = (p.whatsapp || p.phone || "").replace(
-                      /[\s+]/g,
-                      "",
-                    );
-                    if (clean) window.open(`https://wa.me/${clean}`);
+                    // E2.5 / S-U5: the canonical WhatsApp handoff — the
+                    // hand-rolled strip-spaces-only cleaning kept the leading
+                    // 0, which the app.tsx interceptor REFUSES (a silent
+                    // no-op); normalizeWhatsAppPhone fixes 05xx → 213xx.
+                    void openWhatsApp(p.whatsapp || p.phone);
                   }}
                 >
                   <MessageCircle className="h-3.5 w-3.5 mr-1 text-status-success" />
@@ -453,7 +458,7 @@ export function ParentDetailDrawer({
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs"
-                  onClick={() => window.open(`tel:${p.phone}`)}
+                  onClick={() => openPhoneCall(p.phone)}
                 >
                   <Phone className="h-3.5 w-3.5 mr-1" /> Appeler
                 </Button>
@@ -472,7 +477,7 @@ export function ParentDetailDrawer({
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs"
-                    onClick={() => window.open(`mailto:${p.email}`)}
+                    onClick={() => openEmail(p.email)}
                   >
                     <Mail className="h-3.5 w-3.5 mr-1" /> E-mail
                   </Button>
@@ -735,8 +740,8 @@ export function ParentDetailDrawer({
         subtitle={(p) => `${p.code} · ${p.phone ?? "Sans téléphone"}`}
         metadata={metadata}
         avatar={(p) => ({
-          initials:
-            `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase(),
+          // E2.5 / S-U1: the shared person initials resolver.
+          initials: personInitials(p),
         })}
         tabs={tabs}
         actions={actions}

@@ -12,6 +12,9 @@ import {
   type EntityDrawerMetaItem,
 } from "../../shared/ui/entity-drawer";
 import { LEVEL_LABELS_FR, type Student } from "../../domain/model/student";
+// E2.5 / S-U1: the shared person display helpers.
+import { studentDisplayName } from "../../domain/model/student";
+import { personInitials } from "../../domain/model/person";
 import { InfoTab } from "./student-detail/info-tab";
 import { AcademicTab } from "./student-detail/academic-tab";
 import { AttendanceTab } from "./student-detail/attendance-tab";
@@ -92,10 +95,11 @@ export function StudentDetailDrawer({
         onOpenChange={onOpenChange}
         entity={entity}
         widthClass="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl"
-        title={(s) => `${s.firstName} ${s.lastName}`}
+        title={(s) => studentDisplayName(s)}
         subtitle={(s) => `${s.code} · ${LEVEL_LABELS_FR[s.level]} · Année ${s.gradeYear}`}
         avatar={(s) => ({
-          initials: `${s.firstName[0] ?? ""}${s.lastName[0] ?? ""}`.toUpperCase(),
+          // E2.5 / S-U1: the shared person initials resolver.
+          initials: personInitials(s),
         })}
         metadata={metadata}
         tabs={() => tabs}

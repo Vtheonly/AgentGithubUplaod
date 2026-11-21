@@ -41,6 +41,9 @@ import {
   PAYMENT_CATEGORY_LABELS_FR,
   type PaymentCategory,
 } from "../../domain/model/payment";
+import { parentDisplayName } from "../../domain/model/parent";
+import { studentDisplayName } from "../../domain/model/student";
+import { personSortName } from "../../domain/model/person";
 import { formatDzd } from "../../core/format/currency";
 
 /**
@@ -128,7 +131,8 @@ export function ManualDebtModal({
   const studentOptions = useMemo(
     () =>
       familyStudents.map((s) => ({
-        label: `${s.displayName || `${s.firstName} ${s.lastName}`} · ${s.code}`,
+        // E2.5 / S-U1: the shared student resolver.
+        label: `${studentDisplayName(s)} · ${s.code}`,
         value: s.id,
       })),
     [familyStudents],
@@ -251,11 +255,14 @@ export function ManualDebtModal({
     () =>
       [...parents]
         .sort((a, b) =>
-          (a.displayName ?? `${a.lastName} ${a.firstName}`)
-            .localeCompare(b.displayName ?? `${b.lastName} ${b.firstName}`, "fr"),
+          // E2.5 / S-U1: the shared last-first sort key (displayName
+          // precedence is this comparator's own policy — preserved).
+          (a.displayName ?? personSortName(a))
+            .localeCompare(b.displayName ?? personSortName(b), "fr"),
         )
         .map((p) => ({
-          label: `${p.displayName || `${p.firstName} ${p.lastName}`} · ${p.code}`,
+          // E2.5 / S-U1: the shared parent resolver.
+          label: `${parentDisplayName(p)} · ${p.code}`,
           value: p.id,
         })),
     [parents],
@@ -301,8 +308,7 @@ export function ManualDebtModal({
   const pickedParent = pickedParentId ? parents.find((p) => p.id === pickedParentId) : undefined;
   const effectiveParentName =
     parentName ??
-    pickedParent?.displayName?.trim() ??
-    (pickedParent ? `${pickedParent.firstName} ${pickedParent.lastName}`.trim() : undefined);
+    (pickedParent ? parentDisplayName(pickedParent) : undefined);
 
   return (
     <AutoFormModal

@@ -32,6 +32,8 @@ import {
 import { Button } from "../../../shared/ui/button";
 import { formatDzdPlain, formatDzd } from "../../../core/format/currency";
 import type { DebtSummary } from "../../../domain/model/payment";
+// E2.5 / S-U5: the canonical WhatsApp handoff.
+import { buildWhatsAppUrl, openWhatsApp } from "../../../shared/utils/whatsapp";
 
 export interface InsightsRailProps {
   achieved: number;
@@ -215,7 +217,12 @@ export function InsightsRail({
             </p>
           ) : (
             topDebtors.slice(0, 4).map((d) => {
-              const cleanPhone = (d.parentPhone || "").replace(/[\s+]/g, "");
+              // E2.5 / S-U5: the canonical WhatsApp handoff — the strip-
+              // spaces-only cleaning kept the leading 0, which buildWhatsAppUrl
+              // refuses (the app.tsx interceptor then silently no-ops); the
+              // canonical normalization fixes 05xx → 213xx.
+              const waTarget = d.parentPhone || "";
+              const waUrl = buildWhatsAppUrl(waTarget);
               const isUrgent = d.daysOverdue > 45;
 
               return (
@@ -243,14 +250,12 @@ export function InsightsRail({
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    {cleanPhone && (
+                    {waUrl && (
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0 text-status-success hover:bg-status-success/15"
-                        onClick={() =>
-                          window.open(`https://wa.me/${cleanPhone}`, "_blank")
-                        }
+                        onClick={() => void openWhatsApp(waTarget)}
                         title="WhatsApp"
                       >
                         <MessageCircle className="h-3.5 w-3.5" />

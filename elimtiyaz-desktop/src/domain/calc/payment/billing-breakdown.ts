@@ -75,6 +75,10 @@ import { splitNetTuitionByOfficialSchedule, getOfficialTuitionDueDates } from ".
 import { allocatePaymentToInstallments } from "./waterfall-allocator";
 import { installmentRemaining } from "./queries";
 import { sumPaidPaymentsAsOf, sumFutureRecordedPaidPayments, sumPendingPayments } from "./sums";
+// E2.5 / DUP-012: the canonical service labels live in the ONE label module.
+import { SERVICE_LABELS_FR } from "../../model/labels";
+// Zero-churn re-export: the ONE definition lives in the label module.
+export { SERVICE_LABELS_FR } from "../../model/labels";
 
 /* ============================================================ */
 /*  Inputs                                                       */
@@ -728,20 +732,8 @@ function summarizeByService(
   return nodes.sort((a, b) => b.amount - a.amount);
 }
 
-/** FR labels for service categories (domain-level, shared by platforms). */
-export const SERVICE_LABELS_FR: Record<PaymentCategory, string> = {
-  tuition: "Scolarité",
-  transport: "Transport",
-  canteen: "Cantine",
-  uniform: "Tenue / Uniforme",
-  books: "Fournitures & Livres",
-  extracurricular: "Activités parascolaires",
-  therapy_psychology: "Accompagnement psychologique",
-  therapy_speech: "Orthophonie",
-  second_apron: "Deuxième tablier",
-  parent_credit: "Crédit parent",
-  other: "Autres prestations",
-};
+// E2.5 / DUP-012: the SERVICE_LABELS_FR definition moved to the ONE label
+// module (domain/model/labels.ts) — re-exported above; the copy below is dead.
 
 function legacyLevelLabel(level: string): string {
   if (level === "primaire") return "Primaire";

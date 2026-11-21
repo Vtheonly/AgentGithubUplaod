@@ -47,6 +47,8 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import type { CreatedAccount } from "../../domain/repository/repository";
 import { STAFF_CATEGORY_LABELS_FR } from "../../domain/model/personnel";
+// E2.5 / S-U1: the shared person display + sort helpers.
+import { personDisplayName, personSortName } from "../../domain/model/person";
 import { Role, ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import { FormField } from "../../shared/ui/form-field";
@@ -158,10 +160,8 @@ export function CreateAccountModal({
       [...personnel]
         .filter((p) => p.status === "active" || p.status === "on_leave")
         .sort((a, b) =>
-          `${a.lastName} ${a.firstName}`.localeCompare(
-            `${b.lastName} ${b.firstName}`,
-            "fr",
-          ),
+          // E2.5 / S-U1: the shared last-first sort key.
+          personSortName(a).localeCompare(personSortName(b), "fr"),
         ),
     [personnel],
   );
@@ -183,7 +183,8 @@ export function CreateAccountModal({
     if (!p) return;
     setForm((f) => ({
       ...f,
-      fullName: `${p.firstName} ${p.lastName}`.trim(),
+      // E2.5 / S-U1: the shared person resolver.
+      fullName: personDisplayName(p, ""),
       phone: p.phone ?? "",
       email: f.email || (p.email ?? ""),
       // Suggest the employee's staff role; the admin stays in control.
@@ -341,7 +342,8 @@ export function CreateAccountModal({
                       value={p.id}
                       disabled={Boolean(p.userId)}
                     >
-                      {`${p.firstName} ${p.lastName} — ${p.position || STAFF_CATEGORY_LABELS_FR[p.staffCategory]}`}
+                      {/* E2.5 / S-U1: the shared person resolver. */}
+                      {`${personDisplayName(p, "")} — ${p.position || STAFF_CATEGORY_LABELS_FR[p.staffCategory]}`}
                       {p.userId ? " (compte lié)" : ""}
                     </SelectItem>
                   ))}
@@ -360,7 +362,8 @@ export function CreateAccountModal({
                 <div className="flex flex-wrap items-center gap-2">
                   <Link2 className="h-3.5 w-3.5 text-primary" />
                   <span className="text-sm font-medium">
-                    {selected.firstName} {selected.lastName}
+                    {/* E2.5 / S-U1: the shared person resolver. */}
+                    {personDisplayName(selected, "")}
                   </span>
                   <Badge variant="outline">
                     {STAFF_CATEGORY_LABELS_FR[selected.staffCategory]}
@@ -374,7 +377,8 @@ export function CreateAccountModal({
                     <Building2 className="h-3.5 w-3.5" />
                     {departmentName ?? "Sans département"}
                     {supervisorName &&
-                      ` · Resp. ${supervisorName.firstName} ${supervisorName.lastName}`}
+                      // E2.5 / S-U1: the shared person resolver.
+                      ` · Resp. ${personDisplayName(supervisorName, "")}`}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5" />

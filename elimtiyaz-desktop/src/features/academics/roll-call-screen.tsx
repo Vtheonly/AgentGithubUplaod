@@ -5,6 +5,9 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// BUG-014 / S-U4 (E2.5): the date key resolves on the SCHOOL'S calendar
+// (Africa/Algiers) — never the UTC slice (a 00:30 roll-call keyed yesterday).
+import { schoolLocalDateKey } from "../../domain/calc/shared/dates";
 import {
   ATTENDANCE_STATUS_LABELS_FR,
   ATTENDANCE_STATUS_SHORT,
@@ -77,7 +80,9 @@ export function RollCallScreen({ classId: classIdProp, onExit }: RollCallScreenP
     [classId],
   );
 
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  // BUG-014 / S-U4: the school-local day key (Africa/Algiers) — the UTC
+  // slice keyed a 00:30 roll-call to YESTERDAY.
+  const [date, setDate] = useState(schoolLocalDateKey());
   const [sess, setSess] = useState<AttendanceSession>("morning");
   const [statuses, setStatuses] = useState<Map<string, AttendanceStatus>>(
     new Map(),

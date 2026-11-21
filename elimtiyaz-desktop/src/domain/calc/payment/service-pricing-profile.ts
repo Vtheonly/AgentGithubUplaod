@@ -38,10 +38,15 @@ import type {
   PricingConfig,
   PricingEntry,
 } from "../../model/pricing";
-import { PRICING_CATEGORY_LABELS_FR } from "../../model/pricing";
+import { installmentRemaining } from "./queries";
+// E2.5 / DUP-012: the ledger-coding label lookup lives in the ONE label
+// module — the website-parity restoration (the per-category therapy /
+// second-apron / parent-credit charges now resolve to their REAL canonical
+// wording instead of the generic `other` fallback; every pricing-category
+// label stays byte-identical — the overlap keys carry the same wording).
+import { SERVICE_PROFILE_LEDGER_LABELS_FR } from "../../model/labels";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../model/parent";
 import { CYCLE_OF_GRADE } from "../../model/promotion-cycle";
-import { installmentRemaining } from "./queries";
 
 /* ─── The profile output shape (IDENTICAL to the website's T-333 module) ─── */
 
@@ -194,12 +199,6 @@ const SINGLE_YEAR_PATTERN = /\b(20\d{2})\b/;
 // E2.5 (DUP-020): the ONE map — domain/model/promotion-cycle.ts
 // CYCLE_OF_GRADE (the values are byte-identical; the local copy is dead).
 
-/** "Scolarité" / "Transport" / … — canonical FR category labels. */
-const SERVICE_LABEL_FR: Record<string, string> = {
-  ...PRICING_CATEGORY_LABELS_FR,
-  other: "Autres prestations",
-};
-
 /* ─── Metadata decoding (the "entire process" evidence) ─────────────────── */
 
 interface DecodedMetadata {
@@ -283,8 +282,9 @@ function isRegistrationCategory(rows: readonly LedgerEntry[]): boolean {
 }
 
 function refinedLabel(category: string, chargeRows: readonly LedgerEntry[]): string {
-  if (category !== "other") return SERVICE_LABEL_FR[category] ?? SERVICE_LABEL_FR.other;
-  return isRegistrationCategory(chargeRows) ? "Inscription" : SERVICE_LABEL_FR.other;
+  if (category !== "other")
+    return SERVICE_PROFILE_LEDGER_LABELS_FR[category] ?? SERVICE_PROFILE_LEDGER_LABELS_FR.other;
+  return isRegistrationCategory(chargeRows) ? "Inscription" : SERVICE_PROFILE_LEDGER_LABELS_FR.other;
 }
 
 /* ─── Tranche node builder (amounts + months) ───────────────────────────── */

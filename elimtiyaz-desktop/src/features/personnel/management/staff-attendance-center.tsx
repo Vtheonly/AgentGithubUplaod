@@ -33,6 +33,9 @@ import { useRepositories } from "../../../app/providers/repository-provider";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
+// BUG-014 / S-U4 (E2.5): the ONE school-local day-key helper — this surface's
+// hand-rolled en-CA/Africa/Algiers idiom became it (outputs preserved verbatim).
+import { schoolLocalDateKey } from "../../../domain/calc/shared/dates";
 import { Role } from "../../../core/rbac/roles";
 import {
   Card,
@@ -158,12 +161,9 @@ export function StaffAttendanceCenter() {
   const [decisionNote, setDecisionNote] = useState("");
 
   // Quick clock in/out for workers
-  const todayIso = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Algiers",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  // BUG-014 / S-U4: the shared school-local day key (was a private
+  // Intl en-CA/Africa/Algiers hand-roll — same output, one home).
+  const todayIso = schoolLocalDateKey();
   const [clockTick, setClockTick] = useState(0);
   const latestEvent = useMemo(() => {
     void clockTick;

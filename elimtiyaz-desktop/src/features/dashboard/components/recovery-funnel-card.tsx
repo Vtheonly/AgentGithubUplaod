@@ -72,6 +72,7 @@ import {
 import type { Installment } from "../../../domain/model/payment";
 import type { Parent } from "../../../domain/model/parent";
 import { parentDisplayName } from "../../../domain/model/parent";
+import { studentDisplayName } from "../../../domain/model/student";
 import type { Student } from "../../../domain/model/student";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
@@ -182,7 +183,9 @@ export function deriveRecoveryFunnelHouseholds(params: {
       const studentNames = [...fam.studentIds]
         .map((id) => studentById.get(id))
         .filter((s): s is Student => !!s)
-        .map((s) => (s.displayName ?? `${s.firstName} ${s.lastName}`).trim());
+        // E2.5 / S-U1: the shared student resolver (the canonical
+        // displayName-trim → join-trim → "—" chain).
+        .map((s) => studentDisplayName(s));
       const stages: RecoveryStageIndex[] = [0];
       if (fam.worstDaysOverdue > 0) stages.push(1);
       if (fam.worstDaysOverdue > thresholds.yellowDays) stages.push(2);

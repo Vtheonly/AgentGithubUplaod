@@ -159,6 +159,43 @@ export function schoolLocalWeekdayIndex(iso: string): number | null {
 }
 
 /**
+ * BUG-014 / S-U4 (E2.5): the ONE school-local DATE-KEY helper — the
+ * `YYYY-MM-DD` day key a Date resolves to ON THE SCHOOL'S CALENDAR
+ * (Africa/Algiers, via SCHOOL_TIMEZONE), not on the machine's clock and
+ * not in UTC.
+ *
+ * The split it kills: the student-attendance surfaces derived their date
+ * keys with `new Date().toISOString().slice(0, 10)` (a UTC key) while the
+ * staff surfaces hand-rolled `Intl.DateTimeFormat("en-CA", { timeZone:
+ * "Africa/Algiers", … })` (a school-local key). A roll-call opened at
+ * 00:30 Algiers time (23:30 UTC the previous day) keyed the attendance
+ * record to YESTERDAY on every student surface while the staff clock-in
+ * keyed TODAY — two calendar conventions in one school. Every surface
+ * that keys a day (attendance keys, attendance windows, payroll's
+ * current-month derivation) resolves through THIS helper.
+ *
+ * Behavioral (intentional): the student-attendance keys shift for the
+ * 00:00–00:59 Algiers band (and on non-UTC+1 machines) onto the correct
+ * local day; the staff surfaces' outputs are preserved verbatim (the
+ * helper IS their hand-rolled idiom, now shared).
+ */
+export function schoolLocalDateKey(date: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: SCHOOL_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  } catch {
+    // Intl unavailable/exploded — the honest fallback is the UTC ISO date
+    // (the pre-BUG-014 student-surface behavior), never a crash in an
+    // attendance path.
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+/**
  * T-356 (DASH-407): month buckets anchored to a REQUESTED window — the
  * convention `MockDashboardRepository.revenueForRange` always used (the
  * reference implementation). A cursor walks from the window's first month

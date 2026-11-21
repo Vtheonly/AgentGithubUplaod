@@ -37,6 +37,8 @@ import { Input } from "../../shared/ui/input";
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
+// E2.5 / S-U5: the canonical WhatsApp handoff.
+import { openWhatsApp } from "../../shared/utils/whatsapp";
 import { useAICopilot } from "../../app/providers/ai-copilot-provider";
 import {
   FINANCIAL_PRESETS,
@@ -375,11 +377,11 @@ export function FinancialQueryConsole({
                               variant="ghost"
                               className="h-7 w-7 p-0 text-status-success hover:bg-status-success/10"
                               onClick={() => {
-                                const clean = f.parentPhone.replace(
-                                  /[\s+]/g,
-                                  "",
-                                );
-                                window.open(`https://wa.me/${clean}`);
+                                // E2.5 / S-U5: the canonical WhatsApp handoff —
+                                // the strip-spaces-only cleaning kept the leading
+                                // 0 (a silent no-op through the interceptor);
+                                // openWhatsApp normalizes 05xx → 213xx.
+                                void openWhatsApp(f.parentPhone);
                               }}
                               title="Envoyer WhatsApp"
                             >

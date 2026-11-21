@@ -35,6 +35,10 @@ import {
   SALARY_ADJUSTMENT_TYPE_LABELS_FR,
   type Personnel,
 } from "../../../domain/model/personnel";
+// E2.5 / S-U1: the shared person display helpers.
+import { personDisplayName, personInitials } from "../../../domain/model/person";
+// E2.5 / S-U5: the ONE contact-action helpers.
+import { openPhoneCall, openEmail } from "../../../shared/utils/contact-actions";
 import {
   TASK_PRIORITY_LABELS_FR,
   TASK_STATUS_LABELS_FR,
@@ -293,7 +297,7 @@ export function EmployeeProfileDrawer({
               variant="outline"
               size="sm"
               className="flex-1 h-8 text-xs"
-              onClick={() => window.open(`tel:${p.phone}`)}
+              onClick={() => openPhoneCall(p.phone)}
             >
               <Phone className="h-3.5 w-3.5 mr-1.5" /> Appeler
             </Button>
@@ -302,7 +306,7 @@ export function EmployeeProfileDrawer({
                 variant="outline"
                 size="sm"
                 className="flex-1 h-8 text-xs"
-                onClick={() => window.open(`mailto:${p.email}`)}
+                onClick={() => openEmail(p.email)}
               >
                 <Mail className="h-3.5 w-3.5 mr-1.5" /> Envoyer un E-mail
               </Button>
@@ -562,12 +566,13 @@ export function EmployeeProfileDrawer({
       onOpenChange={onOpenChange}
       entity={personnel}
       widthClass="w-full sm:max-w-xl md:max-w-2xl"
-      title={(p) => `${p.firstName} ${p.lastName}`}
+      title={(p) => personDisplayName(p, "")}
       subtitle={(p) =>
         `${p.position || STAFF_CATEGORY_LABELS_FR[p.staffCategory]} · ${department?.name ?? "Sans département"}`
       }
       avatar={(p) => ({
-        initials: `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase(),
+        // E2.5 / S-U1: the shared person initials resolver.
+        initials: personInitials(p),
       })}
       metadata={metadata}
       tabs={tabs}

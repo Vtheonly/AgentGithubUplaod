@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
+// BUG-014 / S-U4 (E2.5): the range keys resolve on the SCHOOL'S calendar
+// (Africa/Algiers) — never the UTC slice.
+import { schoolLocalDateKey } from "../../domain/calc/shared/dates";
 import {
   Card,
   CardContent,
@@ -36,8 +39,10 @@ export function ClassAttendanceTab({ classId }: { classId: string }) {
   const today = new Date();
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 14);
-  const todayStr = today.toISOString().slice(0, 10);
-  const weekAgoStr = weekAgo.toISOString().slice(0, 10);
+  // BUG-014 / S-U4: the school-local keys (Africa/Algiers) — the UTC slice
+  // shifted the window one day back inside the 00:00–00:59 band.
+  const todayStr = schoolLocalDateKey(today);
+  const weekAgoStr = schoolLocalDateKey(weekAgo);
 
   const records = useObservable(
     () => repos.attendance.observeByClassRange(classId, weekAgoStr, todayStr),

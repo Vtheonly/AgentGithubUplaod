@@ -35,6 +35,7 @@ import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
+import { studentDisplayName } from "../../domain/model/student";
 import { installmentRemaining, isInstallmentOverdue } from "../../domain/calc/payment/queries";
 import type { ChatChannel } from "../../domain/model/workforce";
 
@@ -98,7 +99,8 @@ export function AlertDetailModal({
         return s
           ? {
               kind: "student" as const,
-              label: `${s.firstName} ${s.lastName}`,
+              // E2.5 / S-U1: the shared student resolver.
+              label: studentDisplayName(s),
               subtitle: s.code,
               route: `/crm?student=${s.id}`,
             }
