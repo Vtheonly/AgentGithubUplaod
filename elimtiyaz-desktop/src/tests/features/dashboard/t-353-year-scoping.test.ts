@@ -115,20 +115,26 @@ const PAGE_SRC = readFileSync(
   join(SRC, "features/dashboard/dashboard-page.tsx"),
   "utf8",
 );
+// E6.9 (DUP-029, D-U1): the scoping lives in the use-overview-data
+// view-model hook — the guards follow the behavior to its new home.
+const OVERVIEW_HOOK_SRC = readFileSync(
+  join(SRC, "features/dashboard/use-overview-data.ts"),
+  "utf8",
+);
 const TAB_SRC = readFileSync(
   join(SRC, "features/dashboard/tabs/analytics-tab.tsx"),
   "utf8",
 );
 
 describe("T-353 — the page passes the SCOPED stream", () => {
-  it("dashboard-page.tsx scopes the installments through installmentsForAcademicYear", () => {
-    expect(PAGE_SRC).toContain("installmentsForAcademicYear(installments, yearRange.academicYear)");
+  it("the installments are scoped through installmentsForAcademicYear (E6.9: inside the view-model)", () => {
+    expect(OVERVIEW_HOOK_SRC).toContain("installmentsForAcademicYear(installments, yearRange.academicYear)");
   });
 
-  it("the Overview + Analytics tabs receive scopedInstallments", () => {
-    expect(PAGE_SRC).toContain("installments={scopedInstallments}");
+  it("the Overview + Analytics tabs receive the scoped stream", () => {
+    expect(PAGE_SRC).toContain("installments={overview.installments}");
     // Exactly two tab consumers carry the scoped prop.
-    expect(PAGE_SRC.match(/installments=\{scopedInstallments\}/g)?.length).toBe(2);
+    expect(PAGE_SRC.match(/installments=\{overview\.installments\}/g)?.length).toBe(2);
   });
 
   it("AnalyticsTab prefers the prop over its internal subscription", () => {

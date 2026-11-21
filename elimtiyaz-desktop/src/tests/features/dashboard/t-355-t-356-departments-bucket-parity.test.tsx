@@ -158,13 +158,19 @@ describe("T-355 — DepartmentsTab (DASH-405: the REAL payments feed)", () => {
     expect(screen.getByText(/Aucun encaissement sur cette période/i)).toBeInTheDocument();
   });
 
-  it("the source wiring: the page passes the range-filtered paid slice to the modal", () => {
+  it("the source wiring: the range-filtered paid slice reaches the modal (E6.9: via the view-model)", () => {
     const pageSrc = readFileSync(
       join(SRC, "features/dashboard/dashboard-page.tsx"),
       "utf8",
     );
-    expect(pageSrc).toContain("payments={rangePayments}");
-    expect(pageSrc).toMatch(
+    const hookSrc = readFileSync(
+      join(SRC, "features/dashboard/use-overview-data.ts"),
+      "utf8",
+    );
+    // The page passes the view-model's rangePayments to the modal.
+    expect(pageSrc).toContain("payments={overview.rangePayments}");
+    // The filtering itself lives in the hook (the ONE data home).
+    expect(hookSrc).toMatch(
       /applyAnalyticsFilters\(payments, yearRange\.range, NO_ANALYTICS_FILTERS\)/,
     );
   });
