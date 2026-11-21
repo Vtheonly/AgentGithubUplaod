@@ -22,7 +22,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const MIGRATION = fs.readFileSync(
-  path.resolve(__dirname, "../../../supabase/migrations/0083_teacher_crm_data_scoping.sql"),
+  path.resolve(__dirname, "../../../supabase/migrations_archive/0083_teacher_crm_data_scoping.sql"),
   "utf8",
 );
 

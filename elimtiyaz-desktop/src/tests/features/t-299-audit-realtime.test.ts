@@ -221,7 +221,7 @@ describe("T-299 — the toaster surface", () => {
 
 describe("T-299 — migration 0085 (the realtime publication)", () => {
   const sql = readFileSync(
-    join(ROOT, "supabase/migrations/0085_audit_logs_realtime_publication.sql"),
+    join(ROOT, "supabase/migrations_archive/0085_audit_logs_realtime_publication.sql"),
     "utf8",
   );
 

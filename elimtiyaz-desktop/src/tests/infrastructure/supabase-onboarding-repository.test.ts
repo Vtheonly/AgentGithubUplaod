@@ -331,7 +331,7 @@ function read(rel: string): string {
 
 describe("T-483 source guards", () => {
   it("9. migration 0142: the nullable personnel_id + the partial unique index + the registration", () => {
-    const mig = read("supabase/migrations/0142_onboarding_tenant_singleton.sql");
+    const mig = read("supabase/migrations_archive/0142_onboarding_tenant_singleton.sql");
     expect(mig).toContain("alter column personnel_id drop not null");
     expect(mig).toContain("onboarding_states_tenant_singleton_idx");
     expect(mig).toContain("where personnel_id is null");

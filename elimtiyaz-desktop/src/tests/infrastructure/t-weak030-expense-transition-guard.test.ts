@@ -42,7 +42,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
-const MIGRATION = join(DESKTOP_ROOT, "supabase", "migrations", "0064_expense_transition_guard.sql");
+const MIGRATION = join(DESKTOP_ROOT, "supabase", "migrations_archive", "0064_expense_transition_guard.sql");
 const ADAPTER = join(DESKTOP_ROOT, "src", "infrastructure", "supabase", "repositories", "supabase-expense-repository.ts");
 
 /** The canonical DB-side graph, as (from, to) pairs of DB status values. */

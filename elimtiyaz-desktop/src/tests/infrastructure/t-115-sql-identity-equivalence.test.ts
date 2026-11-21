@@ -75,7 +75,7 @@ describe("T-115 — the TS canonical generators are bit-equivalent to the live S
   // ─── Structural guards: the committed file + typed RPC registrations ──────
   it("migration 0065 is committed with the canonical algorithm and registration semantics", () => {
     const mig = readFileSync(
-      join(ROOT, "supabase/migrations/0065_canonical_identity_codes.sql"),
+      join(ROOT, "supabase/migrations_archive/0065_canonical_identity_codes.sql"),
       "utf8",
     );
     // The four canonical functions.
@@ -102,7 +102,7 @@ describe("T-115 — the TS canonical generators are bit-equivalent to the live S
     // is NOT NULL and the RPC does not default it — every caller must supply
     // it. Pinned here so a future caller does not rediscover it via a 23502.
     const mig = readFileSync(
-      join(ROOT, "supabase/migrations/0065_canonical_identity_codes.sql"),
+      join(ROOT, "supabase/migrations_archive/0065_canonical_identity_codes.sql"),
       "utf8",
     );
     expect(mig).toContain("(v_student->>'date_of_birth')::date");

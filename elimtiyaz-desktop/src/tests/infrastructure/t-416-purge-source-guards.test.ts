@@ -45,7 +45,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DESKTOP_ROOT = join(__dirname, "..", "..", "..");
-const MIGRATIONS = join(DESKTOP_ROOT, "supabase", "migrations");
+const MIGRATIONS = join(DESKTOP_ROOT, "supabase", "migrations_archive");
 const FILE_0120 = "0120_purge_student_parent_domain.sql";
 const FILE_0121 = "0121_purge_approval_request_orphan_closure.sql";
 const sql0120 = readFileSync(join(MIGRATIONS, FILE_0120), "utf8");

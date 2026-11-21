@@ -257,7 +257,7 @@ describe("T-384 B. SupabaseParentRepository.deleteParent — the soft_delete_par
   });
 
   it("the migration source: both RPCs exist, super_admin-gated, tenant-scoped, guarded, audited, registered", () => {
-    const mig = src("../../../supabase/migrations/0100_soft_delete_rpcs.sql");
+    const mig = src("../../../supabase/migrations_archive/0100_soft_delete_rpcs.sql");
     expect(mig).toContain("create or replace function public.soft_delete_parent(p_parent_id uuid)");
     expect(mig).toContain("create or replace function public.soft_delete_student(p_student_id uuid)");
     // The super_admin gate (the *_delete RLS mirror).

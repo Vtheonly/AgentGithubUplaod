@@ -2,7 +2,7 @@
  * SupabaseNotificationRepository — Supabase-backed implementation of the
  * `NotificationRepository` domain contract (plan §13.02 — Notifications).
  *
- * Table (source of truth = `supabase/migrations/0013_calendar_notifications_backup.sql`):
+ * Table (source of truth = `supabase/migrations_archive/0013_calendar_notifications_backup.sql`):
  *   `notifications` — kind / priority / source / source_label / target_user_id /
  *   target_role / is_read / read_at / dismissed_at / triggered_at / expires_at /
  *   link_entity_type / link_entity_id / created_by.

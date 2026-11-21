@@ -375,7 +375,7 @@ describe("T-481 — the ReleveTab canonical redesign (source guards)", () => {
     // shared wire code — the 0009 CHECK's French 'surveillance' would have
     // rejected every client Surveillance entry; the discovery of this port).
     const migration = fs.readFileSync(
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../supabase/migrations/0140_releve_activity_supervision_alias.sql"),
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../supabase/migrations_archive/0140_releve_activity_supervision_alias.sql"),
       "utf8",
     );
     expect(migration.includes("'supervision'")).toBe(true);

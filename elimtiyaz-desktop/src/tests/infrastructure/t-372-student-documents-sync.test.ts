@@ -445,7 +445,7 @@ describe("T-372 §4 — source guards", () => {
 
   it("migration 0098 exists with the idempotent backfill (NOT EXISTS on the binary path)", () => {
     const mig = readFileSync(
-      join(__dirname, "..", "..", "..", "supabase", "migrations", "0098_student_documents_unification.sql"),
+      join(__dirname, "..", "..", "..", "supabase", "migrations_archive", "0098_student_documents_unification.sql"),
       "utf8",
     );
     expect(mig.includes("insert into public.student_documents")).toBe(true);

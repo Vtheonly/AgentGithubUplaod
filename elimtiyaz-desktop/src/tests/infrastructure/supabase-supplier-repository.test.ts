@@ -384,7 +384,7 @@ describe("SupabaseSupplierRepository (T-179)", () => {
 
   it("9b. source scan: migration 0073 adds category + recasts rating to fractional 0–5", () => {
     const mig = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0073_suppliers_category_rating.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0073_suppliers_category_rating.sql"),
       "utf8",
     );
     expect(mig).toContain("add column if not exists category text");

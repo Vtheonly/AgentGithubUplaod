@@ -347,7 +347,7 @@ describe("SupabaseWorkforceAttendanceRepository (T-217)", () => {
 
   it("9c. source scan: migration 0010 declares the table with the domain union CHECK", () => {
     const migration = fs.readFileSync(
-      path.resolve(__dirname, "../../../supabase/migrations/0010_workforce.sql"),
+      path.resolve(__dirname, "../../../supabase/migrations_archive/0010_workforce.sql"),
       "utf8",
     );
     expect(migration).toContain("create table public.workforce_attendance_events");

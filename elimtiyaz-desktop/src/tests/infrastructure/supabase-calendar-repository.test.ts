@@ -591,7 +591,7 @@ describe("SupabaseCalendarRepository (T-175)", () => {
     const migration = fs.readFileSync(
       path.resolve(
         __dirname,
-        "../../../supabase/migrations/0013_calendar_notifications_backup.sql",
+        "../../../supabase/migrations_archive/0013_calendar_notifications_backup.sql",
       ),
       "utf-8",
     );

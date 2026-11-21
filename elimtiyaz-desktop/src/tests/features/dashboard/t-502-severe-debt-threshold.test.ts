@@ -122,7 +122,7 @@ describe("T-502 (DEBT-104) — the default + the migration + the wiring (source 
 
   it("migration 0150 seeds debt.severe_debt_dzd (default 40 000, validated 0–100 000 000) and extends the reader", () => {
     const migration = readFileSync(
-      join(__dirname, "../../../../supabase/migrations/0150_severe_debt_threshold.sql"),
+      join(__dirname, "../../../../supabase/migrations_archive/0150_severe_debt_threshold.sql"),
       "utf-8",
     );
     // The seed: ONE new settings key, default 40 000 (the previously
