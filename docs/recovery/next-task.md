@@ -4,6 +4,8 @@
 > **Read ONLY this queue + the named T-cards in `Refactoring Unified/EXECUTION-PLAN.md` + the target code files.**
 > Never re-read `Investigation Archive/` in an execution session — the plan is self-contained (v2.2+ inline discipline).
 > Track order (EXECUTION-PLAN §2, v2.3 — HARD): Track 1 (baseline green) → Track 2 (T-559 → T-560 ×5 → T-594) →
+
+**Session-39 registration (2026-11-22):** **OWNER-DIRECTED QUEUE-JUMP — the dashboard redesign lane** (the owner's chat directive: "complete all the tasks related to the dashboard redesign… screenshot of the new dashboard showing the updated statistics, new theme, and all the other visual changes"). Batch: **E1.2 (dead files, the D-U5 first move) → T-589 (the full-light theme flip) → E4.5 (analytics → domain, the one-engine half) → E6.9 (dashboard view-models) → T-596 (the dashboard overhaul, L — lands this session if budget allows)**. The lane's data prerequisites T-590..T-593 are GREEN since S35. E2.6 (the client-side defect batch) stays registered and resumes right after the lane. OPS-015/G2 live locks STAND. Branch: `execution/session-39-dashboard-redesign`.
 > Track 3 (T-550 → T-573 → T-552 → ARCH-046 → T-575 → T-574 → Cutover/Website T-614 → T-590..T-593 → T-595)
 > → T-577 (early right-click) → then Phases 1–5 (E2..E6) → §16 overhaul (T-587+T-612+T-613) per §2's parallelism.
 
