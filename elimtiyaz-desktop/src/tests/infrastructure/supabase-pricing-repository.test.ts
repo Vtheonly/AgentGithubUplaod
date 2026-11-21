@@ -482,9 +482,12 @@ describe("T-307 — source scans (wiring + billing drift fix)", () => {
       ),
       "utf-8",
     );
-    expect(builder).toMatch(/tuitionForGradeLevel\(pricingConfig,/);
-    expect(builder).toMatch(/transportTranchesForDestination\(pricingConfig,/);
-    expect(builder).toMatch(/pricingConfig\.registrationFee/);
+    // E2.4: the wires consume the ONE domain engine (computeStudentDevisPlan
+    // on the per-year pricingBasis) — the era-gated config layer keeps the
+    // DB-config precedence for its OWN era (the R-2 protection).
+    expect(builder).toMatch(/computeStudentDevisPlan\(/);
+    expect(builder).toMatch(/basis\.academicYearStartYear === 2026 \? pricingConfig : null/);
+    expect(builder).toMatch(/resolveDevisPricingBasis\(year\)/);
     // The three former hardcoded call sites are gone (in BOTH files):
     for (const file of [src, builder]) {
       expect(file).not.toMatch(/tuitionForGradeLevel\(defaultPricingConfig,/);
