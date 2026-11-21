@@ -108,7 +108,12 @@ describe("T-411 / DATA-028 — the negotiated remise survives the Supabase batch
     const plain = await collectWire(undefined, undefined);
     const stickerTotal = sticker.installments.reduce((s, i) => s + Number(i.amount_due), 0);
     const plainTotal = plain.installments.reduce((s, i) => s + Number(i.amount_due), 0);
-    expect(stickerTotal).toBe(plainTotal);
+    // E2.4 (the canonical workbook model): the remise ALWAYS lands on the
+    // V1 tranche (the ETAT S-column `=sticker-J` formulas) — the STICKER
+    // case only spares the DEVIS total, never the tranche. The old engine's
+    // net-split spared the tranches too (the DUP-001 divergence this task
+    // kills).
+    expect(stickerTotal).toBe(plainTotal - 20_000);
     // …but the charge metadata records BOTH the negotiated value and the
     // applied-to-devis value (0 in the sticker case).
     const meta = sticker.ledger[0].metadata as Record<string, unknown>;

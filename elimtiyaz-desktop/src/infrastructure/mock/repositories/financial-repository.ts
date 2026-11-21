@@ -292,7 +292,7 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return numbers;
   }
-  refund(id: string, reason: string, actorId?: string, actorName?: string): Promise<Result<Payment>> {
+  refund(id: string, reason: string, actorId: string, actorName?: string): Promise<Result<Payment>> {
     return refundPayment(ctx, id, reason, actorId, actorName);
   }
   markCleared(id: string, actorId: string, actorName?: string): Promise<Result<Payment>> {

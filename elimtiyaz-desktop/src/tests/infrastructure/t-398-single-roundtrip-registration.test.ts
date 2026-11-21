@@ -258,16 +258,26 @@ describe("T-398 B. the multi-student + transport payload", () => {
     const code1 = args.p_students[1].student_code as string;
     expect(code0).not.toBe(code1);
 
-    // Student 0: tuition only (no transport tier, no parent destination).
+    // Student 0: the per-student FI + tuition (no transport tier, no parent
+    // destination) — E2.4: the FI is PER STUDENT (the workbook's R-column
+    // model), never a family-level flat fee.
     const ref0 = args.p_ledger_entries.filter((e) => e.student_ref === 0);
     const ref1 = args.p_ledger_entries.filter((e) => e.student_ref === 1);
-    const fee = args.p_ledger_entries.filter((e) => e.student_ref === null);
-    expect(ref0.every((e) => e.category === "tuition")).toBe(true);
-    // Student 1: tuition + transport.
+    const fee = args.p_ledger_entries.filter((e) => e.category === "other");
+    expect(ref0.some((e) => e.category === "other")).toBe(true);
+    expect(ref0.filter((e) => e.category === "tuition")).toHaveLength(3);
+    // Student 1: FI + tuition + transport.
     expect(ref1.some((e) => e.category === "tuition")).toBe(true);
     expect(ref1.some((e) => e.category === "transport")).toBe(true);
-    // The family fee: exactly one, null ref, source_id on the parent code.
-    expect(fee).toHaveLength(1);
+    expect(ref1.some((e) => e.category === "other")).toBe(true);
+    // The FI rows: exactly one PER STUDENT, scoped to that student's code.
+    expect(fee).toHaveLength(2);
+    for (const e of fee) {
+      expect(e.student_ref).not.toBe(null);
+      expect(String(e.source_id)).toBe(
+        `reg-${e.student_ref === 0 ? code0 : code1}-fi`,
+      );
+    }
 
     // The identity tokens: every row's source_id carries the RIGHT code.
     for (const e of ref0) {
@@ -277,14 +287,20 @@ describe("T-398 B. the multi-student + transport payload", () => {
       expect(String(e.source_id)).toContain(code1);
     }
 
-    // Installments mirror the charges per student.
+    // Installments mirror the charges per student (the FI row included —
+    // its token is the bare `:fi`, the tuition/transport rows `:T<n>`).
     const inst0 = args.p_installments.filter((i) => i.student_ref === 0);
     const inst1 = args.p_installments.filter((i) => i.student_ref === 1);
-    expect(inst0.every((i) => i.category === "tuition")).toBe(true);
+    expect(inst0.some((i) => i.category === "other")).toBe(true);
+    expect(inst0.filter((i) => i.category === "tuition")).toHaveLength(3);
     expect(inst1.some((i) => i.category === "transport")).toBe(true);
     for (const i of args.p_installments) {
       const code = i.student_ref === 0 ? code0 : code1;
-      expect(i.source_id).toBe(`${code}:${i.category}:T${i.tranche_number}`);
+      if (i.category === "other") {
+        expect(i.source_id).toBe(`${code}:fi`);
+      } else {
+        expect(i.source_id).toBe(`${code}:${i.category}:T${i.tranche_number}`);
+      }
     }
   });
 });

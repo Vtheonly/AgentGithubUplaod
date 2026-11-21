@@ -337,12 +337,17 @@ describe("T-437 A — the mock re-enrollment workflow (INV-21/22/23)", () => {
     expect(t1!.trancheNumber).toBe(1);
     expect(t1!.academicYearId).toBe(PROBE_TARGET.id);
     expect(store.installments.filter((i) => i.academicYearId === PROBE_TARGET.id)).toHaveLength(3);
-    // The ledger legs map too — the FI + 3 tuition charges, domain-shaped.
-    const fee = store.ledger.find((l) => l.sourceId === `re-${PROBE_TARGET.code}-${store.parents[0].code}-fee`);
-    expect(fee).toBeDefined();
-    expect(fee!.parentId).toBe(store.parents[0].id);
-    expect(fee!.studentId).toBe("stu-t437-machine");
-    expect(store.ledger.filter((l) => l.sourceId?.startsWith(`re-${PROBE_TARGET.code}-`))).toHaveLength(4);
+    // The ledger legs map too — E2.4/era B (year 2097 → the newest known
+    // basis): the FI is FOLDED into V1 — three tuition charges, no separate
+    // fee leg (the 2027-2026 workbook's own tranche model).
+    const reLedger = store.ledger.filter((l) => l.sourceId?.startsWith(`re-${PROBE_TARGET.code}-`));
+    expect(reLedger).toHaveLength(3);
+    expect(reLedger.every((l) => l.category === "tuition")).toBe(true);
+    const v1 = reLedger.find((l) => l.sourceId === `re-${PROBE_TARGET.code}-ELV-T437-MACHINE-t1`);
+    expect(v1).toBeDefined();
+    expect(v1!.parentId).toBe(store.parents[0].id);
+    expect(v1!.studentId).toBe("stu-t437-machine");
+    expect(v1!.amount).toBe(installmentWire[0].amount_due);
 
     // re_enrolled is terminal pre-freeze.
     const after = await repo.setDecision({ reEnrollmentId: reId, decision: "not_continuing", notes: null, performedBy: "s", performedByName: "T" });
@@ -404,17 +409,26 @@ describe("T-437 B — the shared billing-wire builder (INV-25a)", () => {
 
   it("B1: the batch shape keeps the historical tokens (reg-/bare — the T-397/T-398 pins)", () => {
     const { ledgerWire, installmentWire } = buildRegistrationBillingWires(sharedInput);
+    // E2.4/era B (year 2097 → the newest known basis): the FI is folded
+    // into V1 — three tuition rows, no separate fee row.
     expect(installmentWire.length).toBe(3);
     for (const inst of installmentWire) {
       expect(inst.source_id).toBe(`ELV-2097-T437:tuition:T${inst.tranche_number}`);
       expect(inst.student_ref).toBe(0);
     }
-    const fee = ledgerWire.find((l) => l.category === "other");
-    expect(fee?.source_id).toBe("reg-PAR-2097-T437-fee");
+    expect(ledgerWire.find((l) => l.category === "other")).toBeUndefined();
     const tuitionLedger = ledgerWire.filter((l) => l.category === "tuition");
+    expect(tuitionLedger).toHaveLength(3);
     for (const l of tuitionLedger) {
       expect(String(l.source_id).startsWith("reg-ELV-2097-T437-t")).toBe(true);
     }
+    // The unfolded world (era A — the 2026 batch pricing): the FI is a
+    // PER-STUDENT row (the workbook's R-column model), token `-fi`.
+    const eraA = buildRegistrationBillingWires({ ...sharedInput, year: 2026 });
+    const fi = eraA.ledgerWire.find((l) => l.category === "other");
+    expect(fi?.source_id).toBe("reg-ELV-2097-T437-fi");
+    expect(fi?.student_ref).toBe(0);
+    expect(eraA.installmentWire).toHaveLength(4); // the FI + 3 tuition
   });
 
   it("B2: the re-enrollment shape scopes every token by the target year", () => {
@@ -426,12 +440,25 @@ describe("T-437 B — the shared billing-wire builder (INV-25a)", () => {
     for (const inst of installmentWire) {
       expect(inst.source_id).toBe(`re-2097-2098-ELV-2097-T437:tuition:T${inst.tranche_number}`);
     }
-    const fee = ledgerWire.find((l) => l.category === "other");
-    expect(fee?.source_id).toBe("re-2097-2098-PAR-2097-T437-fee");
-    expect(fee?.description).toBe("Frais d'inscription 2097-2098 (réinscription)");
-    // The year-scoped tokens can never collide with the batch tokens nor
+    // Era B: folded — no fee row to scope (B1's era-A variant covers it);
+    // the year-scoped tokens can never collide with the batch tokens nor
     // with a LATER year's re-enrollment (the DATA-054 lesson).
-    expect(fee?.source_id).not.toContain("reg-");
+    expect(ledgerWire.find((l) => l.category === "other")).toBeUndefined();
+    for (const l of ledgerWire) {
+      expect(String(l.source_id).startsWith("re-2097-2098-ELV-2097-T437-t")).toBe(true);
+    }
+    // The unfolded world: the per-student FI token is year-scoped too.
+    const eraA = buildRegistrationBillingWires({
+      ...sharedInput,
+      year: 2026,
+      sourceIdScope: { prefix: "re-2097-2098", yearCode: "2097-2098" },
+      feeDescription: "Frais d'inscription 2097-2098 (réinscription)",
+    });
+    const fi = eraA.ledgerWire.find((l) => l.category === "other");
+    expect(fi?.source_id).toBe("re-2097-2098-ELV-2097-T437-fi");
+    expect(fi?.description).toBe("Frais d'inscription 2097-2098 (réinscription)");
+    expect(fi?.student_ref).toBe(0);
+    expect(fi?.source_id).not.toContain("reg-");
   });
 
   it("B3: one builder — the SAME wire keys on both paths (never a second shape)", () => {

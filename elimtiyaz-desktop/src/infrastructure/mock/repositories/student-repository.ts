@@ -36,10 +36,9 @@ import {
   getOfficialTuitionDueDates,
 } from "../../../domain/calc/pricing";
 import {
-  REAL_FI_BY_GRADE,
-  REAL_TUITION_BY_GRADE,
-  REAL_TRANSPORT_MATRIX,
-} from "../../../domain/calc/pricing/school-price-matrix";
+  computeStudentDevisPlan,
+  resolveDevisPricingBasis,
+} from "../../../domain/calc/pricing/devis";
 import { createChargeEntry } from "../../../domain/calc/ledger/entries";
 import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { Installment } from "../../../domain/model/payment";
@@ -505,8 +504,13 @@ function nextStudentSeq(): number {
 
 /**
  * Build the billing artifacts (charge entries + installments) for a batch
- * registration — mirrors the Android canonical financial logic so both
- * platforms produce identical schedules for the same input.
+ * registration — E2.4: the CANONICAL construction (the ONE domain engine
+ * `computeStudentDevisPlan` on the per-year pricingBasis — the SAME plans
+ * `buildRegistrationBillingWires` maps onto the live RPC wires; mock and
+ * live produce the SAME installment plan for the same wizard input,
+ * DUP-037 dead). The per-student FI + the era's V1/2V/v3 stickers + the
+ * per-town transport tranches, the remise on V1 only, the full-annual
+ * collapse, and the prior-debt carry — the workbook's own model.
  */
 function buildRegistrationBilling(
   input: BatchRegistrationInput,
@@ -522,106 +526,126 @@ function buildRegistrationBilling(
   const [due1, due2, due3] = getOfficialTuitionDueDates(year);
   const entries: LedgerEntry[] = [];
   const installments: Installment[] = [];
+  const basis = resolveDevisPricingBasis(year);
+  // Era A: the default config IS the year's seed (its populated rows win —
+  // the same precedence the wires apply). Era B: the basis is the pricing of
+  // record (R-2); the era-A-seeded global config never overwrites it.
+  const effectiveConfig = basis.academicYearStartYear === 2026 ? defaultPricingConfig : null;
 
   students.forEach((student, index) => {
-    // === CALC-001: REAL model — FI (per grade) + scolarité − remise,
-    // tranches V2/2V/v3 with the remise on V2 (workbook column S rule) ===
     const wizardStudent: CreateStudentInput | undefined = input.students[index];
     const remise = Math.max(0, wizardStudent?.remise ?? 0);
     const chargeStickerPrice = wizardStudent?.chargeStickerPrice ?? false;
-    const realSchedule = REAL_TUITION_BY_GRADE[student.gradeLevel];
-    const fi = includeRegistration
-      ? defaultPricingConfig.registrationFeeByGrade[student.gradeLevel] ?? REAL_FI_BY_GRADE[student.gradeLevel]
-      : 0;
+    const paymentPlan = student.paymentPlan ?? "tranches";
 
-    if (realSchedule.scolarite > 0) {
-      const remiseApplied = chargeStickerPrice ? 0 : remise;
-      const v2 = Math.max(0, realSchedule.v2 - remise);
-      // T-425: the structure was already the official model (FI at tranche 0,
-      // V1/2V/v3 at 1..3 on the Sept/Dec/Mar rhythm) — the labels now say so
-      // (the old "Tranche 2 (V2)" / "Tranche 4 (v3)" carried the BON error).
-      const tranches = [
-        { amount: fi, num: 0 as const, label: "Frais d'inscription (FI)", due: due1 },
-        { amount: v2, num: 1 as const, label: "Tranche 1 (V1)", due: due1 },
-        { amount: realSchedule.tranche3, num: 2 as const, label: "Tranche 2 (2V)", due: due2 },
-        { amount: realSchedule.tranche4, num: 3 as const, label: "Tranche 3 (v3)", due: due3 },
-      ].filter((t) => t.amount > 0);
-      for (const t of tranches) {
-        const isFi = t.num === 0;
+    const destination =
+      (student.transportTier as import("../../../domain/model/parent").TransportDestination | null)
+      ?? parent.transportDestination;
+    const plan = computeStudentDevisPlan(
+      {
+        gradeLevel: student.gradeLevel,
+        remise,
+        chargeStickerPrice,
+        transportDestination: destination,
+        includeTransport,
+        pricingConfig: effectiveConfig,
+      },
+      basis,
+      { includeRegistration },
+    );
+
+    // === The per-student FI (the unfolded worlds — the workbook's per-row
+    // R-column model; era B folds it into V1 inside the engine) ===
+    const rows: { amount: number; num: number; label: string; due: string; isFi: boolean }[] = [];
+    if (includeRegistration && !plan.fiFoldedIntoFirstTranche && plan.fi > 0) {
+      rows.push({ amount: plan.fi, num: 0, label: "Frais d'inscription (FI)", due: due1, isFi: true });
+    }
+
+    // === The tuition tranches (the era's stickers, remise on V1; the
+    // full-annual collapse mirrors the wires' single Année complète row) ===
+    if (plan.scolarite > 0 || plan.fi > 0) {
+      if (paymentPlan === "full_annual") {
+        rows.push({
+          amount: plan.tuitionTranches[0] + plan.tuitionTranches[1] + plan.tuitionTranches[2],
+          num: 1,
+          label: "Année complète",
+          due: due1,
+          isFi: false,
+        });
+      } else {
+        const labels = ["Tranche 1 (V1)", "Tranche 2 (2V)", "Tranche 3 (v3)"] as const;
+        const dues = [due1, due2, due3];
+        for (let t = 0; t < 3; t++) {
+          rows.push({ amount: plan.tuitionTranches[t], num: t + 1, label: labels[t], due: dues[t], isFi: false });
+        }
+      }
+    }
+
+    for (const t of rows) {
+      if (t.amount <= 0) continue;
+      const isFi = t.isFi;
+      entries.push(
+        createChargeEntry({
+          tenantId: TENANT_ID,
+          parentId: parent.id,
+          studentId: student.id,
+          category: isFi ? "other" : "tuition",
+          amount: t.amount,
+          sourceType: "installment",
+          sourceId: `reg-${student.id}-${isFi ? "fi" : `t${t.num}`}`,
+          description: `${t.label} — ${isFi ? "Inscription" : "Scolarité"} ${year} (${student.gradeLevel})`,
+          actorId,
+          actorName,
+          at,
+          metadata: {
+            tranche: t.num,
+            gradeLevel: student.gradeLevel,
+            paymentPlan,
+            scolarite: plan.scolarite,
+            remise,
+            chargeStickerPrice,
+            fiFoldedIntoFirstTranche: plan.fiFoldedIntoFirstTranche,
+            pricingBasis: plan.basisCode,
+          },
+        }),
+      );
+      installments.push(makeInstallment(
+        `reg-ins-${student.id}-${isFi ? "fi" : `t${t.num}`}`, parent.id, student.id,
+        isFi ? "other" : "tuition",
+        t.label, t.amount, t.due,
+      ));
+    }
+
+    // === Transport: per-student destination, else the parent's zone (the
+    // basis matrix — the same numbers the config seed carries) ===
+    if (includeTransport && destination) {
+      plan.transportTranches.forEach((amountDue, i) => {
+        if (amountDue <= 0) return;
+        const due = [due1, due2, due3][i];
         entries.push(
           createChargeEntry({
             tenantId: TENANT_ID,
             parentId: parent.id,
             studentId: student.id,
-            category: isFi ? "other" : "tuition",
-            amount: t.amount,
+            category: "transport",
+            amount: amountDue,
             sourceType: "installment",
-            sourceId: `reg-${student.id}-${isFi ? "fi" : `t${t.num}`}`,
-            description: `${t.label} — ${isFi ? "Inscription" : "Scolarité"} ${year} (${student.gradeLevel})`,
+            sourceId: `reg-${student.id}-transport-t${i + 1}`,
+            description: `Transport ${year} — Tranche ${i + 1} (${destination})`,
             actorId,
             actorName,
             at,
-            metadata: {
-              tranche: t.num,
-              gradeLevel: student.gradeLevel,
-              paymentPlan: student.paymentPlan,
-              scolarite: realSchedule.scolarite,
-              remise,
-              chargeStickerPrice,
-            },
+            metadata: { tranche: i + 1, destination },
           }),
         );
         installments.push(makeInstallment(
-          `reg-ins-${student.id}-${isFi ? "fi" : `t${t.num}`}`, parent.id, student.id,
-          isFi ? "other" : "tuition",
-          t.label, t.amount, t.due,
+          `reg-ins-${student.id}-transport-t${i + 1}`, parent.id, student.id, "transport",
+          `Transport T${i + 1}`, amountDue, due,
         ));
-      }
-      void remiseApplied;
-    }
-
-    // === Transport: per-student destination, else the parent's zone ===
-    if (includeTransport) {
-      const destination =
-        (student.transportTier as import("../../../domain/model/parent").TransportDestination | null)
-        ?? parent.transportDestination;
-      if (destination) {
-        // CALC-001: real per-town transport matrix (legacy zone values keep
-        // resolving — REAL_TRANSPORT_MATRIX covers both).
-        const schedule = REAL_TRANSPORT_MATRIX[destination] ?? [0, 0, 0, 0];
-        const tranches = schedule.slice(1).map((amountDue, i) => ({ amountDue, i }));
-        tranches.forEach(({ amountDue, i }) => {
-          if (amountDue <= 0) return;
-          const due = [due1, due2, due3][i];
-          entries.push(
-            createChargeEntry({
-              tenantId: TENANT_ID,
-              parentId: parent.id,
-              studentId: student.id,
-              category: "transport",
-              amount: amountDue,
-              sourceType: "installment",
-              sourceId: `reg-${student.id}-transport-t${i + 1}`,
-              description: `Transport ${year} — Tranche ${i + 1} (${destination})`,
-              actorId,
-              actorName,
-              at,
-              metadata: { tranche: i + 1, destination },
-            }),
-          );
-          installments.push(makeInstallment(
-            `reg-ins-${student.id}-transport-t${i + 1}`, parent.id, student.id, "transport",
-            `Transport T${i + 1}`, amountDue, due,
-          ));
-        });
-      }
+      });
     }
   });
 
-  // CALC-001: the FI is charged PER STUDENT inside the students.forEach loop
-  // above (per-grade amounts from the real matrix). The legacy flat family
-  // fee is intentionally NOT written anymore — the workbook charges F I per
-  // student line (HEBBAZ: 33000 + 33000 + 18000 for three children).
   // Prior balances (REMBOURSEMENT credit / DETTES debt) at intake:
   if ((input.priorDebt ?? 0) > 0) {
     entries.push(

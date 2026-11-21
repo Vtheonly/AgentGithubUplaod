@@ -285,7 +285,7 @@ export async function refundPayment(
   ctx: FinancialOpsCtx,
   id: string,
   reason: string,
-  actorId?: string,
+  actorId: string,
   actorName?: string,
 ): Promise<Result<Payment>> {
   const { store, appendAudit, nowIso, delay, tenantId } = ctx;
@@ -306,7 +306,10 @@ export async function refundPayment(
       `Le paiement ${before.receiptNumber} ne peut pas être remboursé (statut actuel : ${before.status})`,
     ));
   }
-  const effectiveActorId = actorId ?? "usr-current";
+  // BUG-028 (E2.4): the actor is REQUIRED — the domain contract's own
+  // signature (repository.ts) and the Supabase side never fabricated a
+  // default actor; the mock must not either (the parity pin).
+  const effectiveActorId = actorId;
   const effectiveActorName = actorName ?? "Session courante";
   const after: Payment = { ...before, status: "refunded", updatedAt: nowIso() };
   store.payments[idx] = after;
