@@ -24,6 +24,7 @@
  * ellipses past their measured budget).
  */
 import React from "react";
+import { formatDzdPlain } from "../../core/format/currency";
 import type { ChartArtifact, ChartSeries } from "../../core/ai/artifacts";
 
 /** The drawer palette — matches --primary + --status-* tokens. */
@@ -57,7 +58,9 @@ function fmtAxis(v: number): string {
 function fmtValue(v: number, unit: ChartArtifact["unit"]): string {
   switch (unit) {
     case "DZD":
-      return `${v.toLocaleString("fr-FR")} DA`;
+      // E2.5 (DUP-009): the DA suffix was the divergent label — the canonical
+      // formatDzdPlain grouping + DZD.
+      return `${formatDzdPlain(v)} DZD`;
     case "percent":
     case "rate":
       return `${v.toLocaleString("fr-FR")}${unit === "percent" ? "%" : ""}`;

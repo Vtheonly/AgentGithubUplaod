@@ -42,6 +42,8 @@ import { parentDisplayName } from "../../../domain/model/parent";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { calculateAttendanceRate } from "../../../domain/model/academic";
 import { computeParentSummary } from "../../../domain/calc/ledger/balance";
+import { formatDzdPlain } from "../../../core/format/currency";
+import { isoWindow } from "../../format/date";
 import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 
 /** Hard cap on a batch — one validation card stays reviewable by a human. */
@@ -193,7 +195,7 @@ export async function executeWorkflowTool(
           },
         ],
         unit: "count",
-        caption: `${prioritized.length} débiteurs · ${total.toLocaleString("fr-FR")} DZD dus · score = montile du montant et de l'ancienneté pondérés selon la stratégie.`,
+        caption: `${prioritized.length} débiteurs · ${formatDzdPlain(total)} DZD dus · score = montile du montant et de l'ancienneté pondérés selon la stratégie.`,
       };
 
       return withArtifact(
@@ -293,7 +295,7 @@ export async function executeWorkflowTool(
         id: `act-${Date.now()}`,
         type: "batch_reminders",
         title: `Rappels groupés (${validated.length} parents)`,
-        summary: `Envoyer un rappel officiel à ${validated.length} débiteurs — ${totalOutstanding.toLocaleString("fr-FR")} DZD dus au total${reason ? ` (${reason})` : ""} : ${validated.map((v) => v.name).join(", ")}`,
+        summary: `Envoyer un rappel officiel à ${validated.length} débiteurs — ${formatDzdPlain(totalOutstanding)} DZD dus au total${reason ? ` (${reason})` : ""} : ${validated.map((v) => v.name).join(", ")}`,
         payload: {
           parentIds: validated.map((v) => v.id),
           parentNames: validated.map((v) => v.name),
@@ -344,7 +346,7 @@ export async function executeWorkflowTool(
       const outstanding = summary.totalOutstanding;
       if (outstanding <= 0) {
         return JSON.stringify({
-          error: `${parentDisplayName(parent)} n'a aucun solde dû (${Math.round(outstanding).toLocaleString("fr-FR")} DZD) — un plan serait vide.`,
+          error: `${parentDisplayName(parent)} n'a aucun solde dû (${formatDzdPlain(Math.round(outstanding))} DZD) — un plan serait vide.`,
           hint: "Vérifiez la situation réelle avec get_financial_ledger_summary.",
         });
       }
@@ -368,7 +370,7 @@ export async function executeWorkflowTool(
         fileName: `plan-paiement-${parentCode}-${new Date().toISOString().slice(0, 10)}.pdf`,
         params: { parentId, months, downPayment: plan.downPayment },
         rowCount: plan.schedule.length,
-        caption: `${months} mensualités de ${plan.monthlyAmount.toLocaleString("fr-FR")} DZD${plan.downPayment > 0 ? ` + acompte ${plan.downPayment.toLocaleString("fr-FR")} DZD` : ""} — total ${plan.totalPlanned.toLocaleString("fr-FR")} DZD.`,
+        caption: `${months} mensualités de ${formatDzdPlain(plan.monthlyAmount)} DZD${plan.downPayment > 0 ? ` + acompte ${formatDzdPlain(plan.downPayment)} DZD` : ""} — total ${formatDzdPlain(plan.totalPlanned)} DZD.`,
       };
 
       return withArtifact(
@@ -407,7 +409,7 @@ export async function executeWorkflowTool(
       if (targetClassIds.length === 0) return JSON.stringify({ error: "Aucune classe à analyser." });
 
       const subjects = repos.subjects.observe().get();
-      const { from, to } = { from: isoWindow(), to: todayIso() };
+      const { from, to } = { from: isoWindow(30).start, to: todayIso() };
       const candidates: {
         student: { id: string; firstName: string; lastName: string; displayName: string | null; classId: string | null };
         gpa: number | null;
@@ -495,10 +497,7 @@ export async function executeWorkflowTool(
 /*  Local helpers                                                      */
 /* ------------------------------------------------------------------ */
 
-function isoWindow(): string {
-  const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  return from.toISOString().slice(0, 10);
-}
+// E2.5 (DUP-009): the private 30-day-ago helper folds onto core/format/date.isoWindow.
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);

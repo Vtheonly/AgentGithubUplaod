@@ -41,6 +41,7 @@ import {
   resolveDevisPricingBasis,
 } from "../../../domain/calc/pricing/devis";
 import { createChargeEntry } from "../../../domain/calc/ledger/entries";
+import { toIsoDate } from "../../../core/format/date";
 import { getOfficialTuitionDueDates } from "../../../domain/calc/pricing/tuition";
 
 
@@ -317,13 +318,3 @@ export function buildRegistrationBillingWires(
   return { ledgerWire, installmentWire };
 }
 
-/**
- * The shared-repositories' ISO-date convention (supabase-shared-repositories
- * line ~203): a Date → toISOString; a string passes through; null → null.
- * (The core/format/date.ts `toIsoDate` takes a bare `Date` only.)
- */
-function toIsoDate(d: string | Date | null | undefined): string | null {
-  if (!d) return null;
-  if (d instanceof Date) return d.toISOString();
-  return d;
-}

@@ -58,16 +58,20 @@ export function activationCode(): string {
  *   - The single-use guarantee is enforced server-side by
  *     `activation_codes` (UNIQUE per tenant) + `bind_activation_code()` RPC.
  */
+/** FNV-1a 32-bit — the ONE hash primitive (E2.5 / DUP-008). */
+function fnv1a32(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export function deterministicActivationCode(parentCode: string, tenantId: string = ""): string {
   const identity = `${tenantId}|${parentCode}`.trim();
   if (identity.length === 0) return "000000";
-  let h = 0x811c9dc5 | 0;
-  for (let i = 0; i < identity.length; i++) {
-    h = (h ^ identity.charCodeAt(i)) | 0;
-    h = Math.imul(h, 0x01000193) | 0;
-  }
-  const unsigned = h >>> 0;
-  const numeric = (unsigned % 900_000) + 100_000;
+  const numeric = (fnv1a32(identity) % 900_000) + 100_000;
   return numeric.toString();
 }
 
@@ -105,13 +109,8 @@ export interface StudentIdentityInput {
  * a few thousand parents/students, which FNV-1a easily achieves.
  */
 export function stableHash(input: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  // Force unsigned 32-bit and encode as 8-char hex, take first 6.
-  return (h >>> 0).toString(16).padStart(8, "0").slice(0, 6).toUpperCase();
+  // ONE primitive (E2.5 / DUP-008): unsigned 32-bit, 8-char hex, first 6.
+  return fnv1a32(input).toString(16).padStart(8, "0").slice(0, 6).toUpperCase();
 }
 
 /**

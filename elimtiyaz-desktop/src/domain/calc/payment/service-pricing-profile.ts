@@ -40,6 +40,7 @@ import type {
 } from "../../model/pricing";
 import { PRICING_CATEGORY_LABELS_FR } from "../../model/pricing";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../model/parent";
+import { CYCLE_OF_GRADE } from "../../model/promotion-cycle";
 import { installmentRemaining } from "./queries";
 
 /* ─── The profile output shape (IDENTICAL to the website's T-333 module) ─── */
@@ -190,22 +191,8 @@ const SINGLE_YEAR_PATTERN = /\b(20\d{2})\b/;
  * academicLevelFromGradeLevel folds them into "primaire" — the profile
  * keeps the finer cycle for output parity across platforms).
  */
-const CYCLE_OF_GRADE: Record<string, string> = {
-  prescolaire_1: "prescolaire",
-  prescolaire_2: "prescolaire",
-  "1ap": "primaire",
-  "2ap": "primaire",
-  "3ap": "primaire",
-  "4ap": "primaire",
-  "5ap": "primaire",
-  "1am": "cem",
-  "2am": "cem",
-  "3am": "cem",
-  "4am": "cem",
-  "1ere_annee": "lycee",
-  "2eme_annee": "lycee",
-  "3eme_annee": "lycee",
-};
+// E2.5 (DUP-020): the ONE map — domain/model/promotion-cycle.ts
+// CYCLE_OF_GRADE (the values are byte-identical; the local copy is dead).
 
 /** "Scolarité" / "Transport" / … — canonical FR category labels. */
 const SERVICE_LABEL_FR: Record<string, string> = {

@@ -50,6 +50,7 @@ import {
 import {
   blockSplit,
   coverageGaps,
+  periodMinutesSafe,
   requiredPeriodsFor,
   validateTimetable,
 } from "./constraints";
@@ -243,10 +244,8 @@ export function analyzeTimetableFeasibility(
     periods.length,
   );
 
-  const pm =
-    periods.length > 0
-      ? periods[0].endMinutes - periods[0].startMinutes
-      : problem.configuration.defaultLessonMinutes;
+  // E2.5 (DUP-013): the ONE derivation (constraints.ts periodMinutesSafe).
+  const pm = periodMinutesSafe(problem.configuration);
 
   const classLabel = (id: string): string =>
     problem.classes.find((c) => c.id === id)?.name ?? id;

@@ -96,8 +96,26 @@ export function formatDueDateRange(
   return `${formatDateUtc(dueDateMin, "dd MMM yyyy")} → ${formatDateUtc(dueDateMax, "dd MMM yyyy")}`;
 }
 
-export function toIsoDate(d: Date = new Date()): string {
-  return d.toISOString();
+/**
+ * The shared ISO-date convention (E2.5 / DUP-019 — the signature WIDENED to
+ * the union every infra clone carried): a Date → toISOString; a non-empty
+ * string passes through; null/undefined/empty → null.
+ */
+export function toIsoDate(d: string | Date | null | undefined): string | null {
+  if (!d) return null;
+  if (d instanceof Date) return d.toISOString();
+  return d;
+}
+
+/**
+ * The ISO window [now − days, now] used by the AI tools' recency filters
+ * (E2.5 / DUP-009: the two private copies in analysis-tools/workflow-tools
+ * fold here — ONE definition).
+ */
+export function isoWindow(days: number, now: Date = new Date()): { start: string; end: string } {
+  const end = now.toISOString().slice(0, 10);
+  const start = new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  return { start, end };
 }
 
 export function toIsoDay(d: Date = new Date()): string {

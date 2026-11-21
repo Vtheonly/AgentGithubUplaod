@@ -42,6 +42,7 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { cn } from "../../shared/ui/cn";
 import type { WorkflowNode } from "../../domain/model/workflow";
 import type { DryRunResult } from "../../domain/calc/workflow/dry-run";
+import { formatDzdPlain } from "../../core/format/currency";
 import type { ConditionContext } from "../../domain/calc/workflow/condition-evaluator";
 
 /* ------------------------------------------------------------------ */
@@ -236,7 +237,7 @@ export function TestStudioDrawer({
                     {entity.studentLabels.length} élève(s)
                   </span>
                   <span className="font-mono whitespace-nowrap">
-                    {entity.debtAmount.toLocaleString("fr-FR")} DZD
+                    {formatDzdPlain(entity.debtAmount)} DZD
                   </span>
                 </button>
               </li>
@@ -245,7 +246,7 @@ export function TestStudioDrawer({
           {picked && (
             <p className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
               <Info className="h-3 w-3 shrink-0" />
-              {picked.label} — dette réelle {picked.debtAmount.toLocaleString("fr-FR")} DZD
+              {picked.label} — dette réelle {formatDzdPlain(picked.debtAmount)} DZD
               {picked.isRestricted ? " · compte déjà restreint" : ""}
               {picked.studentLabels.length > 0 ? ` · ${picked.studentLabels.join(", ")}` : ""}
             </p>
@@ -283,7 +284,7 @@ export function TestStudioDrawer({
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-medium text-foreground">debt.amount</span>
               <span className="font-mono text-xs text-muted-foreground">
-                {debt.toLocaleString("fr-FR")} DZD
+                {formatDzdPlain(debt)} DZD
               </span>
             </div>
             <Slider

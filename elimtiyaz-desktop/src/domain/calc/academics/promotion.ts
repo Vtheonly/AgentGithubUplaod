@@ -7,6 +7,7 @@ import {
   type PromotionDecision,
   type Subject,
 } from "../../model/academic";
+import { CYCLE_OF_GRADE } from "../../model/promotion-cycle";
 import { evaluateStudentTermPerformance, rankClassPerformance } from "./gpa";
 
 export interface PromotionCandidate {
@@ -37,6 +38,10 @@ export interface PromotionReviewQueue {
  * CEM (4 yrs)    : 1am -> 2am -> 3am -> 4am -> 1ere_annee
  * Lycée (3 yrs)  : 1ere_annee -> 2eme_annee -> 3eme_annee -> GRADUATED
  */
+// E2.5 (DUP-020): nextCycle is DERIVED from the ONE CYCLE_OF_GRADE map
+// (domain/model/promotion-cycle.ts) — the per-case literals are dead; the
+// values are byte-identical (every case's nextCycle === the map's entry for
+// its nextGradeCode).
 export function getNextGradeProgression(current: GradeLevel): {
   nextGradeCode: GradeLevel | null;
   nextLevel: AcademicLevel | null;
@@ -44,41 +49,37 @@ export function getNextGradeProgression(current: GradeLevel): {
   nextCycle: AcademicCycle | null;
   isGraduation: boolean;
 } {
-  switch (current) {
-    case "prescolaire_1":
-      return { nextGradeCode: "prescolaire_2", nextLevel: "primaire", nextGradeYear: 0, nextCycle: "prescolaire", isGraduation: false };
-    case "prescolaire_2":
-      return { nextGradeCode: "1ap", nextLevel: "primaire", nextGradeYear: 1, nextCycle: "primaire", isGraduation: false };
-    case "1ap":
-      return { nextGradeCode: "2ap", nextLevel: "primaire", nextGradeYear: 2, nextCycle: "primaire", isGraduation: false };
-    case "2ap":
-      return { nextGradeCode: "3ap", nextLevel: "primaire", nextGradeYear: 3, nextCycle: "primaire", isGraduation: false };
-    case "3ap":
-      return { nextGradeCode: "4ap", nextLevel: "primaire", nextGradeYear: 4, nextCycle: "primaire", isGraduation: false };
-    case "4ap":
-      return { nextGradeCode: "5ap", nextLevel: "primaire", nextGradeYear: 5, nextCycle: "primaire", isGraduation: false };
-    case "5ap":
-      // Cycle Transition: Primary Grade 5 -> Middle School (CEM Year 1)
-      return { nextGradeCode: "1am", nextLevel: "cem", nextGradeYear: 1, nextCycle: "cem", isGraduation: false };
-    case "1am":
-      return { nextGradeCode: "2am", nextLevel: "cem", nextGradeYear: 2, nextCycle: "cem", isGraduation: false };
-    case "2am":
-      return { nextGradeCode: "3am", nextLevel: "cem", nextGradeYear: 3, nextCycle: "cem", isGraduation: false };
-    case "3am":
-      return { nextGradeCode: "4am", nextLevel: "cem", nextGradeYear: 4, nextCycle: "cem", isGraduation: false };
-    case "4am":
-      // Cycle Transition: Middle School Year 4 -> High School (Lycée Year 1)
-      return { nextGradeCode: "1ere_annee", nextLevel: "lycee", nextGradeYear: 1, nextCycle: "lycee", isGraduation: false };
-    case "1ere_annee":
-      return { nextGradeCode: "2eme_annee", nextLevel: "lycee", nextGradeYear: 2, nextCycle: "lycee", isGraduation: false };
-    case "2eme_annee":
-      return { nextGradeCode: "3eme_annee", nextLevel: "lycee", nextGradeYear: 3, nextCycle: "lycee", isGraduation: false };
-    case "3eme_annee":
-      // Final Graduation from Scolarité
-      return { nextGradeCode: null, nextLevel: null, nextGradeYear: null, nextCycle: null, isGraduation: true };
-    default:
-      return { nextGradeCode: null, nextLevel: null, nextGradeYear: null, nextCycle: null, isGraduation: false };
+  // E2.5 (DUP-020): nextCycle is DERIVED from the ONE CYCLE_OF_GRADE map —
+  // the per-case literals are dead (every historical value === the map's
+  // entry for the case's nextGradeCode; byte-identical outputs).
+  const table: Record<
+    GradeLevel,
+    { nextGradeCode: GradeLevel | null; nextLevel: AcademicLevel | null; nextGradeYear: number | null; isGraduation: boolean }
+  > = {
+    prescolaire_1: { nextGradeCode: "prescolaire_2", nextLevel: "primaire", nextGradeYear: 0, isGraduation: false },
+    prescolaire_2: { nextGradeCode: "1ap", nextLevel: "primaire", nextGradeYear: 1, isGraduation: false },
+    "1ap": { nextGradeCode: "2ap", nextLevel: "primaire", nextGradeYear: 2, isGraduation: false },
+    "2ap": { nextGradeCode: "3ap", nextLevel: "primaire", nextGradeYear: 3, isGraduation: false },
+    "3ap": { nextGradeCode: "4ap", nextLevel: "primaire", nextGradeYear: 4, isGraduation: false },
+    "4ap": { nextGradeCode: "5ap", nextLevel: "primaire", nextGradeYear: 5, isGraduation: false },
+    // Cycle Transition: Primary Grade 5 -> Middle School (CEM Year 1)
+    "5ap": { nextGradeCode: "1am", nextLevel: "cem", nextGradeYear: 1, isGraduation: false },
+    "1am": { nextGradeCode: "2am", nextLevel: "cem", nextGradeYear: 2, isGraduation: false },
+    "2am": { nextGradeCode: "3am", nextLevel: "cem", nextGradeYear: 3, isGraduation: false },
+    "3am": { nextGradeCode: "4am", nextLevel: "cem", nextGradeYear: 4, isGraduation: false },
+    // Cycle Transition: Middle School Year 4 -> High School (Lycée Year 1)
+    "4am": { nextGradeCode: "1ere_annee", nextLevel: "lycee", nextGradeYear: 1, isGraduation: false },
+    "1ere_annee": { nextGradeCode: "2eme_annee", nextLevel: "lycee", nextGradeYear: 2, isGraduation: false },
+    "2eme_annee": { nextGradeCode: "3eme_annee", nextLevel: "lycee", nextGradeYear: 3, isGraduation: false },
+    // Final Graduation from Scolarité
+    "3eme_annee": { nextGradeCode: null, nextLevel: null, nextGradeYear: null, isGraduation: true },
+  };
+  const hit = table[current];
+  if (!hit) {
+    return { nextGradeCode: null, nextLevel: null, nextGradeYear: null, nextCycle: null, isGraduation: false };
   }
+  const nextCycle = hit.nextGradeCode ? CYCLE_OF_GRADE[hit.nextGradeCode] ?? null : null;
+  return { ...hit, nextCycle };
 }
 
 /**

@@ -60,6 +60,7 @@ import { AGING_BUCKET_LABELS_FR, PAYMENT_METHOD_LABELS_FR, PAYMENT_STATUS_LABELS
 // Canonical name renderers (DATA-005/T-134): NEVER compose first+last by
 // hand — the live corpus carries displayName-only rows.
 import { parentDisplayName } from "../../../domain/model/parent";
+import { formatDzdPlain } from "../../../core/format/currency";
 import { studentDisplayName } from "../../../domain/model/student";
 
 /* ------------------------------------------------------------------ */
@@ -121,7 +122,7 @@ function validateAdjustmentArgs(
   if (Math.abs(amount) > ADJUSTMENT_AMOUNT_CEILING_DZD) {
     return {
       ok: false,
-      error: `Montant hors limites : |${amount}| DZD dépasse le plafond de ${ADJUSTMENT_AMOUNT_CEILING_DZD.toLocaleString("fr-FR")} DZD pour un ajustement manuel.`,
+      error: `Montant hors limites : |${amount}| DZD dépasse le plafond de ${formatDzdPlain(ADJUSTMENT_AMOUNT_CEILING_DZD)} DZD pour un ajustement manuel.`,
       hint: "Vérifiez l'ordre de grandeur — une scolarité annuelle complète (FI + scolarité + transport) est d'environ 125 000 à 430 000 DZD selon le niveau (matrice réelle 2026/2027).",
     };
   }
@@ -722,9 +723,9 @@ export async function executeCoreTool(
           id: `act-${Date.now()}`,
           type: "account_adjustment",
           title: "Proposition d'ajustement de compte",
-          summary: `${validation.amount < 0 ? "Remise" : "Débit"} de ${Math.abs(
+          summary: `${validation.amount < 0 ? "Remise" : "Débit"} de ${formatDzdPlain(Math.abs(
             validation.amount,
-          ).toLocaleString("fr-FR")} DZD pour ${validation.parentName} : ${validation.reason}`,
+          ))} DZD pour ${validation.parentName} : ${validation.reason}`,
           payload: {
             parentId: validation.parentId,
             parentName: validation.parentName,
@@ -777,7 +778,7 @@ export async function executeCoreTool(
           id: `act-${Date.now()}`,
           type: "send_reminder",
           title: "Rappel de paiement",
-          summary: `Envoyer un rappel officiel à ${debt.parentName} — ${debt.outstandingAmount.toLocaleString("fr-FR")} DZD dus, ${debt.daysOverdue} jours de retard${reason ? ` (${reason})` : ""}`,
+          summary: `Envoyer un rappel officiel à ${debt.parentName} — ${formatDzdPlain(debt.outstandingAmount)} DZD dus, ${debt.daysOverdue} jours de retard${reason ? ` (${reason})` : ""}`,
           payload: {
             parentId,
             parentName: debt.parentName,

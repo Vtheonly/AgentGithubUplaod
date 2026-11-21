@@ -30,6 +30,7 @@ import type { Repositories } from "../app/providers/repository-provider";
 import { parentDisplayName } from "../domain/model/parent";
 import { Permission } from "../core/rbac/permissions";
 import { can } from "../core/rbac/session";
+import { formatDzdPlain } from "../core/format/currency";
 import type { Session } from "../core/rbac/session";
 
 export type SearchResultType =
@@ -152,7 +153,7 @@ export function makeSearchIndex(repos: Repositories, session: Session | null): S
             type: "payment",
             id: pmt.id,
             label: `Paiement ${pmt.receiptNumber ?? pmt.id.slice(0, 8)}`,
-            subtitle: `${pmt.method} • ${pmt.amount.toLocaleString("fr-DZ")} DA`,
+            subtitle: `${pmt.method} • ${formatDzdPlain(pmt.amount)} DZD`,
             route: `/financials?paymentId=${pmt.id}`,
           });
           paymentCount++;
@@ -172,7 +173,7 @@ export function makeSearchIndex(repos: Repositories, session: Session | null): S
             type: "expense",
             id: exp.id,
             label: `Dépense ${exp.requestCode ?? exp.id.slice(0, 8)}`,
-            subtitle: `${exp.payee ?? "—"} • ${exp.amount.toLocaleString("fr-DZ")} DA`,
+            subtitle: `${exp.payee ?? "—"} • ${formatDzdPlain(exp.amount)} DZD`,
             route: `/financials?expenseId=${exp.id}`,
           });
           expenseCount++;

@@ -18,6 +18,7 @@ import {
 import { Button } from "./button";
 import { cn } from "./cn";
 import { usePersonNavigation } from "../navigation/person-navigation-context";
+import { buildWhatsAppUrl, openWhatsApp } from "../utils/whatsapp";
 
 export interface ParentActionsMenuProps {
   parent: {
@@ -51,7 +52,10 @@ export function ParentActionsMenu({
     parent.code ||
     "Famille";
 
-  const cleanPhone = (parent.whatsapp || parent.phone || "").replace(/[\s+]/g, "");
+  // E2.5 (DUP-022): the phone normalization + the chat URL live in the ONE
+  // canonical helper (shared/utils/whatsapp.ts) — the hand-rolled cleaning
+  // dies; the label toggle keeps the whatsapp-or-phone preference.
+  const cleanPhone = buildWhatsAppUrl(parent.whatsapp || parent.phone || "");
 
   return (
     <DropdownMenu>
@@ -136,7 +140,7 @@ export function ParentActionsMenu({
           <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              window.open(`https://wa.me/${cleanPhone}`, "_blank");
+              void openWhatsApp(parent.whatsapp || parent.phone || "");
             }}
             className="gap-2.5 cursor-pointer text-status-success focus:text-status-success"
           >
