@@ -81,7 +81,7 @@ import type {
 } from "../../../domain/model/personnel";
 import type { Department } from "../../../domain/model/workforce";
 import type { DepartmentRow, RoleRow } from "../types";
-import { getTenantId, isUuid, writeAuditMirror } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, writeAuditMirror, paginateKeyset } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 
 // ============================================================================
@@ -709,16 +709,28 @@ export class SupabasePersonnelRepository implements PersonnelRepository {
 
   private async refreshPayments(): Promise<void> {
     try {
-      const { data, error } = await this.client
-        .from("salary_payments")
-        .select("*")
-        .eq("tenant_id", getTenantId())
-        .order("period", { ascending: false })
-        .limit(2000);
-      if (error) throw error;
-      this.paymentsCache.set(
-        ((data ?? []) as Record<string, any>[]).map(mapPaymentRow),
-      );
+      // T-591 (E7A-2 / BUG-063 e): the salary-payment refresh walks the
+      // tenant-scoped KEYSET pages — the old single read was capped at
+      // 2 000 rows (a payroll history silently truncated on mature
+      // tenants); the display order (period DESC) is restored in-memory
+      // (the paginateKeyset convention — ISO period strings sort correctly
+      // and Array.sort is stable).
+      const rows = await paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("salary_payments")
+          .select("*")
+          .eq("tenant_id", getTenantId());
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as Array<{ id: string }>,
+          error: error as { message: string } | null,
+        };
+      });
+      const mapped = ((rows as Record<string, any>[]).map(mapPaymentRow))
+        .sort((a, b) => String(b["period"] ?? "").localeCompare(String(a["period"] ?? "")));
+      this.paymentsCache.set(mapped);
     } catch {
       // Silently degrade to the current cache (RLS: non-finance readers see
       // only their own rows — the UI's paid/unpaid statuses are the finance

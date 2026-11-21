@@ -53,6 +53,12 @@ class FakeQuery {
     this.filters.push((r) => r[col] !== val);
     return this;
   }
+  // T-591 (E7A-2): the keyset walk's id-cursor operator (the production read
+  // now pages with .gt("id", lastId) — the FakeQuery surface follows).
+  gt(col: string, val: unknown): this {
+    this.filters.push((r) => (r[col] as string) > (val as string));
+    return this;
+  }
   lt(col: string, val: unknown): this {
     this.filters.push((r) => (r[col] as string) < (val as string));
     return this;
@@ -81,6 +87,12 @@ class FakeQuery {
   // T-172: `.limit(n)` support (stale-alerts fetch caps at 2000).
   limit(n: number): this {
     this.limitCount = n;
+    return this;
+  }
+  // T-591 (E7A-2): the keyset walk's ordering call (the FakeQuery's row
+  // order already matches the fixture order; the production read's
+  // `.order("id")` is accepted as a chainable no-op).
+  order(_col: string, _opts?: { ascending?: boolean }): this {
     return this;
   }
 

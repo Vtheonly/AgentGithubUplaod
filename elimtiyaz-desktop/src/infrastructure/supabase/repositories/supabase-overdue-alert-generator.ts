@@ -62,7 +62,7 @@ import type {
 } from "../../../domain/repository/repository";
 import type { AppNotification, AlertPriority } from "../../../domain/model/operations";
 import { Role } from "../../../core/rbac/roles";
-import { isUuid } from "./supabase-shared-repositories";
+import { isUuid, paginateKeyset } from "./supabase-shared-repositories";
 
 // ============================================================================
 // Helpers — minimal row shapes (only the columns this generator reads)
@@ -128,31 +128,54 @@ export class SupabaseOverdueAlertGenerator implements OverdueAlertGenerator {
       }
 
       // ── 1. Fetch overdue installments ──────────────────────────────
+      // T-591 (E7A-2 / BUG-062): the overdue pair walks the tenant-scoped
+      // KEYSET pages with the date/status filters SERVER-SIDE (the old
+      // single reads were server-filtered but UNBOUNDED — a delinquent
+      // book larger than 1 000 rows silently truncated the alert scan;
+      // the upcoming leg's failure stays non-fatal — the catch converts
+      // to the empty set and the overdue-only scan proceeds).
       const nowIso = now.toISOString();
-      const { data: overdueRows, error: overdueErr } = await this.client
-        .from("installments")
-        .select("id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, amount_pending, due_date, status")
-        .eq("tenant_id", tenantId)
-        .neq("status", "paid")
-        .lt("due_date", nowIso);
-      if (overdueErr) {
-        console.warn("[SupabaseOverdueAlerts] overdue installments query failed:", overdueErr.message);
-        return Err(Errors.unknown(overdueErr));
-      }
+      const overdueRows = await paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("installments")
+          .select("id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, amount_pending, due_date, status")
+          .eq("tenant_id", tenantId)
+          .neq("status", "paid")
+          .lt("due_date", nowIso);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as Array<{ id: string }>,
+          error: error as { message: string } | null,
+        };
+      }).catch((e: unknown) => {
+        console.warn("[SupabaseOverdueAlerts] overdue installments query failed:", e);
+        throw e;
+      });
 
       // ── 2. Fetch upcoming-due installments (within next 7 days) ────
       const soonIso = new Date(now.getTime() + 7 * 86_400_000).toISOString();
-      const { data: upcomingRows, error: upcomingErr } = await this.client
-        .from("installments")
-        .select("id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, amount_pending, due_date, status")
-        .eq("tenant_id", tenantId)
-        .neq("status", "paid")
-        .gte("due_date", nowIso)
-        .lte("due_date", soonIso);
-      if (upcomingErr) {
-        console.warn("[SupabaseOverdueAlerts] upcoming installments query failed:", upcomingErr.message);
+      const upcomingRows = await paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("installments")
+          .select("id, parent_id, student_id, category, label, tranche_number, amount_due, amount_paid, amount_pending, due_date, status")
+          .eq("tenant_id", tenantId)
+          .neq("status", "paid")
+          .gte("due_date", nowIso)
+          .lte("due_date", soonIso);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as Array<{ id: string }>,
+          error: error as { message: string } | null,
+        };
+      }).catch((e: unknown) => {
+        console.warn("[SupabaseOverdueAlerts] upcoming installments query failed:", e);
         // Non-fatal — proceed with overdue-only scan.
-      }
+        return [] as Array<{ id: string }>;
+      });
 
       // T-172: filter to rows with a REAL remaining balance (> 0.001, INV-4)
       // up-front — the tracked set drives BOTH alert creation AND stale

@@ -1555,26 +1555,56 @@ export class SupabaseStudentRepository implements StudentRepository {
    * (the canonical promotion archive; staff SELECT under the 0057 policy,
    * parents read their own children under 0091 from the portal). Ordered by
    * academic_year so each student's embedded history is chronological.
+   *
+   * T-591 (E7A-2 / BUG-063 d): the read walks the tenant-scoped KEYSET pages
+   * (the old single unbounded read was capped at 1 000 rows by PostgREST —
+   * a student's history silently degraded on large tenants).
    */
   private async fetchAcademicHistoryRows(tenantId: string): Promise<StudentAcademicHistoryRecordRow[]> {
-    const { data, error } = await this.client
-      .from("student_academic_histories")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("academic_year", { ascending: true });
-    if (error) throw error;
-    return (data ?? []) as StudentAcademicHistoryRecordRow[];
+    const rows = await paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("student_academic_histories")
+        .select("*")
+        .eq("tenant_id", tenantId);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as Array<{ id: string }>,
+        error: error as { message: string } | null,
+      };
+    });
+    // The seed's display order contract: academic_year ascending (ISO year
+    // strings sort correctly; Array.sort is stable).
+    return (rows as StudentAcademicHistoryRecordRow[])
+      .slice()
+      .sort((a, b) => String((a as unknown as Record<string, unknown>).academic_year ?? "").localeCompare(String((b as unknown as Record<string, unknown>).academic_year ?? "")));
   }
 
-  /** SYNC-110/T-372 — tenant-scoped fetch of every `student_documents` row. */
+  /**
+   * SYNC-110/T-372 — tenant-scoped fetch of every `student_documents` row.
+   * T-591 (E7A-2 / BUG-063 c): the read walks the tenant-scoped KEYSET pages
+   * (the same uncapped-single-shot→keyset conversion — a document never
+   * silently drops on large tenants); the seed's display order contract
+   * (uploaded_at ascending) is restored in-memory.
+   */
   private async fetchDocumentRows(tenantId: string): Promise<StudentDocumentRow[]> {
-    const { data, error } = await this.client
-      .from("student_documents")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("uploaded_at", { ascending: true });
-    if (error) throw error;
-    return (data ?? []) as StudentDocumentRow[];
+    const rows = await paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("student_documents")
+        .select("*")
+        .eq("tenant_id", tenantId);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as Array<{ id: string }>,
+        error: error as { message: string } | null,
+      };
+    });
+    return (rows as StudentDocumentRow[])
+      .slice()
+      .sort((a, b) => String((a as unknown as Record<string, unknown>).uploaded_at ?? "").localeCompare(String((b as unknown as Record<string, unknown>).uploaded_at ?? "")));
   }
 
   /**
@@ -3411,28 +3441,97 @@ export class SupabaseLedgerRepository implements LedgerRepository {
       const balances = Array.from(accountIds).map((accId) => computeAccountBalance(ledger, accId));
       const balanceViolations = crossCheckBalanceSum(ledger, balances);
 
-      // TIER 2 — fetch cross-check inputs directly from Supabase tables.
-      // We use the same column names as the desktop's mapPaymentRow /
-      // mapInstallmentRow helpers so the data shape matches what the
-      // canonical cross-checks expect.
-      const [paymentsRes, installmentsRes, parentsRes] = await Promise.all([
-        this.client.from("payments").select("*"),
-        this.client.from("installments").select("*"),
-        this.client.from("parents").select("*"),
-      ]);
-
-      const paymentRows = (paymentsRes.data ?? []) as unknown as Array<{
+      // TIER 2 — fetch cross-check inputs.
+      // T-591 (E7A-2 / BUG-061 + BUG-069/072 — the S24/C-27 census): the
+      // trio previously issued THREE unbounded `select("*")` reads with
+      // NO tenant scope and NO limit (`:3418-3422` — the relocation guide's
+      // Path-2 hard-flag: the integrity-check surface ran on TRUNCATED,
+      // unscoped inputs). The inputs now ride the ONE column-projected,
+      // tenant-scoped RPC (migration 0003's read_reconcile_inputs); version
+      // skew (the RPC absent — a DB without 0003, a permission-deny shape)
+      // falls back to the THREE tenant-scoped KEYSET walks (the same
+      // projection columns, the id-cursor pages — never a bare "select *"
+      // again).
+      let paymentRows: Array<{
         id: string; amount: number; status: string; receipt_number: string | null;
         payment_number: string | null; installment_id: string | null;
       }>;
-      const installmentRows = (installmentsRes.data ?? []) as unknown as Array<{
+      let installmentRows: Array<{
         id: string; parent_id: string; student_id: string | null;
         category: string; amount_due: number; amount_paid: number;
         label: string | null; tranche_number: number | null; status: string;
       }>;
-      const parentRows = (parentsRes.data ?? []) as unknown as Array<{
+      let parentRows: Array<{
         id: string; first_name: string; last_name: string; display_name: string | null;
       }>;
+      let rpcOutcome: Awaited<ReturnType<SupabaseClient["rpc"]>> | null = null;
+      try {
+        rpcOutcome = await this.client.rpc("read_reconcile_inputs");
+      } catch (e) {
+        if (!isRpcUnavailableError(e as { message?: string })) throw e;
+      }
+      const rpcData = rpcOutcome && !rpcOutcome.error ? (rpcOutcome.data as {
+        payments?: Array<typeof paymentRows[number]>;
+        installments?: Array<typeof installmentRows[number]>;
+        parents?: Array<typeof parentRows[number]>;
+      } | null) : null;
+      if (rpcOutcome?.error && !isRpcUnavailableError(rpcOutcome.error)) {
+        throw rpcOutcome.error;
+      }
+      if (rpcData) {
+        paymentRows = (rpcData.payments ?? []) as typeof paymentRows;
+        installmentRows = (rpcData.installments ?? []) as typeof installmentRows;
+        parentRows = (rpcData.parents ?? []) as typeof parentRows;
+      } else {
+        // The version-skew fallback: the tenant-scoped keyset walks (the
+        // SAME projection columns the RPC returns — the parity suite pins
+        // the two shapes equal).
+        const tenantId = requireTenantId();
+        const [paymentsWalked, installmentsWalked, parentsWalked] = await Promise.all([
+          paginateKeyset(async (lastId) => {
+            const base = this.client
+              .from("payments")
+              .select("id, amount, status, receipt_number, payment_number, installment_id")
+              .eq("tenant_id", tenantId);
+            const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+              .order("id", { ascending: true })
+              .limit(1000);
+            return {
+              data: (data ?? []) as Array<{ id: string }>,
+              error: error as { message: string } | null,
+            };
+          }),
+          paginateKeyset(async (lastId) => {
+            const base = this.client
+              .from("installments")
+              .select("id, parent_id, student_id, category, amount_due, amount_paid, label, tranche_number, status")
+              .eq("tenant_id", tenantId);
+            const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+              .order("id", { ascending: true })
+              .limit(1000);
+            return {
+              data: (data ?? []) as Array<{ id: string }>,
+              error: error as { message: string } | null,
+            };
+          }),
+          paginateKeyset(async (lastId) => {
+            const base = this.client
+              .from("parents")
+              .select("id, first_name, last_name, display_name")
+              .eq("tenant_id", tenantId);
+            const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+              .order("id", { ascending: true })
+              .limit(1000);
+            return {
+              data: (data ?? []) as Array<{ id: string }>,
+              error: error as { message: string } | null,
+            };
+          }),
+        ]);
+        paymentRows = paymentsWalked as typeof paymentRows;
+        installmentRows = installmentsWalked as typeof installmentRows;
+        parentRows = parentsWalked as typeof parentRows;
+      }
 
       // Map to the cross-check input shapes.
       const paymentInputs = paymentRows.map((p) => ({
@@ -4927,19 +5026,28 @@ export class SupabaseDebtRepository implements DebtRepository {
       // adjustment reasons, "Auteur: system" placeholders and lost
       // per-student attribution even though the database rows carry all of
       // it. Mirrors the ledger repository's own seed (select "*").
-      const { data, error } = await this.client
-        .from("ledger_entries")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("parent_id", parentId)
-        .order("entry_date", { ascending: false })
-        .limit(2000);
-      if (error) {
-        console.warn("[SupabaseDebt] ledger query failed:", error.message);
-        this.profiles.get(parentId)?.set(null);
-        return;
-      }
-      const entries = (data as LedgerEntryRow[]).map(mapLedgerRow);
+      //
+      // T-591 (E7A-2 / BUG-063 a): the `.limit(2000)` truncation is GONE —
+      // the drawer-open on-demand fetch (observeProfile's lazy subject —
+      // the drawer-open semantics stay) walks the FULL per-parent set
+      // through the tenant+parent-scoped keyset pages (never a capped
+      // sample; a family with more than 2 000 ledger rows previously fed
+      // the canonical computeParentSummary a truncated replay).
+      const ledgerRows = await paginateKeyset(async (lastId) => {
+        const base = this.client
+          .from("ledger_entries")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .eq("parent_id", parentId);
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as Array<{ id: string }>,
+          error: error as { message: string } | null,
+        };
+      });
+      const entries = (ledgerRows as LedgerEntryRow[]).map(mapLedgerRow);
       // T-164 (the "Aucune tranche" root cause): load the family's REAL
       // installment rows. The previous implementation hardcoded
       // `installments: []`, so every Supabase-mode consumer of the profile
@@ -4949,19 +5057,30 @@ export class SupabaseDebtRepository implements DebtRepository {
       // amount_pending from `collect_and_allocate_payment`), so consumers
       // must NOT re-allocate client-side.
       let installments: Installment[] = [];
-      const { data: installmentRows, error: installmentErr } = await this.client
-        .from("installments")
-        .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note")
-        .eq("tenant_id", tenantId)
-        .eq("parent_id", parentId)
-        .order("due_date", { ascending: true });
-      if (installmentErr) {
+      // T-591 (E7A-2 / BUG-063 b): the family's installment rows walk the
+      // SAME tenant+parent-scoped keyset pages (the old single read was
+      // unbounded-by-batch — the same drawer-open on-demand subject).
+      try {
+        const installmentRows = await paginateKeyset(async (lastId) => {
+          const base = this.client
+            .from("installments")
+            .select("id, tenant_id, parent_id, student_id, category, tranche_number, label, amount_due, amount_paid, amount_pending, due_date, paid_date, status, academic_cycle, payment_plan, is_custom_schedule, custom_schedule_note")
+            .eq("tenant_id", tenantId)
+            .eq("parent_id", parentId);
+          const { data, error: installmentPageError } = await (lastId ? base.gt("id", lastId) : base)
+            .order("id", { ascending: true })
+            .limit(1000);
+          return {
+            data: (data ?? []) as Array<{ id: string }>,
+            error: installmentPageError as { message: string } | null,
+          };
+        });
+        installments = (installmentRows as InstallmentRow[]).map(mapInstallmentRow);
+      } catch (installmentErr) {
         // Non-fatal: the profile still ships with an empty schedule — the
         // drawer's canonical breakdown falls back to the display-only
         // 40/30/30 synthesis when no physical rows are available.
-        console.warn("[SupabaseDebt] installments query failed:", installmentErr.message);
-      } else {
-        installments = (installmentRows as InstallmentRow[]).map(mapInstallmentRow);
+        console.warn("[SupabaseDebt] installments query failed:", installmentErr);
       }
       // CANONICAL-FINANCIAL-LOGIC.md §4 INV-10 — delegate to the canonical
       // `computeParentSummary` so the Supabase-backed debt profile uses the
@@ -5192,39 +5311,92 @@ export class SupabaseDebtRepository implements DebtRepository {
   private async collectDebtors(minDaysOverdue: number): Promise<
     { parentId: string; outstanding: number; daysOverdue: number; restricted: boolean }[]
   > {
-    // Query unpaid installments directly (no stale materialized-view
-    // dependency). `daysOverdue` = days since the OLDEST unpaid overdue
-    // installment; `outstanding` excludes uncleared non-cash funds
-    // (amount_pending) per Invariant 4 — only confirmed debt is actionable.
-    const { data, error } = await this.client
-      .from("installments")
-      .select("parent_id, amount_due, amount_paid, amount_pending, due_date")
-      .neq("status", "paid")
-      .lt("due_date", new Date().toISOString());
-    if (error || !data) {
-      console.warn("[SupabaseDebt] collectDebtors query failed:", error?.message);
-      return [];
-    }
+    // T-591 (E7A-2 / BUG-060): the delinquent census rides the
+    // `read_debt_summary_collection` RPC (migration 0123 — the per-parent
+    // aggregates in ONE jsonb round trip: outstanding = Σ remaining over
+    // unpaid rows; oldest_due_date = min(due_date) over the remaining rows
+    // — the 0002-documented AGING CONVENTION anchor). The previous direct
+    // read (`supabase-shared-repositories.ts:5195-5199`) was unscoped AND
+    // uncapped — the BUG-069/072 census's delinquent leg. The arithmetic
+    // is IDENTICAL to the old client-side fold: daysOverdue = whole days
+    // since the OLDEST remaining row (max(now − due) over the past-due
+    // rows ≡ now − min(due) over the same rows — when ANY past-due row
+    // exists, min-over-all == min-over-past-due; when none exists, the
+    // family is not delinquent on either path — the t-591 suite pins the
+    // equivalence). `outstanding` widens to the family's FULL remaining
+    // debt (the RPC's §15 installment basis — the figure the restriction
+    // workflow reports; the consumer uses parentId/restricted).
+    //
+    // Version skew (the RPC absent) falls back to the direct read WITH the
+    // tenant scope + the keyset walk (the same projection columns).
+    const tenantId = requireTenantId();
     const nowMs = Date.now();
-    const byParent = new Map<string, { outstanding: number; daysOverdue: number }>();
-    for (const row of (data as {
+    let byParent = new Map<string, { outstanding: number; daysOverdue: number }>();
+    // The per-parent aggregate row read_debt_summary_collection returns.
+    type DebtSummaryRpcRow = {
       parent_id: string;
-      amount_due: number | string;
-      amount_paid: number | string;
-      amount_pending: number | string;
-      due_date: string;
-    }[])) {
-      const due = Number(row.amount_due ?? 0);
-      const paid = Number(row.amount_paid ?? 0);
-      const pending = Number(row.amount_pending ?? 0);
-      const remaining = Math.max(0, due - paid - pending);
-      if (remaining <= 0) continue;
-      const days = Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000);
-      const prev = byParent.get(row.parent_id);
-      byParent.set(row.parent_id, {
-        outstanding: (prev?.outstanding ?? 0) + remaining,
-        daysOverdue: Math.max(prev?.daysOverdue ?? 0, days),
+      outstanding_amount: number | string;
+      oldest_due_date: string;
+    };
+    let rpcRows: DebtSummaryRpcRow[] | null = null;
+    try {
+      const rpc = await this.client.rpc("read_debt_summary_collection");
+      if (rpc.error) {
+        if (!isRpcUnavailableError(rpc.error as { code?: string; message?: string })) throw rpc.error;
+      } else {
+        rpcRows = (rpc.data ?? []) as DebtSummaryRpcRow[];
+      }
+    } catch (e) {
+      if (!isRpcUnavailableError(e as { message?: string })) throw e;
+    }
+    if (rpcRows) {
+      for (const row of rpcRows) {
+        const outstanding = Number(row.outstanding_amount) || 0;
+        if (outstanding <= 0) continue;
+        const oldest = Date.parse(`${row.oldest_due_date}T00:00:00Z`);
+        if (Number.isNaN(oldest)) continue;
+        const days = Math.max(0, Math.floor((nowMs - oldest) / 86_400_000));
+        byParent.set(row.parent_id, { outstanding, daysOverdue: days });
+      }
+    } else {
+      // The version-skew fallback: the direct read, now tenant-scoped +
+      // keyset-walked (never the old uncapped, unscoped single shot).
+      type installmentFallbackRow = {
+        id: string;
+        parent_id: string;
+        amount_due: number | string;
+        amount_paid: number | string;
+        amount_pending: number | string;
+        due_date: string;
+      };
+      const rows = await paginateKeyset<installmentFallbackRow>(async (lastId) => {
+        const base = this.client
+          .from("installments")
+          .select("id, parent_id, amount_due, amount_paid, amount_pending, due_date")
+          .eq("tenant_id", tenantId)
+          .neq("status", "paid")
+          .lt("due_date", new Date().toISOString());
+        const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+          .order("id", { ascending: true })
+          .limit(1000);
+        return {
+          data: (data ?? []) as installmentFallbackRow[],
+          error: error as { message: string } | null,
+        };
       });
+      for (const row of rows) {
+        const due = Number(row.amount_due ?? 0);
+        const paid = Number(row.amount_paid ?? 0);
+        const pending = Number(row.amount_pending ?? 0);
+        const remaining = Math.max(0, due - paid - pending);
+        if (remaining <= 0) continue;
+        const days = Math.floor((nowMs - new Date(row.due_date).getTime()) / 86_400_000);
+        const prev = byParent.get(row.parent_id);
+        byParent.set(row.parent_id, {
+          outstanding: (prev?.outstanding ?? 0) + remaining,
+          daysOverdue: Math.max(prev?.daysOverdue ?? 0, days),
+        });
+      }
     }
     // BUSINESS-108 (T-411): read the REAL restriction flag — the hardcoded
     // `restricted: false` made the consumer's "already restricted are

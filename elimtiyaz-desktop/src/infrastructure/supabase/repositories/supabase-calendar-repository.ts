@@ -91,7 +91,7 @@ import type { AlertPriority } from "../../../domain/model/operations";
 import type { PaymentMethod, PaymentCategory } from "../../../domain/model/payment";
 import { parentDisplayName } from "../../../domain/model/parent";
 import type { Role } from "../../../core/rbac/roles";
-import { getTenantId, isUuid, callCollectionRpc } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, callCollectionRpc, paginateKeyset } from "./supabase-shared-repositories";
 import { CacheFreshness } from "../cache-freshness";
 import type { PaymentRow } from "../types";
 
@@ -710,21 +710,37 @@ export class SupabaseCalendarRepository implements CalendarRepository {
       );
     }
     // ── The version-skew fallback: the pre-T-432 direct read (a DB without
-    //    migration 0123, a permission-deny shape — the T-424 contract). ──
-    const { data, error } = await this.client
-      .from("payments")
-      .select(
-        "id, receipt_number, payment_number, parent_id, amount, method, category, status, collected_at, collected_by, created_at, parents(display_name, first_name, last_name)",
-      )
-      .eq("tenant_id", getTenantId())
-      .in("status", ["paid", "partial"])
-      .gte("collected_at", bounds.start)
-      .lt("collected_at", bounds.end)
-      .order("collected_at", { ascending: true });
-    if (error) throw error;
-    return (data ?? []).map((row: Record<string, any>) =>
-      mapPaymentRow(row as unknown as PaymentJoinedRow, isoDateOf(row.collected_at)),
-    );
+    //    migration 0123, a permission-deny shape — the T-424 contract).
+    //    T-591 (E7A-2 / BUG-063 g): the fallback walks the tenant-scoped
+    //    KEYSET pages with the month bounds SERVER-SIDE (the old single
+    //    read was date-bounded but unpaginated — a month with more than
+    //    1 000 payment events silently truncated); the collected_at ASC
+    //    display order is restored in-memory.
+    const fallbackRows = await paginateKeyset(async (lastId) => {
+      const base = this.client
+        .from("payments")
+        .select(
+          "id, receipt_number, payment_number, parent_id, amount, method, category, status, collected_at, collected_by, created_at, parents(display_name, first_name, last_name)",
+        )
+        .eq("tenant_id", getTenantId())
+        .in("status", ["paid", "partial"])
+        .gte("collected_at", bounds.start)
+        .lt("collected_at", bounds.end);
+      const { data, error } = await (lastId ? base.gt("id", lastId) : base)
+        .order("id", { ascending: true })
+        .limit(1000);
+      return {
+        data: (data ?? []) as Array<{ id: string }>,
+        error: error as { message: string } | null,
+      };
+    });
+    const data = fallbackRows as Array<Record<string, any>>;
+    return data
+      .slice()
+      .sort((a, b) => Date.parse(a.collected_at) - Date.parse(b.collected_at))
+      .map((row: Record<string, any>) =>
+        mapPaymentRow(row as unknown as PaymentJoinedRow, isoDateOf(row.collected_at)),
+      );
   }
 
   /**
