@@ -38,6 +38,8 @@ import { Errors } from "../core/app-error";
 // persisted local config must never carry whitespace around the host (the
 // `%20/rest/v1/…` request class). Pure string handling; no SDK state.
 import { normalizeSupabaseUrl } from "./supabase/supabase-client";
+// T-573: the backend-kind vocabulary (the profile switcher's kinds).
+import type { BackendKind } from "../../electron/backend-profile-contract";
 
 // ============================================================================
 // Types
@@ -413,13 +415,35 @@ export class LocalConfigService {
    * classified honestly: an HTTP 200 with an EMPTY array means the gateway
    * + key are valid but the PROBE runs as `anon` (RLS hides tenant rows) —
    * it is NOT proof of data access (the Task-29 trap); the note says so.
+   *
+   * T-573 — BACKEND-KIND-AWARE (the LOCAL-FIRST-BLUEPRINT §5 ruling, the
+   * `.supabase.co`-only check dies):
+   *   - "supabase" (default): the CURRENT check verbatim — https:// and a
+   *     `.supabase.co` host, then the `/rest/v1/tenants` probe. Zero behavior
+   *     change for every existing caller.
+   *   - "relay": any `https://` origin is admitted (the self-hosted relay's
+   *     host is not a *.supabase.co); the v0 probe is REACHABILITY of the
+   *     origin root (the relay's REST surface is T-601's design — the note
+   *     says so honestly; no fake REST semantics).
+   *   - "local": NO URL/key required and NO network at all — the local-first
+   *     backend (Stage B/T-599) is file-backed; Ok immediately with an
+   *     honest note that the local engine is not yet activated.
    */
-  async validateConnection(url: string, anonKey: string): Promise<Result<{
+  async validateConnection(url: string, anonKey: string, backendKind: BackendKind = "supabase"): Promise<Result<{
     connected: boolean;
     tenantCount?: number;
     error?: string;
     note?: string;
   }>> {
+    // T-573: the local kind needs NO url/key and performs ZERO network I/O.
+    if (backendKind === "local") {
+      return Ok({
+        connected: true,
+        note:
+          "Backend local déclaré : aucune URL distante requise (le moteur local-first Stage B n'est pas encore activé — le profil reste en mode fichier).",
+      });
+    }
+
     // OPS-318: normalize FIRST — trim + URL-parse + strip trailing slash.
     const normalizedUrl = normalizeSupabaseUrl(url);
     const normalizedKey = typeof anonKey === "string" ? anonKey.trim() : "";
@@ -428,11 +452,29 @@ export class LocalConfigService {
       return Err(Errors.validation("URL and anon key are required"));
     }
 
-    if (!normalizedUrl.startsWith("https://") || !normalizedUrl.includes(".supabase.co")) {
+    if (backendKind === "relay") {
+      // Any https origin (the relay is NOT a *.supabase.co host).
+      if (!normalizedUrl.startsWith("https://")) {
+        return Err(Errors.validation("URL must be an https:// origin"));
+      }
+    } else if (!normalizedUrl.startsWith("https://") || !normalizedUrl.includes(".supabase.co")) {
       return Err(Errors.validation("URL must be https://xxxx.supabase.co format"));
     }
 
     try {
+      if (backendKind === "relay") {
+        // The v0 relay probe: REACHABILITY of the origin root. Honest note —
+        // the relay's REST surface (push/pull/health) is designed with the
+        // transport adapter (T-601); this probe asserts nothing more.
+        const response = await fetch(normalizedUrl, {
+          headers: { apikey: normalizedKey },
+        });
+        return Ok({
+          connected: true,
+          note: `Relais joignable (HTTP ${response.status}) — sonde de joignabilité v0 ; la surface REST du relais sera définie avec le transport (T-601).`,
+        });
+      }
+
       // Test connection by fetching the tenants table with the anon key
       // (apikey header — the gateway resolves the anon role; RLS then hides
       // the rows, which the classification below reports honestly).

@@ -1,12 +1,112 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import { registerBackendProfileIpc } from "./backend-profile";
 
 const RENDERER_DIST = path.join(__dirname, "..", "dist");
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";
 const isDev = !app.isPackaged && process.env.NODE_ENV !== "production";
 
 let mainWindow: BrowserWindow | null = null;
+
+// ============================================================================
+// T-573 (ADD-9): the BackendProfile IPC surface — registered at MODULE LOAD
+// (before any window/preload exists) so the preload's ONE sendSync snapshot
+// at init always finds its listener. The profile file lives in the app's
+// userData directory: dropping/edits/re-pointing a packaged installation
+// WITHOUT a rebuild is the whole acceptance (the executable never changes).
+// ============================================================================
+registerBackendProfileIpc();
+
+// ============================================================================
+// T-573 (R-1): the `window.elImtiyaz.config` + `window.elImtiyaz.app`
+// declarations in `src/vite-env.d.ts` are NOW TRUE — the real IPC bridge.
+// Pre-T-573 these members were phantom (ARCH-034): system-config.ts's IPC
+// branches were dead code (everything fell back to localStorage, and the
+// "restart" was a silent page reload in Electron).
+// ============================================================================
+const CONFIG_FILE_NAME = "config.json";
+const CONFIG_MAX_BYTES = 64 * 1024;
+
+ipcMain.handle("config:read", async (): Promise<{ ok: true; config: Record<string, unknown> } | { ok: false; error: string }> => {
+  const filePath = path.join(app.getPath("userData"), CONFIG_FILE_NAME);
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { ok: true, config: {} }; // a corrupt file reads as empty — the renderer re-writes it
+    }
+    return { ok: true, config: parsed };
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return { ok: true, config: {} };
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("config:write", async (_event, config: Record<string, unknown>): Promise<{ ok: true } | { ok: false; error: string }> => {
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(config ?? {}, null, 2);
+  } catch (err) {
+    return { ok: false, error: `Config is not JSON-serializable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  if (Buffer.byteLength(serialized, "utf8") > CONFIG_MAX_BYTES) {
+    return { ok: false, error: `Config exceeds the ${CONFIG_MAX_BYTES} byte bridge cap.` };
+  }
+  const filePath = path.join(app.getPath("userData"), CONFIG_FILE_NAME);
+  try {
+    await fs.writeFile(filePath, serialized, "utf8");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("config:delete", async (): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const filePath = path.join(app.getPath("userData"), CONFIG_FILE_NAME);
+  try {
+    await fs.rm(filePath, { force: true });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+// The app lifecycle members declared in vite-env.d.ts (used by
+// system-config.ts's restartApp()/isElectron() — pre-T-573 dead branches).
+ipcMain.handle("app:restart", (): { ok: true } => {
+  // relaunch + exit — the RELAUNCH env is prepared by Electron before exit;
+  // the invoke reply never reaches the renderer (the process exits first).
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
+});
+
+ipcMain.handle("app:get-version", (): string => app.getVersion());
+ipcMain.handle("app:is-electron", (): boolean => true);
+
+const SAFE_PATH_NAMES = new Set<string>([
+  "userData",
+  "sessionData",
+  "temp",
+  "home",
+  "desktop",
+  "documents",
+  "downloads",
+  "logs",
+]);
+
+ipcMain.handle("app:get-path", (_event, name: string): { ok: true; path: string } | { ok: false; error: string } => {
+  if (!SAFE_PATH_NAMES.has(name)) {
+    return { ok: false, error: `Path name not allowed: ${name}` };
+  }
+  try {
+    return { ok: true, path: app.getPath(name as "userData") };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
