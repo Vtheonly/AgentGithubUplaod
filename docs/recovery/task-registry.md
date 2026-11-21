@@ -6562,3 +6562,20 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** nothing for the registered scope. The owner's acceptance pass: pull main + rebuild the desktop, then re-verify the reported flows (select an OLDER school year in the Year-Tracking manual-debt modal and in the school-years editor; enter a previous-year date; save, reopen, edit — the selection must survive every parent re-render and persist as chosen).
 
 **Related:** UI-355 · the INV-14 year-inference contract (unchanged) · §6 existing-implementation-first (canonical, not per-surface) · §15.110 (the permanent rule this task contributed: the rising-edge reset contract + the consumer-census precondition + the `[m` display-artifact trap + the owner's push-first directive).
+
+---
+
+## T-549 — The BUG-038 clock-injection fix: the finance wave adapter (`deriveTrancheWaves` in installment-schedule-tab.tsx) evaluates overdue verdicts against the wall clock — inject the evaluation clock per the T-470 explicit-evaluation-clock discipline (Track 1, baseline green)
+
+**Problem IDs:** BUG-038 (FINDINGS_INDEX S3-S5; the only red file in the full Vitest ladder since 2026-10-16) · E2.1 (t-502 settle — DONE-BY-T-549 per EXECUTION-PLAN v2.3 §3 Step 4).
+
+**Status:** IN_PROGRESS (registered 2026-11-21, Session 29 — the first post-G0-lift execution session — BEFORE any code change per §13).
+
+**Root cause (BUG-038, S5-measured):** `src/features/financials/installment-schedule-tab.tsx:228-231` — the finance-strip adapter `deriveTrancheWaves(rows, thresholds)` takes NO clock parameter and hard-codes `Date.now()` at the `:246` `derivePooledTrancheWaves(rows, Date.now(), thresholds)` call, while the Statistics twin (`executive-statistics.ts:173`) takes an explicit `nowEpochMs`. The t-502 PARITY test pins a fixed clock (2026-10-11) → the test compares DIFFERENT instants across surfaces; green by accident through 2026-10-15, deterministically red from 2026-10-16 onward (the date bomb). The three surfaces DO agree at a common instant (one shared predicate since T-502/STATS-403) — this is a HERMETICITY defect, not a predicate divergence (C-9 withdrew the S1 DUP-016/BUG-012 corroboration). Unticketed wall reads also sit at `:330` (daysLate, presentation) and `:708` (overdueDays, collect-modal presentation).
+
+**Fix contract (EXECUTION-PLAN v2.3 §3 Step 4):** (1) add the optional clock parameter `nowEpochMs` (default `Date.now()`) to the adapter signature and thread it into the `derivePooledTrancheWaves` call — parameter order mirrors the Statistics twin (`rows, nowEpochMs, thresholds`) so the two same-named adapters carry IDENTICAL shapes (the T-424/T-502 parity-by-construction discipline); the one production caller (`:538`) passes `Date.now()` explicitly (behavior unchanged); the two secondary wall reads (`:330`, `:708`) stay wall-clock BY DESIGN with explanatory comments (presentation-layer display counters; the VERDICT comes from the derived wave — no behavior change in production rendering); (2) pass the fixed `NOW` constant into the t-502 finance adapter calls (`:159`, `:180` — the PARITY test's finance surface + the default-grace finance call; the S3 finding's "three finance calls" counts the PARITY block's three adapter families — pooled and statistics already receive NOW). Zero predicate/semantic change: overdue math, thresholds wiring, wave grouping, financial numbers all untouched.
+
+**Scope fences:** `installment-schedule-tab.tsx` (signature + threading + 2 comments) + `t-502-wave-meter-thresholds.test.ts` (clock passes) ONLY. NO domain-module change (`tranche-waves.ts` already takes `nowEpochMs`); NO Statistics-adapter change (already takes it); NO new tests required (the t-502 suite IS the acceptance pin — 8/8); NO baseline move outside the file's own `_comment` rule.
+
+**Plan:** this registration → the implementation → the gates (t-502 8/8; `tsc --noEmit` 0; the full five-shard ladder with an EMPTY failing set; `scripts/test-baseline.json` moved citing T-549 per its `_comment` rule) → the docs closeout (registry status, change-log, next-task queue, SESSION_LOG row 29).
+
