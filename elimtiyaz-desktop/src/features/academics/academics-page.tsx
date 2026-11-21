@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/features/academics/academics-page.tsx
 // ============================================================================
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -97,7 +97,10 @@ export function AcademicsPage() {
   // T-413: consume the /academics?studentId=… deep link (the 3-dot menu's
   // "Ouvrir dans Pédagogie" target) — switch to the students directory with
   // the canonical student pre-selected, then clean the param.
-  useMemo(() => {
+  // BUG-011 (E2.7): the consumption is an EFFECT (navigation-state mutation),
+  // never a render-phase write — the old useMemo called setTab/
+  // setDirectoryStudentId/setSearchParams DURING render.
+  useEffect(() => {
     const sid = searchParams.get("studentId");
     if (sid) {
       setTab("students_directory");
@@ -111,7 +114,6 @@ export function AcademicsPage() {
         { replace: true },
       );
     }
-    return null;
   }, [searchParams, setSearchParams]);
 
   const canObj = useMemo(() => {

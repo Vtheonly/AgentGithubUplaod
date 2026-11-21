@@ -1,7 +1,7 @@
 // ============================================================================
 // FILE: src/features/academics/grade-levels-class-view.tsx
 // ============================================================================
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -373,9 +373,14 @@ function CreateClassModal({
   const filieres = getFilieresForGrade(gradeCode);
   const specialites = getSpecialitesForFiliere(filiereCode || null);
 
-  if (presetGradeCode && gradeCode !== presetGradeCode && open) {
-    setGradeCode(presetGradeCode);
-  }
+  // BUG-011 (E2.7): the preset adoption is an EFFECT (guarded by open +
+  // the inequality — the exact original semantics), never a render-phase
+  // write.
+  useEffect(() => {
+    if (presetGradeCode && gradeCode !== presetGradeCode && open) {
+      setGradeCode(presetGradeCode);
+    }
+  }, [presetGradeCode, gradeCode, open]);
 
   const derivedLevel: AcademicLevel =
     gradeCode.startsWith("prescolaire") || gradeCode.endsWith("ap")

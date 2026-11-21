@@ -491,12 +491,12 @@ export function UnifiedPaymentModal({
       if (result.value.status === "paid") {
         toast.showSuccess(
           "Paiement encaissé",
-          `${result.value.amount.toLocaleString("fr-FR")} DZD encaissés. Reçu ${result.value.receiptNumber}. Allocation waterfall appliquée.`,
+          `${formatDzdPlain(result.value.amount)} DZD encaissés. Reçu ${result.value.receiptNumber}. Allocation waterfall appliquée.`,
         );
       } else {
         toast.showWarning(
           "Paiement enregistré — en attente",
-          `${result.value.amount.toLocaleString("fr-FR")} DZD (${PAYMENT_METHOD_LABELS_FR[result.value.method]}). Statut : En attente de compensation bancaire. Reçu ${result.value.receiptNumber}.`,
+          `${formatDzdPlain(result.value.amount)} DZD (${PAYMENT_METHOD_LABELS_FR[result.value.method]}). Statut : En attente de compensation bancaire. Reçu ${result.value.receiptNumber}.`,
         );
       }
       // === Generate receipt (DB record + PDF bytes) ===

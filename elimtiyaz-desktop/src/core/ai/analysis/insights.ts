@@ -21,6 +21,8 @@ import type { Assessment } from "../../../domain/model/academic";
 import type { Payment } from "../../../domain/model/payment";
 import type { Parent } from "../../../domain/model/parent";
 import type { Student } from "../../../domain/model/student";
+import { calculateAttendanceRate as attendanceRateOf } from "../../../domain/model/academic";
+import { formatDzdPlain } from "../../../core/format/currency";
 import {
   computeDescriptiveStats,
   type DescriptiveStats,
@@ -119,7 +121,7 @@ export function detectPaymentAnomalies(
         collectedAt: p.collectedAt,
         kind: "amount_outlier_high",
         zScore: 0,
-        explanation: `${list.length} paiements le même jour (total ${total.toLocaleString("fr-FR")} DZD) — pattern à vérifier en cas de contestation.`,
+        explanation: `${list.length} paiements le même jour (total ${formatDzdPlain(total)} DZD) — pattern à vérifier en cas de contestation.`,
       });
     }
   }
@@ -195,12 +197,6 @@ export function detectAttendanceAnomalies(
   return out.slice(0, 20);
 }
 
-/** The canonical attendance rate formula (present+late / total) — see domain/model/academic. */
-function attendanceRateOf(records: readonly AttendanceRecord[]): number {
-  if (records.length === 0) return 1;
-  const favorable = records.filter((r) => r.status === "present" || r.status === "late").length;
-  return Number((favorable / records.length).toFixed(3));
-}
 
 /* ------------------------------------------------------------------ */
 /*  3. Grade collapse detection (per student vs own baseline)          */
@@ -374,7 +370,7 @@ export function prioritizeDebtors(
       priority,
       score,
       recommendedAction,
-      rationale: `${d.outstandingAmount.toLocaleString("fr-FR")} DZD dus, ${d.daysOverdue} j de retard (${d.bucket}) — score ${score}/100 [${strategy}].`,
+      rationale: `${formatDzdPlain(d.outstandingAmount)} DZD dus, ${d.daysOverdue} j de retard (${d.bucket}) — score ${score}/100 [${strategy}].`,
     };
   });
 

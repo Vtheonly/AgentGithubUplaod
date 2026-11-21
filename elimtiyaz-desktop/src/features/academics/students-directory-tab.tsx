@@ -25,7 +25,7 @@
  *     selected (the StudentActionsMenu's "Ouvrir dans Pédagogie" target).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
@@ -113,7 +113,8 @@ export function StudentsDirectoryTab({
     : null;
 
   // Consume the deep link once, then clean the param (the /crm convention).
-  useMemo(() => {
+  // BUG-011 (E2.7): an EFFECT, never a render-phase write.
+  useEffect(() => {
     const sid = searchParams.get("studentId");
     if (sid) {
       setSelectedStudentId(sid);
@@ -126,7 +127,6 @@ export function StudentsDirectoryTab({
         { replace: true },
       );
     }
-    return null;
   }, [searchParams, setSearchParams]);
 
   function resetFilters() {

@@ -1,30 +1,19 @@
 /**
- * `computeBilling` — pure billing computation for the BatchRegistrationModal.
+ * `computeBilling` — the BatchRegistrationModal's billing preview (steps 3/4).
  *
- * CALC-001 (2026-09-12): reimplemented on the REAL 2026/2027 school model
- * extracted from `Suivis clients  2026_2027.xlsx` (see
- * `domain/calc/pricing/school-price-matrix.ts`). The previous implementation
- * was built on a fictional price book (flat family FI, 10% early discount on
- * the whole gross, 40/30/30 split of the net, 4 transport zones).
+ * E2.4 (2026-11-22): the arithmetic MOVED to the ONE domain engine —
+ * `domain/calc/pricing/devis.ts` (`computeFamilyDevis` with the per-year
+ * `pricingBasis`). This file is now the THIN feature mapping onto the
+ * `Billing` shape (labels + the wizard's display fields); the engine owns
+ * every number (DUP-001's consolidation: the preview, the Supabase wires and
+ * the mock batchRegister consume the SAME per-student plans).
  *
- * The REAL model (per the workbook's own formulas):
- *   1. Per student: FI (per grade) + scolarité (per grade) + transport
- *      (per town) − remise (negotiated, per student) = the per-student devis.
- *   2. Tranches: FI first (at registration), then V2 / 2V / v3 where
- *      2V = v3 = fixed per class and the REMISE is deducted from V2 ONLY
- *      (the workbook's S-column formulas: `=122000-J58`).
- *   3. Family totals: Sous-total = Σ devis; Montant Total = Sous-total −
- *      priorCredit (REMBOURSEMENT); prior debt (DETTES) tracked separately.
- *   4. Early payment: 5% of Σ scolarité (FI and transport excluded) when
- *      paid in full before June 30 — the Devis sheet's `=+SUM(F…)*0.05`.
- *   5. STICKER-PRICE CASE: `chargeStickerPrice` reproduces the workbook's
- *      SEDIKI rows (remise recorded but NOT subtracted from the devis).
- *
- * The output is consumed by Step 3 (config + per-student detail) and
- * Step 4 (review totals). It is also the input passed to
- * `buildTuitionChargeEntries` / `buildTransportChargeEntriesForDestination`
- * via the `netTrancheAmounts` field — closing the loop on the
- * double-discounting fix.
+ * The policy is unchanged from the CALC-001 model (the #4 wiring): per
+ * student FI + scolarité + transport − remise; tranches V1/2V/v3 with the
+ * remise on V1; family Sous-total − REMBOURSEMENT; 5% early payment of the
+ * scolarité only. The per-year pricingBasis (era A 2026-2027 / era B
+ * 2027-2026) is resolved from `academicYearStartYear` — never a cemented
+ * fallback.
  */
 import type { Billing, BillingInput, BillingPerStudent, BillingTranche, BillingDiscount } from "./types";
 import type { GradeLevel } from "../../../domain/model/student";
@@ -33,18 +22,9 @@ import type { TransportDestination } from "../../../domain/model/parent";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../domain/model/parent";
 import { LEVEL_LABELS_FR } from "../../../domain/model/student";
 import {
-  REAL_TUITION_BY_GRADE,
-  REAL_FI_BY_GRADE,
-  REAL_TRANSPORT_MATRIX,
-  EARLY_PAYMENT_RATE,
-  earlyPaymentCutoff,
-} from "../../../domain/calc/pricing/school-price-matrix";
-import {
-  evaluateAllSystemDiscounts,
-  sumDiscounts,
-  SIBLING_REMISE_PER_CHILD,
-  type DiscountEvaluation,
-} from "../../../domain/calc/pricing";
+  computeFamilyDevis,
+  resolveDevisPricingBasis,
+} from "../../../domain/calc/pricing/devis";
 
 export function computeBilling(input: BillingInput): Billing {
   const { students, pricing, includeRegistration, includeTransport } = input;
@@ -53,107 +33,57 @@ export function computeBilling(input: BillingInput): Billing {
   const priorCredit = input.priorCredit ?? 0;
   const priorDebt = input.priorDebt ?? 0;
 
-  let totalTuition = 0; // Σ gross scolarité
-  let totalTransport = 0;
-  let totalRemise = 0; // positive number = total reduction
-  let totalFi = 0;
-
-  const perStudent: BillingPerStudent[] = students.map((s, i) => {
-    // T-439 (UI-320): the canonical grade-level override wins — the
-    // level/year derivation is LOSSY for prescolaire_1 and the
-    // re-enrollment flow prices by the confirmed gradeLevelCode.
-    const gradeLevel: GradeLevel = s.gradeLevel ?? gradeLevelFromLevelYear(s.level, s.gradeYear);
-    const remise = Math.max(0, Number(s.remise) || 0);
-
-    // === FI per student, per grade (NEVER once per family) ===
-    const fi = includeRegistration
-      ? (pricing.registrationFeeByGrade?.[gradeLevel] ?? REAL_FI_BY_GRADE[gradeLevel])
-      : 0;
-
-    // === Scolarité sticker (real matrix; PricingConfig takes precedence
-    // when the admin has overridden it) ===
-    const configSchedule = pricing.tuitionByGradeLevel?.[gradeLevel];
-    const realSchedule = REAL_TUITION_BY_GRADE[gradeLevel];
-    const scolarite = configSchedule && configSchedule.annualAmount > 0
-      ? configSchedule.annualAmount
-      : realSchedule.scolarite;
-
-    // === Deterministic discount rules (sibling default only — the remise
-    // itself is the negotiated manual input) ===
-    const discountEvals: readonly DiscountEvaluation[] = evaluateAllSystemDiscounts({
-      grossScolarite: scolarite,
-      childIndex: i + 1,
+  const result = computeFamilyDevis({
+    students: students.map((s) => ({
+      gradeLevel: (s.gradeLevel ?? gradeLevelFromLevelYear(s.level, s.gradeYear)) as GradeLevel,
+      remise: Math.max(0, Number(s.remise) || 0),
+      chargeStickerPrice: s.chargeStickerPrice,
+      transportDestination: (s.transportDestination || null) as TransportDestination | null,
       paymentPlan: s.paymentPlan,
-      paymentDate,
-      academicYearStartYear,
-    });
-    const deterministicDiscount = sumDiscounts(discountEvals); // negative
+    })),
+    pricingConfig: pricing,
+    includeRegistration,
+    includeTransport,
+    academicYearStartYear,
+    paymentDate,
+    priorCredit,
+    basis: resolveDevisPricingBasis(academicYearStartYear),
+  });
 
-    // === STICKER-PRICE CASE: remise NOT subtracted from the devis ===
-    const remiseAppliedToDevis = s.chargeStickerPrice ? 0 : remise;
-
-    // === Transport per town ===
+  const perStudent: BillingPerStudent[] = result.perStudent.map((line, i) => {
+    const s = students[i];
+    const plan = line.plan;
     const dest = (includeTransport && s.transportDestination
       ? s.transportDestination
       : null) as TransportDestination | null;
-    const transportSchedule = dest ? REAL_TRANSPORT_MATRIX[dest] : null;
-    const transportAmount = transportSchedule ? transportSchedule[0] : 0;
-
-    // === Per-student devis (workbook column L): FI + scol + transport − remise ===
-    const devis = fi + scolarite + transportAmount - remiseAppliedToDevis;
-
-    // === Tranches: V1 = V1_sticker − remise; 2V = v3 = fixed ===
-    // T-425 (the official model): the three tuition tranches are V1/2V/v3
-    // (the matrix fields are still NAMED v2/tranche3/tranche4 from the BON
-    // era but ARE the V1/2V/v3 stickers). Config override wins when the
-    // admin customized the schedule; otherwise the real matrix's stickers
-    // apply with the remise on V1.
-    let v2: number;
-    let fixed3: number;
-    let fixed4: number;
-    if (configSchedule && configSchedule.installments && configSchedule.installments[0] > 0) {
-      const inst = configSchedule.installments as readonly [number, number, number];
-      v2 = inst[0] - remise; // remise always lands on V2
-      fixed3 = inst[1];
-      fixed4 = inst[2];
-    } else {
-      v2 = realSchedule.v2 - remise;
-      fixed3 = realSchedule.tranche3;
-      fixed4 = realSchedule.tranche4;
-    }
 
     const tranches: BillingTranche[] =
       s.paymentPlan === "full_annual"
-        ? [{ label: "Année complète", amountDue: fi + scolarite + transportAmount - remiseAppliedToDevis }]
+        ? [{ label: "Année complète", amountDue: plan.devis }]
         : [
-            { label: "Tranche 1 (V1)", amountDue: v2 },
-            { label: "Tranche 2 (2V)", amountDue: fixed3 },
-            { label: "Tranche 3 (v3)", amountDue: fixed4 },
+            { label: "Tranche 1 (V1)", amountDue: plan.tuitionTranches[0] },
+            { label: "Tranche 2 (2V)", amountDue: plan.tuitionTranches[1] },
+            { label: "Tranche 3 (v3)", amountDue: plan.tuitionTranches[2] },
           ];
 
-    const transportTranches: BillingTranche[] = transportSchedule
+    const transportTranches: BillingTranche[] = dest
       ? [
-          { label: "Transport — Tranche 1 (à l'inscription)", amountDue: transportSchedule[1] },
-          { label: "Transport — Tranche 2 (déc.)", amountDue: transportSchedule[2] },
-          { label: "Transport — Tranche 3 (mars)", amountDue: transportSchedule[3] },
+          { label: "Transport — Tranche 1 (à l'inscription)", amountDue: plan.transportTranches[0] },
+          { label: "Transport — Tranche 2 (déc.)", amountDue: plan.transportTranches[1] },
+          { label: "Transport — Tranche 3 (mars)", amountDue: plan.transportTranches[2] },
         ]
       : [];
 
-    totalTuition += scolarite;
-    totalTransport += transportAmount;
-    totalRemise += remise;
-    totalFi += fi;
-
     const discounts: BillingDiscount[] = [
-      ...(remise > 0
+      ...(plan.remise > 0
         ? [{
             code: "negotiated_remise",
             label: "Remise négociée",
-            amount: -remise,
+            amount: -plan.remise,
             reason: "Remise négociée (saisie manuelle — déduite de la tranche V2)",
           }]
         : []),
-      ...discountEvals.map((d) => ({
+      ...line.discounts.map((d) => ({
         code: d.code,
         label: d.label,
         amount: d.amount,
@@ -165,48 +95,34 @@ export function computeBilling(input: BillingInput): Billing {
       index: i + 1,
       name: `${s.firstName} ${s.lastName}`.trim() || `Élève ${i + 1}`,
       level: LEVEL_LABELS_FR[s.level],
-      registrationFee: fi,
-      tuition: scolarite,
-      remise,
-      netTuition: Math.max(0, scolarite + deterministicDiscount - remise),
+      registrationFee: plan.fi,
+      tuition: plan.scolarite,
+      remise: plan.remise,
+      netTuition: line.netTuition,
       discounts,
-      transport: transportAmount,
+      transport: plan.transport,
       tranches,
       transportTranches,
       transportDestinationLabel: dest ? TRANSPORT_DESTINATION_LABELS_FR[dest] : null,
       paymentPlan: s.paymentPlan,
-      devis,
-      earlyPaymentDiscount: 0, // filled below at family level
+      devis: plan.devis,
+      earlyPaymentDiscount: 0, // family-level (result.totalEarlyPaymentDiscount)
     };
   });
 
-  // === Early payment: 5% of Σ scolarité (FI + transport excluded), only
-  // when EVERY student is full_annual and the settlement precedes June 30.
-  const allFullAnnual = students.length > 0 && students.every((s) => s.paymentPlan === "full_annual");
-  let totalEarlyPaymentDiscount = 0;
-  if (allFullAnnual) {
-    const when = new Date(paymentDate);
-    if (when.getTime() <= earlyPaymentCutoff(academicYearStartYear).getTime()) {
-      totalEarlyPaymentDiscount = Math.round(totalTuition * EARLY_PAYMENT_RATE);
-    }
-  }
-
-  const subTotal = totalFi + totalTuition + totalTransport - totalRemise;
-  const grandTotal = Math.max(0, subTotal - priorCredit);
-
   return {
     perStudent,
-    registrationFee: totalFi,
-    totalTuition,
-    totalTransport,
-    totalRemise,
+    registrationFee: result.registrationFee,
+    totalTuition: result.totalTuition,
+    totalTransport: result.totalTransport,
+    totalRemise: result.totalRemise,
     priorCredit,
     priorDebt,
-    subTotal,
-    grandTotal,
-    totalEarlyPaymentDiscount,
+    subTotal: result.subTotal,
+    grandTotal: result.grandTotal,
+    totalEarlyPaymentDiscount: result.totalEarlyPaymentDiscount,
   };
 }
 
 // Re-export for downstream charge builders that need the sibling default.
-export { SIBLING_REMISE_PER_CHILD };
+export { SIBLING_REMISE_PER_CHILD } from "../../../domain/calc/pricing/school-price-matrix";

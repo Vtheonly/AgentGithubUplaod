@@ -151,9 +151,51 @@ describe("T-439 / UI-320 — the gradeLevel override prices the devis", () => {
     expect(wireTuition).toHaveLength(3);
     const wireTotal = wireTuition.reduce((s, w) => s + (w.amount_due as number), 0);
     const wireFi = (ledgerWire.find((l) => l.category === "other")?.amount as number) ?? 0;
-    // The devis total (grand total) = the wires' tuition total + the FI.
-    expect(billing.perStudent.reduce((s2, p2) => s2 + p2.registrationFee, 0)).toBe(wireFi);
-    expect(billing.totalTuition).toBe(wireTotal);
-    expect(billing.grandTotal).toBe(wireTotal + wireFi);
+    // E2.4/era B (YEAR 2027): the FI is FOLDED into V1 — no separate fee row;
+    // the wires' tuition total ALREADY carries the FI, and the grand total
+    // matches WITHOUT a separate leg.
+    expect(wireFi).toBe(0);
+    expect(ledgerWire.find((l) => l.category === "other")).toBeUndefined();
+    expect(billing.totalTuition + billing.registrationFee).toBe(wireTotal);
+    expect(billing.grandTotal).toBe(wireTotal);
+
+    // The unfolded world (era A — the 2026 pricing): the FI is a separate
+    // per-student row and the classic parity holds.
+    const billingA = computeBilling({
+      students: [devisStudent(grade)],
+      pricing: defaultPricingConfig,
+      includeRegistration: true,
+      includeTransport: false,
+      academicYearStartYear: 2026,
+    });
+    const wiresA = buildRegistrationBillingWires({
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      parentCode: "PAR-T439",
+      students: [
+        {
+          studentCode: "ELV-T439",
+          studentRef: 0,
+          gradeLevel: grade,
+          paymentPlan: "tranches",
+          transportTier: null,
+          remise: 0,
+          chargeStickerPrice: false,
+        },
+      ],
+      pricingConfig: defaultPricingConfig,
+      includeRegistration: true,
+      includeTransport: false,
+      year: 2026,
+      at: `2026-09-01T10:00:00.000Z`,
+      parentTransportDestination: null,
+      sourceIdScope: { prefix: `re-2026-2027`, yearCode: "2026-2027" },
+    });
+    const wireTotalA = wiresA.installmentWire
+      .filter((w) => w.category === "tuition")
+      .reduce((s, w) => s + (w.amount_due as number), 0);
+    const wireFiA = (wiresA.ledgerWire.find((l) => l.category === "other")?.amount as number) ?? 0;
+    expect(wireFiA).toBe(billingA.perStudent.reduce((s2, p2) => s2 + p2.registrationFee, 0));
+    expect(billingA.totalTuition).toBe(wireTotalA);
+    expect(billingA.grandTotal).toBe(wireTotalA + wireFiA);
   });
 });

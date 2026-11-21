@@ -75,6 +75,7 @@ import type {
   TimetableViolation,
 } from "../../../model/timetable";
 import { teachingPeriods } from "../../../model/timetable";
+import { periodMinutesSafe } from "../constraints";
 import {
   blockSplit,
   requiredPeriodsFor,
@@ -350,8 +351,8 @@ function* solveGreedySteps(
     pinnedCoverage.set(k, (pinnedCoverage.get(k) ?? 0) + 1);
   }
 
-  const periodMinutesValue =
-    periods.length > 0 ? periods[0].endMinutes - periods[0].startMinutes : config.defaultLessonMinutes;
+  // E2.5 (DUP-013): the ONE derivation (constraints.ts periodMinutesSafe).
+  const periodMinutesValue = periodMinutesSafe(config);
 
   // Valid period indexes with adjacency information.
   const validPeriods = periods.map((p) => p.index);

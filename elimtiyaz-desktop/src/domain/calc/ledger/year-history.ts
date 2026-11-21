@@ -43,6 +43,7 @@
 import type { Installment, Payment, PaymentAllocation } from "@/domain/model/payment";
 import type { LedgerEntry } from "@/domain/model/ledger";
 import type { PricingConfigSummary } from "@/domain/model/pricing";
+import { installmentRemaining } from "../payment/queries";
 import {
   resolveAcademicYearForDate,
   academicYearStart,
@@ -366,10 +367,8 @@ export interface YearHistoryInput {
 /*  Internal helpers                                                   */
 /* ================================================================== */
 
-/** INV-4 family remaining — the same clamp every surface applies. */
-function inv4Remaining(ins: Installment): number {
-  return Math.max(0, ins.amountDue - ins.amountPaid - ins.amountPending);
-}
+// E2.5 (DUP-011): the private inv4Remaining clone is dead — the canonical
+// installmentRemaining (domain/calc/payment/queries) is THE remaining.
 
 /**
  * T-442 (UI-323): the service-group key of a charge — the canonical
@@ -763,7 +762,7 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
       // Current settlement (the stored truth at the caller's clock).
       // INV-4: uncleared funds (amountPending) are NOT a settlement —
       // a pending-only charge stays "outstanding" until clearance.
-      const remaining = inv4Remaining(ins);
+      const remaining = installmentRemaining(ins);
       let settlement: YearChargeItem["settlement"];
       let settledAt: string | null = ins.paidDate ?? null;
       if (remaining <= YEAR_HISTORY_EPSILON_DZD && (ins.amountPaid > 0 || ins.amountDue <= YEAR_HISTORY_EPSILON_DZD)) {
@@ -920,7 +919,7 @@ export function computeParentYearHistory(input: YearHistoryInput): ParentYearHis
     priorYearEndOutstanding = stillOwedAtEnd ? yearEndOutstanding : 0;
   }
 
-  const totalOutstandingNow = parentInstallments.reduce((s, ins) => s + inv4Remaining(ins), 0);
+  const totalOutstandingNow = parentInstallments.reduce((s, ins) => s + installmentRemaining(ins), 0);
   // Prior-year outstanding still owed TODAY: every year EXCEPT the
   // latest one that has charges (the current year is not "prior").
   let lastYearWithChargesIdx = -1;

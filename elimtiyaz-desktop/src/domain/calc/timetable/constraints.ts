@@ -560,7 +560,10 @@ export interface CoverageGap {
   readonly placedPeriods: number;
 }
 
-function periodMinutesSafe(config: TimetableConfiguration): number {
+/** E2.5 (DUP-013): the ONE period-minutes derivation (the first teaching
+ * period's span, defaulting to defaultLessonMinutes) — feasibility, the
+ * greedy solver and the class reports consume this, never a re-derivation. */
+export function periodMinutesSafe(config: TimetableConfiguration): number {
   const first = teachingPeriods(config)[0];
   if (!first) return config.defaultLessonMinutes;
   const minutes = first.endMinutes - first.startMinutes;

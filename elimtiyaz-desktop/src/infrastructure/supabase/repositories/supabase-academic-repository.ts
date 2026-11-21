@@ -6,7 +6,8 @@ import { AuditActions } from "../../../core/audit-actions";
 import { supabaseErrorToAppError } from "../supabase-client";
 import { logAutoReleveSideEffect } from "./auto-releve-bridge";
 import { SubjectBehavior } from "../../mock/subject-behavior";
-import { getTenantId, isUuid, getActorId, getActorName } from "./supabase-shared-repositories";
+import { getTenantId, isUuid, getActorId, getActorName, mapStudentRow } from "./supabase-shared-repositories";
+import type { StudentRow } from "../types";
 import type {
   PromotionCycle,
   PromotionCycleClass,
@@ -1747,7 +1748,10 @@ export class SupabasePromotionRepository implements PromotionRepository {
     if (fetchErr) return Err(supabaseErrorToAppError(fetchErr));
 
     return Ok({
-      promotedStudents: (rows ?? []).map(mapStudentRow),
+      // E2.5 (DUP-014): the ONE shared mapper (supabase-shared-repositories
+      // mapStudentRow) — the stale private subset (no middleName/filiere/
+      // specialite/origin, transportTier forced null) is dead.
+      promotedStudents: (rows ?? []).map((r) => mapStudentRow(r as StudentRow)),
       updatedCount: updatedIds.length,
     });
   }
@@ -2123,43 +2127,6 @@ function mapHomeworkRow(row: Record<string, any>): Homework {
     createdAt: row.created_at,
     pushedAt: row.pushed_at,
     acknowledgedCount: row.acknowledged_count ?? 0,
-  };
-}
-
-function mapStudentRow(row: Record<string, any>): Student {
-  // students table has no level / grade_year / grade_level columns — the
-  // canonical source is `grade_level_code` (migration 0028), from which
-  // level + gradeYear are derived via the domain helpers (same routine as
-  // the shared SupabaseStudentRepository).
-  const gradeLevel = (row.grade_level_code ?? "1ap") as GradeLevel;
-  return {
-    id: row.id,
-    tenantId: row.tenant_id,
-    code: row.student_code,
-    parentId: row.parent_id,
-    firstName: row.first_name,
-    lastName: row.last_name,
-    displayName: row.display_name ?? null,
-    gender: row.gender ?? "unspecified",
-    birthDate: row.date_of_birth,
-    enrollmentDate: row.enrollment_date,
-    level: academicLevelFromGradeLevel(gradeLevel),
-    gradeYear: gradeYearFromGradeLevel(gradeLevel),
-    gradeLevel,
-    classId: row.class_id,
-    photoUrl: null,
-    medicalNotes: row.medical_notes,
-    transportTier: null,
-    status: (row.enrollment_status === "withdrawn"
-      ? "withdrawn"
-      : row.enrollment_status === "graduated"
-        ? "graduated"
-        : row.is_active
-          ? "active"
-          : "suspended") as Student["status"],
-    paymentPlan: (row.payment_plan as Student["paymentPlan"]) ?? "tranches",
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
   };
 }
 

@@ -21,6 +21,7 @@ export * from "./discount-engine";
 export * from "./tuition";
 export * from "./transport";
 export * from "./school-price-matrix";
+export * from "./devis";
 // Re-export the pricing model types so callers can import everything
 // (including `type PricingConfig`) from `@domain/calc/pricing`.
 export type {

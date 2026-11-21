@@ -15,6 +15,30 @@
  * adds the WORKFLOW state, never a second promotion algorithm.
  */
 
+/**
+ * E2.5 (DUP-020): the ONE grade → cycle map. The service-pricing profile's
+ * private CYCLE_OF_GRADE (T-333) and promotion.ts's per-case nextCycle
+ * literals both derive from THIS map — prescolaire grades keep their finer
+ * cycle (the domain's academicLevelFromGradeLevel folds them into primaire;
+ * the profile preserves the distinction for cross-platform output parity).
+ */
+export const CYCLE_OF_GRADE: Readonly<Record<string, "prescolaire" | "primaire" | "cem" | "lycee">> = {
+  prescolaire_1: "prescolaire",
+  prescolaire_2: "prescolaire",
+  "1ap": "primaire",
+  "2ap": "primaire",
+  "3ap": "primaire",
+  "4ap": "primaire",
+  "5ap": "primaire",
+  "1am": "cem",
+  "2am": "cem",
+  "3am": "cem",
+  "4am": "cem",
+  "1ere_annee": "lycee",
+  "2eme_annee": "lycee",
+  "3eme_annee": "lycee",
+};
+
 /** The cycle's lifecycle (0108's CHECK constraint, verbatim). */
 export type PromotionCycleStatus =
   | "draft"

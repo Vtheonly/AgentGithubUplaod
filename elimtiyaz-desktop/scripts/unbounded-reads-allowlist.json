@@ -10,7 +10,7 @@
     {
       "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
       "lineStart": 1106,
-      "lineEnd": 1174,
+      "lineEnd": 1175,
       "table": "attendance_records",
       "reason": "The attendance tab's per-class reads — equality-bounded by (class_id, record_date) [the day reads] or (class_id, record_date range ≤ 7 days) [the 7-day read]. A class-day's roster is ≤ ~50 rows by construction (the uq_attendance_canonical unique key family)."
     },
@@ -41,13 +41,13 @@
     },
     {
       "file": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
-      "lineStart": 237,
+      "lineStart": 231,
       "table": "attendance_records",
       "reason": "The KPI legacy fallback's attendance-day slice — .eq(\"date\", todayStr) day-equality-bounded (the day's records only). The PRIMARY path is the 0002 read_dashboard_kpis RPC."
     },
     {
       "file": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
-      "lineStart": 631,
+      "lineStart": 625,
       "table": "students",
       "reason": "The demographics LEGACY fallback (version-skew / flag-off path) — the compact read_dashboard_demographics RPC is the primary path; this fallback projects 5 columns over the alive set and runs only when the RPC is absent."
     },

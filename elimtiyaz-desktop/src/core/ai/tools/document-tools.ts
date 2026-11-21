@@ -30,6 +30,7 @@ import { parentDisplayName } from "../../../domain/model/parent";
 import { studentDisplayName } from "../../../domain/model/student";
 import { AGING_BUCKET_LABELS_FR } from "../../../domain/model/payment";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
+import { formatDzdPlain } from "../../../core/format/currency";
 import type { Subject } from "../../../domain/model/academic";
 
 /* ------------------------------------------------------------------ */
@@ -230,7 +231,7 @@ export async function executeDocumentTool(
         fileName: `recouvrement-${new Date().toISOString().slice(0, 10)}.pdf`,
         params: { minDaysOverdue: minDays, limit },
         rowCount: debtors.length,
-        caption: `${debtors.length} débiteurs · ${totalOutstanding.toLocaleString("fr-FR")} DZD dus.`,
+        caption: `${debtors.length} débiteurs · ${formatDzdPlain(totalOutstanding)} DZD dus.`,
       };
       return withArtifact(
         {

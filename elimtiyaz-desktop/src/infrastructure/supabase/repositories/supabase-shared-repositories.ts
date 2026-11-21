@@ -96,6 +96,7 @@ import type { LedgerEntry } from "../../../domain/model/ledger";
 import type { ParentLedgerSummary } from "../../../domain/model/ledger";
 import { SubjectBehavior, derived } from "../../mock/subject-behavior";
 import { deterministicActivationCode } from "../../../core/format/id";
+import { toIsoDate } from "../../../core/format/date";
 import type {
   ParentRow,
   StudentRow,
@@ -278,12 +279,6 @@ function studentCode(year: number, seq: number): string {
 
 
 
-
-function toIsoDate(d: string | Date | null | undefined): string | null {
-  if (!d) return null;
-  if (d instanceof Date) return d.toISOString();
-  return d;
-}
 
 /**
  * Whether the given string is a well-formed UUID. Domain ids coming from the

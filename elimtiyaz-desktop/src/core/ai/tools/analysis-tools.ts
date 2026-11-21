@@ -50,6 +50,8 @@ import {
 } from "../analysis/insights";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { calculateAttendanceRate } from "../../../domain/model/academic";
+import { formatDzdPlain } from "../../../core/format/currency";
+import { isoWindow } from "../../format/date";
 import { studentDisplayName } from "../../../domain/model/student";
 
 /* ------------------------------------------------------------------ */
@@ -222,12 +224,7 @@ function classPerformanceRow(
   };
 }
 
-/** Last-N-days ISO date window helper. */
-function isoWindow(days: number): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
+// E2.5 (DUP-009): the private isoWindow folds onto core/format/date.isoWindow.
 
 /* ------------------------------------------------------------------ */
 /*  Execution                                                          */
@@ -353,7 +350,7 @@ export async function executeAnalysisTool(
           const cls = repos.classes.observeById(classId).get();
           if (!cls) return JSON.stringify({ error: "Classe introuvable." });
           const students = repos.students.observeByClass(classId).get();
-          const { from, to } = isoWindow(30);
+          const { start: from, end: to } = isoWindow(30);
           values = students
             .map((s) => calculateAttendanceRate(repos.attendance.observeByStudent(s.id, from, to).get()))
             .map((r) => Number((r * 100).toFixed(1)));
@@ -426,7 +423,7 @@ export async function executeAnalysisTool(
                 categories: report.anomalies.map((a) => a.receiptNumber),
                 series: [{ name: "Montant", data: report.anomalies.map((a) => a.amount) }],
                 unit: "DZD",
-                caption: `Plage normale estimée : ${report.normalRange ? `${report.normalRange[0].toLocaleString("fr-FR")} – ${report.normalRange[1].toLocaleString("fr-FR")} DZD` : "n/a"}.`,
+                caption: `Plage normale estimée : ${report.normalRange ? `${report.normalRange[0].toLocaleString("fr-FR")} – ${formatDzdPlain(report.normalRange[1])} DZD` : "n/a"}.`,
               }
             : null;
 
@@ -463,7 +460,7 @@ export async function executeAnalysisTool(
         const cls = repos.classes.observeById(classId).get();
         if (!cls) return JSON.stringify({ error: "Classe introuvable." });
         const students = repos.students.observeByClass(classId).get();
-        const { from, to } = isoWindow(30);
+        const { start: from, end: to } = isoWindow(30);
         const cohort = students.map((s) => ({
           student: s,
           records: repos.attendance.observeByStudent(s.id, from, to).get(),

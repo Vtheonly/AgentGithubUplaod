@@ -47,7 +47,7 @@ import {
   teachingPeriods,
   timetableCoveragePercent,
 } from "../../model/timetable";
-import { requiredPeriodsFor } from "./constraints";
+import { requiredPeriodsFor, periodMinutesSafe } from "./constraints";
 
 // ============================================================================
 // Inputs / helpers
@@ -237,12 +237,8 @@ export function buildClassTimetableReports(
   source: ClassReportsSource,
 ): ClassTimetableReport[] {
   const index = buildSlotIndex(source.entries);
-  const pm = (() => {
-    const first = teachingPeriods(problem.configuration)[0];
-    if (!first) return problem.configuration.defaultLessonMinutes;
-    const minutes = first.endMinutes - first.startMinutes;
-    return minutes > 0 ? minutes : problem.configuration.defaultLessonMinutes;
-  })();
+  // E2.5 (DUP-013): the ONE derivation (constraints.ts periodMinutesSafe).
+  const pm = periodMinutesSafe(problem.configuration);
 
   // Class-sliced views (deterministic).
   const entriesByClass = new Map<string, TimetableSlotAssignment[]>();

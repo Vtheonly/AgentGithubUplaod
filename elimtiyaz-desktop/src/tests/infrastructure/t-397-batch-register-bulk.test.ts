@@ -383,24 +383,25 @@ describe("T-397/T-398 A. batchRegister — the ONE-round-trip call-count contrac
     expect(args.p_students).toHaveLength(1);
     expect(args.p_students[0].student_code).toMatch(/^ELV-\d{4}-/);
 
-    // 3 tuition tranches + 1 registration fee (transport OFF in this input).
+    // 3 tuition tranches + the PER-STUDENT registration fee (transport OFF
+    // in this input; E2.4: the FI rides per student — the workbook's
+    // R-column model — not a family-level flat fee).
     expect(args.p_ledger_entries).toHaveLength(4);
-    expect(args.p_installments).toHaveLength(3);
+    expect(args.p_installments).toHaveLength(4);
 
     // The identity-token contract (the 0103 substitution's input):
     // student_ref indexes + code-bearing source_ids.
     const studentCode = args.p_students[0].student_code as string;
     for (const e of args.p_ledger_entries) {
-      if (e.student_ref === null) {
-        expect(e.source_id).toBe(`reg-${args.p_parent.parent_code}-fee`);
-      } else {
-        expect(e.student_ref).toBe(0);
-        expect(String(e.source_id)).toMatch(new RegExp(`^reg-${studentCode}(-transport)?-t[123]$`));
-      }
+      expect(e.student_ref).toBe(0);
+      expect(String(e.source_id)).toMatch(new RegExp(`^reg-${studentCode}(-fi|-t[123])$`));
     }
     for (const inst of args.p_installments) {
       expect(inst.student_ref).toBe(0);
-      expect(inst.source_id).toBe(`${studentCode}:tuition:T${inst.tranche_number}`);
+      expect(inst.source_id === `${studentCode}:fi` ? inst.category === "other" : true).toBe(true);
+      if (inst.source_id !== `${studentCode}:fi`) {
+        expect(inst.source_id).toBe(`${studentCode}:tuition:T${inst.tranche_number}`);
+      }
     }
   });
 
