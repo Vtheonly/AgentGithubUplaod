@@ -8,7 +8,7 @@
  *
  * Layout: stacked cards, each card = one category.
  */
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { Role } from "../../core/rbac/roles";
@@ -74,13 +74,36 @@ export function ConfigurationTab() {
     const result = await systemConfigService.listAll();
     if (result.ok) {
       setSettings(result.value);
+      lastLoadErrorRef.current = null;
     } else {
-      showError(`Erreur chargement paramètres: ${result.error.userMessage}`);
+      // T-560: the identical-consecutive-error-toast dedupe — the SAME
+      // failure twice in a row renders ONE toast, not N (the loop's visible
+      // symptom); a DIFFERENT message still toasts (honest failures).
+      const message = `Erreur chargement paramètres: ${result.error.userMessage}`;
+      if (lastLoadErrorRef.current !== message) {
+        lastLoadErrorRef.current = message;
+        showError(message);
+      }
     }
     setIsLoading(false);
   }, [systemConfigService, showError]);
 
-  useEffect(() => { loadSettings(); }, [loadSettings]);
+  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
+  // the load fires ON MOUNT and on EXPLICIT refresh only (the Refresh button
+  // and the card callbacks call `loadSettings` directly). The callback is
+  // read through a ref so no identity churn (toast context, service
+  // re-creation, parent re-render) can ever re-fire the network load — the
+  // S10 shape (a failing listAll + its own error toast re-arming the effect)
+  // stays dead even if a dep churns again later.
+  const loadSettingsRef = useRef(loadSettings);
+  loadSettingsRef.current = loadSettings;
+  const lastLoadErrorRef = useRef<string | null>(null);
+  const loadGenerationRef = useRef(0);
+
+  useEffect(() => {
+    loadGenerationRef.current += 1;
+    void loadSettingsRef.current();
+  }, []);
 
   // RBAC check — only SuperAdmin can configure system settings.
   if (!session || session.role !== Role.SuperAdmin) {

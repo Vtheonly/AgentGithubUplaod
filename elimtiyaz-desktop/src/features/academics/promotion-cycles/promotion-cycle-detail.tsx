@@ -8,7 +8,7 @@
  * what is missing otherwise. The class-formation handoff (Constitution des
  * classes) is the downstream step after completion.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -65,17 +65,42 @@ export function PromotionCycleDetail({
   const [reviewing, setReviewing] = useState<PromotionCycleClass | null>(null);
   const [completing, setCompleting] = useState(false);
 
+  const lastLoadErrorRef = useRef<string | null>(null);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     const result = await repos.promotionCycles.getCycleClasses(cycle.id);
-    if (result.ok) setClasses(result.value);
-    else toast.showError("Échec du chargement", result.error.userMessage);
+    if (result.ok) {
+      setClasses(result.value);
+      lastLoadErrorRef.current = null;
+    } else {
+      // T-560: the identical-consecutive-error-toast dedupe — the SAME
+      // failure twice in a row renders ONE toast, not N (the loop's visible
+      // symptom); a different message still toasts (honest failures).
+      const message = result.error.userMessage;
+      if (lastLoadErrorRef.current !== message) {
+        lastLoadErrorRef.current = message;
+        toast.showError("Échec du chargement", message);
+      }
+    }
     setLoading(false);
   }, [repos, cycle.id, toast]);
 
+  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
+  // the load fires per cycle (cycle.id — the ONE legitimate reactive
+  // dimension: switching to another cycle is a NEW load by design) and on
+  // EXPLICIT refresh only (the review/complete flows call `refresh`
+  // directly). The callback is read through a ref so no identity churn
+  // (toast context, repos object, parent re-render) can ever re-fire the
+  // network load for the SAME cycle.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const loadGenerationRef = useRef(0);
+
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    loadGenerationRef.current += 1;
+    void refreshRef.current();
+  }, [cycle.id]);
 
   const isClosed = cycle.status === "completed" || cycle.status === "cancelled";
   const allResolved =

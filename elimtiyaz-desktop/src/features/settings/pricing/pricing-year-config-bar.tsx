@@ -21,7 +21,7 @@
  * Honest-empty contract (§15.49): with no config rows (fresh tenant) the
  * bar says so plainly — the sibling cards keep rendering the seed grid.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { CalendarRange, CheckCircle2, Copy, Eye, History, Plus, ShieldAlert } from "lucide-react";
 import { useRepositories } from "../../../app/providers/repository-provider";
@@ -55,13 +55,38 @@ export function PricingYearConfigBar() {
   const [activateTarget, setActivateTarget] = useState<PricingConfigSummary | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const lastLoadErrorRef = useRef<string | null>(null);
+
   const refresh = useCallback(async () => {
     const r = await repos.pricing.listConfigs();
-    if (r.ok) setConfigs(r.value);
-    else toast.showError("Échec", r.error.userMessage);
+    if (r.ok) {
+      setConfigs(r.value);
+      lastLoadErrorRef.current = null;
+    } else {
+      // T-560: the identical-consecutive-error-toast dedupe — the SAME
+      // failure twice in a row renders ONE toast, not N (the loop's visible
+      // symptom); a different message still toasts (honest failures).
+      const message = r.error.userMessage;
+      if (lastLoadErrorRef.current !== message) {
+        lastLoadErrorRef.current = message;
+        toast.showError("Échec", message);
+      }
+    }
   }, [repos.pricing, toast]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
+  // the load fires ON MOUNT and on EXPLICIT refresh only (the activate /
+  // deactivate flows call `refresh` directly). The callback is read through
+  // a ref so no identity churn (toast context, repos object, parent
+  // re-render) can ever re-fire the network load.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const loadGenerationRef = useRef(0);
+
+  useEffect(() => {
+    loadGenerationRef.current += 1;
+    void refreshRef.current();
+  }, []);
 
   const selected = useMemo(
     () => configs?.find((c) => c.id === selectedId) ?? null,
