@@ -6579,3 +6579,45 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Plan:** this registration → the implementation → the gates (t-502 8/8; `tsc --noEmit` 0; the full five-shard ladder with an EMPTY failing set; `scripts/test-baseline.json` moved citing T-549 per its `_comment` rule) → the docs closeout (registry status, change-log, next-task queue, SESSION_LOG row 29).
 
+
+---
+
+## T-559 — The toast provider's context-split: the ACTIONS context stops identity-churning on toast traffic (the S10 egress-loop engine killed at the provider level)
+
+**Problem IDs:** the S10 loop family (EGRESS-LOOP; OPS-015's Track 2 precondition) · the T-485/REALTIME-105 amplification-loop class, generalized.
+
+**Status:** IN_PROGRESS (registered 2026-11-21, Session 29, Track 2 head — BEFORE any code change per §13; EXECUTION-PLAN v2.3 §3 Step 5.1).
+
+**Root cause:** `toast-provider.tsx:57-69` — ONE context whose value was memoized on `[toasts, show, dismiss]`: every toast landing/expiring produced a NEW context identity → every `useToast()` consumer re-rendered and every effect depending on a toast action re-fired — a failing load surfacing its error through `showError` re-armed itself (unbounded doomed egress requests; the audit-toaster variant pinned live in T-485).
+
+**Fix contract:** TWO contexts — the ACTIONS context (memo keyed ONLY on `[show, dismiss]`, both useCallback-stable; identity PERMANENT for the provider's lifetime) + the LIST context (`useToastList()`, subscribed by the viewport alone). `useToast()`'s type loses `toasts` (census: only the viewport reads it — the 126 other consumers typecheck unchanged); the viewport switches to `useToastList()`. Verified by `src/tests/app/t-559-toast-context-stability.test.tsx` (4 tests: identity stability + no consumer re-render under lands/dismisses/clears; the list/viewport contract; the S10 worst-case `[toast]`-dep consumer with a failing async load fires EXACTLY once under a toast barrage; the A/B contrast — an inline verbatim replica of the PRE-FIX provider re-arms the same consumer from its own error toast (the loop engine, bounded by a bail for testability)).
+
+**Scope fences:** `toast-provider.tsx` + `toast-viewport.tsx` ONLY. Zero consumer edits (the census proved only the viewport reads `.toasts`); zero behavior change in toast stacking/durations/semantics.
+
+---
+
+## T-560 — The five loop-capable sites' load-generation-ref gate (load-on-mount + explicit refresh only, + the identical-consecutive-error-toast dedupe)
+
+**Problem IDs:** the S10 loop family (EGRESS-LOOP; OPS-015's Track 2 precondition).
+
+**Status:** IN_PROGRESS (registered 2026-11-21, Session 29 — EXECUTION-PLAN v2.3 §3 Step 5.2).
+
+**Root cause:** the five sites' load effects keyed on the load-callback identity (`useEffect(() => { void refresh(); }, [refresh])`) with toast actions in the callback deps — the pre-T-559 churn re-fired the loads; defense-in-depth now makes the surfaces loop-safe PERMANENTLY (even under future dep churn).
+
+**Fix contract (all five sites):** the load callback is read through a REF; the effect pins the legitimate reactive dimension ONLY — mount (`configuration-tab`, `pricing-year-config-bar`, `promotion-cycles-tab`), mount + role arrival (`accounts-tab`), per-cycle `cycle.id` (`promotion-cycle-detail`) — and increments a load-generation counter; the explicit-refresh paths (buttons/flows) call the callback directly, unchanged; the identical-consecutive-error-toast dedupe (`lastLoadErrorRef`: the SAME failure twice renders ONE toast; reset on success; a different message still toasts). Verified by `src/tests/features/t-560-load-loop-guards.test.tsx` (5 per-site effect-count tests: exactly ONE load on mount under the toast barrage + parent re-renders; « Rafraîchir » = the second load (explicit refresh works); the dedupe pin; the cycle.id dimension = exactly one more load, pinned again). RED controls: the stash-round (the five gates stashed → the dedupe pin fails — two identical error toasts stack) + the t-559 A/B (the engine).
+
+**Scope fences:** the five named files ONLY; zero load-logic/Result/semantic changes; the refresh flows' contracts preserved verbatim.
+
+---
+
+## T-594 — BUG-058: the online-detector's /auth/v1/health probe respects the EFFECTIVE runtime config (mock/offline mode drips ZERO requests)
+
+**Problem IDs:** BUG-058 (C-23 narrowing) · the OPS-015 two-gates seam (third member).
+
+**Status:** IN_PROGRESS (registered 2026-11-21, Session 29 — EXECUTION-PLAN v2.3 §3 Step 5.3).
+
+**Root cause:** `online-detector.ts` `getOnlineDetector()` resolved the probe URL from `supabaseUrl` ALONE — the compiled/env/local-config URL stays NON-EMPTY in mock mode (`useSupabase === false`), so the detector dripped ~120 doomed requests/hour against the configured (quota-capped OLD) project in sessions that never touch the network.
+
+**Fix contract:** `probeUrl = useSupabase ? resolveProbeUrl(supabaseUrl) : null` — CONFIGURED mode keeps its by-design heartbeat (T-050/CACHE-101); mock/unconfigured mode is navigator-only with ZERO probes (C-23). Verified by `src/tests/infrastructure/t-594-online-detector-runtime-config.test.ts` (4 tests: mock-mode-with-URL → ZERO fetch calls; configured mode → the immediate probe runs + probeOk; the class's 5s throttle floor unit; the pure helpers' regression guard) with the t-472-sanctioned localStorage-pin + resetModules + dynamic-import harness. RED control: the stash-round (the gate stashed → the mock-mode pin fails with `expected 1 to be +0` — the pre-fix drip).
+
+**Scope fences:** `online-detector.ts` `getOnlineDetector()` ONLY; zero changes to the class's probe/throttle/fail-closed semantics (pinned by the suite).
