@@ -18,7 +18,7 @@
  * stores, no page-local algorithms (T-404 no-duplicate rule).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   CalendarClock,
   CalendarDays,
@@ -1624,31 +1624,37 @@ function ConfigurationPanel({
   const [busy, setBusy] = useState(false);
 
   // Sync when the loaded configuration arrives/changes.
+  // BUG-011 (E2.7): the prop-change sync is an EFFECT guarded by the
+  // syncedId sentinel (the exact original semantics — a user edit never
+  // gets clobbered until a DIFFERENT configuration loads), never a
+  // render-phase write.
   const [syncedId, setSyncedId] = useState<string | null>(null);
-  if (configuration && configuration.id !== syncedId) {
-    setSyncedId(configuration.id);
-    setLabel(configuration.label);
-    setSelectedDays([...configuration.schoolDays]);
-    setPeriodCount(String(configuration.periods.length));
-    setPeriodMinutes(String(configuration.periods[0]?.endMinutes != null
-      ? configuration.periods[0].endMinutes - configuration.periods[0].startMinutes
-      : 60));
-    setFirstHour(
-      `${String(Math.floor((configuration.periods[0]?.startMinutes ?? 480) / 60)).padStart(2, "0")}:${String(
-        (configuration.periods[0]?.startMinutes ?? 480) % 60,
-      ).padStart(2, "0")}`,
-    );
-    const afternoonPeriod = configuration.periods.find(
-      (p) => p.startMinutes >= 12 * 60,
-    );
-    setAfternoonStart(
-      afternoonPeriod
-        ? `${String(Math.floor(afternoonPeriod.startMinutes / 60)).padStart(2, "0")}:${String(
-            afternoonPeriod.startMinutes % 60,
-          ).padStart(2, "0")}`
-        : "13:00",
-    );
-  }
+  useEffect(() => {
+    if (configuration && configuration.id !== syncedId) {
+      setSyncedId(configuration.id);
+      setLabel(configuration.label);
+      setSelectedDays([...configuration.schoolDays]);
+      setPeriodCount(String(configuration.periods.length));
+      setPeriodMinutes(String(configuration.periods[0]?.endMinutes != null
+        ? configuration.periods[0].endMinutes - configuration.periods[0].startMinutes
+        : 60));
+      setFirstHour(
+        `${String(Math.floor((configuration.periods[0]?.startMinutes ?? 480) / 60)).padStart(2, "0")}:${String(
+          (configuration.periods[0]?.startMinutes ?? 480) % 60,
+        ).padStart(2, "0")}`,
+      );
+      const afternoonPeriod = configuration.periods.find(
+        (p) => p.startMinutes >= 12 * 60,
+      );
+      setAfternoonStart(
+        afternoonPeriod
+          ? `${String(Math.floor(afternoonPeriod.startMinutes / 60)).padStart(2, "0")}:${String(
+              afternoonPeriod.startMinutes % 60,
+            ).padStart(2, "0")}`
+          : "13:00",
+      );
+    }
+  }, [configuration, syncedId]);
 
   function parseHhmm(value: string): number {
     const [h, m] = value.split(":").map(Number);

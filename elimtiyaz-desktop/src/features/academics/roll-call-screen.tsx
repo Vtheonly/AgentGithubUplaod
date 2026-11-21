@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, CheckCheck, Loader2, Clock } from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
@@ -88,12 +88,17 @@ export function RollCallScreen({ classId: classIdProp, onExit }: RollCallScreenP
   );
   const [saving, setSaving] = useState(false);
 
-  // Initialize students to "present"
-  if (statuses.size === 0 && students.length > 0) {
-    const initial = new Map<string, AttendanceStatus>();
-    students.forEach((s) => initial.set(s.id, "present"));
-    setStatuses(initial);
-  }
+  // Initialize students to "present".
+  // BUG-011 (E2.7): the init is an EFFECT (guarded by the empty map + a
+  // non-empty roster — the exact original semantics), never a render-phase
+  // write.
+  useEffect(() => {
+    if (statuses.size === 0 && students.length > 0) {
+      const initial = new Map<string, AttendanceStatus>();
+      students.forEach((s) => initial.set(s.id, "present"));
+      setStatuses(initial);
+    }
+  }, [students, statuses.size]);
 
   function setStatus(studentId: string, status: AttendanceStatus) {
     setStatuses((prev) => new Map(prev).set(studentId, status));
