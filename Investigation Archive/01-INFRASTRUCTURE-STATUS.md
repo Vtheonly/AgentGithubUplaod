@@ -519,3 +519,29 @@ IS32 (android/website repos)                         -> not-an-array (issue #32 
 ```
 
 **Verdict:** OPS-011 is now **23-run-stable** (S2→S29) — the identical 402 signature on the OLD-project lane; the blocker remains the plan/spend-cap layer (an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty. **The OPS-015 Track 2 code precondition (T-559 + T-560 + T-594) went GREEN this session** — the live-traffic/zero-deploy/zero-cap-lift locks still STAND (G2 unlifted), but their code-side precondition is satisfied; the remaining gates for any live window are the owner-side actions (D-21, the cutover-time secrets, the cap lift itself).
+
+## Session 30 probe run (2026-11-21) — the Track 3 head session (T-550/T-573/T-552/ARCH-046; OPS-011 24-run-stable)
+
+> **Environment-recovery note (honest record):** the sandbox recycle wiped `/home/z/my-project/.secrets/env`, the git credential store and the repo clones. They were RECONSTRUCTED at session open from the owner's standing protocol/summary + repo sources: the three repos re-cloned, the credential store re-seated from the preserved PAT, and the key inventory re-filled — the OLD-project ANON key was recovered verbatim from the committed website default (`elimtiyaz-website/src/lib/public-config.ts`, the T-516 current-live key), while the OLD SECRET key was never committed anywhere (by design) and is recorded EMPTY. The OLD-project lanes therefore ran on the recovered ANON key this run (the S26-lane probe's secret lane is N/A); the exceed_egress_quota egress signature is auth-independent and re-confirmed via the 402 status + the quota body message.
+
+```
+Old project (vebfehrpzajhstyhinnw — quota-blocked source)
+P2o  GET /rest/v1/ (secret)                           -> N/A (OLD secret key never committed; not in env)
+P2oa GET /rest/v1/ (ANON lane - recovered key)        -> 401 (the OpenAPI root requires a higher-privileged key)
+P3oa GET /rest/v1/students?select=id&limit=1 (ANON)   -> 402 exceed_egress_quota (the quota body message — UNCHANGED, the 24th identical signature)
+
+New project (gvuvibcsfjhwcjikgxql — the relocation target)
+P2n  GET /rest/v1/ (secret)                           -> 200 (alive, uncapped — unchanged)
+P3n  GET /rest/v1/students?select=id&limit=1 (secret) -> 404 PGRST205 (schema-empty — unchanged)
+P5n  GET /auth/v1/health (secret)                     -> 200 (GoTrue healthy)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                    -> 200 (VALID — the re-seated credential store pushed this session's branch)
+VC1  GET api.vercel.com/v2/user (PAT)                 -> 200 (VALID — ready for T-614's owner window)
+
+Owner gate
+IS32 GET repos/Vtheonly/AgentGithubUplaod/issues/32/comments (PAT) -> 200, 0 comments (the 25th consecutive silent run; the execution authority remains the owner's standing chat directive of 2026-11-21 — G0 LIFTED permanently)
+IS32 (android/website repos)                         -> not-an-array (issue #32 exists only on the hub repo — the established pattern)
+```
+
+**Verdict:** OPS-011 is now **24-run-stable** (S2→S30) — the identical 402 signature on the OLD-project lane (re-confirmed through the recovered ANON lane; the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged). **OPS-015/G2 live locks STAND** — this session executes the Track 3 code lane (T-550 the port seam → T-573 the BackendProfile switcher → T-552 → ARCH-046), which is G2-independent (Path 2); zero live traffic, zero deploys, zero cap lifts, zero packaged builds run here.

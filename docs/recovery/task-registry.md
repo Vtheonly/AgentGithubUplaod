@@ -6628,3 +6628,61 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 ## Session 29 closeout (2026-11-21) — Track 1 + Track 2 COMPLETE: the first execution session's delivered batch
 
 **Delivered (5 commits + 2 docs commits on `execution/session-29-track1-baseline-green`):** Commit 1 / OPS-018 `ec376728` (the 39 stale migration-path references re-pointed to `migrations_archive/` — 35 literal + 4 constructed; the S26 run's 33 consolidation-caused failed files GONE); T-549 / BUG-038 `84acce5a` (the finance wave adapter's explicit evaluation clock, mirroring the Statistics twin's shape; the t-502 PARITY pin deterministic again — 8/8; the baseline moved to 321/5,271/0/5); T-559 `ab219ca7` (the toast provider's context split — the ACTIONS identity permanent, the LIST in a second context; the S10 egress-loop engine killed at the provider level); T-560 `5201dd64` (the five loop-capable sites' load-generation-ref gates + the identical-consecutive-error-toast dedupe); T-594 / BUG-058 `2aa6c8e8` (the online-detector's runtime-config gate — mock mode drips ZERO probes). **The closeout census: 324 test files / 5,284 passed / 0 failed / 5 skipped; tsc 0 errors; Layer 2 equivalence GREEN (identical numbers); the baseline moved citing T-559+T-560+T-594.** RED-then-GREEN evidence: T-594's stash-round (the pre-fix drip), T-560's stash-round (the pre-fix duplicate error toast), T-559's inline legacy A/B (the pre-fix loop engine). **OPS-015's Track 2 precondition (T-559 + T-560 + T-594) is now GREEN — the egress-loop safety family is closed at the code level; the live-traffic/cap-lift/website-deploy locks stand until the owner-side G2 actions.** Next: Track 3 (T-550 the port seam → T-573 the BackendProfile switcher → T-552 the 17 bypass files → ARCH-046 → T-575 → T-574 → T-614 → T-590..T-593 → T-595).
+
+---
+
+## T-550 — The port seam: `src/infrastructure/backend/ports.ts` (interfaces ONLY) + the ARCH-033 `satisfies` factory exhaustiveness check
+
+**Problem IDs:** ARCH-033 (the 54-slot factory exhaustiveness) · LF-0 step 1 (EXECUTION-PLAN §2/§3 Step 6).
+
+**Status:** IN_PROGRESS (Session 30, 2026-11-21 — the Track 3 head).
+
+**Contract (per EXECUTION-PLAN §3 Step 6):** `src/infrastructure/backend/ports.ts` carries the FIVE port interfaces ONLY — `DataBackendPort`, `AuthPort`, `SyncTransportPort`, `StoragePort`, `DiagnosticsPort` — with the exact shapes from `LOCAL-FIRST-BLUEPRINT.md` §5 (the blueprint's v0 `ReadSpec`/`BackendChange` placeholders doc-noted; `StoragePort` derived from the migration-0018 vault surface per the v2.3 card's five-port naming — the blueprint's `NotificationPort` shape stays blueprint-side). ZERO runtime change: no factory/provider/consumer edits — the ports are the seam the T-552/T-599/T-601 lanes implement later. ARCH-033: the `satisfies Repositories` exhaustiveness check lands on the 54-slot Supabase factory map (`supabase-repositories.ts`) — a missing/typo'd slot is now a COMPILE error on the literal, not a silent structural pass.
+
+**Verification:** `src/tests/infrastructure/t-550-ports.test.ts` — (1) the runtime slot census: the 54 `Repositories` keys pinned through a `satisfies readonly (keyof Repositories)[]` literal (a future slot addition without a census update fails `tsc --noEmit`) asserted equal to `Object.keys(mockRepositories)` (a factory/composite drift fails vitest); (2) implementability + call-through proofs: minimal adapters implementing each of the five ports (DataBackendPort transaction passes the SAME port as the tx param; execute is RPC-shaped; SyncTransportPort's keyset cursor contract; DiagnosticsPort's absent-in-local `runCrudProbe`; StoragePort's signed-URL-only rule) — real adapters exercising the contract, no hollow mocks; (3) `npx tsc --noEmit` 0 errors (the satisfies gate itself).
+
+**Scope fences:** `ports.ts` (NEW) + the two `satisfies` annotations (the factory + the census literal in the test) + the new test file. Zero behavior change anywhere.
+
+---
+
+## T-573 — The `BackendProfile` main-process runtime config switcher (ADD-9; supersedes T-551 + E1.7's deletion; the OPS-016 unlock wires here)
+
+**Problem IDs:** ARCH-022/023/024 (the canonical hard-lock) · ARCH-034 (the phantom preload API) · OPS-016 (the packager hostage) · R-1 (the `vite-env.d.ts` declarations become TRUE) · ADD-9 (BLUEPRINT §7).
+
+**Status:** IN_PROGRESS (Session 30, 2026-11-21 — after T-550).
+
+**Contract (per EXECUTION-PLAN §3 Step 6):** (1) a versioned `BackendProfile` object (v1: `backendKind` supabase|local|relay + the supabase target) resolved by ONE main-process service (`electron/backend-profile-contract.ts` the pure wire contract + validator, fail-closed to factory default on ANY invalid input; `electron/backend-profile.cts` the userData `backend-profile.json` persistence service) exposed via the preload bridge (`backendProfile.getSync/get/write/clear` — one `sendSync` snapshot at preload init, so the renderer's module-init resolution stays SYNCHRONOUS); (2) the compiled-in canonical constants (`supabase-client.ts:35-38,148-157,171-172` + the storageKey pin `:205`) demote to FACTORY DEFAULTS — the effective profile (when present and valid) governs URL/key/useSupabase in EVERY build mode; absent/invalid profile reproduces today's behavior EXACTLY (fail-closed default backend selection preserved verbatim); the session storageKey becomes per-TARGET (`deriveProjectRef(effectiveUrl)`), scoping sessions to the actual backend project; (3) `LocalConfigService.validateConnection` becomes backend-kind-aware (supabase = the current `.supabase.co` check; relay = any https origin; local = no URL required — zero network); (4) the `vite-env.d.ts` `window.elImtiyaz.config` + `app.restart/isElectron` declarations become TRUE (the real IPC bridge: config read/write/delete on userData config.json; relaunch-restart; getVersion/getPath allowlisted) — only the truly-unbuilt `fs.showSaveDialog/writeBackup` + `shell.openPath` members get doc notes (R-1); (5) the packager preflight (`build-windows.mjs`) re-points from canonical-identity to TARGET-READINESS (the explicit target env wins; no target = the factory default = today's behavior; the foreign-key hard-fail rule is replaced by the target probe — T-575 wires `scripts/preflight-target.mjs` on top).
+
+**Acceptance:** a packaged app can be pointed at a new Supabase project WITHOUT a rebuild (the profile file is read from userData at every launch).
+
+**Verification:** `src/tests/infrastructure/t-573-backend-profile.test.ts` — the contract validator's fail-closed matrix (version gate, kind gate, supabase-target rules, strict unknown keys, garbage/empty/non-object) + the pure `resolveEffectiveSupabaseTarget` switch matrix (profile present → target wins in production AND dev; profile absent → factory default; vitest hermeticity unchanged; `useSupabase` semantics; per-target storageKey derivation incl. the canonical identity) + the backend-kind-aware `validateConnection` matrix (local = no fetch, relay = any https, supabase = the `.supabase.co` check, `local://` rejected for supabase kind) with RED-then-GREEN evidence (the kind param stashed → the local/relay pins fail) + the R-1 bridge truth (the declared `config`/`app` members' real IPC handlers' contract pinned through the electron tsconfig program) + `npx tsc --noEmit` 0 + `npx tsc -p electron/tsconfig.json --noEmit` 0. The manual matrix items land as automated equivalents (the packaged-app re-point itself is verified at the owner's next Windows packaging run — recorded, not faked).
+
+**Scope fences:** `electron/{backend-profile-contract.ts, backend-profile.cts, main.cts, preload.cts}` + `src/vite-env.d.ts` + `src/infrastructure/supabase/supabase-client.ts` + `src/infrastructure/system-config.ts` (validateConnection only) + `scripts/build-windows.mjs` (+ the pure `scripts/package-target.mjs` helper) + the new test. Zero repository/provider/data-layer behavior change; zero live traffic (OPS-015).
+
+---
+
+## T-552 — Route the 17 bypass files through the port/repository surface (ARCH-019)
+
+**Problem IDs:** ARCH-019 (17 static + 2 dynamic importers of `supabase-client` outside the supabase tree; the S6-corrected 17-file census) · F-U3 (the diagnostics lane included).
+
+**Status:** IN_PROGRESS (Session 30, 2026-11-21 — queued after T-573).
+
+**Contract (per EXECUTION-PLAN §3 Step 7):** per-file, behavior-preserving routing of the static imports through the repository/port surface — the 9 features (`crm/excel-import-modal.tsx`, `crm/parent-detail-drawer.tsx`, `settings/backup-tab.tsx`, `settings/configuration-tab.tsx`, `settings/contextual-thresholds-config.tsx`, `settings/danger-zone-card.tsx`, `settings/supabase-diagnostics/{crud-test-tab.tsx, diagnostics-runner.ts, supabase-diagnostics-tab.tsx}`) + `shared/layout/tenant-switcher.tsx` + `infrastructure/system-config.ts` + `infrastructure/storage/media-vault.ts` + `infrastructure/ai/llm-adapter.ts` + the 4 sync-family files (`app/providers/sync-provider.tsx`, `infrastructure/sync/online-detector.ts`, `infrastructure/sync/conflict-detector.ts` **dynamic**, `infrastructure/sync/default-push-handler.ts` **dynamic**). The tenant-switcher relocation folds into its routing (E4.4 coordination).
+
+**Verification:** BOTH grep shapes per Step 1 — `rg "from.*supabase-client" src -g '!src/infrastructure/supabase/**'` returns ONLY `repository-provider.tsx`; `rg "import\(.*/supabase-client" src -g '!src/infrastructure/supabase/**'` returns ZERO non-supabase-tree hits; `npx tsc --noEmit` 0; the full ladder; the touched features' suites.
+
+**Scope fences:** the 17 files' import seams ONLY — behavior-preserving (each route goes through an existing repository/port API; no logic rewrites).
+
+---
+
+## ARCH-046 — The config.toml ↔ `supabase/functions/` drift reconciliation (execute ONCE)
+
+**Problem IDs:** ARCH-046 (E3.3/2.4 or here — never both; the S27 re-check: 15 EF dirs + `_shared` exist under `supabase/functions/`).
+
+**Status:** IN_PROGRESS (Session 30, 2026-11-21 — the SQL/EF-lane-adjacent XS task).
+
+**Contract (per EXECUTION-PLAN E7A lane 6.11):** reconcile `supabase/config.toml`'s `[functions.*]` table with the code-present function directories — DELETE the stale `[functions.export-data]` and `[functions.generate-receipt-pdf]` entries (no directory exists); ADD the three code-present entries `create-user-account`, `delete-user-account`, `send-push-notification` (directories exist, entries missing). Zero migration-file edits (OPS-020 untouched — config.toml is not a migration).
+
+**Verification:** `bash scripts/check-migrations-append-only.sh` (the SQL guard, though no migration is touched); a directory-vs-config census (`ls supabase/functions/` ↔ the `[functions.*]` keys) asserted 1:1 (15 dirs + `_shared` → 15 entries + none for `_shared`); `supabase config validation` if the CLI allows offline (`supabase/config.toml` parse via the toml parser in a vitest census test).
+
+**Scope fences:** `supabase/config.toml` ONLY.
