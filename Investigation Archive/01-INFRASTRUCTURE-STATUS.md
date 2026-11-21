@@ -474,3 +474,26 @@ P8   GET identitytoolkit.googleapis.com/v1/projects?name=projects/elimtiyaz-andr
 ```
 
 **Verdict:** OPS-011 is now **21-run-stable** (S2→S26) — the identical 402 signature on every OLD-project lane; the blocker remains the plan/spend-cap layer. The NEW project is unchanged (alive, schema-empty, OPS-017). P8/P11 are back in the standing set while their tokens remain in the session env. The OPS-019 Google-side blocker is unchanged (the S26 session made no Supabase-side config change; the owner's D-21 manual step stands). Zero live writes anywhere; every probe GET-only.
+
+## Session 28 probe run (2026-11-21) — the G0-lift execution bootstrap session (OPS-011 22-run-stable)
+
+GET-only; keys in-memory only, masked; the S26 probe-set methodology re-run exactly (the OLD/NEW REST lanes + the PAT checks + the Issue #32 gate — S27 skipped the live set, honestly recorded; this run restores it, and it doubles as the G0-lift bootstrap's gate check).
+
+```text
+OLD project (vebfehrpzajhstyhinnw — quota-blocked source)
+P2o  GET /rest/v1/ (secret)                           -> 402 exceed_egress_quota (the cap UNCHANGED)
+
+NEW project (gvuvibcsfjhwcjikgxql — the relocation target)
+P2n  GET /rest/v1/ (secret)                           -> 200 (Swagger descriptor — alive, not quota-blocked)
+P3n  GET /rest/v1/students?select=id&limit=1 (secret) -> 404 PGRST205 (schema-empty — unchanged)
+P5n  GET /auth/v1/health (secret)                     -> 200 (GoTrue healthy)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                    -> 200 (the push credential VALID)
+VC1  GET api.vercel.com/v2/user (PAT)                 -> 200 (the cutover credential VALID — ready for T-614)
+
+Owner gate
+IS32 GET repos/Vtheonly/AgentGithubUplaod/issues/32/comments (PAT) -> 200, 0 comments (the 23rd consecutive silent run; the G0-lift authority is the owner's standing chat directive of 2026-11-21, not an Issue #32 comment — recorded in EXECUTION-PLAN §1 + SESSION_LOG row 28 + the next-task.md queue header)
+```
+
+**Verdict:** OPS-011 is now **22-run-stable** (S2→S28) — the identical 402 signature on the OLD-project lane; the blocker remains the plan/spend-cap layer (an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (the OPS-017 state unchanged). **G0 = LIFTED** per the owner's standing directive (2026-11-21) — the execution sessions are GO from Session 28 onward; OPS-015 + G2 still gate all live traffic/deploys/cap-lifts.
