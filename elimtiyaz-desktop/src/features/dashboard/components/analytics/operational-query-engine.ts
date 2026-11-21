@@ -26,6 +26,13 @@ import type {
 } from "../../../../domain/model/academic";
 import type { DebtSummary, Payment } from "../../../../domain/model/payment";
 import { resolveSubjectConfiguration } from "../../../../domain/calc/academics/subject-config";
+// E4.5 (ARCH-009): the classification edges live in the DOMAIN now —
+// the pre-E4.5 literals (25k/30k/30 days/10/15/3/0.85/0.95) are the
+// documented defaults, byte-identical by construction (pinned by t-e45).
+import {
+  DEFAULT_RISK_PROFILE_THRESHOLDS,
+  type RiskProfileThresholds,
+} from "../../../../domain/calc/analytics/risk-thresholds";
 import {
   computeOverallGpa,
   computeSubjectAverage,
@@ -39,9 +46,9 @@ import {
 
 export type RiskCategory =
   | "triple_critical" // Low GPA + High Absences + Debt
-  | "academic_alert" // GPA < 10/20
-  | "attendance_alert" // Unexcused absences >= 3 or rate < 85%
-  | "financial_tension" // Family debt > 30,000 DZD
+  | "academic_alert" // GPA below the configured academic-alert edge (default 10/20)
+  | "attendance_alert" // Unexcused absences at/after the configured edge (3) or rate below it (85%)
+  | "financial_tension" // Family debt at/above the configured tension edge (default 25 000 DZD)
   | "healthy"; // Normal profile
 
 export interface StudentRiskProfile {
@@ -98,8 +105,15 @@ export interface OperationalQueryPreset {
  * behavior is preserved by construction). The locale-stable title embeds
  * the CONFIGURED number (NBSP/NNBSP normalized to plain spaces — the
  * §15.3 rule) so the chip always states the edge it applies.
+ *
+ * E4.5 (ARCH-009): the sibling preset edges (academic-drop, absenteeism,
+ * exemplary) ride the DOMAIN risk-profile thresholds — the same
+ * parameterization discipline, defaults byte-identical.
  */
-export function operationalPresetsFor(severeDebtDzd: number): OperationalQueryPreset[] {
+export function operationalPresetsFor(
+  severeDebtDzd: number,
+  thresholds: RiskProfileThresholds = DEFAULT_RISK_PROFILE_THRESHOLDS,
+): OperationalQueryPreset[] {
   const dzd = (n: number) => n.toLocaleString("fr-DZ").replace(/[\u00a0\u202f]/gu, " ");
   return [
     {
@@ -123,14 +137,17 @@ export function operationalPresetsFor(severeDebtDzd: number): OperationalQueryPr
       title: "Décrochage Pédagogique",
       subtitle: "Élèves ajournés (Moyenne < 10 / 20)",
       iconName: "book-open",
-      customFilter: (p) => p.gpa !== null && p.gpa < 10,
+      customFilter: (p) =>
+        p.gpa !== null && p.gpa < thresholds.academicAlertGpa,
     },
     {
       id: "chronic_absenteeism",
       title: "Assiduité Fragilisée",
       subtitle: "3 absences non excusées ou taux < 85%",
       iconName: "users",
-      customFilter: (p) => p.unexcusedAbsences >= 3 || p.attendanceRate < 0.85,
+      customFilter: (p) =>
+        p.unexcusedAbsences >= thresholds.unexcusedAbsenceAlert ||
+        p.attendanceRate < thresholds.attendanceRateAlert,
     },
     {
       id: "high_performers",
@@ -139,8 +156,8 @@ export function operationalPresetsFor(severeDebtDzd: number): OperationalQueryPr
       iconName: "sparkles",
       customFilter: (p) =>
         p.gpa !== null &&
-        p.gpa >= 15 &&
-        p.attendanceRate >= 0.95 &&
+        p.gpa >= thresholds.exemplaryGpa &&
+        p.attendanceRate >= thresholds.exemplaryAttendanceRate &&
         p.debtAmount === 0,
     },
   ];
@@ -148,6 +165,10 @@ export function operationalPresetsFor(severeDebtDzd: number): OperationalQueryPr
 
 /**
  * Builds composite risk profiles for every student in the school.
+ *
+ * E4.5 (ARCH-009): `thresholds` defaults to the DOMAIN constants — the
+ * settings-sourced values land with the T-596 re-composition (the same
+ * prop-drilling `debtThresholds` uses).
  */
 export function evaluateStudentRiskProfiles(params: {
   students: readonly Student[];
@@ -160,6 +181,8 @@ export function evaluateStudentRiskProfiles(params: {
   assessments: readonly Assessment[];
   attendance: readonly AttendanceRecord[];
   debtSummaries: readonly DebtSummary[];
+  /** E4.5: the classification edges (defaults = the documented values). */
+  thresholds?: RiskProfileThresholds;
 }): StudentRiskProfile[] {
   const {
     students,
@@ -171,6 +194,7 @@ export function evaluateStudentRiskProfiles(params: {
     attendance,
     debtSummaries,
   } = params;
+  const thresholds = params.thresholds ?? DEFAULT_RISK_PROFILE_THRESHOLDS;
 
   const parentMap = new Map(parents.map((p) => [p.id, p]));
   const classMap = new Map(classes.map((c) => [c.id, c]));
@@ -234,28 +258,39 @@ export function evaluateStudentRiskProfiles(params: {
 
     // Academic risk factor (up to 45 pts)
     if (gpa !== null) {
-      if (gpa < 10) {
-        const deficit = Math.min(45, Math.round((10 - gpa) * 8));
+      if (gpa < thresholds.academicAlertGpa) {
+        const deficit = Math.min(
+          45,
+          Math.round((thresholds.academicAlertGpa - gpa) * 8),
+        );
         score += deficit;
-        reasons.push(`Moyenne ${gpa.toFixed(2)}/20 (< 10)`);
+        reasons.push(
+          `Moyenne ${gpa.toFixed(2)}/20 (< ${thresholds.academicAlertGpa})`,
+        );
       } else if (gpa < 12) {
         score += 10;
       }
     }
 
     // Attendance risk factor (up to 35 pts)
-    if (attendanceRate < 0.85) {
-      score += Math.min(25, Math.round((0.85 - attendanceRate) * 100));
+    if (attendanceRate < thresholds.attendanceRateAlert) {
+      score += Math.min(
+        25,
+        Math.round((thresholds.attendanceRateAlert - attendanceRate) * 100),
+      );
       reasons.push(`Assiduité ${(attendanceRate * 100).toFixed(0)}%`);
     }
-    if (unexcusedAbsences >= 3) {
+    if (unexcusedAbsences >= thresholds.unexcusedAbsenceAlert) {
       score += Math.min(15, unexcusedAbsences * 3);
       reasons.push(`${unexcusedAbsences} absences injustifiées`);
     }
 
     // Financial risk factor (up to 20 pts)
     if (debtAmount > 0) {
-      if (debtAmount >= 30_000 || daysOverdue >= 30) {
+      if (
+        debtAmount >= thresholds.criticalDebtDzd ||
+        daysOverdue >= thresholds.criticalDaysOverdue
+      ) {
         score += 20;
         reasons.push(
           `Créance ${debtAmount.toLocaleString("fr-FR")} DA (${daysOverdue}j)`,
@@ -267,11 +302,15 @@ export function evaluateStudentRiskProfiles(params: {
 
     score = Math.min(100, Math.max(0, score));
 
-    // Categorization
+    // Categorization (E4.5: every edge is the configured threshold)
     let riskCategory: RiskCategory = "healthy";
-    const hasAcademicAlert = gpa !== null && gpa < 10;
-    const hasAttendanceAlert = unexcusedAbsences >= 3 || attendanceRate < 0.85;
-    const hasFinancialTension = debtAmount >= 25_000;
+    const hasAcademicAlert =
+      gpa !== null && gpa < thresholds.academicAlertGpa;
+    const hasAttendanceAlert =
+      unexcusedAbsences >= thresholds.unexcusedAbsenceAlert ||
+      attendanceRate < thresholds.attendanceRateAlert;
+    const hasFinancialTension =
+      debtAmount >= thresholds.financialTensionDzd;
 
     if (hasAcademicAlert && hasAttendanceAlert && hasFinancialTension) {
       riskCategory = "triple_critical";
@@ -296,7 +335,7 @@ export function evaluateStudentRiskProfiles(params: {
       parentName: parent ? parentDisplayName(parent) : "Inconnu",
       parentPhone: parent?.phone || "—",
       gpa,
-      isPassing: gpa !== null ? gpa >= 10 : null,
+      isPassing: gpa !== null ? gpa >= thresholds.academicAlertGpa : null,
       attendanceRate,
       unexcusedAbsences,
       debtAmount,
