@@ -117,4 +117,15 @@ Copy the redirect URI exactly — no trailing slash, no wildcard; Google matches
 
 ---
 
+## 7. Session 27 addendum — the website cutover lane (OPS-021 / T-614)
+
+**2026-11-21:** the owner supplied the website repo (`https://github.com/Vtheonly/elimtiyaz-website`) + the live URL (`https://elimtiyaz-website.vercel.app/`). Audit of record: `Deep Sweep/16-WEBSITE-PORTAL-RELOCATION-AUDIT-2026-11-21.md`. Findings relevant to this file's new-project record:
+
+1. **The live portal is UP** (GET 200; Vercel) but **its bundle still pins the OLD project** (`vebfehrpzajhstyhinnw` + its publishable key — `NEXT_PUBLIC_*` build-time-inlined). After relocation the portal needs the env re-point + **a redeploy**.
+2. **The cutover dependency set is now REGISTERED (OPS-021) and homed (T-614):** the committed-default trap (`public-config.ts:89-92` — the OLD ref as the production fallback), the three pinning tests (t-516/t-096/t-107 — a website-repo commit post-cutover), the auth parity requirement on the new project (**the redirect allow-list must contain `https://elimtiyaz-website.vercel.app`** — the OAuth redirect is dynamic-origin; no `/auth/callback` route exists), the `bind-activation-code` EF + 5 buckets + 6 realtime tables parity, and the end-to-end smoke. The full checklist: **the RELOAD-GUIDE §A.7**.
+3. **The D-21/OPS-019 scope note:** completing the Google client's redirect URI set must now consider the PORTAL's origin too — Google sign-in on the new project should complete on BOTH the desktop's verification surface and the portal after T-614.
+4. **The owner-supplied inputs at cutover time:** Vercel access (or the PAT) + the website repo's push access (the pinning-test commit). Everything else is driven from this repo's relocation lane.
+
+---
+
 *Run date: 2026-11-21 · protocol: GET-only probes, keys in-memory/env-file only · related standing record: `01-INFRASTRUCTURE-STATUS.md` (§ new-project run appended).*
