@@ -6679,7 +6679,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** ARCH-046 (E3.3/2.4 or here — never both; the S27 re-check: 15 EF dirs + `_shared` exist under `supabase/functions/`).
 
-**Status:** IN_PROGRESS (Session 30, 2026-11-21 — the SQL/EF-lane-adjacent XS task).
+**Status:** RESOLVED-TESTED (Session 30, 2026-11-21 — the arch-046 census test 4/4 (the 1:1 dirs ↔ entries map pinned permanently; the stale names asserted against the PARSED header list; the three added entries' verify_jwt = true = the platform default they always ran under — behavior-preserving); `npx tsc --noEmit` 0; `bash scripts/check-migrations-append-only.sh` OK (1 migration, +0 added — no migration file touched, OPS-020 intact).)
 
 **Contract (per EXECUTION-PLAN E7A lane 6.11):** reconcile `supabase/config.toml`'s `[functions.*]` table with the code-present function directories — DELETE the stale `[functions.export-data]` and `[functions.generate-receipt-pdf]` entries (no directory exists); ADD the three code-present entries `create-user-account`, `delete-user-account`, `send-push-notification` (directories exist, entries missing). Zero migration-file edits (OPS-020 untouched — config.toml is not a migration).
 

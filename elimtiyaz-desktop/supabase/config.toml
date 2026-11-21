@@ -131,10 +131,28 @@ verify_jwt = false
 # minutes; a parked run resumes within ~10 minutes of its resume_after.
 cron = "*/10 * * * *"
 
-[functions.generate-receipt-pdf]
+# ============================================================================
+# ARCH-046 (T-registry): the config.toml ↔ supabase/functions/ reconciliation.
+# The 15 function directories + _shared (S27 re-check) now map 1:1 to the
+# functions table entries: the two STALE entries were
+# deleted (generate-receipt-pdf, export-data — no
+# directory exists), and the three code-present directories gained their
+# entries (create-user-account / delete-user-account / send-push-notification).
+# verify_jwt mirrors each function's auth contract:
+#   - create-user-account / delete-user-account: admin-only account lifecycle
+#     (the T-079/T-371 provisioning path) — the callers carry a signed-in
+#     admin JWT, so verify_jwt = true.
+#   - send-push-notification: invoked server-side paths and admin flows with
+#     a signed-in JWT — verify_jwt = true.
+# ============================================================================
+
+[functions.create-user-account]
 verify_jwt = true
 
-[functions.export-data]
+[functions.delete-user-account]
+verify_jwt = true
+
+[functions.send-push-notification]
 verify_jwt = true
 
 [analytics]
