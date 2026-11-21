@@ -87,7 +87,7 @@ describe("Shared unification — sync queue payload shape", () => {
     };
 
     // Dynamic-import mock — replace the module before the handler runs.
-    vi.doMock("../../infrastructure/supabase/supabase-client", () => ({
+    vi.doMock("../../infrastructure/supabase/backend-access", () => ({
       getSupabaseClient: () => mockClient,
       isSupabaseConfigured: () => true,
     }));
@@ -121,7 +121,7 @@ describe("Shared unification — sync queue payload shape", () => {
     expect(syncEntry.payload.lastName).toBe("BENALI");
     expect(syncEntry.payload.phone).toBe("+213 555 12 34 56");
 
-    vi.doUnmock("../../infrastructure/supabase/supabase-client");
+    vi.doUnmock("../../infrastructure/supabase/backend-access");
   });
 });
 

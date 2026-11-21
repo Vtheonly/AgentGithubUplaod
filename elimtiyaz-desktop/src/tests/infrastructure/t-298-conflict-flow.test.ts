@@ -421,14 +421,14 @@ describe("T-298 — the production conflictGuard with a stubbed Supabase client"
     client: unknown,
     fn: () => Promise<T>,
   ): Promise<T> {
-    vi.doMock("../../infrastructure/supabase/supabase-client", () => ({
+    vi.doMock("../../infrastructure/supabase/backend-access", () => ({
       getSupabaseClient: () => client,
       isSupabaseConfigured: () => true,
     }));
     try {
       return await fn();
     } finally {
-      vi.doUnmock("../../infrastructure/supabase/supabase-client");
+      vi.doUnmock("../../infrastructure/supabase/backend-access");
     }
   }
 

@@ -402,7 +402,7 @@ export async function fetchRemoteRow(
   const filters = mapping.keyFilters(payload);
   if (!filters) return null;
   try {
-    const { getSupabaseClient } = await import("../supabase/supabase-client");
+    const { getSupabaseClient } = await import("../supabase/backend-access");
     const client = getSupabaseClient();
     let query = client.from(mapping.table).select("*");
     for (const [column, value] of Object.entries(filters)) {

@@ -22,7 +22,7 @@ import {
   type LocalConfig,
   type SystemSetting,
 } from "../../infrastructure/system-config";
-import { isSupabaseConfigured, useSupabase, getSupabaseClient } from "../../infrastructure/supabase/supabase-client";
+import { isSupabaseConfigured, useSupabase, getSupabaseClient } from "../../infrastructure/supabase/backend-access";
 import { ConnectionCard } from "./configuration/connection-card";
 import { SettingsCard } from "./configuration/settings-card";
 import { SecretEditModal } from "./configuration/secret-edit-modal";

@@ -37,7 +37,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../../shared/ui/button";
 import { Badge } from "../../../shared/ui/badge";
 import { useAuth } from "../../../app/providers/auth-provider";
-import { getSupabaseClient, isSupabaseConfigured } from "../../../infrastructure/supabase/supabase-client";
+import { getSupabaseClient, isSupabaseConfigured } from "../../../infrastructure/supabase/backend-access";
 import { runCrudIntegrationTests } from "./crud-test-runner";
 import { formatDiagnosticsReportText } from "./diagnostics-runner";
 import type { DiagnosticsReport, DiagnosticsRunOptions } from "./diagnostics-types";

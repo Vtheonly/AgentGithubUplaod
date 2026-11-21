@@ -39,7 +39,7 @@ import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { isSuperAdmin } from "../../core/rbac/session";
-import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/backend-access";
 import {
   dryRunPurge,
   executePurge,

@@ -105,7 +105,7 @@ describe("T-053 — source-scan guards (the demo fallback cannot come back silen
   });
 
   it("the TenantSwitcher exists and the topbar renders it", () => {
-    const switcher = readFileSync(join(SRC, "shared/layout/tenant-switcher.tsx"), "utf8");
+    const switcher = readFileSync(join(SRC, "features/settings/tenant-switcher.tsx"), "utf8");
     expect(switcher).toContain("switchTenant(t.id)");
     const topbar = readFileSync(join(SRC, "shared/layout/topbar.tsx"), "utf8");
     expect(topbar).toContain("<TenantSwitcher />");

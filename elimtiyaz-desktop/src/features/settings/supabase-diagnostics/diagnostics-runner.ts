@@ -30,7 +30,7 @@
  * created here (the TASK 2 invariant).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { describeSupabaseConnection } from "../../../infrastructure/supabase/supabase-client";
+import { describeSupabaseConnection } from "../../../infrastructure/supabase/backend-access";
 import type {
   DiagnosticCheck,
   DiagnosticsReport,

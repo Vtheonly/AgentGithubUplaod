@@ -19,7 +19,7 @@
  * `navigator.onLine` only.
  */
 
-import { supabaseUrl, supabaseAnonKey, useSupabase } from "../supabase/supabase-client";
+import { supabaseUrl, supabaseAnonKey, useSupabase } from "../supabase/backend-access";
 
 export interface OnlineState {
   /** Whether the browser reports `navigator.onLine`. */

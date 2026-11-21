@@ -545,3 +545,25 @@ IS32 (android/website repos)                         -> not-an-array (issue #32 
 ```
 
 **Verdict:** OPS-011 is now **24-run-stable** (S2→S30) — the identical 402 signature on the OLD-project lane (re-confirmed through the recovered ANON lane; the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged). **OPS-015/G2 live locks STAND** — this session executes the Track 3 code lane (T-550 the port seam → T-573 the BackendProfile switcher → T-552 → ARCH-046), which is G2-independent (Path 2); zero live traffic, zero deploys, zero cap lifts, zero packaged builds run here.
+
+## Session 31 probe run (2026-11-21) — the Track 3 bypass-routing session (T-552; OPS-011 25-run-stable)
+
+> **Environment-recovery note (honest record):** the sandbox recycled AGAIN before the session open — `/home/z/my-project/.secrets/env`, the git credential store and the repo clones were wiped. Reconstructed per the S30 method: the three repos re-cloned; the OLD-project ANON key recovered verbatim from the committed website default (`elimtiyaz-website/src/lib/public-config.ts`, the T-516 current-live key). The GITHUB_PAT, the VERCEL_PAT and the NEW-project (gvuvibcsfjhwcjikgxql) keys are NOT recoverable this window (they were never committed anywhere — by design; the persisted tool-results + repo sources carry no trace). The probe set therefore ran its ANON-lane subset; the PAT lanes and the NEW-project secret lanes are recorded N/A (honest), and **the session's git push is BLOCKED** — the commits live on the local session branch + main (merged locally); the next PAT-carrying session (or the owner) pushes both.
+
+```
+Old project (vebfehrpzajhstyhinnw — quota-blocked source)
+P2oa GET /rest/v1/ (ANON recovered)                     -> 401 (the OpenAPI root requires a higher-privileged key — the established ANON-lane shape)
+P3oa GET /rest/v1/students?select=id&limit=1 (ANON)     -> 402 exceed_egress_quota (the quota body message — UNCHANGED, the 25th identical signature)
+
+New project (gvuvibcsfjhwcjikgxql — the relocation target)
+P5n  GET /auth/v1/health (no key available this window)  -> 401 (the service responds — alive; the secret-lane health check N/A this run)
+
+Tokens
+GH1  GET api.github.com/user (PAT)                       -> N/A (PAT not recoverable this window — recorded)
+VC1  GET api.vercel.com/v2/user (PAT)                    -> N/A (PAT not recoverable this window — recorded)
+
+Owner gate
+IS32 GET issue #32 comments (PAT)                        -> N/A (PAT not recoverable; the G0 execution authority remains the owner's standing chat directive of 2026-11-21 — LIFTED permanently, independent of the issue's comment state)
+```
+
+**Verdict:** OPS-011 is now **25-run-stable** (S2→S31) — the identical 402 signature on the OLD-project lane (re-confirmed through the recovered ANON lane; the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project answered (401 without a key = alive, uncapped — consistent with every prior run). **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-552 — the 17 bypass files' import-seam routing), which is G2-independent (zero live traffic, zero deploys, zero cap lifts, zero packaged builds).

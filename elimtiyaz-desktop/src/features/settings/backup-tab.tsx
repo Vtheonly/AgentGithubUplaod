@@ -57,7 +57,7 @@ import {
   type BackupRunLogEntry,
   type StorageCapacity,
 } from "../../infrastructure/backup/backup-scheduler";
-import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/supabase/supabase-client";
+import { isSupabaseConfigured, getSupabaseClient } from "../../infrastructure/supabase/backend-access";
 import { ExportDialog } from "./export-dialog";
 import { FolderOpen, HardDriveDownload, FileArchive, FileUp, MapPin } from "lucide-react";
 // T-505 (BKUP-511): the file-based backup workflows — the Excel checkpoint

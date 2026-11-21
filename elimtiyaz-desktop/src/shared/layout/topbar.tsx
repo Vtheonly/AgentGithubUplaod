@@ -72,7 +72,7 @@ import { Badge } from "../ui/badge";
 import { StatusChip } from "../ui/status-chip";
 import { UnifiedModal } from "../ui/unified-modal";
 import { LanguageSwitcher } from "../../i18n/language-switcher";
-import { TenantSwitcher } from "./tenant-switcher";
+import { TenantSwitcher } from "../../features/settings/tenant-switcher";
 import { AlertDetailModal } from "../../features/dashboard/alert-detail-modal";
 import { SyncIndicator } from "../../infrastructure/sync/sync-indicator";
 import { AuditActivityToaster } from "./audit-activity-toaster";
