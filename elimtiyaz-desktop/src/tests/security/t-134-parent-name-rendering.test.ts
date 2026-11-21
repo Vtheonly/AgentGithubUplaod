@@ -121,13 +121,13 @@ describe("DATA-005 — desktop render sites canonicalized (source scans)", () =>
     // zero signal (18 failures before, 18 after; the baseline tracks counts
     // and files, not assertion content). Pinning the known offender makes
     // every NEW join a loud, named diff in this test's failure output.
-    // The one documented offender (T-389, pre-baseline): the data-inspector
-    // lineage fallback — `displayName?.trim() || first+last` (semantically
-    // the canonical helper minus the final em-dash). Its repair is a
-    // registered follow-up, not part of T-440's scope.
-    expect(offenders).toEqual([
-      "src/features/dashboard/components/analytics/data-inspector-lineage.ts",
-    ]);
+    // E2.5 / S-U1 (Session 38, `b5399715`): the one documented offender
+    // (T-389, pre-baseline — the data-inspector lineage fallback
+    // `displayName?.trim() || first+last`) is REPAIRED: the resolver now
+    // routes through the shared personDisplayName (domain/model/person.ts).
+    // The list is empty — every NEW parent first+last join in the UI tree
+    // is a loud, named diff again, and the registered follow-up is CLOSED.
+    expect(offenders).toEqual([]);
   });
 });
 
