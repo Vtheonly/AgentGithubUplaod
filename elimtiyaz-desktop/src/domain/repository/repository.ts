@@ -1134,6 +1134,16 @@ export interface DashboardRepository {
   kpisForRange(academicYear: string, range?: DateRange): Promise<Result<DashboardKpi>>;
   revenueForRange(academicYear: string, range?: DateRange): Promise<Result<RevenuePoint[]>>;
   debtByAgingForRange(academicYear: string, range?: DateRange): Promise<Result<DebtByAgingBucket[]>>;
+  /**
+   * T-590 (E7A-1): the bounded row-level reads — the dashboard page's
+   * entity data. The page's full-tenant observable subscriptions die;
+   * it fetches the range-bounded payment set (server-side collected_at
+   * window + keyset walk) and the year-bounded installment set (the
+   * Sept 1 → Sept 1 billing window over due_date) instead. The
+   * observables' caches stay for the entity-detail surfaces.
+   */
+  paymentsForRange(range: DateRange): Promise<Result<readonly Payment[]>>;
+  installmentsForYear(academicYear: string): Promise<Result<readonly Installment[]>>;
 }
 
 /** Date range filter — used by the dashboard academic-year selector. */

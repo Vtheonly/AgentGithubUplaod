@@ -751,7 +751,7 @@ function sortByRawColumn<R>(rows: R[], col: keyof R & string, ascending: boolean
  * ladder — the RPC is the immune path (live-measured 0.8–1.5 s at 100%),
  * and if IT times out the direct read would fare worse on the same load.
  */
-function isRpcUnavailableError(err: { code?: string | number; message?: string } | null | undefined): boolean {
+export function isRpcUnavailableError(err: { code?: string | number; message?: string } | null | undefined): boolean {
   if (!err) return false;
   const code = String(err.code ?? "");
   const msg = String(err.message ?? "");
@@ -4375,8 +4375,12 @@ export class SupabaseInstallmentRepository implements InstallmentRepository {
   }
 }
 
-/** Map a raw `installments` row to the domain `Installment` shape. */
-function mapInstallmentRow(r: InstallmentRow): Installment {
+/** Map a raw `installments` row to the domain `Installment` shape.
+ * T-590 (E7A-1): exported — the dashboard's bounded `installmentsForYear`
+ * read maps through the SAME mapper the shared cache uses (parity by
+ * construction, never a second mapping).
+ */
+export function mapInstallmentRow(r: InstallmentRow): Installment {
   return {
     id: r.id,
     parentId: r.parent_id,

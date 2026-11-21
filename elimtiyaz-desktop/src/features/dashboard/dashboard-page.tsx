@@ -179,16 +179,29 @@ export function DashboardPage() {
   }, [availableYears, academicYears, yearRange.academicYear]);
 
   useEffect(() => {
-    if (!yearRange.academicYear || !yearRange.range) return;
+    const selectedRange = yearRange.range;
+    if (!yearRange.academicYear || !selectedRange) return;
     void (async () => {
-      const [k, rev, debt, demo] = await Promise.all([
-        repos.dashboard.kpisForRange(yearRange.academicYear, yearRange.range),
-        repos.dashboard.revenueForRange(yearRange.academicYear, yearRange.range),
+      // T-590 (E7A-1): the triple data path is gone — this ONE effect is
+      // the dashboard's data path: the four compact aggregation calls
+      // (the 0002 RPCs server-side) + the two bounded row-level reads
+      // (paymentsForRange / installmentsForYear — the range/year windows
+      // the tabs filter by anyway, now server-side). The full-tenant
+      // payments/installments observable subscriptions previously fired
+      // TWO whole-collection downloads on every dashboard mount — the
+      // ARCH-040 third path — and the collections re-seeded every 30 s /
+      // window-focus tick. The observable caches stay for the
+      // entity-detail surfaces (the Finance tab, the student drawers).
+      const [k, rev, debt, demo, pays, inst] = await Promise.all([
+        repos.dashboard.kpisForRange(yearRange.academicYear, selectedRange),
+        repos.dashboard.revenueForRange(yearRange.academicYear, selectedRange),
         repos.dashboard.debtByAgingForRange(
           yearRange.academicYear,
-          yearRange.range,
+          selectedRange,
         ),
         repos.dashboard.demographics(),
+        repos.dashboard.paymentsForRange(selectedRange),
+        repos.dashboard.installmentsForYear(yearRange.academicYear),
       ]);
       setData((prev) => ({
         kpis: k.ok ? k.value : null,
@@ -197,6 +210,8 @@ export function DashboardPage() {
         demographics: demo.ok ? demo.value : EMPTY_DEMOGRAPHICS,
         topDebtors: prev.topDebtors,
       }));
+      setPayments(pays.ok ? pays.value : []);
+      setInstallments(inst.ok ? inst.value : []);
     })();
   }, [repos.dashboard, yearRange]);
 
@@ -267,16 +282,13 @@ export function DashboardPage() {
     })();
   }, [repos.dashboard, loadablePrevYear, yearRange.range]);
 
-  useEffect(() => {
-    const unsub = repos.payments.observe().subscribe(setPayments);
-    return unsub;
-  }, [repos.payments]);
-
-  useEffect(() => {
-    const unsub = repos.installments.observe().subscribe(setInstallments);
-    return unsub;
-  }, [repos.installments]);
-
+  // T-590 (E7A-1): the payments/installments full-collection subscriptions
+  // are GONE (the ARCH-040 third path). The state now carries the bounded
+  // sets fetched per year-range (see the data effect above); the memo below
+  // keeps the T-353 year-window guard over the fetched stream (a no-op on
+  // the parsed-year fetch — the server already applied the same window —
+  // but it still re-scopes any in-flight stale slice instantly when the
+  // year selector moves).
   const scopedInstallments = useMemo(
     () => installmentsForAcademicYear(installments, yearRange.academicYear),
     [installments, yearRange.academicYear],

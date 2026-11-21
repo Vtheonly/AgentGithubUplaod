@@ -2,7 +2,7 @@
 // FILE: elimtiyaz-desktop/src/features/dashboard/tabs/analytics-tab.tsx
 // ============================================================================
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Search, BarChart3, Gauge } from "lucide-react";
 import type { RevenuePoint, DebtByAgingBucket } from "../../../domain/model/operations";
 import type {
@@ -146,7 +146,19 @@ export function AnalyticsTab({
       ),
     [range?.from, range?.to],
   );
-  const internalInstallments = useObservable(() => repos.installments.observe(), []);
+  // T-590 (E7A-1): the internal fallback subscribes ONLY when the page does
+  // not provide the scoped stream. The dashboard page now feeds the tab the
+  // year-bounded set (installmentsForYear — the server-side T-353 window);
+  // a second FULL-TENANT subscription here would resurrect the ARCH-040
+  // third path (the whole-collection download + its 30 s / focus re-seed
+  // volley) through the tab — the prop is the primary source, the internal
+  // observable only the prop-less fallback.
+  const [internalInstallments, setInternalInstallments] = useState<readonly Installment[]>([]);
+  useEffect(() => {
+    if (installmentsProp) return;
+    const unsub = repos.installments.observe().subscribe(setInternalInstallments);
+    return unsub;
+  }, [installmentsProp, repos.installments]);
   const installments = installmentsProp ?? internalInstallments;
   const internalDebtThresholds = useObservable(() => repos.debt.observeThresholds(), []);
   const debtThresholdsActive = debtThresholds ?? internalDebtThresholds;
