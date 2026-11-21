@@ -54,6 +54,13 @@ const PAGE_SRC = readFileSync(
   join(SRC, "features/dashboard/dashboard-page.tsx"),
   "utf8",
 );
+// E6.9 (DUP-029, D-U1): the page's data acquisition lives in the
+// use-overview-data view-model hook — the data-wiring guards follow the
+// behavior to its new home.
+const OVERVIEW_HOOK_SRC = readFileSync(
+  join(SRC, "features/dashboard/use-overview-data.ts"),
+  "utf8",
+);
 const ANALYTICS_TAB_SRC = readFileSync(
   join(SRC, "features/dashboard/tabs/analytics-tab.tsx"),
   "utf8",
@@ -783,10 +790,13 @@ describe("T-590 — E. The page/tab source guards", () => {
     expect(PAGE_SRC).not.toContain("repos.installments.observe()");
   });
 
-  it("dashboard-page.tsx: the bounded reads are wired into the ONE data effect", () => {
-    expect(PAGE_SRC).toContain("repos.dashboard.paymentsForRange(");
-    expect(PAGE_SRC).toContain("repos.dashboard.installmentsForYear(");
-    expect(PAGE_SRC.match(/useEffect\(\(\) => \{\s*const selectedRange = yearRange\.range;/s)).toBeTruthy();
+  it("the bounded reads are wired into the ONE data effect (E6.9: inside the use-overview-data view-model)", () => {
+    expect(OVERVIEW_HOOK_SRC).toContain("repos.dashboard.paymentsForRange(");
+    expect(OVERVIEW_HOOK_SRC).toContain("repos.dashboard.installmentsForYear(");
+    expect(OVERVIEW_HOOK_SRC.match(/useEffect\(\(\) => \{\s*const selectedRange = yearRange\.range;/s)).toBeTruthy();
+    // The page consumes the view-model (no independent data path returns).
+    expect(PAGE_SRC).toContain("useOverviewData(yearRange)");
+    expect(PAGE_SRC).toContain("useAnalyticsData(yearRange, availableYears)");
   });
 
   it("analytics-tab.tsx: the internal installments fallback is GATED on the prop", () => {

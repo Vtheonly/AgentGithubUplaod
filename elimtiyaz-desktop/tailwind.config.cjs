@@ -106,7 +106,9 @@ module.exports = {
         md: "var(--radius-md)",
         lg: "var(--radius-lg)",
         xl: "var(--radius-xl)",
-        pill: "9999px",
+        // BUG-039/DEAD-017 (T-589): the 0-consumer `rounded-pill` utility
+        // entry removed — the pill radius lives in the CSS custom property
+        // --radius-pill (index.css :root) that the scrollbar thumb reads.
       },
       fontFamily: {
         sans: ['Inter', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],

@@ -6944,7 +6944,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** DEAD-003 (dashboard-tab-layout-editor.tsx, 267 L, zero importers, orphaned storage prefix) · DEAD-010 (infrastructure/ai/narrative-generator.ts — generateReportCardNarrative zero production AND zero test consumers) · DEAD-011 (identity/index.ts barrel — production-dead, test-consumed; its relocation belongs to E1.4 per FINDINGS_INDEX's "relocate to tests/" decision).
 
-**Status:** IN_PROGRESS (Session 39).
+**Status:** TESTED (Session 39, 2026-11-22 — commit `7022ba28`; zero importers re-verified at HEAD; the dashboard+ai neighborhoods 23 files/283 GREEN; the full census green).
 
 **Contract (per EXECUTION-PLAN E1.2):** delete the verified-dead files; grep each export for call sites first; full vitest; baseline move citing the task.
 
@@ -6952,7 +6952,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** D-19/§E11 (the owner's locked mandate) · ARCH-036 (blue-deep/blue-light -rgb twins) · BUG-039 (--radius-pill undefined) · DEAD-017 (accordion keyframes) · BUG-075 (mix-cards stale capture + dashboard-theme midnight fallbacks).
 
-**Status:** IN_PROGRESS (Session 39).
+**Status:** TESTED (Session 39, 2026-11-22 — commit `ae4088ff`; t-546 extended to 25 tests GREEN incl. the 5 new T-589 flip pins; the LIVE visual verification on record: the mock-backend boot measured html class=light, meta #f8fafc, --surface-panel #ffffff, ZERO dark cards, and the pixel census 94.9% bright — see the session record).
 
 **Contract (per EXECUTION-PLAN §10 T-589):** (1) flip the default — index.html class="dark"→light, DEFAULTS.theme, preset order with "Clair Épuré" first, index.css :root becomes the LIGHT surface set with dark under .dark/[data-theme="dark"]; (2) the two stale boot colors (electron/main.cts backgroundColor #242526, index.html meta theme-color); (3) ARCH-036 -rgb twins + tailwind re-map; (4) BUG-039 --radius-pill defined; (5) DEAD-017 accordion keyframes deleted; (6) tokenize the hardcodes (timetable-grid 18 pastels, personnel token map → resolveToken, ai/chart-svg + diagram-svg, workflow.ts 5 hex, mock/workforce); (7) BUG-075 mix-cards live-getter + dashboard-theme light-first fallbacks; (8) t-546 extended to pin the light surfaces + the var(--x,#fallback) twin parity. Verify: full-dashboard + full-statistics visual pass on light (zero dark surfaces, zero low-contrast text); dark remains selectable.
 
@@ -6960,7 +6960,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** ARCH-009, L-6.
 
-**Status:** IN_PROGRESS (Session 39).
+**Status:** TESTED (Session 39, 2026-11-22 — commit `31b9dad3`; the t-e45 pinned-output comparison 6/6; the dashboard+domain neighborhoods 84 files/1,344 GREEN).
 
 **Contract (per EXECUTION-PLAN E4.5, after E2.2 ✓):** relocate analytics-derivations/executive-statistics/operational-query-engine thresholds to domain with settings-sourced thresholds. Verify: pinned-output comparison.
 
@@ -6968,7 +6968,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** DUP-029.
 
-**Status:** IN_PROGRESS (Session 39).
+**Status:** TESTED (Session 39, 2026-11-22 — commit `28d02232`; the dashboard neighborhood 23 files/283 GREEN incl. the re-pinned t-351/t-353/t-355/t-590 source guards).
 
 **Contract (per EXECUTION-PLAN E6.9):** use-overview-data/use-analytics-data extract the 6 subscriptions + 2 fetch blocks from dashboard-page.tsx (466 L); the F-U2 heaviest pages adopt the same idiom as budget allows. Verify: dashboard suites.
 
@@ -6976,6 +6976,16 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** ARCH-040 (UX) · BUG-059 (surface) · D-U1..U5 · BUG-075.
 
-**Status:** REGISTERED (Session 39 — the lane head after T-589; executes this session if budget allows, else the next queue head).
+**Status:** REGISTERED (Session 39 — the lane head after T-589; NOT STARTED this session: the four prerequisite tasks consumed the window's budget; T-596 needs E6.7/E6.8/E6.10 alongside — the NEXT session's head with the full batch).
 
 **Contract (per EXECUTION-PLAN §10 T-589/T-596, v2.3):** the ENTIRE Dashboard AND Statistics UI rebuilt/styled as a clean, cohesive FULL LIGHT experience; ONE single calculation engine shared by Dashboard and Payments/Finance — the numbers-equal test is the acceptance gate. Verify: dashboard snapshot suites + the Dashboard↔Finance numbers-equal test + the full-light visual pass.
+
+**Session-39 implementation record — E1.2 + T-589 + E4.5 + E6.9 (2026-11-22, the owner-directed dashboard-redesign lane, 4 commits on `execution/session-39-dashboard-redesign`, each committed after its own verification):**
+
+- **E1.2 (`7022ba28`):** DEAD-003 `dashboard-tab-layout-editor.tsx` (267 L) + DEAD-010 `infrastructure/ai/narrative-generator.ts` deleted — zero importers/consumers re-verified by repo-wide grep at HEAD (FINDINGS_INDEX: both CLOSED). DEAD-011's test-only files stay per the relocate-to-tests decision (E1.4's lane — the identity barrel is test-consumed).
+- **T-589 (`ae4088ff`) — the full-light primary flip (D-19):** (1) index.css INVERTED — :root IS the light set (Clair Épuré values, 0% card-border strength, the light shadcn HSL), midnight under `.dark/[data-theme="dark"]` (source-ordered to win at equal specificity); (2) the boot chain: index.html `class="light"` + meta `#f7f9fb`, electron/main.cts backgroundColor `#f7f9fb`, DEFAULTS.theme "light" (+ the deleteCustomTheme fallback), PRESET_THEMES reordered with Clair Épuré "(Défaut)" first + Sombre Minuit renamed; (3) ARCH-036: the blue-deep/blue-light `-rgb` twins in BOTH blocks + the tailwind entries re-mapped to the channels (zero static brand hexes left); (4) BUG-039: `--radius-pill: 9999px` defined + the 0-consumer rounded-pill config entry removed; (5) DEAD-017: the accordion keyframes/animation entries deleted; (6) BUG-075: mix-cards' `methodColor()`/`categoryColor()` live resolvers + dashboard-theme's chartPalette/tooltip fallbacks re-pinned light-first + `isDarkThemeActive` default-light + AGING_COLORS/sparkline toneStroke re-pins (the PARITY-CONTRACT same-commit rule); (7) the chart surfaces tokenized: ai/chart-svg `drawerPalette()` + ai/diagram-svg `BOX_FILL` getters + see-details-modal CATEGORY_TILES live getters (data-inspector-lineage's INSPECTOR_CONTRIBUTOR_PALETTE stays static BY its documented theme-stable-per-rank design). The timetable pastels + workflow.ts node palette + mock/workforce colorHex verified light-native semantic pastels/DATA (documented decisions, no change).
+- **E4.5 (`31b9dad3`) — the risk-thresholds domain relocation (ARCH-009's thresholds lane):** NEW `domain/calc/analytics/risk-thresholds.ts` (RiskProfileThresholds: the 8 documented edges) + DEFAULT_RISK_PROFILE_THRESHOLDS (the EXACT pre-E4.5 literals) + `evaluateStudentRiskProfiles`/`operationalPresetsFor` parameterized; the t-e45 PINNED-OUTPUT COMPARISON (the card's Verify): the 8-student fixture exercising every branch + boundary reproduces the pre-E4.5 outputs byte-identically (incl. the preserved quirks: the non-critical +10 branch pushes no reason; the 12/20 watch band scores without classifying — deliberately not parameterized) + the RED controls + the source guards.
+- **E6.9 (`28d02232`) — the dashboard view-models (DUP-029's dashboard half, D-U1):** NEW `use-overview-data.ts` (the T-590 six-call aggregation fetch + the debt-summary subscription + topDebtors + the scopedInstallments/rangePayments memos; DashboardData imported from the Overview tab — the page's duplicate interface DEAD) + NEW `use-analytics-data.ts` (the loadable-prev-year resolution + the shifted-window previous-year revenue fetch) + dashboard-page.tsx slimmed to the composition root. Behavior byte-preserved (the tabs keep the RAW bounded payments; only SeeDetailsModal takes the filtered slice). The t-351/t-353/t-355/t-590 source guards re-pinned at the hook.
+- **The live visual verification (the T-589 Verify gate):** the mock-backend boot measured `document.documentElement.className === "light"`, meta theme-color `#f8fafc`, `--surface-panel #ffffff`, body `rgb(248,250,252)`, ZERO dark `.dashboard-card`s in the DOM, and the screenshots' pixel census 94.9% bright / 0.3% dark — the KPI/statistics surfaces render with real mock data (ÉLÈVES 15 · 8 foyers, REVENU MENSUEL 110,5 k DZD, ENCOURS 4,3 M DZD, ASSIDUITÉ 83%, the T1/T2/T3 wave meters). The screenshots: `download/dashboard-light-overview.png` + `download/dashboard-light-analytics.png`.
+
+**Session-39 closeout census (2026-11-22):** **the five-shard full-vitest census 342 test files (341 passed + 1 skipped) / 5,668 passed / 0 failed / 5 skipped** (the +1 file / +11 tests over the S38 record attributed exactly to t-e45 [6, NEW] + t-546 [20 → 25: the 5 new T-589 flip pins]) · `npx tsc --noEmit` 0 · `npx tsc -p electron/tsconfig.json --noEmit` 0 · the append-only guard OK (5 migrations, +0) · the unbounded-read guard OK (12 raw sites, 9 allowlisted, 0 active) · **the baseline moved citing the Session-39 dashboard-redesign lane** · FINDINGS_INDEX: DEAD-003/010 + ARCH-036 + BUG-039 + DEAD-017 + BUG-075 CLOSED; ARCH-009 + DUP-029 PARTIAL (the precise splits documented at the rows). **OPS-015/G2 live locks STAND** (zero live traffic, zero deploys, zero cap lifts, zero packaged builds — the screenshots ran on the LOCAL mock backend only). **T-614 STILL OWNER-BLOCKED.** Next: **T-596 (the dashboard overhaul — L) with E6.7 + E6.8 + E6.10, then E2.6 (the client-side defect batch) resumes**.
