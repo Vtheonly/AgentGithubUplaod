@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
+import { readFileSync, writeFileSync } from "node:fs";
 import { registerBackendProfileIpc } from "./backend-profile";
+import { buildAppMenuTemplate, buildContextMenuTemplate } from "./menu-builders";
 
 const RENDERER_DIST = path.join(__dirname, "..", "dist");
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";
@@ -108,12 +110,82 @@ ipcMain.handle("app:get-path", (_event, name: string): { ok: true; path: string 
   }
 });
 
+// ============================================================================
+// T-577 (OPS-014): window-state persistence — the bounds + maximized flag
+// saved at close, restored at create (a JSON file in userData; a corrupt or
+// absent file simply falls back to the defaults below).
+// ============================================================================
+const WINDOW_STATE_FILE = "window-state.json";
+const DEFAULT_WINDOW_WIDTH = 1440;
+const DEFAULT_WINDOW_HEIGHT = 900;
+const MIN_WINDOW_WIDTH = 1100;
+const MIN_WINDOW_HEIGHT = 700;
+
+interface WindowState {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  maximized: boolean;
+}
+
+function loadWindowState(): WindowState | null {
+  try {
+    const raw = readFileSync(path.join(app.getPath("userData"), WINDOW_STATE_FILE), "utf8");
+    const parsed = JSON.parse(raw) as Partial<WindowState>;
+    if (
+      typeof parsed.width !== "number" ||
+      typeof parsed.height !== "number" ||
+      typeof parsed.maximized !== "boolean" ||
+      !Number.isFinite(parsed.width) ||
+      !Number.isFinite(parsed.height)
+    ) {
+      return null;
+    }
+    return {
+      // Clamp to the app's minimums — a stale tiny state never shrinks the
+      // window below usable.
+      width: Math.max(MIN_WINDOW_WIDTH, Math.round(parsed.width)),
+      height: Math.max(MIN_WINDOW_HEIGHT, Math.round(parsed.height)),
+      x: typeof parsed.x === "number" && Number.isFinite(parsed.x) ? Math.round(parsed.x) : undefined,
+      y: typeof parsed.y === "number" && Number.isFinite(parsed.y) ? Math.round(parsed.y) : undefined,
+      maximized: parsed.maximized,
+    };
+  } catch {
+    return null; // absent or corrupt — the defaults govern
+  }
+}
+
+function saveWindowState(win: BrowserWindow): void {
+  try {
+    // getNormalBounds() returns the RESTORED bounds even while maximized —
+    // exactly what a relaunch should reopen at.
+    const bounds = win.getNormalBounds();
+    const state: WindowState = {
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      maximized: win.isMaximized(),
+    };
+    writeFileSync(
+      path.join(app.getPath("userData"), WINDOW_STATE_FILE),
+      JSON.stringify(state, null, 2),
+      "utf8",
+    );
+  } catch (err) {
+    console.warn("[main] window-state save failed:", err);
+  }
+}
+
 function createWindow(): void {
+  const restored = loadWindowState();
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1100,
-    minHeight: 700,
+    width: restored?.width ?? DEFAULT_WINDOW_WIDTH,
+    height: restored?.height ?? DEFAULT_WINDOW_HEIGHT,
+    ...(restored?.x !== undefined && restored?.y !== undefined ? { x: restored.x, y: restored.y } : {}),
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     show: false,
     frame: false,
     backgroundColor: "#242526",
@@ -122,9 +194,15 @@ function createWindow(): void {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      // T-577 (OPS-014): the sandboxed preload — contextBridge/ipcRenderer/
+      // webFrame are exactly the sandbox-safe surface preload.cts uses.
+      sandbox: true,
     },
   });
+
+  if (restored?.maximized) {
+    mainWindow.maximize();
+  }
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
@@ -135,6 +213,33 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
+  // T-577 (BUG-045): the right-click context menu — Couper/Copier/Coller/
+  // Tout sélectionner with the enabled-flag matrix, INCLUDING read-only
+  // surfaces (tables, cards, receipts — the owner's explicit requirement).
+  // Nothing actionable → no popup at all (never a fully-grayed menu).
+  mainWindow.webContents.on("context-menu", (_event, params) => {
+    const template = buildContextMenuTemplate(params);
+    if (template.length > 0 && mainWindow) {
+      Menu.buildFromTemplate(template).popup({ window: mainWindow });
+    }
+  });
+
+  // T-577 (OPS-014): the did-fail-load handler — the failure is LOGGED
+  // always and surfaced to the operator in production (dev reloads during
+  // server startup are not spammed with dialogs).
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode: number, errorDescription: string, validatedURL: string) => {
+      console.error(`[main] did-fail-load ${errorCode} ${errorDescription} ${validatedURL}`);
+      if (!isDev) {
+        dialog.showErrorBox(
+          "Échec du chargement",
+          `La page n'a pas pu être chargée (code ${errorCode}).\n${validatedURL}\n\nRelancez l'application ; si le problème persiste, contactez l'administrateur.`,
+        );
+      }
+    },
+  );
+
   if (isDev) {
     void mainWindow.loadURL(DEV_SERVER_URL);
     mainWindow.webContents.openDevTools({ mode: "detach" });
@@ -142,39 +247,21 @@ function createWindow(): void {
     void mainWindow.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 
+  // T-577 (OPS-014): persist the window state at close (bounds + the
+  // maximized flag — the next launch reopens where the operator left it).
+  mainWindow.on("close", () => {
+    if (mainWindow) saveWindowState(mainWindow);
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
 function buildMenu(): Menu {
-  const isMac = process.platform === "darwin";
-  const fileSubmenu: Electron.MenuItemConstructorOptions[] = [{ role: "quit" }];
-  const viewSubmenu: Electron.MenuItemConstructorOptions[] = [
-    { role: "reload" },
-    { role: "forceReload" },
-    { role: "toggleDevTools" },
-    { type: "separator" },
-    { role: "resetZoom" },
-    { role: "zoomIn" },
-    { role: "zoomOut" },
-    { role: "togglefullscreen" },
-  ];
-  const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac
-      ? [{
-          label: app.name,
-          submenu: [
-            { role: "about" },
-            { type: "separator" },
-            { role: "quit" },
-          ] as Electron.MenuItemConstructorOptions[],
-        }]
-      : []),
-    { label: "Fichier", submenu: fileSubmenu },
-    { label: "Affichage", submenu: viewSubmenu },
-  ];
-  return Menu.buildFromTemplate(template);
+  return Menu.buildFromTemplate(
+    buildAppMenuTemplate({ isMac: process.platform === "darwin", isDev }),
+  );
 }
 
 ipcMain.handle("window:minimize", () => {
@@ -329,15 +416,31 @@ ipcMain.handle("vault:pick-file", async (): Promise<{ name?: string; bytes?: num
   }
 });
 
-void app.whenReady().then(() => {
-  Menu.setApplicationMenu(buildMenu());
-  createWindow();
+// T-577 (OPS-014): the single-instance lock — a second launch focuses the
+// FIRST instance's window (restoring it if minimized) instead of opening a
+// duplicate terminal on the same tenant data.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  void app.whenReady().then(() => {
+    Menu.setApplicationMenu(buildMenu());
+    createWindow();
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+}
