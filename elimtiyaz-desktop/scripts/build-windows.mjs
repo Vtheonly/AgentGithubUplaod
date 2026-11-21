@@ -22,6 +22,8 @@ import {
   probeTargetReadiness,
   resolvePackageTarget,
 } from "./package-target.mjs";
+// T-575 (the OPS-016 unlock, the deep gate): the preflight of record.
+import { runPreflight } from "./preflight-target.mjs";
 
 const scriptDir = join(fileURLToPath(new URL(".", import.meta.url)));
 const projectDir = join(scriptDir, "..");
@@ -182,6 +184,29 @@ console.log("[package:win] Public key   : resolved (value hidden)");
 await verifyTargetReadiness(target.url, resolvedPublicKey);
 console.log("[package:win] Target-readiness preflight: OK");
 
+// T-575 — the PREFLIGHT OF RECORD (the deep target-parity gate after T-573's
+// quick readiness probe): the consolidated-baseline census + the 54001 RLS-helper
+// parity + verify_t-376 12/12 (the T-446 Management-SQL convention) + the
+// authenticated REST smoke + the local repo lanes (the ARCH-046 EF 1:1 census,
+// the append-only guard, the 0001 layout). The management token is read by the
+// preflight tool from the OPERATOR's environment (SUPABASE_ACCESS_TOKEN) —
+// never by the packager beyond this pass-through, never packaged; an absent
+// token fails CLOSED. These remote lanes execute ONLY here, inside a real
+// packaging run (the t-573 precedent; OPS-015's zero-live-traffic fence).
+const preflight = await runPreflight({
+  targetUrl: target.url,
+  publicKey: resolvedPublicKey,
+  processEnv: process.env,
+  repoDir: projectDir,
+});
+if (!preflight.ok) {
+  fail(
+    `T-575 preflight of record REJECTED the target — "N/N migrations applied" is NOT parity. ` +
+      `Failures: ${preflight.failures.join(" | ")}. The Windows package was not built.`,
+  );
+}
+console.log(`[package:win] T-575 preflight of record: OK (${preflight.summary})`);
+
 const buildEnv = {
   ...process.env,
   VITE_SUPABASE_URL: target.url,
@@ -190,6 +215,9 @@ const buildEnv = {
   VITE_USE_SUPABASE: "true",
   VITE_DESKTOP_PRODUCTION: "true",
 };
+// T-575: the management token is OPERATOR-only — it must never flow into the
+// build children (or their logs/artifacts).
+delete buildEnv.SUPABASE_ACCESS_TOKEN;
 
 // T-404 (2026-09-22) — wine-aware cross-build:
 //   * rcedit (icon/version resource edits on the exe) needs wine on Linux
