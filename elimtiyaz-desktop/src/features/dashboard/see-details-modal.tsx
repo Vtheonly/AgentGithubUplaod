@@ -90,28 +90,38 @@ const OPERATIONAL_UNITS: readonly {
     key: "scolarite",
     label: "Scolarité & Pédagogie",
     categories: ["tuition", "books", "uniform", "second_apron"],
-    color: "#349bd4",
+    // T-589: live getter — rides the ACTIVE palette (light-first), never a
+    // module-load capture (the BUG-075 class).
+    get color() {
+      return chartPalette.primary;
+    },
     icon: GraduationCap,
   },
   {
     key: "therapy",
     label: "Accompagnement & Thérapie",
     categories: ["therapy_psychology", "therapy_speech"],
-    color: "#eab308",
+    get color() {
+      return chartPalette.gold;
+    },
     icon: Stethoscope,
   },
   {
     key: "clubs",
     label: "Activités & Clubs",
     categories: ["extracurricular"],
-    color: "#f43f5e",
+    get color() {
+      return chartPalette.coral;
+    },
     icon: Trophy,
   },
   {
     key: "auxiliary",
     label: "Services de Vie Scolaire",
     categories: ["transport", "canteen"],
-    color: "#10b981",
+    get color() {
+      return chartPalette.success;
+    },
     icon: Bus,
   },
 ];

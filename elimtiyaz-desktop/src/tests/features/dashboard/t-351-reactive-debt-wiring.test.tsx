@@ -107,6 +107,13 @@ const PAGE_SRC = readFileSync(
   join(__dirname, "../../../features/dashboard/dashboard-page.tsx"),
   "utf8",
 );
+// E6.9 (DUP-029, D-U1): the page's data acquisition lives in the
+// use-overview-data view-model hook — the reactive-wiring guards follow
+// the behavior to its new home.
+const OVERVIEW_HOOK_SRC = readFileSync(
+  join(__dirname, "../../../features/dashboard/use-overview-data.ts"),
+  "utf8",
+);
 const REPORTS_SRC = readFileSync(
   join(__dirname, "../../../features/dashboard/tabs/reports-tab.tsx"),
   "utf8",
@@ -117,12 +124,19 @@ describe("T-351 — source guards (DASH-401/406: the .get() races are gone)", ()
     expect(PAGE_SRC).not.toContain("observeSummary().get()");
   });
 
-  it("dashboard-page.tsx SUBSCRIBES to the debt summary observable (the reactive pattern)", () => {
-    expect(PAGE_SRC).toMatch(/repos\.debt\.observeSummary\(\)\s*\.subscribe/);
+  it("the debt summary observable is SUBSCRIBED (the reactive pattern — E6.9: inside the use-overview-data view-model)", () => {
+    expect(OVERVIEW_HOOK_SRC).toMatch(/repos\.debt\.observeSummary\(\)\s*\.subscribe/);
+    // The page itself must never regress to a synchronous .get() read.
+    expect(PAGE_SRC).not.toMatch(/repos\.debt\.observeSummary\(\)\s*\.get\(\)/);
   });
 
-  it("dashboard-page.tsx passes the FULL debtSummaries stream to AnalyticsTab (not only the top-10 slice)", () => {
-    expect(PAGE_SRC).toContain("debtSummaries={debtSummaries}");
+  it("the FULL debtSummaries stream reaches AnalyticsTab (not only the top-10 slice)", () => {
+    // E6.9: the page passes the view-model's debtSummaries — the hook
+    // returns the COMPLETE positive stream; only the separate topDebtors
+    // member is the top-10 slice.
+    expect(PAGE_SRC).toContain("debtSummaries={overview.debtSummaries}");
+    expect(OVERVIEW_HOOK_SRC).toMatch(/return\s*{[\s\S]*?debtSummaries,[\s\S]*?topDebtors,[\s\S]*?};/);
+    expect(OVERVIEW_HOOK_SRC).toContain("debtSummaries.slice(0, 10)");
   });
 
   it("reports-tab.tsx contains no synchronous observe().get() read inside the module", () => {

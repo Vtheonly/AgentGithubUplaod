@@ -13,10 +13,11 @@
  *     already renders markdown through its own markdown-view.tsx, not
  *     react-markdown); recharts would add ~100kB for charts that live
  *     in a 576px drawer.
- *   - The dark theme palette is pinned here to the app's CSS variables'
- *     literal hex values (status-success/warning/danger/info + primary
- *     blue) so charts match KPI cards without runtime CSS resolution
- *     (SVG attributes can't consume Tailwind classes).
+ *   - The theme palette is resolved LIVE from the app's CSS variables
+ *     (T-589: the hardcoded midnight hexes died with the light-first
+ *     flip) — series colors match the KPI cards on the ACTIVE palette
+ *     (SVG attributes can't consume Tailwind classes, so they resolve
+ *     in JS via the shared resolveToken with light-first fallbacks).
  *
  * Layout hygiene: every chart is computed on a fixed viewBox (560×320)
  * and scales responsively (w-full h-auto) — no fixed pixel layout, no
@@ -26,16 +27,20 @@
 import React from "react";
 import { formatDzdPlain } from "../../core/format/currency";
 import type { ChartArtifact, ChartSeries } from "../../core/ai/artifacts";
+import { resolveToken } from "../../shared/ui/dashboard-theme";
 
-/** The drawer palette — matches --primary + --status-* tokens. */
-const PALETTE = [
-  "#2f8fd6", // primary blue (hsl 201 68% 52%)
-  "#10b981", // status-success
-  "#f59e0b", // status-warning
-  "#0ea5e9", // status-info
-  "#a78bfa", // violet (harmonized accent)
-  "#ef4444", // status-danger
-];
+/** The drawer palette — matches --primary + --status-* tokens (LIVE,
+ * re-read per access; T-589 light-first fallbacks mirroring :root). */
+function drawerPalette(): string[] {
+  return [
+    resolveToken("--brand-blue", "#2563eb"), // primary blue
+    resolveToken("--status-success", "#059669"), // status-success
+    resolveToken("--status-warning", "#d97706"), // status-warning
+    resolveToken("--status-info", "#0284c7"), // status-info
+    resolveToken("--brand-violet", "#7c3aed"), // violet accent
+    resolveToken("--status-danger", "#dc2626"), // status-danger
+  ];
+}
 
 const W = 560;
 const H = 320;
@@ -191,7 +196,7 @@ function BarChart({ chart }: { chart: ChartArtifact }) {
               width={barW}
               height={Math.max(0, h)}
               rx={3}
-              fill={PALETTE[0]}
+              fill={drawerPalette()[0]}
               fillOpacity={0.88}
             />
             {data.length <= 12 && v > 0 && (
@@ -237,7 +242,7 @@ function GroupedBarChart({ chart }: { chart: ChartArtifact }) {
               width={barW - 1}
               height={Math.max(0, h)}
               rx={2}
-              fill={PALETTE[si % PALETTE.length]}
+              fill={drawerPalette()[si % drawerPalette().length]}
               fillOpacity={0.88}
             />
           );
@@ -274,7 +279,7 @@ function StackedBarChart({ chart }: { chart: ChartArtifact }) {
                   y={y}
                   width={barW}
                   height={Math.max(0, h)}
-                  fill={PALETTE[si % PALETTE.length]}
+                  fill={drawerPalette()[si % drawerPalette().length]}
                   fillOpacity={0.88}
                   rx={si === series.length - 1 ? 3 : 0}
                 />
@@ -303,7 +308,7 @@ function LineChart({ chart, area }: { chart: ChartArtifact; area: boolean }) {
       <AxisFrame maxY={max} unit={chart.unit} />
       {series.map((s, si) => {
         const points = s.data.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-        const color = PALETTE[si % PALETTE.length];
+        const color = drawerPalette()[si % drawerPalette().length];
         return (
           <g key={si}>
             {area && (
@@ -361,7 +366,7 @@ function PieChart({ chart, donut }: { chart: ChartArtifact; donut: boolean }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={chart.title}>
       {slices.map((s) => {
-        const color = PALETTE[s.i % PALETTE.length];
+        const color = drawerPalette()[s.i % drawerPalette().length];
         if (s.frac <= 0) return null;
         const [ox0, oy0] = pt(r, s.a0);
         const [ox1, oy1] = pt(r, s.a1);
@@ -378,7 +383,7 @@ function PieChart({ chart, donut }: { chart: ChartArtifact; donut: boolean }) {
       {/* Legend on the right: label + share + value per slice */}
       {chart.categories.map((c, i) => (
         <g key={i} transform={`translate(${W - 122}, ${cy - (chart.categories.length * 22) / 2 + i * 22})`}>
-          <rect width={10} height={10} rx={2} fill={PALETTE[i % PALETTE.length]} />
+          <rect width={10} height={10} rx={2} fill={drawerPalette()[i % drawerPalette().length]} />
           <text x={16} y={9} fontSize={10} className="fill-foreground">
             {fitLabel(c, 100)}
           </text>
@@ -398,7 +403,7 @@ function Legend({ series }: { series: readonly ChartSeries[] }) {
     <g>
       {series.map((s, i) => (
         <g key={i} transform={`translate(${PAD.left + i * 130}, ${H - 12})`}>
-          <rect width={9} height={9} rx={2} fill={PALETTE[i % PALETTE.length]} />
+          <rect width={9} height={9} rx={2} fill={drawerPalette()[i % drawerPalette().length]} />
           <text x={14} y={8} fontSize={9.5} className="fill-muted-foreground">
             {fitLabel(s.name, 110)}
           </text>

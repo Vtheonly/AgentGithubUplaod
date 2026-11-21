@@ -34,21 +34,39 @@ import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import type { Payment } from "../../../../domain/model/payment";
 import { deriveMethodMix, deriveCategoryMix } from "./analytics-derivations";
 
-const METHOD_COLORS: Record<string, string> = {
-  cash: chartPalette.primary,
-  check: chartPalette.gold,
-  transfer: chartPalette.cyan,
-};
+/** BUG-075 (T-589): the module-level `chartPalette` capture was the
+ * T-546 stale-capture class's LAST survivor — these maps froze whatever
+ * palette was active at import time, so switching themes never reached the
+ * mix donut/bars. Both are now LIVE resolvers: every access re-reads the
+ * ACTIVE palette (the same getter discipline as chartPalette itself). */
+function methodColor(key: string): string {
+  const colors: Record<string, string> = {
+    get cash() {
+      return chartPalette.primary;
+    },
+    get check() {
+      return chartPalette.gold;
+    },
+    get transfer() {
+      return chartPalette.cyan;
+    },
+  };
+  return colors[key] ?? chartPalette.slate;
+}
 
-const CATEGORY_COLORS = [
-  chartPalette.primary,
-  chartPalette.cyan,
-  chartPalette.violet,
-  chartPalette.gold,
-  chartPalette.success,
-  chartPalette.info,
-  chartPalette.danger,
-];
+function categoryColor(index: number): string {
+  const palette = () => [
+    chartPalette.primary,
+    chartPalette.cyan,
+    chartPalette.violet,
+    chartPalette.gold,
+    chartPalette.success,
+    chartPalette.info,
+    chartPalette.danger,
+  ];
+  const p = palette();
+  return p[index % p.length];
+}
 
 export function MethodMixCard({
   slice,
@@ -107,10 +125,7 @@ export function MethodMixCard({
                     stroke="none"
                   >
                     {mix.map((m) => (
-                      <Cell
-                        key={m.key}
-                        fill={METHOD_COLORS[m.key] ?? chartPalette.slate}
-                      />
+                      <Cell key={m.key} fill={methodColor(m.key)} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -142,8 +157,7 @@ export function MethodMixCard({
                     <span
                       className="h-2.5 w-2.5 rounded-full shrink-0"
                       style={{
-                        backgroundColor:
-                          METHOD_COLORS[m.key] ?? chartPalette.slate,
+                        backgroundColor: methodColor(m.key),
                       }}
                     />
                     <span className="font-medium text-foreground">
@@ -272,10 +286,7 @@ export function CategoryMixCard({
                 />
                 <Bar dataKey={metric} radius={[0, 4, 4, 0]} barSize={16}>
                   {mix.map((m, i) => (
-                    <Cell
-                      key={m.key}
-                      fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
-                    />
+                    <Cell key={m.key} fill={categoryColor(i)} />
                   ))}
                 </Bar>
               </BarChart>

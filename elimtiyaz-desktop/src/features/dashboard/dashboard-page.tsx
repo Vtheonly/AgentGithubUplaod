@@ -19,12 +19,6 @@ import { useObservable } from "../../shared/hooks/use-observable";
 // T-514 (UI-342): the Pareto bar-click navigation — the app-shell's global
 // person-navigation drawer (openParent), reused (never re-implemented).
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
-import type {
-  DashboardKpi,
-  RevenuePoint,
-  DebtByAgingBucket,
-} from "../../domain/model/operations";
-import type { DebtSummary } from "../../domain/model/payment";
 import type { AcademicYear } from "../../domain/model/academic";
 import { PageHeader } from "../../shared/layout/page-header";
 import {
@@ -45,11 +39,7 @@ import { OverviewTab } from "./tabs/overview-tab";
 import { AnalyticsTab } from "./tabs/analytics-tab";
 import { AlertsTab } from "./tabs/alerts-tab";
 import { ReportsTab } from "./tabs/reports-tab";
-import {
-  type SeeDetailsTab,
-  type Demographics,
-} from "./tabs/types";
-import type { Payment, Installment } from "../../domain/model/payment";
+import type { SeeDetailsTab } from "./tabs/types";
 // T-443 (DEBT-101): the ACTIVE debt-aging thresholds feeding both tabs.
 import {
   DEFAULT_DEBT_AGING_THRESHOLDS,
@@ -63,29 +53,12 @@ import {
   useThresholdsConfigHost,
   canEditThresholds,
 } from "../settings/contextual-thresholds-config";
-import {
-  applyAnalyticsFilters,
-  installmentsForAcademicYear,
-  NO_ANALYTICS_FILTERS,
-  previousAcademicYear,
-  shiftIsoYearBack,
-} from "./components/analytics/analytics-derivations";
+// E6.9 (DUP-029, D-U1): the view-model hooks — the page's data acquisition
+// lives in the hooks; this component is the pure composition/layout root.
+import { useOverviewData } from "./use-overview-data";
+import { useAnalyticsData } from "./use-analytics-data";
 
 type DashboardTab = "overview" | "analytics" | "alerts" | "reports";
-
-interface DashboardData {
-  kpis: DashboardKpi | null;
-  revenue: RevenuePoint[];
-  debtAging: DebtByAgingBucket[];
-  demographics: Demographics;
-  topDebtors: DebtSummary[];
-}
-
-const EMPTY_DEMOGRAPHICS: Demographics = {
-  grade: [],
-  gender: [],
-  age: [],
-};
 
 /** Stable empty default — keeps hook dependencies referentially stable. */
 const NO_YEARS: readonly AcademicYear[] = [];
@@ -110,17 +83,6 @@ export function DashboardPage() {
     [academicYears],
   );
 
-  const [data, setData] = useState<DashboardData>({
-    kpis: null,
-    revenue: [],
-    debtAging: [],
-    demographics: EMPTY_DEMOGRAPHICS,
-    topDebtors: [],
-  });
-  const [debtSummaries, setDebtSummaries] = useState<readonly DebtSummary[]>([]);
-  const [payments, setPayments] = useState<readonly Payment[]>([]);
-  const [installments, setInstallments] = useState<readonly Installment[]>([]);
-  const [prevRevenue, setPrevRevenue] = useState<RevenuePoint[]>([]);
   const [seeDetailsOpen, setSeeDetailsOpen] = useState(false);
   const [seeDetailsTab, setSeeDetailsTab] = useState<SeeDetailsTab>("revenue");
   const [tab, setTab] = useState<DashboardTab>("overview");
@@ -178,53 +140,12 @@ export function DashboardPage() {
     });
   }, [availableYears, academicYears, yearRange.academicYear]);
 
-  useEffect(() => {
-    const selectedRange = yearRange.range;
-    if (!yearRange.academicYear || !selectedRange) return;
-    void (async () => {
-      // T-590 (E7A-1): the triple data path is gone — this ONE effect is
-      // the dashboard's data path: the four compact aggregation calls
-      // (the 0002 RPCs server-side) + the two bounded row-level reads
-      // (paymentsForRange / installmentsForYear — the range/year windows
-      // the tabs filter by anyway, now server-side). The full-tenant
-      // payments/installments observable subscriptions previously fired
-      // TWO whole-collection downloads on every dashboard mount — the
-      // ARCH-040 third path — and the collections re-seeded every 30 s /
-      // window-focus tick. The observable caches stay for the
-      // entity-detail surfaces (the Finance tab, the student drawers).
-      const [k, rev, debt, demo, pays, inst] = await Promise.all([
-        repos.dashboard.kpisForRange(yearRange.academicYear, selectedRange),
-        repos.dashboard.revenueForRange(yearRange.academicYear, selectedRange),
-        repos.dashboard.debtByAgingForRange(
-          yearRange.academicYear,
-          selectedRange,
-        ),
-        repos.dashboard.demographics(),
-        repos.dashboard.paymentsForRange(selectedRange),
-        repos.dashboard.installmentsForYear(yearRange.academicYear),
-      ]);
-      setData((prev) => ({
-        kpis: k.ok ? k.value : null,
-        revenue: rev.ok ? rev.value : [],
-        debtAging: debt.ok ? debt.value : [],
-        demographics: demo.ok ? demo.value : EMPTY_DEMOGRAPHICS,
-        topDebtors: prev.topDebtors,
-      }));
-      setPayments(pays.ok ? pays.value : []);
-      setInstallments(inst.ok ? inst.value : []);
-    })();
-  }, [repos.dashboard, yearRange]);
-
-  useEffect(() => {
-    const unsub = repos.debt.observeSummary().subscribe((stream) => {
-      setDebtSummaries(
-        stream
-          .filter((d) => d.outstandingAmount > 0)
-          .sort((a, b) => b.outstandingAmount - a.outstandingAmount),
-      );
-    });
-    return unsub;
-  }, [repos.debt]);
+  // E6.9 (D-U1): the view-models — the aggregation fetch, the bounded
+  // payment/installment slices, the debt-summary stream and the top-debtors
+  // derivation live in use-overview-data; the previous-year comparison
+  // lane lives in use-analytics-data.
+  const overview = useOverviewData(yearRange);
+  const analytics = useAnalyticsData(yearRange, availableYears);
 
   // T-443 (DEBT-101, INV-16f): the tenant's ACTIVE debt-aging thresholds —
   // ONE subscription feeding BOTH dashboard tabs (the Overview triage + the
@@ -245,60 +166,6 @@ export function DashboardPage() {
   const thresholdsCfg = useThresholdsConfigHost(debtThresholds, {
     enabled: canEditThresholds(session),
   });
-
-  const topDebtors = useMemo(
-    () => debtSummaries.slice(0, 10) as DebtSummary[],
-    [debtSummaries],
-  );
-
-  useEffect(() => {
-    setData((prev) =>
-      prev.topDebtors === topDebtors ? prev : { ...prev, topDebtors },
-    );
-  }, [topDebtors]);
-
-  const prevYearCode = previousAcademicYear(yearRange.academicYear);
-  const loadablePrevYear =
-    prevYearCode && availableYears.includes(prevYearCode)
-      ? prevYearCode
-      : null;
-
-  useEffect(() => {
-    const currentRange = yearRange.range;
-    if (!loadablePrevYear || !currentRange) {
-      setPrevRevenue([]);
-      return;
-    }
-    void (async () => {
-      const shifted = {
-        from: shiftIsoYearBack(currentRange.from),
-        to: shiftIsoYearBack(currentRange.to),
-      };
-      const prev = await repos.dashboard.revenueForRange(
-        loadablePrevYear,
-        shifted,
-      );
-      setPrevRevenue(prev.ok ? prev.value : []);
-    })();
-  }, [repos.dashboard, loadablePrevYear, yearRange.range]);
-
-  // T-590 (E7A-1): the payments/installments full-collection subscriptions
-  // are GONE (the ARCH-040 third path). The state now carries the bounded
-  // sets fetched per year-range (see the data effect above); the memo below
-  // keeps the T-353 year-window guard over the fetched stream (a no-op on
-  // the parsed-year fetch — the server already applied the same window —
-  // but it still re-scopes any in-flight stale slice instantly when the
-  // year selector moves).
-  const scopedInstallments = useMemo(
-    () => installmentsForAcademicYear(installments, yearRange.academicYear),
-    [installments, yearRange.academicYear],
-  );
-
-  const rangePayments = useMemo(
-    () =>
-      applyAnalyticsFilters(payments, yearRange.range, NO_ANALYTICS_FILTERS),
-    [payments, yearRange.range],
-  );
 
   useEffect(() => {
     if (!session) return;
@@ -331,7 +198,6 @@ export function DashboardPage() {
     if (target) openSeeDetails(target);
   };
 
-  const dataProp = useMemo(() => data, [data]);
   const layoutSupported = tab === "overview" || tab === "analytics";
 
   const handleTabChange = (nextValue: string) => {
@@ -422,9 +288,9 @@ export function DashboardPage() {
 
         <PageTabContent value="overview">
           <OverviewTab
-            data={dataProp}
-            payments={payments}
-            installments={scopedInstallments}
+            data={overview.data}
+            payments={overview.payments}
+            installments={overview.installments}
             range={yearRange.range}
             onDrillDown={handleKpiClick}
             onGoToAlerts={() => setTab("alerts")}
@@ -436,16 +302,16 @@ export function DashboardPage() {
 
         <PageTabContent value="analytics">
           <AnalyticsTab
-            revenue={data.revenue}
-            prevRevenue={prevRevenue}
+            revenue={overview.data.revenue}
+            prevRevenue={analytics.prevRevenue}
             onOpenParent={openParent}
             academicYear={yearRange.academicYear}
-            prevAcademicYear={loadablePrevYear}
-            debtAging={data.debtAging}
-            topDebtors={topDebtors}
-            debtSummaries={debtSummaries}
-            payments={payments}
-            installments={scopedInstallments}
+            prevAcademicYear={analytics.prevAcademicYear}
+            debtAging={overview.data.debtAging}
+            topDebtors={overview.topDebtors}
+            debtSummaries={overview.debtSummaries}
+            payments={overview.payments}
+            installments={overview.installments}
             range={yearRange.range}
             editing={layoutEditing}
             debtThresholds={thresholdsCfg.effective}
@@ -466,8 +332,8 @@ export function DashboardPage() {
         open={seeDetailsOpen}
         onOpenChange={setSeeDetailsOpen}
         initialTab={seeDetailsTab}
-        data={dataProp}
-        payments={rangePayments}
+        data={overview.data}
+        payments={overview.rangePayments}
       />
 
       {/* T-507 (UI-338): the ONE contextual thresholds editor for the page. */}

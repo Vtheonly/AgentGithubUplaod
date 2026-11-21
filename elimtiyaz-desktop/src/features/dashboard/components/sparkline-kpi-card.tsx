@@ -25,14 +25,15 @@ export type SparklineTone = "primary" | "success" | "danger" | "warning";
 /** Resolve the sparkline stroke for a tone from the live design tokens. */
 function toneStroke(tone: SparklineTone): string {
   switch (tone) {
+    // T-589: the fallbacks mirror the LIGHT :root set (the app default).
     case "primary":
-      return resolveToken("--brand-blue", "#349bd4");
+      return resolveToken("--brand-blue", "#2563eb");
     case "success":
-      return resolveToken("--status-success", "#10b981");
+      return resolveToken("--status-success", "#059669");
     case "danger":
-      return resolveToken("--status-danger", "#ef4444");
+      return resolveToken("--status-danger", "#dc2626");
     case "warning":
-      return resolveToken("--status-warning", "#f59e0b");
+      return resolveToken("--status-warning", "#d97706");
   }
 }
 

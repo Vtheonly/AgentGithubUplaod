@@ -17,16 +17,29 @@
  */
 import React from "react";
 import type { DiagramArtifact, DiagramNode } from "../../core/ai/artifacts";
+import { resolveToken } from "../../shared/ui/dashboard-theme";
 
 const NODE_W = 120;
 const NODE_H = 44;
 const ROW_GAP = 56;
 const SIDE_GAP = 26;
+/** T-589: the node colors ride the LIVE design tokens (the hardcoded
+ *  midnight-era hexes died with the light-first flip) — each access
+ *  re-reads the ACTIVE palette, with light-first fallbacks mirroring
+ *  index.css :root. */
 const BOX_FILL: Record<string, string> = {
-  root: "#2f8fd6",
-  branch: "#10b981",
-  leaf: "#0ea5e9",
-  step: "#f59e0b",
+  get root() {
+    return resolveToken("--brand-blue", "#2563eb");
+  },
+  get branch() {
+    return resolveToken("--status-success", "#059669");
+  },
+  get leaf() {
+    return resolveToken("--status-info", "#0284c7");
+  },
+  get step() {
+    return resolveToken("--status-warning", "#d97706");
+  },
 };
 const BOX_TINT: Record<string, number> = { root: 1, branch: 0.22, leaf: 0.2, step: 0.2 };
 

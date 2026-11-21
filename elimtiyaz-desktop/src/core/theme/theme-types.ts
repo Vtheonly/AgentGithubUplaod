@@ -74,11 +74,43 @@ export function hexToHslString(hex: string): string {
   return `${h} ${s}% ${l}%`;
 }
 
-// Built-in presets
+// Built-in presets — T-589 (D-19): Clair Épuré is FIRST and is the app
+// default (DEFAULTS.theme in user-preferences-provider.tsx boots "light");
+// the midnight canvas stays selectable right behind it.
 export const PRESET_THEMES: CustomThemePalette[] = [
   {
+    id: "light",
+    name: "Clair Épuré (Défaut)",
+    isDark: false,
+    isBuiltIn: true,
+    colors: {
+      primary: "#2563eb",
+      primaryForeground: "#ffffff",
+      brandGold: "#d97706",
+      brandCyan: "#0891b2",
+      brandViolet: "#7c3aed",
+      surfaceBackground: "#f8fafc",
+      surfacePanel: "#ffffff",
+      surfaceElevated: "#f1f5f9",
+      surfaceHover: "#e2e8f0",
+      textForeground: "#0f172a",
+      textMuted: "#64748b",
+      // T-546 (UI-352): #cbd5e1 (slate-300) disappeared against the white
+      // panel — Clair Épuré's border token is strengthened to #94a3b8
+      // (slate-400): clearly visible at 1px on white/near-white surfaces
+      // without reading heavy. index.css :root (the light default since
+      // T-589) carries the SAME value (the pre-JS flash fallback) — one
+      // source, two homes, keep aligned.
+      borderColor: "#94a3b8",
+      statusSuccess: "#059669",
+      statusWarning: "#d97706",
+      statusDanger: "#dc2626",
+      statusInfo: "#0284c7",
+    },
+  },
+  {
     id: "dark",
-    name: "Sombre Minuit (Défaut)",
+    name: "Sombre Minuit",
     isDark: true,
     isBuiltIn: true,
     colors: {
@@ -98,35 +130,6 @@ export const PRESET_THEMES: CustomThemePalette[] = [
       statusWarning: "#f59e0b",
       statusDanger: "#ef4444",
       statusInfo: "#0ea5e9",
-    },
-  },
-  {
-    id: "light",
-    name: "Clair Épuré",
-    isDark: false,
-    isBuiltIn: true,
-    colors: {
-      primary: "#2563eb",
-      primaryForeground: "#ffffff",
-      brandGold: "#d97706",
-      brandCyan: "#0891b2",
-      brandViolet: "#7c3aed",
-      surfaceBackground: "#f8fafc",
-      surfacePanel: "#ffffff",
-      surfaceElevated: "#f1f5f9",
-      surfaceHover: "#e2e8f0",
-      textForeground: "#0f172a",
-      textMuted: "#64748b",
-      // T-546 (UI-352): #cbd5e1 (slate-300) disappeared against the white
-      // panel — Clair Épuré's border token is strengthened to #94a3b8
-      // (slate-400): clearly visible at 1px on white/near-white surfaces
-      // without reading heavy. index.css `.light` carries the SAME value
-      // (the pre-JS flash fallback) — one source, two homes, keep aligned.
-      borderColor: "#94a3b8",
-      statusSuccess: "#059669",
-      statusWarning: "#d97706",
-      statusDanger: "#dc2626",
-      statusInfo: "#0284c7",
     },
   },
   {
