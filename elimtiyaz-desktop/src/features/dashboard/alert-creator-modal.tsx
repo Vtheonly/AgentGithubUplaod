@@ -22,6 +22,8 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { AutoFormModal, type AutoFormField } from "../../shared/ui/auto-form";
+// E2.5 / S-U1: the shared person display resolver.
+import { personDisplayName } from "../../domain/model/person";
 import { Role, ROLE_LABELS_FR, STAFF_ROLES } from "../../core/rbac/roles";
 import {
   type AlertPriority,
@@ -68,7 +70,11 @@ export function AlertCreatorModal({
   const userOptions = useMemo(
     () => [
       { label: "— Diffusion (tous les rôles) —", value: "" },
-      ...personnel.map((p) => ({ label: `${p.firstName} ${p.lastName}`, value: p.id })),
+      ...personnel.map((p) => ({
+        // E2.5 / S-U1: the shared person resolver.
+        label: personDisplayName(p, ""),
+        value: p.id,
+      })),
     ],
     [personnel],
   );

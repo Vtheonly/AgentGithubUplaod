@@ -52,6 +52,8 @@ import {
 } from "../../../../domain/model/payment";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import { GRADE_LEVEL_LABELS_FR } from "../../../../domain/model/student";
+// E2.5 / S-U1: the shared person display resolver.
+import { personDisplayName } from "../../../../domain/model/person";
 import { agingBucketFromDays } from "../../../../domain/calc/payment/queries";
 import { normalizeTransportTier } from "../../../../domain/calc/pricing/transport";
 import {
@@ -349,12 +351,13 @@ interface InternalRow {
 
 function displayName(parent: Parent | undefined): string {
   if (!parent) return "Famille non résolue";
-  return parent.displayName?.trim() || `${parent.firstName} ${parent.lastName}`.trim();
+  // E2.5 / S-U1: the shared person resolver (empty-string fallback preserved).
+  return personDisplayName(parent, "");
 }
 
 function studentLabel(student: Student | undefined): string {
   if (!student) return "—";
-  return student.displayName || `${student.firstName} ${student.lastName}`;
+  return personDisplayName(student, "");
 }
 
 function fmt(n: number): string {

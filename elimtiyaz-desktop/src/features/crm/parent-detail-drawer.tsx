@@ -106,6 +106,8 @@ import {
   type Parent,
   type TransportDestination,
 } from "../../domain/model/parent";
+// E2.5 / S-U1: the shared person initials resolver.
+import { personInitials } from "../../domain/model/person";
 import {
   GRADE_LEVEL_LABELS_FR,
   type Student,
@@ -735,8 +737,8 @@ export function ParentDetailDrawer({
         subtitle={(p) => `${p.code} · ${p.phone ?? "Sans téléphone"}`}
         metadata={metadata}
         avatar={(p) => ({
-          initials:
-            `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase(),
+          // E2.5 / S-U1: the shared person initials resolver.
+          initials: personInitials(p),
         })}
         tabs={tabs}
         actions={actions}

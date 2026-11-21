@@ -4,6 +4,9 @@
  *
  * One parent → unlimited children (the legacy 4-child cap is removed).
  */
+// E2.5 / S-U1: the person display helpers are the shared core.
+import { personDisplayName } from "./person";
+
 export type Gender = "male" | "female" | "unspecified";
 
 /**
@@ -206,8 +209,6 @@ export type UpdateParentInput = Partial<CreateParentInput>;
  * read `firstName`/`lastName` directly for display.
  */
 export function parentDisplayName(p: Pick<Parent, "firstName" | "lastName" | "displayName">): string {
-  const dn = (p.displayName ?? "").trim();
-  if (dn) return dn;
-  const composed = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
-  return composed || "—";
+  // E2.5 / S-U1: the shared person resolver (byte-identical outputs).
+  return personDisplayName(p);
 }

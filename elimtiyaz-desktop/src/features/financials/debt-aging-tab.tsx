@@ -43,6 +43,7 @@ import { useObservable } from "../../shared/hooks/use-observable";
 import { formatDzd } from "../../core/format/currency";
 import { formatDate, formatRelative } from "../../core/format/date";
 import { parentDisplayName, type Parent } from "../../domain/model/parent";
+import { studentDisplayName } from "../../domain/model/student";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../domain/model/payment";
 import type { Student } from "../../domain/model/student";
 import {
@@ -236,7 +237,8 @@ export function DebtAgingTab() {
         studentNames: a.affectedStudentIds
           .map((id) => studentById.get(id))
           .filter((s): s is Student => !!s)
-          .map((s) => s.displayName ?? `${s.firstName} ${s.lastName}`.trim()),
+          // E2.5 / S-U1: the shared student resolver.
+          .map((s) => studentDisplayName(s)),
       };
     });
     const years = [...new Set(displayAging.map((a) => a.originAcademicYear).filter((y): y is string => !!y))].sort();

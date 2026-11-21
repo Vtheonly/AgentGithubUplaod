@@ -55,6 +55,13 @@ import {
   YEAR_SERVICE_GROUP_LABELS_FR,
 } from "../../domain/model/labels";
 import { buildWhatsAppUrl } from "../../shared/utils/whatsapp";
+import {
+  personDisplayName,
+  personInitials,
+  personSortName,
+} from "../../domain/model/person";
+import { studentDisplayName } from "../../domain/model/student";
+import { parentDisplayName } from "../../domain/model/parent";
 import { GRADE_LEVELS, type GradeLevel } from "../../domain/model/student";
 
 const SRC_ROOT = path.join(__dirname, "../..");
@@ -325,5 +332,48 @@ describe("E2.5 — the shared primitives' pins", () => {
     const pm = src("features/personnel/management/payroll-management.tsx");
     expect(pm).toContain("schoolLocalDateKey");
     expect(pm).not.toContain("Intl.DateTimeFormat(\"en-US\"");
+  });
+
+  it("S-U1: the ONE person display resolver — displayName-trim → join-trim → fallback", () => {
+    // The canonical chain (the shape parentDisplayName established):
+    expect(personDisplayName({ displayName: "  Amine B.  ", firstName: "A", lastName: "B" })).toBe("Amine B.");
+    expect(personDisplayName({ firstName: "Amine", lastName: "Benali" })).toBe("Amine Benali");
+    expect(personDisplayName({ firstName: "Amine", lastName: "Benali" }, "")).toBe("Amine Benali");
+    expect(personDisplayName({}, "Inconnu")).toBe("Inconnu");
+    expect(personDisplayName({})).toBe("—"); // the canonical default fallback
+    // The canonical resolvers delegate (byte-identical outputs):
+    expect(parentDisplayName({ displayName: "Famille X", firstName: "P", lastName: "Q" })).toBe("Famille X");
+    expect(parentDisplayName({ firstName: "P", lastName: "Q" })).toBe("P Q");
+    expect(parentDisplayName({})).toBe("—");
+    expect(studentDisplayName({ displayName: "", firstName: "S", lastName: "T" })).toBe("S T");
+    expect(studentDisplayName({})).toBe("—");
+    // Initials: the parts-based avatar idiom, missing-part tolerant.
+    expect(personInitials({ firstName: "Amine", lastName: "Benali" })).toBe("AB");
+    expect(personInitials({ firstName: "Amine" })).toBe("A");
+    expect(personInitials({})).toBe("");
+    // The last-first sort key.
+    expect(personSortName({ firstName: "Amine", lastName: "Benali" })).toBe("Benali Amine");
+    // The ad-hoc joins are dead at the converted surfaces (representative
+    // guards — the full conversion is 16 files): the id-fallback map, the
+    // mixed sort comparator, the drawer initials, the aging resolver.
+    const ec = src("features/dashboard/components/analytics/executive-cards.tsx");
+    expect(ec).toContain("personDisplayName(p, p.id)");
+    expect(ec).not.toContain("p.displayName || `${p.firstName} ${p.lastName}`");
+    const md = src("features/financials/manual-debt-modal.tsx");
+    expect(md).toContain("personSortName(a)");
+    expect(md).toContain("studentDisplayName(s)");
+    expect(md).toContain("parentDisplayName(p)");
+    expect(md).not.toContain("`${a.lastName} ${a.firstName}`");
+    const sdd = src("features/crm/student-detail-drawer.tsx");
+    expect(sdd).toContain("personInitials(s)");
+    expect(sdd).not.toContain("s.firstName[0]");
+    const da = src("features/financials/debt-aging-tab.tsx");
+    expect(da).toContain("studentDisplayName(s)");
+    expect(da).not.toContain("s.displayName ?? `${s.firstName} ${s.lastName}`");
+    const cam = src("features/settings/create-account-modal.tsx");
+    expect(cam).toContain("personSortName(a).localeCompare(personSortName(b)");
+    // parent/student models delegate to the shared core.
+    expect(src("domain/model/parent.ts")).toContain("return personDisplayName(p);");
+    expect(src("domain/model/student.ts")).toContain("return personDisplayName(s);");
   });
 });

@@ -26,6 +26,7 @@ import {
 import { formatDzd, formatDzdPlain } from "../../../../core/format/currency";
 import { formatDueDateRange } from "../../../../core/format/date";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../../../domain/model/payment";
+import { personDisplayName } from "../../../../domain/model/person";
 import type { LedgerEntry } from "../../../../domain/model/ledger";
 import type { Parent } from "../../../../domain/model/parent";
 import {
@@ -591,7 +592,8 @@ export function DebtTriageCard({
       new Map(
         parents.map((p) => [
           p.id,
-          p.displayName || `${p.firstName} ${p.lastName}`.trim() || p.id,
+          // E2.5 / S-U1: the shared person resolver (id fallback preserved).
+          personDisplayName(p, p.id),
         ]),
       ),
     [parents],

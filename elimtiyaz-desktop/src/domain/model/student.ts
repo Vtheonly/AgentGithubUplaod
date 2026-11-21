@@ -4,6 +4,8 @@
  */
 import type { Gender, Parent, CreateParentInput } from "./parent";
 import type { PaymentPlan } from "./payment";
+// E2.5 / S-U1: the person display helpers are the shared core.
+import { personDisplayName } from "./person";
 // `AcademicHistoryEntry`, `PromotionDecision`, and `PROMOTION_DECISION_LABELS_FR`
 // are defined canonically in `./academic` (single source of truth per the
 // Phase 4A consolidation directive). They are re-exported below for backward
@@ -445,10 +447,8 @@ export interface UpdateStudentInput extends Partial<CreateStudentInput> {
  * Prefers `displayName` and falls back to `{firstName} {lastName}`.
  */
 export function studentDisplayName(s: Pick<Student, "firstName" | "lastName" | "displayName">): string {
-  const dn = (s.displayName ?? "").trim();
-  if (dn) return dn;
-  const composed = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
-  return composed || "—";
+  // E2.5 / S-U1: the shared person resolver (byte-identical outputs).
+  return personDisplayName(s);
 }
 
 export interface BatchRegistrationInput {

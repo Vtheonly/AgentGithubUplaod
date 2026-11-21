@@ -16,6 +16,7 @@
  */
 
 import type { Student } from "../../../../domain/model/student";
+import { studentDisplayName } from "../../../../domain/model/student";
 import type { Parent } from "../../../../domain/model/parent";
 import type {
   AcademicClass,
@@ -284,7 +285,8 @@ export function evaluateStudentRiskProfiles(params: {
 
     return {
       studentId: s.id,
-      studentName: `${s.firstName} ${s.lastName}`.trim(),
+      // E2.5 / S-U1: the shared student resolver.
+      studentName: studentDisplayName(s),
       studentCode: s.code,
       classId: s.classId,
       className: cls ? cls.name : "Non assignée",
