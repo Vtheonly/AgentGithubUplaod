@@ -74,6 +74,15 @@ function makeFakeClient(opts: FakeOpts): { client: unknown; rpcCalls: Array<{ fn
         if (opts.notifyError) return { data: null, error: opts.notifyError };
         return { data: opts.notifyResult ?? null, error: null };
       }
+      // T-591 (E7A-2 / BUG-060): collectDebtors now rides the
+      // read_debt_summary_collection RPC — this harness models the
+      // direct-installments fallback, so the unmodeled collection RPC
+      // answers the UNAVAILABLE class (PGRST202) and the code falls back
+      // to the from("installments") walk below (a bare success answer
+      // would read as "zero debtors exist").
+      if (fn === "read_debt_summary_collection") {
+        return { data: null, error: { code: "PGRST202", message: "not modeled" } };
+      }
       return { data: null, error: null };
     }),
     from: vi.fn((table: string) => {
@@ -90,10 +99,18 @@ function makeFakeClient(opts: FakeOpts): { client: unknown; rpcCalls: Array<{ fn
         };
       }
       if (table !== "installments") throw new Error(`unexpected table ${table}`);
+      // T-591 (E7A-2): the fallback read is now tenant-scoped + keyset-walked
+      // (select → eq → neq → lt → order → limit).
       return {
         select: () => ({
-          neq: () => ({
-            lt: async () => ({ data: INSTALLMENTS, error: null }),
+          eq: () => ({
+            neq: () => ({
+              lt: () => ({
+                order: () => ({
+                  limit: async () => ({ data: INSTALLMENTS, error: null }),
+                }),
+              }),
+            }),
           }),
         }),
       };

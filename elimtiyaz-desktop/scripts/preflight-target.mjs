@@ -12,8 +12,12 @@
  *   REMOTE lanes (Management-API SQL, the §11.1/T-446 convention):
  *     - the census axes pinned to the charter's audit-of-record table
  *       (Investigation Archive/MIGRATION-CONSOLIDATION-AND-EGRESS-CHARTER.md
- *       Part 2 / SUPABASE-RELOCATION-AND-RELOAD-GUIDE.md §A.2): 1 migration
- *       `0001` / 99 public tables / 14 views / 5 matviews (the exact mv_*
+ *       Part 2 / SUPABASE-RELOCATION-AND-RELOAD-GUIDE.md §A.2 — as moved by
+ *       the Stage-A chain, T-590..T-593 / Session 35: 5 migrations
+ *       `0001`..`0005` (the consolidated baseline + the Stage-A
+ *       aggregation/projection/delta/batch SQL; the census constants track
+ *       the append-only chain — the charter's own design) / 99 public
+ *       tables / 14 views / 5 matviews (the exact mv_*
  *       names) / 11 buckets / 242 public + 22 storage policies / 147
  *       functions / 89 public + 1 auth-mirror triggers / 99 RLS-enabled
  *       tables;
@@ -57,8 +61,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // ────────────────────────────────────────────────────────────────────────────
 
 export const CONSOLIDATED_BASELINE = Object.freeze({
-  migrationCount: 1,
-  migrationVersion: "0001",
+  // T-590..T-593 / Session 35: the Stage-A chain ships 0002..0005 beside the
+  // consolidated baseline — the census tracks the WHOLE applied chain (the
+  // pre-Stage-A record of 1/0001 is superseded; the append-only discipline
+  // itself is what the guard verifies).
+  migrationCount: 5,
+  migrationVersion: "0005",
   publicTables: 99,
   views: 14,
   matviews: 5,
@@ -157,7 +165,7 @@ export function evaluateCensus(observed) {
     axes, failures, "migrations-count",
     B.migrationCount, migrations.count,
     Number(migrations.count) === B.migrationCount,
-    `supabase_migrations rows = ${migrations.count} (expected ${B.migrationCount} — the consolidated baseline; the 152-file chain is frozen history, never registered)`,
+    `supabase_migrations rows = ${migrations.count} (expected ${B.migrationCount} — the consolidated baseline + the Stage-A chain; the 152-file chain is frozen history, never registered)`,
   );
   const version = typeof migrations.version === "string" ? migrations.version : "(none)";
   axis(
@@ -236,7 +244,11 @@ export function rowsToCensus(responses) {
     proconfig: row?.proconfig == null ? null : String(row.proconfig),
   }));
   return {
-    migrations: { count: migrationRows.length, version: migrationRows[0]?.version },
+    // T-590..T-593 / Session 35: the chain grew — the SQL orders by version
+    // ASCENDING, so the HEAD (the latest applied migration) is the LAST row
+    // (rows[0] was the oldest; with the pre-Stage-A single-row chain the two
+    // coincided).
+    migrations: { count: migrationRows.length, version: migrationRows[migrationRows.length - 1]?.version },
     publicTables: count(r.publicTables),
     views: names(r.views, "viewname"),
     matviews: names(r.matviews, "matviewname"),

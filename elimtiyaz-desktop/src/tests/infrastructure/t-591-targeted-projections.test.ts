@@ -342,7 +342,18 @@ describe("T-591 — B. reconcile(): the RPC-first + the keyset fallback + the pa
     const b = await fallbackRepo.reconcile();
     expect(a.ok).toBe(true);
     expect(b.ok).toBe(true);
-    expect(a).toEqual(b);
+    // PARITY over the SUBSTANCE: the report carries `checkedAt` (a wall
+    // clock stamp) — the two reconciliations legitimately stamp their own
+    // instant, so the deep-equal compares everything BUT that field.
+    const substance = (r: typeof a) => {
+      if (!r.ok) return null;
+      const { checkedAt, ...rest } = r.value as unknown as { checkedAt: string } & Record<string, unknown>;
+      void checkedAt;
+      return rest;
+    };
+    expect(substance(a)).toEqual(substance(b));
+    expect(a.ok && a.value.checkedAt).toBeTruthy();
+    expect(b.ok && b.value.checkedAt).toBeTruthy();
     // The report is over the REAL world (violations > 0 — the payments
     // carry receipts the ledger twins only partially).
     const aReport = a.ok ? a.value : null;

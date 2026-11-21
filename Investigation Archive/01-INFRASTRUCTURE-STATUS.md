@@ -616,3 +616,12 @@ IS32 GET issues/32/comments (AgentGithubUplaod, PAT)      -> 200, 0 comments (th
 ```
 
 **Verdict:** OPS-011 is now **27-run-stable** (S2→S34) — the identical 402 signature on the OLD-project lane (the blocker remains the plan/spend-cap layer, an owner billing action exclusively). The NEW project remains alive/uncapped/schema-empty (OPS-017 unchanged) — and its GoTrue service answered healthy (v2.198.0), the exact lane T-574's tooling addresses at the owner's cutover window. **OPS-015/G2 live locks STAND** — this session executed the Track 3 code lane (T-574 — the relocation auth tooling), which is G2-independent: zero live traffic beyond the standing GET-only probe set, zero deploys, zero cap lifts, zero packaged builds (the tool's remote lanes execute only at the owner's cutover window, the t-575 precedent).
+
+## Session 35 probe run (2026-11-21, GET-only, the S33/S34 pattern — probe-s34.sh)
+
+- P3oa OLD project REST (ANON): **402 exceed_egress_quota — UNCHANGED (28-run-stable OPS-011)**
+- P3n NEW project REST (publishable): 404 PGRST205 (the schema-empty honest today-state — no tables applied yet; the 0001..0005 chain awaits the owner's apply window)
+- P5n NEW project /auth/v1/health: **200 (GoTrue v2.198.0)**
+- GH1 GitHub PAT: **200 (login: Vtheonly)** · VC1 Vercel PAT: **200 (user: merselfares2-9361)**
+- W1 https://elimtiyaz-website.vercel.app/: **200** · IS32 Issue #32 comments: **0 (the 28th consecutive silent run)**
+- Verdict: the OPS-011 cap state unchanged; the G2 spend-cap lift is still the owner's billing action; zero live traffic beyond this GET-only set (OPS-015 honored).
