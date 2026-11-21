@@ -12,6 +12,13 @@
  * Dashboard cards all applied the configuration. The fix: the SAME
  * thresholds object flows into every wave derivation.
  *
+ * T-549 (BUG-038): every SURFACE in this suite is pinned at the suite's
+ * fixed clock — the finance adapter (`deriveTrancheWaves` in
+ * installment-schedule-tab) now takes the same explicit `nowEpochMs`
+ * parameter as its Statistics twin (executive-statistics.ts), retiring
+ * the wall-clock read that made this PARITY pin deterministically red
+ * from 2026-10-16 onward.
+ *
  * This suite pins:
  *   1. the DEFAULT grace (5) — a row past due within the window is NOT
  *      overdue (the honest "in_window" middle band: neither overdue nor
@@ -156,7 +163,9 @@ describe("T-502 (STATS-403) — the wave meter's overdue verdict follows the CON
     const thresholds = grace(30); // the live tenant's configured value
     const pooled = derivePooledTrancheWaves(rows, NOW, thresholds);
     const statistics = deriveStatisticsWaves(rows, NOW, thresholds);
-    const finance = deriveFinanceWaves(rows, thresholds);
+    // T-549 (BUG-038): the finance adapter now takes the SAME explicit clock
+    // as its Statistics twin — every surface pinned at the ONE common instant.
+    const finance = deriveFinanceWaves(rows, NOW, thresholds);
 
     const pooledT1 = pooled.find((w) => w.wave === 1)!;
     const statsTuition1 = statistics.find((w) => w.category === "tuition" && w.wave === 1)!;
@@ -177,7 +186,7 @@ describe("T-502 (STATS-403) — the wave meter's overdue verdict follows the CON
     // surface — the configuration is the ONLY thing that moved.
     const pooledDefault = derivePooledTrancheWaves(rows, NOW);
     const statsDefault = deriveStatisticsWaves(rows, NOW);
-    const financeDefault = deriveFinanceWaves(rows);
+    const financeDefault = deriveFinanceWaves(rows, NOW);
     expect(pooledDefault.find((w) => w.wave === 1)!.anyUnsettledOverdue).toBe(true);
     expect(statsDefault.find((w) => w.category === "tuition" && w.wave === 1)!.phase).toBe("overdue");
     expect(financeDefault.find((w) => w.index === 1)!.isOverdue).toBe(true);
