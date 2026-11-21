@@ -6665,7 +6665,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** ARCH-019 (17 static + 2 dynamic importers of `supabase-client` outside the supabase tree; the S6-corrected 17-file census) · F-U3 (the diagnostics lane included).
 
-**Status:** IN_PROGRESS (Session 30, 2026-11-21 — queued after T-573).
+**Status:** READY (registered Session 30, 2026-11-21 — NOT STARTED, zero work done; the NEXT SESSION'S FIRST TASK per the queue).
 
 **Contract (per EXECUTION-PLAN §3 Step 7):** per-file, behavior-preserving routing of the static imports through the repository/port surface — the 9 features (`crm/excel-import-modal.tsx`, `crm/parent-detail-drawer.tsx`, `settings/backup-tab.tsx`, `settings/configuration-tab.tsx`, `settings/contextual-thresholds-config.tsx`, `settings/danger-zone-card.tsx`, `settings/supabase-diagnostics/{crud-test-tab.tsx, diagnostics-runner.ts, supabase-diagnostics-tab.tsx}`) + `shared/layout/tenant-switcher.tsx` + `infrastructure/system-config.ts` + `infrastructure/storage/media-vault.ts` + `infrastructure/ai/llm-adapter.ts` + the 4 sync-family files (`app/providers/sync-provider.tsx`, `infrastructure/sync/online-detector.ts`, `infrastructure/sync/conflict-detector.ts` **dynamic**, `infrastructure/sync/default-push-handler.ts` **dynamic**). The tenant-switcher relocation folds into its routing (E4.4 coordination).
 
