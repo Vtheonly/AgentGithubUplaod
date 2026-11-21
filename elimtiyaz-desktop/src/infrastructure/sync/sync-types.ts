@@ -154,6 +154,16 @@ export interface SyncStatusSnapshot {
 /** Handler that pushes one queue entry to Supabase. */
 export type SyncPushHandler = (entry: SyncQueueEntry) => Promise<void>;
 
+/**
+ * T-593 (E7A-4 / OPS-015 class 4): the BATCH push handler — one bounded
+ * chunk (SYNC_APPLY_BATCH_SIZE) per `sync_apply_batch` round trip; the
+ * RPC's single transaction applies every mutation + upserts the queue
+ * rows + bulk-marks them synced. The per-item `push` handler stays the
+ * soak-period FALLBACK: the drain re-pushes per-entry on a batch failure
+ * (or when this seam is not wired — the version-skew / pre-0005 DBs).
+ */
+export type SyncBatchPushHandler = (entries: SyncQueueEntry[]) => Promise<void>;
+
 /** Options for constructing a SyncService. */
 export interface SyncServiceOptions {
   /** Tenant ID — stamped onto every queued entry. */
@@ -166,6 +176,15 @@ export interface SyncServiceOptions {
   isMockMode: () => boolean;
   /** Pushes one entry to Supabase. Throws on failure. */
   push: SyncPushHandler;
+  /**
+   * T-593 (E7A-4): pushes a BOUNDED batch of entries through the
+   * transactional `sync_apply_batch` RPC — one round trip per chunk
+   * (the ~3-4-requests-per-queued-item pattern collapses). Throws on
+   * failure (the atomic chunk rolled back server-side); the drain's
+   * soak-period fallback re-pushes the chunk per-entry through `push`.
+   * Optional: an absent seam keeps the per-item pipeline unchanged.
+   */
+  pushBatch?: SyncBatchPushHandler;
   /**
    * T-298 (OFFLINE-400): 3-way conflict guard, called by the drain for every
    * `update` entry that carries a `basePayload`, BEFORE the push. Returns a

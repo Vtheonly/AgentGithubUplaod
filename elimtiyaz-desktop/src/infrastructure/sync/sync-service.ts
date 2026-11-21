@@ -93,10 +93,12 @@ export interface SyncServiceConstructorOptions extends SyncServiceOptions {
 export class SyncService {
   /**
    * The core options get Required<> defaults; the T-298 conflict hooks
-   * stay OPTIONAL (undefined = no detection — mock mode / tests).
+   * stay OPTIONAL (undefined = no detection — mock mode / tests); the
+   * T-593 batch seam stays OPTIONAL (undefined = the per-item pipeline —
+   * version-skew / pre-0005 DBs).
    */
-  private readonly opts: Required<Omit<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved">> &
-    Pick<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved">;
+  private readonly opts: Required<Omit<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved" | "pushBatch">> &
+    Pick<SyncServiceOptions, "conflictGuard" | "onConflictDetected" | "onConflictResolved" | "pushBatch">;
   private readonly store = getSyncQueueStore();
   private readonly detector: OnlineDetector;
   private snapshot: SyncStatusSnapshot;
@@ -528,6 +530,12 @@ export class SyncService {
       const pending = await this.store.listByStatus("pending");
       const currentActor = this.opts.actorId();
       const currentTenant = this.opts.tenantId();
+      // T-593 (E7A-4): the entries that pass EVERY per-entry gate (the
+      // tenant re-scope / the foreign-tenant + actor + mock skips / the
+      // backoff window / the conflict guard with its merged payload) are
+      // collected here — the push stage below sends them through the
+      // transactional batch seam when wired, or per-entry otherwise.
+      const ready: Array<{ entry: SyncQueueEntry; merged: Record<string, unknown> | null }> = [];
       for (const entry of pending) {
         // T-171 (SYNC-200) — LEGACY TENANT RE-SCOPE: entries enqueued while
         // the app ran in MOCK mode carry the placeholder tenantId "default"
@@ -652,35 +660,52 @@ export class SyncService {
           }
         }
 
+        // T-593 (E7A-4): the gates passed — the entry joins the READY set.
+        // The push stage after the loop sends the ready set through the
+        // transactional batch seam when wired (ONE round trip per bounded
+        // chunk), with the per-item handler as the soak-period fallback.
+        ready.push({ entry: entryToPush, merged: mergedPayloadOverride });
+      }
+
+      // ── T-593 (E7A-4): THE PUSH STAGE ─────────────────────────────
+      // The ~3-4-requests-per-queued-item pattern collapses: the ready set
+      // rides ONE `sync_apply_batch` transaction per bounded chunk (the
+      // RPC applies every mutation through the canonical upsert RPCs,
+      // upserts the queue rows, and bulk-marks them synced — atomically;
+      // a mid-batch failure rolls back the applies AND the queue rows).
+      // On ANY batch failure the soak-period fallback re-pushes the ready
+      // set PER-ENTRY through `push` (the unchanged attempts/backoff
+      // bookkeeping); an absent seam keeps the original per-item pipeline.
+      if (this.opts.pushBatch && ready.length > 0) {
         try {
-          // T-415 (SYNC-108): push the MERGED payload when the guard supplied
-          // one (the stored queue entry keeps the operator's local edit —
-          // every attempt re-merges against the CURRENT remote row).
-          await this.opts.push(
-            mergedPayloadOverride
-              ? { ...entryToPush, payload: mergedPayloadOverride }
-              : entryToPush,
+          await this.opts.pushBatch(
+            ready.map((r) => (r.merged ? { ...r.entry, payload: r.merged } : r.entry)),
           );
-          const patched: SyncQueueEntry = {
-            ...entryToPush,
-            status: "synced",
-            lastAttemptAt: new Date().toISOString(),
-            lastError: null,
-          };
-          await this.store.update(patched);
-          pushed++;
-        } catch (err) {
-          const attempts = entryToPush.attempts + 1;
-          const failed_permanently = attempts >= this.opts.maxAttempts;
-          const patched: SyncQueueEntry = {
-            ...entryToPush,
-            status: failed_permanently ? "failed" : "pending",
-            attempts,
-            lastAttemptAt: new Date().toISOString(),
-            lastError: err instanceof Error ? err.message : String(err),
-          };
-          await this.store.update(patched);
-          if (failed_permanently) failed++;
+          for (const r of ready) {
+            const patched: SyncQueueEntry = {
+              ...r.entry,
+              status: "synced",
+              lastAttemptAt: new Date().toISOString(),
+              lastError: null,
+            };
+            await this.store.update(patched);
+            pushed++;
+          }
+        } catch {
+          // The soak-period fallback: the atomic chunk rolled back
+          // server-side (its own transaction guarantees zero residue) —
+          // the per-entry path re-applies with the standard bookkeeping.
+          for (const r of ready) {
+            const outcome = await this.pushAndRecord(r.entry, r.merged);
+            if (outcome === "pushed") pushed++;
+            else if (outcome === "failed_permanent") failed++;
+          }
+        }
+      } else {
+        for (const r of ready) {
+          const outcome = await this.pushAndRecord(r.entry, r.merged);
+          if (outcome === "pushed") pushed++;
+          else if (outcome === "failed_permanent") failed++;
         }
       }
       // T-171 (SYNC-200): a completed ONLINE drain is a successful sync even
@@ -700,6 +725,48 @@ export class SyncService {
       await this.refreshSnapshot();
     }
     return { pushed, failed, skippedMock };
+  }
+
+  /**
+   * T-593 (E7A-4): the per-entry push + bookkeeping — the ORIGINAL drain
+   * body, extracted so the batch path's soak-period fallback and the
+   * per-item pipeline share ONE implementation (the attempts/backoff/
+   * maxAttempts semantics are byte-identical to the pre-batch drain).
+   * T-415 (SYNC-108): the MERGED payload is pushed when the guard supplied
+   * one (the stored queue entry keeps the operator's local edit — every
+   * attempt re-merges against the CURRENT remote row).
+   */
+  private async pushAndRecord(
+    entry: SyncQueueEntry,
+    mergedPayloadOverride: Record<string, unknown> | null,
+  ): Promise<"pushed" | "pending" | "failed_permanent"> {
+    try {
+      await this.opts.push(
+        mergedPayloadOverride
+          ? { ...entry, payload: mergedPayloadOverride }
+          : entry,
+      );
+      const patched: SyncQueueEntry = {
+        ...entry,
+        status: "synced",
+        lastAttemptAt: new Date().toISOString(),
+        lastError: null,
+      };
+      await this.store.update(patched);
+      return "pushed";
+    } catch (err) {
+      const attempts = entry.attempts + 1;
+      const failed_permanently = attempts >= this.opts.maxAttempts;
+      const patched: SyncQueueEntry = {
+        ...entry,
+        status: failed_permanently ? "failed" : "pending",
+        attempts,
+        lastAttemptAt: new Date().toISOString(),
+        lastError: err instanceof Error ? err.message : String(err),
+      };
+      await this.store.update(patched);
+      return failed_permanently ? "failed_permanent" : "pending";
+    }
   }
 }
 
