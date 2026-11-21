@@ -21,6 +21,7 @@ import type {
   AlertPriority,
 } from "../../../domain/model/operations";
 import { store, appendAudit, nowIso, delay } from "./mock-store";
+import { isInstallmentSettled } from "../../../domain/calc/payment/queries";
 import { mockInstallmentRepository } from "./financial-repository";
 import { parentDisplayName } from "../../../domain/model/parent";
 
@@ -201,7 +202,10 @@ export class MockOverdueAlertGenerator implements OverdueAlertGenerator {
     );
     const soonMs = nowMs + 7 * 86_400_000;
     const upcoming = store.installments.filter((ins) => {
-      if (ins.status === "paid") return false;
+      // E2.2 (INV-4): the settled verdict is the canonical predicate — a
+      // drifted row (status "unpaid" but fully covered by paid + pending
+      // coverage) is settled by the AMOUNTS and must not raise an alert.
+      if (isInstallmentSettled(ins)) return false;
       const dueMs = new Date(ins.dueDate).getTime();
       if (dueMs <= nowMs || dueMs > soonMs) return false;
       const remaining = Math.max(0, ins.amountDue - ins.amountPaid - (ins.amountPending ?? 0));

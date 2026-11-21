@@ -1,0 +1,181 @@
+{
+  "task": "T-595",
+  "mode": "mock-seam (recording fake client — ZERO network I/O; OPS-015/G2 live locks stand)",
+  "world": {
+    "payments": 12,
+    "installments": 14,
+    "ledger_entries": 8,
+    "parents": 6,
+    "students": 10,
+    "note": "a small deterministic world; the measurement is the SEAM CENSUS + bytes, which is world-size independent for the volley/batch gates (call counts) and world-proportional for cold bytes"
+  },
+  "scenarios": {
+    "dashboard-load": {
+      "calls": 6,
+      "rpcCalls": 4,
+      "selectCalls": 2,
+      "requestBytes": 217,
+      "resultBytes": 14391,
+      "resultRows": 33,
+      "perCall": [
+        {
+          "kind": "rpc",
+          "target": "read_dashboard_kpis",
+          "requestBytes": 96,
+          "resultBytes": 202,
+          "rows": 1,
+          "filters": []
+        },
+        {
+          "kind": "rpc",
+          "target": "read_dashboard_revenue_by_month",
+          "requestBytes": 43,
+          "resultBytes": 78,
+          "rows": 2,
+          "filters": []
+        },
+        {
+          "kind": "rpc",
+          "target": "read_dashboard_debt_aging",
+          "requestBytes": 54,
+          "resultBytes": 149,
+          "rows": 3,
+          "filters": []
+        },
+        {
+          "kind": "rpc",
+          "target": "read_dashboard_demographics",
+          "requestBytes": 24,
+          "resultBytes": 286,
+          "rows": 1,
+          "filters": []
+        },
+        {
+          "kind": "select",
+          "target": "payments",
+          "requestBytes": 0,
+          "resultBytes": 7921,
+          "rows": 12,
+          "filters": [
+            {
+              "col": "tenant_id",
+              "value": "00000000-0000-0000-0000-000000000001"
+            },
+            {
+              "col": "collected_at",
+              "op": "gte",
+              "value": "2025-09-01T00:00:00Z"
+            },
+            {
+              "col": "collected_at",
+              "op": "lt",
+              "value": "2026-09-01T00:00:00Z"
+            },
+            {
+              "col": "__order_id",
+              "value": true
+            },
+            {
+              "col": "__limit",
+              "value": 1000
+            }
+          ]
+        },
+        {
+          "kind": "select",
+          "target": "installments",
+          "requestBytes": 0,
+          "resultBytes": 5755,
+          "rows": 14,
+          "filters": [
+            {
+              "col": "tenant_id",
+              "value": "00000000-0000-0000-0000-000000000001"
+            },
+            {
+              "col": "due_date",
+              "op": "gte",
+              "value": "2025-09-01"
+            },
+            {
+              "col": "due_date",
+              "op": "lt",
+              "value": "2026-09-01"
+            },
+            {
+              "col": "__order_id",
+              "value": true
+            },
+            {
+              "col": "__limit",
+              "value": 1000
+            }
+          ]
+        }
+      ],
+      "before": "the ARCH-040 triple data path: the payments+installments full-collection subscriptions + the prev-year duplicate + the third observable path — full collections (~12k live rows) per load, ×2 per filter change"
+    },
+    "dashboard-load-x2": {
+      "calls": 12,
+      "rpcCalls": 8,
+      "selectCalls": 4,
+      "requestBytes": 434,
+      "resultBytes": 28782,
+      "resultRows": 66
+    },
+    "boot-cold-walk": {
+      "calls": 5,
+      "rpcCalls": 5,
+      "selectCalls": 0,
+      "requestBytes": 564,
+      "resultBytes": 6105,
+      "resultRows": 50,
+      "before": "the cold volley: 9 cached repositories re-downloading full collections ≈13,000+ rows per cycle (installments 5,963 · ledger 3,342 · payments 2,198 · students 1,137 · parents 741 — the live census)"
+    },
+    "warm-ticks-x3": {
+      "calls": 20,
+      "rpcCalls": 20,
+      "selectCalls": 0,
+      "requestBytes": 2439,
+      "resultBytes": 6135,
+      "resultRows": 50,
+      "perTick": {
+        "calls": 5,
+        "resultBytes": 2,
+        "rows": 0
+      },
+      "before": "each tick re-downloaded the full collections ≈13,000+ rows (multi-MB) — the OPS-015 class-1 volley"
+    },
+    "failing-pull-ticks-x3": {
+      "calls": 3,
+      "note": "ONE attempt per tick per table — the ceiling is linear in ticks; the archived BEFORE is BUG-042's live burn: 7,148 requests"
+    },
+    "sync-batch-1000": {
+      "calls": 20,
+      "rpcCalls": 20,
+      "selectCalls": 0,
+      "requestBytes": 292340,
+      "resultBytes": 280,
+      "resultRows": 20,
+      "mutationsPerCall": 50,
+      "before": "3-4 requests per queued entry (the T-171 live-burn record: 1,170 badge) — 1,000 entries ≈ 3,000-4,000 round trips"
+    },
+    "sync-drain-120": {
+      "calls": 3,
+      "rpcCalls": 3,
+      "selectCalls": 0,
+      "requestBytes": 29701,
+      "resultBytes": 42,
+      "resultRows": 3
+    }
+  },
+  "generatedAt": "2026-11-21T16:10:35.792Z",
+  "commit": "e1ba23bd",
+  "liveWindow": "PENDING — the owner's one-time G2 window (OPS-015); this artifact is the mock-seam measurement",
+  "gates": {
+    "class-1-volley": "GREEN — warm ticks = 5 empty pull RPCs, zero from() re-seeds",
+    "class-2-dashboard": "GREEN — 4 aggregation RPCs + 2 bounded windowed reads per load, zero full-collection downloads",
+    "class-3-loop": "GREEN — linear ceiling (1 attempt/tick/table) + the T-559/T-560 source pins",
+    "class-4-sync-batch": "GREEN — 1,000 entries = 20 sync_apply_batch calls, zero per-item pushes"
+  }
+}

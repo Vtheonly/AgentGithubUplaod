@@ -1,0 +1,147 @@
+{
+  "task": "E2.3",
+  "era": "2026-2027",
+  "provenance": {
+    "workbook": "Excel/Suivis clients  2026_2027.xlsx",
+    "sha256": "9decf3f7e7461b45bdc195dc74c180be8b1a3e897b2497dcb4add921bfc905c7",
+    "sizeBytes": 213689,
+    "extraction": "the REAL price matrix (school-price-matrix.ts) — cut from the workbook's RAW FORMULAS (the ETAT L/S columns + the Devis sheet) and verified by the 390-row corpus replay (real-school-corpus.test.ts); this fixture is the E2.4-consumable per-era artifact"
+  },
+  "fiByGrade": {
+    "prescolaire_1": 18000,
+    "prescolaire_2": 18000,
+    "1ap": 25000,
+    "2ap": 25000,
+    "3ap": 25000,
+    "4ap": 25000,
+    "5ap": 30000,
+    "1am": 25000,
+    "2am": 25000,
+    "3am": 25000,
+    "4am": 30000,
+    "1ere_annee": 25000,
+    "2eme_annee": 25000,
+    "3eme_annee": 30000
+  },
+  "fiAutiste": 23000,
+  "tuitionByGrade": {
+    "prescolaire_2": {
+      "scolarite": 165000,
+      "v2": 66000,
+      "tranche3": 49500,
+      "tranche4": 49500
+    },
+    "prescolaire_1": {
+      "scolarite": 135000,
+      "v2": 54000,
+      "tranche3": 40500,
+      "tranche4": 40500
+    },
+    "1ap": {
+      "scolarite": 220000,
+      "v2": 89000,
+      "tranche3": 65500,
+      "tranche4": 65500
+    },
+    "2ap": {
+      "scolarite": 240000,
+      "v2": 97000,
+      "tranche3": 71500,
+      "tranche4": 71500
+    },
+    "3ap": {
+      "scolarite": 255000,
+      "v2": 103000,
+      "tranche3": 76000,
+      "tranche4": 76000
+    },
+    "4ap": {
+      "scolarite": 265000,
+      "v2": 107000,
+      "tranche3": 79000,
+      "tranche4": 79000
+    },
+    "5ap": {
+      "scolarite": 270000,
+      "v2": 110000,
+      "tranche3": 80000,
+      "tranche4": 80000
+    },
+    "1am": {
+      "scolarite": 305000,
+      "v2": 122000,
+      "tranche3": 91500,
+      "tranche4": 91500
+    },
+    "2am": {
+      "scolarite": 320000,
+      "v2": 128000,
+      "tranche3": 96000,
+      "tranche4": 96000
+    },
+    "3am": {
+      "scolarite": 330000,
+      "v2": 132000,
+      "tranche3": 99000,
+      "tranche4": 99000
+    },
+    "4am": {
+      "scolarite": 340000,
+      "v2": 136000,
+      "tranche3": 102000,
+      "tranche4": 102000
+    },
+    "1ere_annee": {
+      "scolarite": 350000,
+      "v2": 140000,
+      "tranche3": 105000,
+      "tranche4": 105000
+    },
+    "2eme_annee": {
+      "scolarite": 355000,
+      "v2": 142000,
+      "tranche3": 106500,
+      "tranche4": 106500
+    },
+    "3eme_annee": {
+      "scolarite": 365000,
+      "v2": 146000,
+      "tranche3": 109500,
+      "tranche4": 109500
+    }
+  },
+  "policies": {
+    "remiseAppliesTo": "v2-only",
+    "earlyPaymentDiscount": {
+      "rate": 0.05,
+      "basis": "the FRAIS DE SCOLARISATION column ONLY (never the FI, never transport) — the Devis sheet's =+SUM(F15:F26)*0.05"
+    },
+    "trancheSplit": "V2 ≈ 40% of the scolarité (the remise lands here); 2V = v3 ≈ 30% each, fixed, never discounted"
+  },
+  "representativeDevis": [
+    {
+      "grade": "prescolaire_2",
+      "description": "GS — no remise",
+      "fi": 18000,
+      "scolarite": 165000,
+      "remise": 0,
+      "devisAnnuel": 183000
+    },
+    {
+      "grade": "1ap",
+      "description": "CP — no remise",
+      "fi": 25000,
+      "scolarite": 220000,
+      "remise": 0,
+      "devisAnnuel": 245000
+    },
+    {
+      "grade": "1am",
+      "description": "1AAM — a 5 000 DZD remise (lands on V2 only)",
+      "fi": 25000,
+      "scolarite": 305000,
+      "remise": 5000,
+      "devisAnnuel": 325000
+    }
+  ]
+}

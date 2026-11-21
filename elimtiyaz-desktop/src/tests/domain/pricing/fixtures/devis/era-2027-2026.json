@@ -1,0 +1,293 @@
+{
+  "task": "E2.3",
+  "era": "2027-2026",
+  "provenance": {
+    "workbook": "Excel/2027-2026.xlsx",
+    "sha256": "b293b22bef41aa3df833d015c09d89021b28b519f324e0a63921553084f479ca",
+    "sizeBytes": 558443,
+    "extraction": "the per-class pricing census derived LIVE from workbook B's own ETAT sheet (header-addressed: CLASSE/niveau/DEVIS ANNUEL/V1/2V/v3) — the modes of the devis + the three tranche-paid columns per class code; the E2.4-consumable per-era artifact for the UPDATED 2027-2026 pricing"
+  },
+  "extraction": {
+    "sheet": "ETAT 20262027 (the shared ETAT sheet name — matched by prefix)",
+    "columns": {
+      "classe": "CLASSE",
+      "niveau": "niveau",
+      "devisAnnuel": "DEVIS ANNUEL",
+      "v1": "V1 (the relabeled V2)",
+      "v2": "2V",
+      "v3": "v3"
+    },
+    "perClass": [
+      {
+        "classCode": "1AAM",
+        "niveau": "COLG",
+        "rowCount": 111,
+        "devisAnnuelMode": 315000,
+        "v1Mode": 132000,
+        "v2Mode": 99000,
+        "v3Mode": 99000
+      },
+      {
+        "classCode": "1AP",
+        "niveau": "PRIM",
+        "rowCount": 8,
+        "devisAnnuelMode": 225000,
+        "v1Mode": 93000,
+        "v2Mode": 73500,
+        "v3Mode": 111000
+      },
+      {
+        "classCode": "1ER",
+        "niveau": "LYC",
+        "rowCount": 54,
+        "devisAnnuelMode": 375000,
+        "v1Mode": 150000,
+        "v2Mode": 112500,
+        "v3Mode": 112500
+      },
+      {
+        "classCode": "2AAM",
+        "niveau": "COLG",
+        "rowCount": 102,
+        "devisAnnuelMode": 340000,
+        "v1Mode": 133000,
+        "v2Mode": 103500,
+        "v3Mode": 103500
+      },
+      {
+        "classCode": "2AP",
+        "niveau": "PRIM",
+        "rowCount": 2,
+        "devisAnnuelMode": 332000,
+        "v1Mode": 101000,
+        "v2Mode": 79500,
+        "v3Mode": 79500
+      },
+      {
+        "classCode": "2EM",
+        "niveau": "LYC",
+        "rowCount": 59,
+        "devisAnnuelMode": 380000,
+        "v1Mode": 152000,
+        "v2Mode": 15000,
+        "v3Mode": 114000
+      },
+      {
+        "classCode": "2ER",
+        "niveau": "LYC",
+        "rowCount": 1,
+        "devisAnnuelMode": 375000,
+        "v1Mode": 147000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "3AAM",
+        "niveau": "COLG",
+        "rowCount": 101,
+        "devisAnnuelMode": 355000,
+        "v1Mode": 142000,
+        "v2Mode": 106500,
+        "v3Mode": 106500
+      },
+      {
+        "classCode": "3AP",
+        "niveau": "PRIM",
+        "rowCount": 6,
+        "devisAnnuelMode": 320000,
+        "v1Mode": 112000,
+        "v2Mode": 84000,
+        "v3Mode": 84000
+      },
+      {
+        "classCode": "3EM",
+        "niveau": "LYC",
+        "rowCount": 49,
+        "devisAnnuelMode": 395000,
+        "v1Mode": 158000,
+        "v2Mode": 118500,
+        "v3Mode": 118500
+      },
+      {
+        "classCode": "4AAM",
+        "niveau": "COLG",
+        "rowCount": 57,
+        "devisAnnuelMode": 365000,
+        "v1Mode": 143000,
+        "v2Mode": 111000,
+        "v3Mode": 111000
+      },
+      {
+        "classCode": "4AP",
+        "niveau": "PRIM",
+        "rowCount": 16,
+        "devisAnnuelMode": 340000,
+        "v1Mode": 25000,
+        "v2Mode": 85500,
+        "v3Mode": 85500
+      },
+      {
+        "classCode": "5AP",
+        "niveau": "PRIM",
+        "rowCount": 12,
+        "devisAnnuelMode": 318000,
+        "v1Mode": 100000,
+        "v2Mode": 90000,
+        "v3Mode": 90000
+      },
+      {
+        "classCode": "AUTIST",
+        "niveau": "AUTISTE",
+        "rowCount": 1,
+        "devisAnnuelMode": 300500,
+        "v1Mode": 130500,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "AUTISTE",
+        "niveau": "AUTISTE",
+        "rowCount": 1,
+        "devisAnnuelMode": 283000,
+        "v1Mode": 113000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "AUTISTS",
+        "niveau": "AUTISTS",
+        "rowCount": 1,
+        "devisAnnuelMode": 293000,
+        "v1Mode": 133000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "CE1",
+        "niveau": "PRIM",
+        "rowCount": 101,
+        "devisAnnuelMode": 265000,
+        "v1Mode": 101000,
+        "v2Mode": 79500,
+        "v3Mode": 79500
+      },
+      {
+        "classCode": "CE2",
+        "niveau": "PRIM",
+        "rowCount": 92,
+        "devisAnnuelMode": 275000,
+        "v1Mode": 107000,
+        "v2Mode": 84000,
+        "v3Mode": 84000
+      },
+      {
+        "classCode": "CM1",
+        "niveau": "PRIM",
+        "rowCount": 68,
+        "devisAnnuelMode": 280000,
+        "v1Mode": 109000,
+        "v2Mode": 88500,
+        "v3Mode": 87500
+      },
+      {
+        "classCode": "CM2",
+        "niveau": "PRIM",
+        "rowCount": 91,
+        "devisAnnuelMode": 295000,
+        "v1Mode": 115000,
+        "v2Mode": 90000,
+        "v3Mode": 90000
+      },
+      {
+        "classCode": "CP",
+        "niveau": "PRIM",
+        "rowCount": 109,
+        "devisAnnuelMode": 245000,
+        "v1Mode": 98000,
+        "v2Mode": 73500,
+        "v3Mode": 73500
+      },
+      {
+        "classCode": "Gs",
+        "niveau": "GS",
+        "rowCount": 1,
+        "devisAnnuelMode": 223000,
+        "v1Mode": 72000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "GS",
+        "niveau": "GS",
+        "rowCount": 49,
+        "devisAnnuelMode": 175000,
+        "v1Mode": 67000,
+        "v2Mode": 54000,
+        "v3Mode": 54000
+      },
+      {
+        "classCode": "MS",
+        "niveau": "MS",
+        "rowCount": 20,
+        "devisAnnuelMode": 125000,
+        "v1Mode": 52000,
+        "v2Mode": 39000,
+        "v3Mode": 39000
+      },
+      {
+        "classCode": "NV1",
+        "niveau": "NV1",
+        "rowCount": 1,
+        "devisAnnuelMode": 248000,
+        "v1Mode": 98000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "NV2",
+        "niveau": "NV2",
+        "rowCount": 4,
+        "devisAnnuelMode": 268000,
+        "v1Mode": 100000,
+        "v2Mode": 6000,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "NV3",
+        "niveau": "NV3",
+        "rowCount": 7,
+        "devisAnnuelMode": 283000,
+        "v1Mode": 126000,
+        "v2Mode": 0,
+        "v3Mode": 0
+      },
+      {
+        "classCode": "NV4",
+        "niveau": "NV4",
+        "rowCount": 6,
+        "devisAnnuelMode": 340000,
+        "v1Mode": 133000,
+        "v2Mode": 100000,
+        "v3Mode": 67500
+      },
+      {
+        "classCode": "NV5",
+        "niveau": "PRIM",
+        "rowCount": 4,
+        "devisAnnuelMode": 387000,
+        "v1Mode": 140000,
+        "v2Mode": 88000,
+        "v3Mode": 67500
+      },
+      {
+        "classCode": "PRIM",
+        "niveau": "PRIM",
+        "rowCount": 1,
+        "devisAnnuelMode": 181500,
+        "v1Mode": 24500,
+        "v2Mode": 26500,
+        "v3Mode": 0
+      }
+    ]
+  }
+}

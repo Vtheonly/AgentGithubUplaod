@@ -5,6 +5,7 @@
  */
 import type { Installment } from "../../model/payment";
 import { clampNonNegative } from "../shared/money";
+import { isInstallmentOverdue, isInstallmentSettled } from "./queries";
 
 export interface InstallmentAllocation {
   readonly installmentId: string;
@@ -35,6 +36,14 @@ export function allocatePaymentToInstallments(
   paymentAmount: number,
   categoryFilter?: Installment["category"] | null,
   paymentStatus: "paid" | "pending" = "paid",
+  /**
+   * E2.2 (INV-4): the evaluation clock for the dynamically-derived overdue
+   * verdict on the no-progress fallback branch below (overdue-ness is a
+   * property of (due date, now, remaining) — never the stored status
+   * string; live census: ZERO rows carry "overdue"). Optional — every
+   * existing caller keeps its behavior with the wall clock.
+   */
+  now: Date = new Date(),
 ): AllocationResult {
   if (paymentAmount <= 0) {
     return { allocations: [], unallocatedAmount: 0, totalAllocated: 0, paymentAmount };
@@ -45,7 +54,11 @@ export function allocatePaymentToInstallments(
   // categories), identical to the SQL waterfall's
   // `AND (p_category IS NULL OR category = p_category)`.
   const eligible = installments
-    .filter((i) => i.status !== "paid")
+    // E2.2 (INV-4): the canonical settled predicate — population-identical
+    // in effect to the old paid-string filter (a drifted fully-covered row
+    // was already excluded downstream by the insRemaining <= 0 gate; one
+    // vocabulary, no string verdicts).
+    .filter((i) => !isInstallmentSettled(i))
     .filter((i) => (categoryFilter ? i.category === categoryFilter : true))
     .slice()
     .sort(chronologically);
@@ -82,7 +95,13 @@ export function allocatePaymentToInstallments(
         ? "paid"
         : newAmountPaid > 0
           ? "partial"
-          : ins.status === "overdue"
+          : // E2.2 (INV-4): derived, never read from the status string —
+            // the stored "overdue" snapshot is unmaintained on live data
+            // (zero rows); the post-allocation state decides.
+            isInstallmentOverdue(
+              { ...ins, amountPaid: newAmountPaid, amountPending: newAmountPending },
+              now,
+            )
             ? "overdue"
             : "pending";
     } else {
@@ -111,7 +130,9 @@ export function isOverpayment(
   categoryFilter?: Installment["category"] | null,
 ): boolean {
   const totalRemaining = installments
-    .filter((i) => i.status !== "paid")
+    // E2.2 (INV-4): the canonical settled predicate — same population as
+    // the allocator's eligibility lane (one vocabulary).
+    .filter((i) => !isInstallmentSettled(i))
     .filter((i) => (categoryFilter ? i.category === categoryFilter : true))
     // INV-4 (BUSINESS-107): capacity includes pending, matching the
     // allocator's cleared branch.

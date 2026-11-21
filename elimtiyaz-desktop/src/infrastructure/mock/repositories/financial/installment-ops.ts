@@ -25,6 +25,7 @@ import {
   type InstallmentAllocation,
 } from "../../../../domain/calc/payment/waterfall-allocator";
 import { getOfficialTuitionDueDates } from "../../../../domain/calc/pricing";
+import { isInstallmentSettled, isInstallmentOverdue } from "../../../../domain/calc/payment/queries";
 import type { FinancialOpsCtx } from "./types";
 
 /** Iteration 9 — mark an installment as fully paid. */
@@ -131,7 +132,12 @@ export async function regenerateInstallmentsForCycle(
   for (let i = 0; i < store.installments.length; i++) {
     const ins = store.installments[i];
     if (ins.parentId !== parentId) continue;
-    if (ins.status === "paid") continue;
+    // E2.2 (INV-4): the settled verdict is the canonical predicate —
+    // population-identical to the old `status === "paid"` skip plus the
+    // amounts' lane: a drifted row (status "unpaid" but fully covered by
+    // paid + pending coverage) is settled by the AMOUNTS and is skipped
+    // too (the string check missed it). One vocabulary.
+    if (isInstallmentSettled(ins)) continue;
     // Tranche 1/2/3 → officialDates[0]/[1]/[2]
     const trancheNum = ins.label.startsWith("Tranche ") ? parseInt(ins.label.slice(8), 10) : 1;
     const idx = Math.min(Math.max(trancheNum - 1, 0), 2);
@@ -166,7 +172,12 @@ export async function regenerateInstallmentsForCycle(
 /**
  * Iteration 9 — find overdue installments.
  *
- * Returns installments whose dueDate < now AND status !== "paid".
+ * E2.2 (INV-4): the canonical dynamic-overdue predicate — NOT settled,
+ * due date strictly past, a REAL remaining balance (uncleared pending
+ * funds counting as coverage). This also closes the mock↔supabase parity
+ * gap: the supabase overdue generator applies the same T-172 remaining
+ * gate server/client-side, which the old string+date filter lacked (a
+ * past-due fully-covered row was wrongly "overdue" in mock mode only).
  * Used by the automated overdue alert generator.
  */
 export async function findOverdueInstallments(
@@ -174,10 +185,7 @@ export async function findOverdueInstallments(
   now: Date = new Date(),
 ): Promise<Result<readonly Installment[]>> {
   const { store } = ctx;
-  const nowMs = now.getTime();
-  const overdue = store.installments.filter(
-    (i) => i.status !== "paid" && new Date(i.dueDate).getTime() < nowMs,
-  );
+  const overdue = store.installments.filter((i) => isInstallmentOverdue(i, now));
   return Ok(overdue);
 }
 
