@@ -19,20 +19,27 @@
  * non-null home tenant). Pre-T-053 persisted sessions have `homeTenantId`
  * undefined but a string tenantId — the `=== null` checks hide the switcher
  * for them.
+ *
+ * T-552 (ARCH-019 + ARCH-003/E4.4): relocated shared/layout →
+ * features/settings (a `shared` file must not reach infrastructure — the
+ * import-seam routing lands here in the same move) and the supabase-client
+ * bypass routed through `infrastructure/supabase/backend-access` — the
+ * app-facing access surface. Zero behavior change: the same canonical
+ * singleton client, the same active-tenant query.
  */
 import { useEffect, useState } from "react";
 import { Building2, Check, ChevronDown } from "lucide-react";
 import { useAuth } from "../../app/providers/auth-provider";
-import { getSupabaseClient, isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
-import { Button } from "../ui/button";
+import { getSupabaseClient, isSupabaseConfigured } from "../../infrastructure/supabase/backend-access";
+import { Button } from "../../shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { cn } from "../ui/cn";
+} from "../../shared/ui/dropdown-menu";
+import { cn } from "../../shared/ui/cn";
 
 interface TenantRow {
   id: string;

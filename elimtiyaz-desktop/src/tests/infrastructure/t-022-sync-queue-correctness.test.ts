@@ -79,10 +79,13 @@ function entry(entity: SyncQueueEntry["entity"], payload: Record<string, unknown
   };
 }
 
-// The handler dynamically imports the supabase client — mock that module so
-// the tests drive the REAL dispatcher with the fake client.
+// The handler dynamically imports its backend access surface — mock that
+// module so the tests drive the REAL dispatcher with the fake client.
+// (T-552: the surface is `supabase/backend-access` now; the doMock path
+// follows the module the code actually imports — the supabase-client
+// re-export seam.)
 async function loadHandler(client: SupabaseClient) {
-  vi.doMock("../../infrastructure/supabase/supabase-client", () => ({
+  vi.doMock("../../infrastructure/supabase/backend-access", () => ({
     getSupabaseClient: () => client,
     isSupabaseConfigured: () => true,
   }));

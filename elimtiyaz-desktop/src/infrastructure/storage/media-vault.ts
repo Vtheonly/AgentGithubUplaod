@@ -23,7 +23,7 @@
  *     mimics the signed-URL lifecycle (each fetch returns a fresh,
  *     expiring token-bearing URL) so UI code paths are identical.
  */
-import { getSupabaseClient, isSupabaseConfigured } from "../supabase/supabase-client";
+import { getSupabaseClient, isSupabaseConfigured } from "../supabase/backend-access";
 
 /**
  * Buckets defined by migration 0018 (all private) — the vault call sites'

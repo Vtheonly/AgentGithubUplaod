@@ -38,7 +38,7 @@ import type { AIRequest, AIResponse, AIProvider } from "../../domain/model/ai";
 import {
   getSupabaseClient,
   isSupabaseConfigured,
-} from "../supabase/supabase-client";
+} from "../supabase/backend-access";
 import { loadConfig } from "./ai-config-storage";
 import { executeOpenAIStream } from "../../core/ai/streaming/stream-client";
 import { resolveEndpoint, safeAuthHeader } from "../../core/ai/providers/provider-registry";

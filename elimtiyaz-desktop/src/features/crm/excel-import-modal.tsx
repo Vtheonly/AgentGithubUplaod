@@ -32,7 +32,7 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useSyncActions } from "../../app/providers/sync-provider";
-import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/backend-access";
 import {
   pauseFinancialRealtime,
   resumeFinancialRealtime,

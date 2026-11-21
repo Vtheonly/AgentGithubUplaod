@@ -92,7 +92,7 @@ function entry(entity: SyncQueueEntry["entity"], payload: Record<string, unknown
 }
 
 async function loadHandler(client: SupabaseClient) {
-  vi.doMock("../../infrastructure/supabase/supabase-client", () => ({
+  vi.doMock("../../infrastructure/supabase/backend-access", () => ({
     getSupabaseClient: () => client,
     isSupabaseConfigured: () => true,
   }));

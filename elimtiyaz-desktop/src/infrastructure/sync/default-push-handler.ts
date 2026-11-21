@@ -73,7 +73,7 @@ function uuidOrNull(value: string | null | undefined): string | null {
 export async function defaultPushHandler(entry: SyncQueueEntry): Promise<void> {
   // We use the dynamic import so the renderer doesn't crash when
   // Supabase isn't configured (the import would throw).
-  const { getSupabaseClient } = await import("../supabase/supabase-client");
+  const { getSupabaseClient } = await import("../supabase/backend-access");
   const { deterministicActivationCode } = await import("../../core/format/id");
   const client = getSupabaseClient();
   const p = entry.payload ?? {};

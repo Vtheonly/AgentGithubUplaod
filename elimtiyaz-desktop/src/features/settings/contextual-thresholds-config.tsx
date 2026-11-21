@@ -75,7 +75,7 @@ import {
 import {
   isSupabaseConfigured,
   getSupabaseClient,
-} from "../../infrastructure/supabase/supabase-client";
+} from "../../infrastructure/supabase/backend-access";
 import {
   computeDebtAgingStatus,
   type DebtAgingStatus,

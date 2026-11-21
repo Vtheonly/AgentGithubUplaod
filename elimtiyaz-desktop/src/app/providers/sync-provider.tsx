@@ -24,7 +24,7 @@ import {
   _resetSyncServiceForTests,
 } from "../../infrastructure/sync/sync-service";
 import type { SyncConflictRecord, SyncQueueEntry, SyncStatusSnapshot } from "../../infrastructure/sync/sync-types";
-import { isSupabaseConfigured } from "../../infrastructure/supabase/supabase-client";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/backend-access";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { conflictGuard } from "../../infrastructure/sync/conflict-detector";

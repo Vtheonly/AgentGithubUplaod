@@ -37,7 +37,7 @@ import { Errors } from "../core/app-error";
 // OPS-318 (T-392): the shared URL-normalization seam — the probe URL and the
 // persisted local config must never carry whitespace around the host (the
 // `%20/rest/v1/…` request class). Pure string handling; no SDK state.
-import { normalizeSupabaseUrl } from "./supabase/supabase-client";
+import { normalizeSupabaseUrl } from "./supabase/backend-access";
 // T-573: the backend-kind vocabulary (the profile switcher's kinds).
 import type { BackendKind } from "../../electron/backend-profile-contract";
 
