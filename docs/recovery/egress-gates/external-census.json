@@ -1,0 +1,506 @@
+{
+  "task": "T-595 — the external-dependencies register census (D-17)",
+  "generatedAt": "2026-11-21T16:10:33.520Z",
+  "desktopRepo": {
+    "root": "/home/z/my-project/AgentGithubUplaod/elimtiyaz-desktop",
+    "filesScanned": 1898,
+    "codeFilesScanned": 1095,
+    "fromCallSites": 613,
+    "rpcCallSites": 127,
+    "distinctTables": 80,
+    "distinctRpcs": 74,
+    "topTables": [
+      {
+        "name": "installments",
+        "count": 64
+      },
+      {
+        "name": "parents",
+        "count": 39
+      },
+      {
+        "name": "students",
+        "count": 34
+      },
+      {
+        "name": "ledger_entries",
+        "count": 27
+      },
+      {
+        "name": "payments",
+        "count": 26
+      },
+      {
+        "name": "timetable_entries",
+        "count": 22
+      },
+      {
+        "name": "notifications",
+        "count": 22
+      },
+      {
+        "name": "personnel",
+        "count": 19
+      },
+      {
+        "name": "academic_years",
+        "count": 16
+      },
+      {
+        "name": "user_profiles",
+        "count": 16
+      },
+      {
+        "name": "timetable_versions",
+        "count": 16
+      },
+      {
+        "name": "attendance_records",
+        "count": 11
+      },
+      {
+        "name": "workflow_runs",
+        "count": 11
+      },
+      {
+        "name": "role_assignments",
+        "count": 10
+      },
+      {
+        "name": "workflows",
+        "count": 10
+      },
+      {
+        "name": "audit_logs",
+        "count": 9
+      },
+      {
+        "name": "roles",
+        "count": 9
+      },
+      {
+        "name": "rooms",
+        "count": 8
+      },
+      {
+        "name": "classes",
+        "count": 8
+      },
+      {
+        "name": "class_subjects",
+        "count": 8
+      },
+      {
+        "name": "backup_archives",
+        "count": 8
+      },
+      {
+        "name": "pricing_configs",
+        "count": 8
+      },
+      {
+        "name": "assessments",
+        "count": 7
+      },
+      {
+        "name": "calendar_events",
+        "count": 7
+      },
+      {
+        "name": "expense_tickets",
+        "count": 7
+      }
+    ],
+    "topRpcs": [
+      {
+        "name": "write_audit_log",
+        "count": 12
+      },
+      {
+        "name": "soft_delete_student",
+        "count": 6
+      },
+      {
+        "name": "soft_delete_parent",
+        "count": 6
+      },
+      {
+        "name": "upsert_ledger_entry_from_import",
+        "count": 6
+      },
+      {
+        "name": "upsert_parent_from_import",
+        "count": 5
+      },
+      {
+        "name": "current_tenant_id",
+        "count": 5
+      },
+      {
+        "name": "upsert_student_from_import",
+        "count": 4
+      },
+      {
+        "name": "notify_parent_user",
+        "count": 4
+      },
+      {
+        "name": "compute_debt_aging_summary",
+        "count": 3
+      },
+      {
+        "name": "current_user_profile_id",
+        "count": 3
+      },
+      {
+        "name": "upsert_assessment_from_import",
+        "count": 2
+      },
+      {
+        "name": "current_user_roles",
+        "count": 2
+      },
+      {
+        "name": "execute_batch_promotion",
+        "count": 2
+      },
+      {
+        "name": "current_user_permissions",
+        "count": 2
+      },
+      {
+        "name": "create_direct_channel",
+        "count": 2
+      },
+      {
+        "name": "save_dashboard_layout",
+        "count": 2
+      },
+      {
+        "name": "collect_and_allocate_payment",
+        "count": 2
+      },
+      {
+        "name": "revert_payment_allocation",
+        "count": 2
+      },
+      {
+        "name": "mark_sync_queue_processed",
+        "count": 2
+      },
+      {
+        "name": "to_jsonb",
+        "count": 1
+      },
+      {
+        "name": "pg_catalog",
+        "count": 1
+      },
+      {
+        "name": "read_payments_collection",
+        "count": 1
+      },
+      {
+        "name": "record_auto_releve_entry",
+        "count": 1
+      },
+      {
+        "name": "set_current_academic_year",
+        "count": 1
+      },
+      {
+        "name": "fn_finalize_class_placements",
+        "count": 1
+      }
+    ]
+  },
+  "externals": {
+    "elimtiyaz-android": {
+      "root": "/home/z/my-project/elimtiyaz-android",
+      "filesScanned": 520,
+      "codeFilesScanned": 450,
+      "fromCallSites": 30,
+      "rpcCallSites": 18,
+      "distinctTables": 21,
+      "distinctRpcs": 14,
+      "topTables": [
+        {
+          "name": "chat_messages",
+          "count": 4
+        },
+        {
+          "name": "expense_tickets",
+          "count": 4
+        },
+        {
+          "name": "user_profiles",
+          "count": 2
+        },
+        {
+          "name": "notifications",
+          "count": 2
+        },
+        {
+          "name": "homework",
+          "count": 2
+        },
+        {
+          "name": "chat_channels",
+          "count": 1
+        },
+        {
+          "name": "parents",
+          "count": 1
+        },
+        {
+          "name": "students",
+          "count": 1
+        },
+        {
+          "name": "payments",
+          "count": 1
+        },
+        {
+          "name": "ledger_entries",
+          "count": 1
+        },
+        {
+          "name": "classes",
+          "count": 1
+        },
+        {
+          "name": "subjects",
+          "count": 1
+        },
+        {
+          "name": "installments",
+          "count": 1
+        },
+        {
+          "name": "personnel",
+          "count": 1
+        },
+        {
+          "name": "departments",
+          "count": 1
+        },
+        {
+          "name": "releve_entries",
+          "count": 1
+        },
+        {
+          "name": "attendance_records",
+          "count": 1
+        },
+        {
+          "name": "assessments",
+          "count": 1
+        },
+        {
+          "name": "workflow_runs",
+          "count": 1
+        },
+        {
+          "name": "audit_logs",
+          "count": 1
+        },
+        {
+          "name": "expense_categories",
+          "count": 1
+        }
+      ],
+      "topRpcs": [
+        {
+          "name": "current_user_roles",
+          "count": 4
+        },
+        {
+          "name": "deactivate_fcm_tokens",
+          "count": 2
+        },
+        {
+          "name": "register_fcm_token",
+          "count": 1
+        },
+        {
+          "name": "pull_parents_for_sync",
+          "count": 1
+        },
+        {
+          "name": "pull_students_for_sync",
+          "count": 1
+        },
+        {
+          "name": "pull_payments_for_sync",
+          "count": 1
+        },
+        {
+          "name": "pull_ledger_entries_for_sync",
+          "count": 1
+        },
+        {
+          "name": "upsert_parent_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_student_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_payment_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_ledger_entry_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_installment_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_assessment_from_import",
+          "count": 1
+        },
+        {
+          "name": "upsert_attendance_from_import",
+          "count": 1
+        }
+      ]
+    },
+    "elimtiyaz-website": {
+      "root": "/home/z/my-project/elimtiyaz-website",
+      "filesScanned": 209,
+      "codeFilesScanned": 181,
+      "fromCallSites": 57,
+      "rpcCallSites": 5,
+      "distinctTables": 32,
+      "distinctRpcs": 4,
+      "topTables": [
+        {
+          "name": "student_documents",
+          "count": 6
+        },
+        {
+          "name": "chat_messages",
+          "count": 4
+        },
+        {
+          "name": "notifications",
+          "count": 4
+        },
+        {
+          "name": "parents",
+          "count": 3
+        },
+        {
+          "name": "notification_preferences",
+          "count": 3
+        },
+        {
+          "name": "students",
+          "count": 2
+        },
+        {
+          "name": "attendance_records",
+          "count": 2
+        },
+        {
+          "name": "account_approval_requests",
+          "count": 2
+        },
+        {
+          "name": "device_tokens",
+          "count": 2
+        },
+        {
+          "name": "classes",
+          "count": 2
+        },
+        {
+          "name": "homework",
+          "count": 2
+        },
+        {
+          "name": "installments",
+          "count": 2
+        },
+        {
+          "name": "calendar_events",
+          "count": 2
+        },
+        {
+          "name": "academic_years",
+          "count": 2
+        },
+        {
+          "name": "transport_destinations",
+          "count": 2
+        },
+        {
+          "name": "user_profiles",
+          "count": 1
+        },
+        {
+          "name": "academic_levels",
+          "count": 1
+        },
+        {
+          "name": "assessments",
+          "count": 1
+        },
+        {
+          "name": "payments",
+          "count": 1
+        },
+        {
+          "name": "invoices",
+          "count": 1
+        },
+        {
+          "name": "service_enrollments",
+          "count": 1
+        },
+        {
+          "name": "account_adjustments",
+          "count": 1
+        },
+        {
+          "name": "ledger_entries",
+          "count": 1
+        },
+        {
+          "name": "chat_channels",
+          "count": 1
+        },
+        {
+          "name": "pricing_configs",
+          "count": 1
+        }
+      ],
+      "topRpcs": [
+        {
+          "name": "open_parent_admin_channel",
+          "count": 2
+        },
+        {
+          "name": "register_fcm_token",
+          "count": 1
+        },
+        {
+          "name": "unregister_fcm_token",
+          "count": 1
+        },
+        {
+          "name": "deactivate_fcm_tokens",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "notes": [
+    "portal.elimtiyaz.dz is the DEPLOYED client portal — its query surface is the elimtiyaz-website repo (the deployment target of T-614's cutover).",
+    "Counts are CALL SITES (static), not runtime request counts — the audit-set membership register; the runtime measurement is the harness's own four scenarios.",
+    "The Android repo was provided this session at the recorded path; re-run with --external to refresh."
+  ]
+}
