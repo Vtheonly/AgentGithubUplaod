@@ -206,6 +206,21 @@ function buildHeader(args: BuildHeaderArgs): React.ReactNode {
     return <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>;
   }
 
+  // E2.6 / BUG-025: a custom header slot was silently DROPPED for the
+  // dialog/drawer variants — only the command palette rendered it, so
+  // headerSlot consumers fell through to the bare sr-only title below and
+  // their badge rows / selector toolbars never appeared. The slot now
+  // renders under the same wrapper treatment as the default header
+  // (border + p-5), with the sr-only Title kept for Radix a11y.
+  if (headerSlot) {
+    return (
+      <div className={cn("border-b border-border p-5", headerClassName)}>
+        <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
+        {headerSlot}
+      </div>
+    );
+  }
+
   if (showDefaultHeader) {
     return (
       <UnifiedModalHeader
