@@ -220,3 +220,24 @@ describe("E2.6 / BUG-002 — evaluateStudentTermPerformance's missing class cont
     expect(legacy.isPassing).toBe(true);
   });
 });
+
+describe("E2.6 / BUG-003 — get_collection_analytics revenue label", () => {
+  it("the output schema carries the honest monthly label, not the annual lie", async () => {
+    const { executeSystemTool } = await import("../../../core/ai/tools/tool-registry");
+    const { mockRepositories } = await import("../../../infrastructure/mock/mock-composite");
+    const out = await executeSystemTool("get_collection_analytics", {}, mockRepositories);
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    expect(parsed.error).toBeUndefined();
+    // The old field name (annual_revenue_collected) is GONE — the value it
+    // carried was kpis.monthlyRevenue (the DashboardKpi contract's own
+    // monthly field), so the annual label overstated the figure ×12.
+    expect(parsed.annual_revenue_collected).toBeUndefined();
+    expect(typeof parsed.monthly_revenue_collected).toBe("number");
+    // And it equals the SAME monthly revenue the dashboard KPIs render.
+    const kpisRes = await mockRepositories.dashboard.kpis();
+    expect(kpisRes.ok).toBe(true);
+    if (kpisRes.ok) {
+      expect(parsed.monthly_revenue_collected).toBe(kpisRes.value.monthlyRevenue);
+    }
+  });
+});

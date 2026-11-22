@@ -273,7 +273,7 @@ describe("T-270 — get_collection_analytics (aging composition + rate)", () => 
     expect(parsed.error).toBeUndefined();
     expect(Array.isArray(parsed.aging_buckets)).toBe(true);
     expect(typeof parsed.collection_rate_percent).toBe("number");
-    expect(typeof parsed.annual_revenue_collected).toBe("number");
+    expect(typeof parsed.monthly_revenue_collected).toBe("number"); // E2.6/BUG-003: the honest monthly label
     expect(typeof parsed.outstanding_debt).toBe("number");
     for (const b of parsed.aging_buckets as Array<Record<string, unknown>>) {
       expect(b).toHaveProperty("bucket");

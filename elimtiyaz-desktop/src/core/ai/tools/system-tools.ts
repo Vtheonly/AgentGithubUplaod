@@ -521,7 +521,10 @@ export async function executeCoreTool(
 
         return JSON.stringify({
           collection_rate_percent: collectionRate,
-          annual_revenue_collected: collected,
+          // BUG-003: the field is the KPI contract's MONTHLY revenue — the
+          // old `annual_revenue_collected` label lied about the value it
+          // carried (kpis.monthlyRevenue), overstating it ×12 to the AI.
+          monthly_revenue_collected: collected,
           outstanding_debt: outstanding,
           aging_buckets: aging.map((b) => ({
             bucket: AGING_BUCKET_LABELS_FR[b.bucket] ?? b.bucket,
