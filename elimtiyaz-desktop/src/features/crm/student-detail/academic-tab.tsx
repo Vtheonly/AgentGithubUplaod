@@ -64,6 +64,7 @@ import {
   computeOverallGpa,
   computeSubjectAverage,
   calculateAttendanceRate,
+  DEFAULT_GRADING_RECIPE,
 } from "../../../domain/model/academic";
 import {
   GRADE_LEVEL_LABELS_FR,
@@ -139,18 +140,53 @@ export function AcademicTab({
               a.subjectAverage ??
               computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
             // T-345 (ADR-018): the assessment snapshot first (non-retroactive),
-            // then the canonical resolver — ONE rule.
+            // then the canonical resolver — ONE rule. The class context
+            // (level + year) is REQUIRED for a configuration row to match
+            // at all (the BUG-002 lesson) — without it every assessment
+            // silently fell to the legacy subject columns.
             coefficient:
               a.coefficient ||
               resolveSubjectConfiguration({
                 subject,
                 configurations: subjectConfigurations,
+                academicLevelId: assignedClass?.academicLevelId ?? null,
+                academicYearId: assignedClass?.academicYearId ?? null,
               }).coefficient,
             isExtracurricular: subject?.isExtracurricular ?? false,
           };
         }),
       ),
-    [termAssessments, subjects],
+    // BUG-016 (E2.6): subjectConfigurations was missing from the deps — the
+    // memo read it inside resolveSubjectConfiguration (line ~147) but never
+    // re-ran when a configuration landed, so the GPA rendered stale until
+    // some OTHER dep happened to change.
+    [termAssessments, subjects, subjectConfigurations],
+  );
+
+  // BUG-016 (E2.6): the formula caption must DERIVE from the recipes in
+  // play, not hardcode the default — a subject configured with custom
+  // weights (T-345) renders under a "(D1 + D2 + 2·Examen) / 4" caption its
+  // own stored average does NOT follow (the DB trigger is recipe-aware,
+  // migration 0094). The class context (level + year) is REQUIRED — without
+  // it no configuration row can ever match (the BUG-002 lesson).
+  const customRecipeInPlay = useMemo(
+    () =>
+      termAssessments.some((a) => {
+        const subject = subjects.find((s) => s.id === a.subjectId);
+        const recipe = resolveSubjectConfiguration({
+          subject,
+          configurations: subjectConfigurations,
+          academicLevelId: assignedClass?.academicLevelId ?? null,
+          academicYearId: assignedClass?.academicYearId ?? null,
+        }).gradingRecipe;
+        return (
+          recipe.devoir1 !== DEFAULT_GRADING_RECIPE.devoir1 ||
+          recipe.devoir2 !== DEFAULT_GRADING_RECIPE.devoir2 ||
+          recipe.examen !== DEFAULT_GRADING_RECIPE.examen ||
+          recipe.cc !== DEFAULT_GRADING_RECIPE.cc
+        );
+      }),
+    [termAssessments, subjects, subjectConfigurations, assignedClass],
   );
 
   /**
@@ -313,8 +349,9 @@ export function AcademicTab({
             </div>
           </CardTitle>
           <CardDescription>
-            Moyenne = (D1 + D2 + 2·Examen) / 4 — chaque note sur 20 (plan
-            §06.02)
+            {customRecipeInPlay
+              ? "Moyenne pondérée = Σ(note × poids) / Σ des poids — au moins une matière suit une formule spécifique (T-345) ; les autres suivent (D1 + D2 + 2·Examen) / 4."
+              : "Moyenne = (D1 + D2 + 2·Examen) / 4 — chaque note sur 20 (plan §06.02)"}
           </CardDescription>
         </CardHeader>
         <CardContent>
