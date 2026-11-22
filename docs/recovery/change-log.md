@@ -1,3 +1,19 @@
+## 2026-11-22 — The Session-44 lane (the ≥4-task mandate): E6.7 + E6.8 + E6.10 + T-596 — THE DASHBOARD OVERHAUL BATCH COMPLETE (the queue head cleared) — the shared Collapsible primitive, the ExecutiveCard composition root + the eight-card decomposition, the RoleDashboardTemplate, and the numbers-equal acceptance gate
+
+**THE MANDATE:** the owner's "at least 4 tasks per session" directive + the standing session protocol (sync → ingest → execute with verification → persist → push every commit). The queue head (per the Session-39 batch plan): T-596 + E6.7 + E6.8 + E6.10 — exactly four tasks, executed in dependency order E6.7 → E6.8 → E6.10 → T-596 (T-596 composes the other three), each its own commit pushed immediately (69c82ebd → ce29ffa5 → 29de593a → 7b33ab23).
+
+**E6.7 (69c82ebd):** the ONE shared expandable primitive (Radix) + six hand-rolled migrations (the 2-of-N aria gap closed; the grade-levels clickable-div anti-pattern gained a real trigger; the table-row expandables via the per-wave/finding tbody pattern). Nine suites 87/87.
+
+**E6.8 (ce29ffa5):** the executive-cards 1,098-line monolith decomposed into eight modules + the ExecutiveCard composition root (the DUP-027 eight-times-duplicated skeleton dead); the barrel keeps every import site stable; three source-pin tests re-pointed with documented reasons. 349/349 across the card + dashboard suites.
+
+**E6.10 (29de593a):** the RoleDashboardTemplate (the canonical ROLE_LABELS_FR resolution — §6/§15.3 — + the actor fallback map); the seven personnel dashboards migrated; the admin dashboard's non-canonical 'Agent de Support' aligned to 'Personnel de Soutien'. Role-routing 20/20 + personnel 19/19.
+
+**T-596 (7b33ab23):** the numbers-equal ACCEPTANCE GATE (the plan's §5, previously missing): the dashboard's KPI bundle vs the finance hub's own derivations over one corpus — 55,000/345,000/265,000 exact equality + the scoping + consumption pins; the D-U2 one-engine property now pinned at the UI level. The overhaul's seams all verified: E6.9 view-models + E6.10 template + E6.7/E6.8 composition over T-590's compact-RPC source under T-589's full light.
+
+**The gates:** tsc 0 after every task · the full dashboard neighborhood 302/302 · the pinned card suites 47/47 · the role-routing + personnel suites 39/39 · the acceptance 3/3 · every commit pushed to main.
+
+**Related:** DUP-027 CLOSED · UI-U7a/U7b CLOSED · D-U3 CLOSED · ARCH-040/BUG-059/D-U1..U5 CLOSED with T-596 · §15.3 (the label alignment) · the Session-39/44 dashboard lane complete.
+
 ## 2026-11-22 — T-616 (the Session-43 lane) — THE LIVE CUTOVER COMPLETION: the three PERMANENT admin accounts created (the §15.23 credential STOP resolved by the owner's own directive) + THE WB2 DATA LOAD LANDED (741 parents / 1,137 students / 5,956 installments / 2,198 payments / 3,342 ledger — the exact verified corpora, 0 rejected) + THE WIRE-LEVEL VERIFICATION ALL CHECKS PASS (741/741 families reconcile) — the new project is now the LIVE system of record
 
 **THE MANDATE:** the owner (2026-11-22): "I do not have the new password and the new email… I want you to create three new accounts with three new admin passwords and the admin accounts, but throughout the entire renovation do not change them at all" + the standing session protocol (push every commit to main; the single-branch consolidation). The owner ALSO supplied the new project's secret key + the Vercel PAT — the two owner-gated blockers of CROSS-202's live half.

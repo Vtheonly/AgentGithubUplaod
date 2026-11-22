@@ -7082,3 +7082,35 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 **Left:** (1) the Vercel redeploy — the owner re-mints the token WITH the projects scope (or clicks Redeploy on the latest main deployment in the dashboard; ALSO verify the project's NEXT_PUBLIC_SUPABASE_* env vars do not still carry the OLD project — a committed-defaults rebuild with stale env would still point at the dead project); (2) the installed-desktop re-point (the P3 profile tool — the runbook Step 7; the next packaged build already defaults correctly); (3) the OLD project's spend-cap decision (its data remains unreachable while capped — no longer needed, the corpora was the source of record for the load).
 
 **Evidence:** /tmp/t433-live-load.log (the driver run) + the live-verify ALL CHECKS PASS output (copied to download/t-616-live-verification.txt) + the sign-in/RLS 200s + §15.111 (AGENTS.md).
+
+## E6.7 — The shared Collapsible primitive + the hand-rolled expandable migrations (ROADMAP Phase 5 / 5.8, UI-U7a)
+
+**Problem IDs:** UI-U7a (the 2-of-N aria-expanded gap) · the grade-levels clickable-div header anti-pattern.
+
+**Status:** TESTED (Session 44, 2026-11-22 — commit `69c82ebd`; tsc 0; the nine covering suites 87/87).
+
+**Contract (per EXECUTION-PLAN §4 E6.7):** NEW `shared/ui/collapsible.tsx` (Radix `@radix-ui/react-collapsible` — Collapsible/CollapsibleTrigger/CollapsibleContent; controlled accordion items pass open+onOpenChange; content unmounts when closed, the same DOM shape the hand-rolled blocks had) + SIX migrations: parent-year-history-section YearCard · academic-tab HistoryYearItem · upcoming-payroll WaveRow (the per-wave-tbody pattern — valid HTML for table-row expandables; the between-wave hairline preserved via the table-level selector) · webhook-diagnostics WebhookFindingRow (the same pattern) · audit-log-tab showRaw · grade-levels class cards (the clickable-DIV header + dead chevron button becomes a REAL trigger: role=button, tabindex, Enter/Space, aria-expanded). NOT migrated (documented boundary): expense-attachments-gallery — its expanded state toggles one caption line, not a collapsible section.
+
+## E6.8 — The ExecutiveCard composition root + the executive-cards monolith decomposed (ROADMAP Phase 5 / 5.9, UI-U7b / DUP-027)
+
+**Problem IDs:** DUP-027 (the KPI card composition duplicated eight times in one 1,098-line monolith).
+
+**Status:** TESTED (Session 44, 2026-11-22 — commit `ce29ffa5`; tsc 0; the five pinned card suites 47/47 + the dashboard neighborhood 302/302).
+
+**Contract (per EXECUTION-PLAN §4 E6.8):** PHASE 1 — executive-cards.tsx (1,098 L) split verbatim into eight per-card modules with the file reborn as the stable BARREL (every import site untouched). PHASE 2 — NEW `analytics/executive-card.tsx` (the composition root: Card shell + header + icon + InfoTip + description + headerExtra/descriptionExtra/headerClassName/shellClassName slots + content); all eight cards migrated (WaveVelocity's shadow+badges, DebtTriage's totals chip, FamilyConcentration's selector, TripleRisk's conditional gradient all slot through). KpiCard remains the shared simple tile (five consumers); ExecutiveCard is the rich-card root — the pair is the composition family T-596 re-poses over.
+
+## E6.10 — The RoleDashboardTemplate extraction (ROADMAP Phase 5 / 5.11, D-U3)
+
+**Problem IDs:** D-U3 (the seven near-parallel personnel dashboards' page wiring).
+
+**Status:** TESTED (Session 44, 2026-11-22 — commit `29de593a`; tsc 0; the role-routing suites 20/20 + the personnel neighborhood 19/19).
+
+**Contract (per EXECUTION-PLAN §4 E6.10):** NEW `dashboards/role-dashboard-template.tsx` — the ONE role-dashboard page template: the header label resolves through the CANONICAL core `ROLE_LABELS_FR` (§6 reuse-first — no second map; the administrator dashboard's inline ternary chain retired, its 'Agent de Support' was a non-canonical third variant of support_staff — §15.3 one-wording, aligned to 'Personnel de Soutien') + the actor resolution (prop → session display name → the role's dashboard default; the three admin roles share the 'Administrateur' fallback). All SEVEN dashboards migrated (administrator/buyer/driver/manager/teacher/warehouse-worker/worker). The rendering shell stays RoleDashboardLayout — the template is the wiring layer, not a parallel skeleton (§6).
+
+## T-596 — The dashboard overhaul UX (ROADMAP Phase 5 / 5.21): the numbers-equal acceptance gate + the composition seams (L)
+
+**Problem IDs:** ARCH-040 · BUG-059 · D-U1..U5 · BUG-075 · DUP-027 · UI-U7a/U7b.
+
+**Status:** RESOLVED-TESTED (Session 44, 2026-11-22 — commit `7b33ab23`; the acceptance suite 3/3; tsc 0; the dashboard neighborhood 286/286 + the pinned card suites 47/47 + the ui pair 302/302).
+
+**Contract (per EXECUTION-PLAN §10 T-596, v2.3):** the owner-designed dashboard on the composed seams — D-U1 view-models (E6.9 ✓ S39) + D-U3 RoleDashboardTemplate (E6.10 ✓ S44) + the KPI/collapsible composition (E6.7/E6.8 ✓ S44) over T-590's compact-RPC data source (✓ S35), under T-589's verified full-light theme (✓ S39: the pixel census 94.9% bright, zero dark cards). THE ACCEPTANCE GATE — NEW `t-596-numbers-equal.test.tsx` (the plan's §5: Dashboard and Payments/Finance render identical totals for the same query): the REAL SupabaseDashboardRepository.kpisForRange (the RPC-less fallback, t-426 convention) versus the domain functions financials-page itself calls (monthlyRevenue/overdueAmount/sumPaidPayments) and the §15 installment basis — over ONE mixed corpus: monthlyRevenue 55,000 == 55,000 · outstandingDebt 345,000 == 345,000 · overdueAmount 265,000 == 265,000 (a future tranche counts toward outstanding, never overdue) + the scoping pins (a paid row and an out-of-window row never reach the year's basis) + the consumption source pins (the Overview tab renders kpis.* verbatim; the finance hub derives through the domain functions — never a private basis). The one-engine mandate (D-U2: E4.5's domain half + T-590's aggregation half) is now PINNED at the UI level — any drift in either path breaks the suite.
