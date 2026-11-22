@@ -1,3 +1,14 @@
+
+## 2026-11-22 — Session 45 (E2.6 wave 3: the 8-defect closeout)
+- BUG-010 `6d97ed65`: the ONE SuperAdmin stamp on every session entry point (restore included) + the session.ts invariant comment corrected + ai-309's missing leg-2 pin.
+- BUG-016 `d649926a`: academic-tab's gpa memo gets the subjectConfigurations dep AND the class context (without it the dep was dead) + the formula caption derived from the recipes in play.
+- BUG-022 `4c0ec6f1`: studentDisplayName at both insights sites + NEW teacherDisplayName + the coefficient-weighted grade-anomaly baseline.
+- BUG-025 `d57a29a6`: the UnifiedModal custom header slot now RENDERS for dialog/drawer (two live call sites had lost real UI).
+- BUG-026 `a8bcb4df`: ClassDetailPage ?tab= syncs on same-page navigation (apply-then-consume, the dashboard idiom made reactive).
+- BUG-013 `cbcbd47b`: the node-inspector RoleSelect speaks the canonical Role enum + a legacy read-side normalizer.
+- BUG-027 `d1193da7`: the real −5% early-payment rate, the derived 28-destination transport count, the derived RBAC header counts + UNKNOWN-031 (prescolaire taxonomy).
+- BUG-020 `f537c5fe`: the pricing-profile deadline derives from the academic year (earlyPaymentCutoff); the reversesId exclusion applied symmetrically; the structured tranche_number wins.
+- E2.6 → RESOLVED-TESTED (16/16). 34 new pins; neighborhoods 598 GREEN; tsc 0; the census: 32 solved since G0, 89 open.
 ## 2026-11-22 — The Session-44 lane (the ≥4-task mandate): E6.7 + E6.8 + E6.10 + T-596 — THE DASHBOARD OVERHAUL BATCH COMPLETE (the queue head cleared) — the shared Collapsible primitive, the ExecutiveCard composition root + the eight-card decomposition, the RoleDashboardTemplate, and the numbers-equal acceptance gate
 
 **THE MANDATE:** the owner's "at least 4 tasks per session" directive + the standing session protocol (sync → ingest → execute with verification → persist → push every commit). The queue head (per the Session-39 batch plan): T-596 + E6.7 + E6.8 + E6.10 — exactly four tasks, executed in dependency order E6.7 → E6.8 → E6.10 → T-596 (T-596 composes the other three), each its own commit pushed immediately (69c82ebd → ce29ffa5 → 29de593a → 7b33ab23).
