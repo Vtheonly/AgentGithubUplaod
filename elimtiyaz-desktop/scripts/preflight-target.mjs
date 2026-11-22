@@ -80,7 +80,17 @@ export const CONSOLIDATED_BASELINE = Object.freeze({
   buckets: 11,
   publicPolicies: 242,
   storagePolicies: 22,
-  functions: 147,
+  // T-614/P2 (Session 40): 147 was the 0001-only S26 value — the Stage-A
+  // chain adds 10 NEW public functions (read_dashboard_kpis/_revenue_by_month/
+  // _debt_aging/_demographics [0002], read_reconcile_inputs [0003],
+  // pull_installments_for_sync [0004], sync_safe_uuid/sync_j/
+  // fn_deterministic_student_code/sync_apply_batch [0005];
+  // refresh_materialized_view is an OR-REPLACE of 0001's). 157 is MEASURED by
+  // the charter Rule-3 from-scratch census of the full chain
+  // (docs/recovery/t-a2-chain-from-scratch-validation-2026-11-22.md) — the
+  // C-29 family (pre-Stage-A constants lagging the chain) closed on the
+  // function axis.
+  functions: 157,
   publicTriggers: 89,
   authMirrorTriggers: 1,
   rlsEnabledTables: 99,
