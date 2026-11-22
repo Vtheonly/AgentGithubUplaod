@@ -37,16 +37,20 @@
 // The factory defaults (the DEMOTED canonical production project)
 // ============================================================================
 
-/** The factory-default Supabase target — the pre-T-573 canonical project. */
-export const FACTORY_DEFAULT_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
+/**
+ * The factory-default Supabase target — the T-614 relocation target
+ * (2026-11-22 cutover; history: `vebfehrpzajhstyhinnw` 2026-09-17 → the
+ * relocation window, now 402-quota-dead; `hkvkefubghbbotgnteir` before it).
+ */
+export const FACTORY_DEFAULT_SUPABASE_URL = "https://gvuvibcsfjhwcjikgxql.supabase.co";
 /**
  * The factory-default PUBLIC key. PUBLIC on purpose: publishable/anon keys
  * are safe to embed in the client bundle; secret/service-role keys must
  * never appear anywhere near the desktop app or this contract.
  */
-export const FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY = "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
+export const FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY = "sb_publishable_d-0XZQsTuzr3r2-kFxw-rA__BuQAvAa";
 /** The factory-default project ref (the session storageKey's last resort). */
-export const FACTORY_DEFAULT_PROJECT_REF = "vebfehrpzajhstyhinnw";
+export const FACTORY_DEFAULT_PROJECT_REF = "gvuvibcsfjhwcjikgxql";
 
 // ============================================================================
 // The profile schema (v1)

@@ -114,14 +114,18 @@ describe("T-614/P3 C — buildCutoverProfile × the REAL validateBackendProfile 
     expect(snapshot.profile?.supabase?.url).toBe(NEW_PROJECT_URL);
   });
 
-  it("the derived project ref is the relocation target — NOT the factory default", () => {
+  it("the derived project ref is the relocation target — and after the T-614 cutover the factory default IS it", () => {
     const verdict = buildCutoverProfile(envWith(NEW_PROJECT_URL, TEST_PUBLIC_KEY));
     expect(verdict.ok).toBe(true);
     if (!verdict.ok) return;
     const ref = deriveProjectRef(verdict.profile.supabase?.url);
     expect(ref).toBe("gvuvibcsfjhwcjikgxql");
-    expect(ref).not.toBe(deriveProjectRef(FACTORY_DEFAULT_SUPABASE_URL));
-    expect(FACTORY_DEFAULT_SUPABASE_URL).toBe(OLD_PROJECT_URL); // the factory default stays the OLD project until the owner's cutover — the profile is the re-point mechanism
+    // T-614 cutover (2026-11-22): the factory default moved to the
+    // relocation target (the desktop mirror of the website's re-point) — a
+    // profile for the SAME target is now a no-op re-point (still valid), and
+    // the OLD project's profile remains writable for rollback.
+    expect(FACTORY_DEFAULT_SUPABASE_URL).toBe(NEW_PROJECT_URL); // the cutover landed — the factory default and the relocation target are one
+    expect(deriveProjectRef(OLD_PROJECT_URL)).toBe("vebfehrpzajhstyhinnw"); // the rollback target still derives
   });
 
   it("fails closed with the exact remedy on each missing env var", () => {

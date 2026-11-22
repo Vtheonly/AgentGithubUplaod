@@ -42,10 +42,10 @@ import {
 } from "../../infrastructure/supabase/supabase-client";
 import { LocalConfigService } from "../../infrastructure/system-config";
 // The packager's pure target-resolution helpers run as PLAIN NODE (.mjs —
-// build-windows.mjs imports them at packaging time; scripts/ is outside the
-// root tsconfig's include, so tsc cannot see the .d.mts sibling). The type
-// surface below is pinned by gate I itself; vitest executes the real module.
-// @ts-ignore -- .mjs outside the include tree (see scripts/package-target.d.mts)
+// build-windows.mjs imports them at packaging time). The .d.mts sibling
+// resolves cleanly (the earlier @ts-ignore was an unused suppression —
+// TS2578 when converted to @ts-expect-error); the type surface below is
+// pinned by gate I itself; vitest executes the real module.
 import {
   isValidTargetKey,
   isValidTargetUrl,
@@ -238,9 +238,14 @@ describe("T-573 B — buildBackendProfileSnapshot (the main-process read path)",
 // ============================================================================
 
 describe("T-573 C — deriveProjectRef (the storageKey scope)", () => {
-  it("the canonical and new supabase refs derive from their hosts", () => {
-    expect(deriveProjectRef(FACTORY_DEFAULT_SUPABASE_URL)).toBe("vebfehrpzajhstyhinnw");
+  it("the factory default and the historical refs derive from their hosts", () => {
+    // T-614 cutover (2026-11-22): the factory default IS the relocation
+    // target gvuvibcsfjhwcjikgxql (the OLD canonical vebfehrpzajhstyhinnw
+    // is 402-quota-dead; both refs kept pinned — the derivation must work
+    // for either host).
+    expect(deriveProjectRef(FACTORY_DEFAULT_SUPABASE_URL)).toBe("gvuvibcsfjhwcjikgxql");
     expect(deriveProjectRef(NEW_PROJECT_URL)).toBe("gvuvibcsfjhwcjikgxql");
+    expect(deriveProjectRef("https://vebfehrpzajhstyhinnw.supabase.co")).toBe("vebfehrpzajhstyhinnw");
   });
 
   it("a non-supabase host sanitizes into a storage-key-safe label; garbage/empty yields null", () => {
@@ -375,15 +380,18 @@ describe("T-573 D — resolveEffectiveSupabaseTarget (the switch matrix)", () =>
 // ============================================================================
 
 describe("T-573 E — supabaseSessionStorageKey (the per-target scope)", () => {
-  it("the factory default yields the PRE-T-573 canonical string verbatim", () => {
+  it("the factory default (post-T-614: the relocation target) scopes to its own ref", () => {
     expect(supabaseSessionStorageKey(FACTORY_DEFAULT_SUPABASE_URL)).toBe(
-      "el-imtiyaz.supabase.session.vebfehrpzajhstyhinnw",
+      "el-imtiyaz.supabase.session.gvuvibcsfjhwcjikgxql",
     );
   });
 
-  it("a re-pointed target scopes sessions to THE NEW project ref", () => {
-    expect(supabaseSessionStorageKey(NEW_PROJECT_URL)).toBe(
-      "el-imtiyaz.supabase.session.gvuvibcsfjhwcjikgxql",
+  it("the OLD canonical project's sessions keep their legacy scope (orphaned by design)", () => {
+    // T-614 cutover note: sessions persisted under the OLD ref are inert
+    // after the re-point (a different storageKey = a clean logout, never a
+    // cross-project session replay).
+    expect(supabaseSessionStorageKey("https://vebfehrpzajhstyhinnw.supabase.co")).toBe(
+      "el-imtiyaz.supabase.session.vebfehrpzajhstyhinnw",
     );
   });
 
@@ -403,7 +411,7 @@ describe("T-573 F — the module-init behavior inside Vitest (no bridge)", () =>
     const described = describeSupabaseConnection();
     expect(described.backendKind).toBe("supabase");
     expect(described.profileSource).toBe("none");
-    expect(described.projectRef).toBe("vebfehrpzajhstyhinnw");
+    expect(described.projectRef).toBe("gvuvibcsfjhwcjikgxql");
     // The pre-T-573 fields keep their vitest hermeticity values:
     expect(described.configured).toBe(false);
     expect(described.useSupabase).toBe(false);

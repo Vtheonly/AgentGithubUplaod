@@ -23,9 +23,9 @@
  * doc-noted).
  */
 
-export const FACTORY_DEFAULT_SUPABASE_URL = "https://vebfehrpzajhstyhinnw.supabase.co";
+export const FACTORY_DEFAULT_SUPABASE_URL = "https://gvuvibcsfjhwcjikgxql.supabase.co";
 export const FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY =
-  "sb_publishable_IPUtQMYQzr1wNnfGTcl5MA_wuz3RUdg";
+  "sb_publishable_d-0XZQsTuzr3r2-kFxw-rA__BuQAvAa";
 
 /**
  * Resolve the packaged target from the environment layers.
