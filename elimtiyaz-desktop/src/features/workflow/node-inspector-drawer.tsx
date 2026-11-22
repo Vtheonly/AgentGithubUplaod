@@ -815,7 +815,7 @@ function TypeSpecificFields({
             <Input value={str("title")} onChange={(e) => set("title", e.target.value)} disabled={!canEdit} className="h-8 text-sm" />
           </F>
           <F label="Rôle assigné" required>
-            <RoleSelect value={str("assignee_role", "finance_officer")} onChange={(v) => set("assignee_role", v)} disabled={!canEdit} />
+            <RoleSelect value={normalizeAssigneeRoleValue(str("assignee_role", "financial_officer"))} onChange={(v) => set("assignee_role", v)} disabled={!canEdit} />
           </F>
           <F label="Priorité">
             <Select value={str("priority", "normal")} onValueChange={(v) => set("priority", v)} disabled={!canEdit}>
@@ -947,6 +947,31 @@ const DIMANCHE_A_SAMEDI = [
   { day: 6, label: "Sam" },
 ];
 
+/**
+ * E2.6 / BUG-013: saved node configs may carry the LEGACY assignee_role
+ * spellings the old Select offered (superadmin / supervisor /
+ * finance_officer — the seeded templates still emit two of them). The
+ * Select now speaks ONLY the canonical Role enum values; legacy values
+ * normalize on read so an existing node never renders a blank select
+ * (the execution side tolerates both vocabularies via mapAssigneeRole's
+ * alias map — workflow-side-effects.ts).
+ */
+function normalizeAssigneeRoleValue(raw: string): string {
+  switch (raw.toLowerCase().trim()) {
+    case "superadmin":
+    case "admin":
+      return "super_admin";
+    case "supervisor":
+    case "surveillant":
+      return "manager";
+    case "finance_officer":
+    case "financier":
+      return "financial_officer";
+    default:
+      return raw;
+  }
+}
+
 function RoleSelect({
   value,
   onChange,
@@ -961,10 +986,10 @@ function RoleSelect({
       <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="parent">Parent (portail)</SelectItem>
-        <SelectItem value="finance_officer">Responsable financier</SelectItem>
-        <SelectItem value="supervisor">Surveillant général</SelectItem>
+        <SelectItem value="financial_officer">Responsable financier</SelectItem>
+        <SelectItem value="manager">Surveillant général</SelectItem>
         <SelectItem value="teacher">Enseignant</SelectItem>
-        <SelectItem value="superadmin">SuperAdmin</SelectItem>
+        <SelectItem value="super_admin">Super Administrateur</SelectItem>
       </SelectContent>
     </Select>
   );
