@@ -6916,7 +6916,7 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Problem IDs:** BUG-001 (terms) · BUG-002 (gpa args) · BUG-003 (revenue label) · BUG-004 (student-code filter, + the Android check) · BUG-005 (sort) · BUG-016 (memo) · BUG-022 (names) · BUG-023 (nulls) · BUG-024 (redaction) · BUG-025 (header drop) · BUG-026 (tab sync) · BUG-013 (role strings) · BUG-027 (copy) · BUG-010 (SuperAdmin stamp) · BUG-020 (pricing hardcode) · BUG-021 (cross-check overwrite) · BUG-028's mock-refund lane is E2.4's; the remainder here if any.
 
-**Status:** REGISTERED, NOT STARTED (Session 37 — the registration stands; the execution moved to the Session-38 queue behind the E2.5 remainder).
+**Status:** IN_PROGRESS (Session 41, 2026-11-22 — the parallel non-interfering lane: the concurrent Session-41 dashboard lane (T-596 + E6.7/E6.8/E6.10) owns every dashboard/personnel/KPI/collapsible file; E2.6's defect sites are disjoint — terms.ts, gpa.ts, system-tools.ts, id.ts, workflow-tools.ts, logger.ts, analysis-tools.ts, cross-checks.ts, academic-tab.tsx, insights.ts, visualization-tools.ts, unified-modal.tsx, class-detail-page.tsx, node-inspector-drawer.tsx, service-pricing-profile.ts, session.ts/auth-provider.tsx. The per-defect implementation record lands at the end of this section.)
 
 **Contract (per EXECUTION-PLAN §4 E2.6 / ROADMAP 1.9):** each verified defect fixed with its own per-fix test (the defect list re-verified at HEAD before each edit — stale findings get corrections, not blind edits).
 
