@@ -39,6 +39,7 @@ import type {
   PricingEntry,
 } from "../../model/pricing";
 import { installmentRemaining } from "./queries";
+import { earlyPaymentCutoff } from "../pricing/school-price-matrix";
 // E2.5 / DUP-012: the ledger-coding label lookup lives in the ONE label
 // module — the website-parity restoration (the per-category therapy /
 // second-apron / parent-credit charges now resolve to their REAL canonical
@@ -339,6 +340,13 @@ export function servicePricingProfiles(
 
   const chargeRows = ledgerEntries.filter((r) => r.type === "charge");
   const adjustmentRows = ledgerEntries.filter((r) => r.type === "adjustment");
+  // BUG-020 (E2.6): the reversal sets (the cross-checks idiom) — a
+  // cancelled remise must NOT list as applied, and a pure reversal is not
+  // a majoration. Built from the FULL ledger: the reversing row and its
+  // target pair up wherever they live.
+  const reversedIds = new Set(
+    ledgerEntries.filter((r) => r.reversesId).map((r) => r.reversesId!),
+  );
 
   const nameOf = (studentId: string | null): string => {
     if (studentId == null) return "Famille";
@@ -522,13 +530,19 @@ export function servicePricingProfiles(
         isActive: d.isActive,
       }));
     if (category === "tuition") {
+      // BUG-020 (E2.6): the deadline DERIVES from the academic year —
+      // June 30 of the START year via earlyPaymentCutoff (the ONE rule,
+      // school-price-matrix.ts) — instead of the hardcoded "2026-06-30"
+      // that silently lied for every later year.
+      const yearSource = catalogYear ?? fallbackYear;
+      const startYear = Number(yearSource.match(/(\d{4})/)?.[1] ?? "2026");
       conditions.push({
         kind: "early_payment_bonus",
         code: "full_annual",
         label: "Paiement annuel avant le 30 juin",
         value: EARLY_PAYMENT_BONUS_PCT,
         valueType: "percentage",
-        deadline: EARLY_PAYMENT_DEADLINE,
+        deadline: earlyPaymentCutoff(startYear).toISOString().slice(0, 10),
         isActive: true,
       });
     }
@@ -544,6 +558,10 @@ export function servicePricingProfiles(
     );
     const appliedDiscounts: AppliedDiscountNode[] = categoryAdjustments
       .filter((r) => r.amount < 0)
+      // BUG-020 (E2.6): reversed credits (a cancelled remise) and pure
+      // reversal credits are NOT applied discounts — listing them lied to
+      // the drawer while the debit side netted them out.
+      .filter((r) => !r.reversesId && !reversedIds.has(r.id))
       .map((r) => {
         const decoded = decodeMetadata(r);
         return {
@@ -559,6 +577,12 @@ export function servicePricingProfiles(
       });
     const adjustmentsDebit = categoryAdjustments
       .filter((r) => r.amount > 0)
+      // BUG-020 (E2.6): a row carrying reversesId is a pure cancellation,
+      // not a majoration — and a debit that was itself REVERSED (the
+      // target of a credit reversal) left the books exactly as it entered.
+      // Either way it must not count; its cancelling twin is excluded on
+      // the credit side by the same rule (symmetric with appliedDiscounts).
+      .filter((r) => !r.reversesId && !reversedIds.has(r.id))
       .reduce((s, r) => s + r.amount, 0);
 
     /* THE TRANCHE FRAMEWORK — physical installment rows for this service. */
@@ -577,7 +601,15 @@ export function servicePricingProfiles(
         studentId: i.studentId ?? "",
         studentName: nameOf(i.studentId),
         label: i.label?.trim() || "Tranche",
-        trancheNumber: trancheNumberFromLabel(i.label ?? ""),
+        // BUG-020 (E2.6): the STRUCTURED wave number first (the DB's
+        // tranche_number, migration 0124 — T-338's own rule: "never by
+        // label parsing, labels are free-text and drift"); 0 = the FI (a
+        // fee, a non-wave row). The label parse stays ONLY as the legacy
+        // fallback for rows that predate the column.
+        trancheNumber:
+          i.trancheNumber != null && i.trancheNumber > 0
+            ? i.trancheNumber
+            : trancheNumberFromLabel(i.label ?? ""),
         amountDue: i.amountDue,
         amountPaid: i.amountPaid,
         amountPending: i.amountPending ?? 0,
@@ -642,4 +674,3 @@ export function servicePricingProfiles(
 
 /** The early-payment bonus pinned from the workbook (5% scolarité, ≤ June 30). */
 const EARLY_PAYMENT_BONUS_PCT = 5;
-const EARLY_PAYMENT_DEADLINE = "2026-06-30";
