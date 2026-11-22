@@ -241,3 +241,112 @@ describe("E2.6 / BUG-003 — get_collection_analytics revenue label", () => {
     }
   });
 });
+
+describe("E2.6 / BUG-004 — deterministicStudentCode's missing empty-field filter", () => {
+  // The parent side filters empty identity fields after trim (the
+  // cross-platform equivalence fix); the student side joined them raw.
+  it("empty/whitespace student identity fields are excluded from the hash (the parent rule)", async () => {
+    const { deterministicStudentCode } = await import("../../../core/format/id");
+    const withEmpty = deterministicStudentCode(2026, "par-1", {
+      displayName: "  ",
+      firstName: "A",
+      lastName: "B",
+    });
+    const without = deterministicStudentCode(2026, "par-1", {
+      firstName: "A",
+      lastName: "B",
+    });
+    expect(withEmpty).toBe(without);
+  });
+
+  it("an empty parentId no longer fabricates a non-empty join (the fallback seed wins)", async () => {
+    const { deterministicStudentCode } = await import("../../../core/format/id");
+    // Pre-fix: ("", {displayName:"Nour"}) joined to "|Nour||" — the
+    // identity length check passed and the fallback seed was unreachable.
+    // Post-fix: displayName alone still forms the identity (it is a REAL
+    // field) — the seed only wins when EVERYTHING is empty.
+    const onlyName = deterministicStudentCode(2026, "", { displayName: "Nour" });
+    const allEmpty = deterministicStudentCode(2026, "", { displayName: " " }, "sync-entry-7");
+    const allEmptyAgain = deterministicStudentCode(2026, "", { displayName: "" }, "sync-entry-7");
+    expect(onlyName).toMatch(/^ELV-2026-[0-9A-F]{6}$/);
+    expect(allEmpty).toBe(allEmptyAgain); // retry-stable through the seed
+    // And the seed lane is actually reachable now (differs from the
+    // orphan-default lane and from any identity hash).
+    const orphanDefault = deterministicStudentCode(2026, "", { displayName: "" });
+    expect(allEmpty).not.toBe(orphanDefault);
+  });
+
+  it("sparse identity produces a DIFFERENT (noise-free) code than the old raw join", async () => {
+    const { deterministicStudentCode, stableHash } = await import("../../../core/format/id");
+    // The old rule: ["", "", "A", ""].join("|").trim() = "||A|" — hashed
+    // the pipe noise. The new rule hashes exactly "A".
+    const fixed = deterministicStudentCode(2026, "", { firstName: "A" });
+    expect(fixed).toBe(`ELV-2026-${stableHash("A")}`);
+  });
+});
+
+describe("E2.6 / BUG-005 — plan_collection_campaign slices before sorting", () => {
+  it("amount_first plans the campaign around the LARGEST debtors, not the first N rows", async () => {
+    const { executeWorkflowTool } = await import("../../../core/ai/tools/workflow-tools");
+    // A stub repos surface: 6 debtors in ASCENDING amount order (the worst
+    // ordering for the old slice-first rule) with limit 3.
+    const summary = [
+      { parentId: "p1", parentName: "Petit Un", parentPhone: null, studentCount: 1, outstandingAmount: 1_000, daysOverdue: 40, bucket: "31-60" },
+      { parentId: "p2", parentName: "Petit Deux", parentPhone: null, studentCount: 1, outstandingAmount: 2_000, daysOverdue: 45, bucket: "31-60" },
+      { parentId: "p3", parentName: "Petit Trois", parentPhone: null, studentCount: 1, outstandingAmount: 3_000, daysOverdue: 50, bucket: "31-60" },
+      { parentId: "p4", parentName: "Grand Quatre", parentPhone: null, studentCount: 2, outstandingAmount: 400_000, daysOverdue: 35, bucket: "31-60" },
+      { parentId: "p5", parentName: "Grand Cinq", parentPhone: null, studentCount: 2, outstandingAmount: 500_000, daysOverdue: 30, bucket: "31-60" },
+      { parentId: "p6", parentName: "Grand Six", parentPhone: null, studentCount: 2, outstandingAmount: 600_000, daysOverdue: 32, bucket: "31-60" },
+    ];
+    const repos = {
+      debt: {
+        observeSummary: () => ({ get: () => summary }),
+      },
+    } as unknown as Parameters<typeof executeWorkflowTool>[2];
+
+    const out = await executeWorkflowTool(
+      "plan_collection_campaign",
+      { strategy: "amount_first", limit: 3 },
+      repos,
+    );
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    expect(parsed.error).toBeUndefined();
+    // The planned debtors must be the three LARGEST (600k/500k/400k), not
+    // the first three repository rows (1k/2k/3k) the old slice produced.
+    const names = (parsed.prioritized_debtors as Array<{ parent_name: string }>).map((d) => d.parent_name);
+    expect(names).toContain("Grand Six");
+    expect(names).toContain("Grand Cinq");
+    expect(names).toContain("Grand Quatre");
+    expect(names).not.toContain("Petit Un");
+  });
+
+  it("aging_first prioritizes the OLDEST overdue debtors in the slice", async () => {
+    const { executeWorkflowTool } = await import("../../../core/ai/tools/workflow-tools");
+    const summary = [
+      { parentId: "p1", parentName: "Récent Un", parentPhone: null, studentCount: 1, outstandingAmount: 10_000, daysOverdue: 31, bucket: "31-60" },
+      { parentId: "p2", parentName: "Récent Deux", parentPhone: null, studentCount: 1, outstandingAmount: 10_000, daysOverdue: 33, bucket: "31-60" },
+      { parentId: "p3", parentName: "Récent Trois", parentPhone: null, studentCount: 1, outstandingAmount: 10_000, daysOverdue: 35, bucket: "31-60" },
+      { parentId: "p4", parentName: "Ancien Quatre", parentPhone: null, studentCount: 1, outstandingAmount: 5_000, daysOverdue: 200, bucket: "180+" },
+      { parentId: "p5", parentName: "Ancien Cinq", parentPhone: null, studentCount: 1, outstandingAmount: 5_000, daysOverdue: 150, bucket: "91-180" },
+      { parentId: "p6", parentName: "Ancien Six", parentPhone: null, studentCount: 1, outstandingAmount: 5_000, daysOverdue: 120, bucket: "91-180" },
+    ];
+    const repos = {
+      debt: {
+        observeSummary: () => ({ get: () => summary }),
+      },
+    } as unknown as Parameters<typeof executeWorkflowTool>[2];
+
+    const out = await executeWorkflowTool(
+      "plan_collection_campaign",
+      { strategy: "aging_first", limit: 3 },
+      repos,
+    );
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    expect(parsed.error).toBeUndefined();
+    const names = (parsed.prioritized_debtors as Array<{ parent_name: string }>).map((d) => d.parent_name);
+    expect(names).toContain("Ancien Quatre");
+    expect(names).toContain("Ancien Cinq");
+    expect(names).toContain("Ancien Six");
+    expect(names).not.toContain("Récent Un");
+  });
+});

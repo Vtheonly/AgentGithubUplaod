@@ -162,15 +162,25 @@ export function deterministicStudentCode(
   input: StudentIdentityInput,
   fallbackSeed?: string,
 ): string {
+  // CANONICAL (BUG-004, mirroring deterministicParentCode's cross-platform
+  // equivalence fix): filter out BOTH null and EMPTY identity fields (after
+  // per-field trim) before joining. Previously the student side joined
+  // empty strings while the parent side filtered them — the same student
+  // with a sparse identity produced ELV codes that embedded `||` noise, and
+  // the fallbackSeed lane stayed unreachable when parentId was "" (the
+  // joined string still passed the length check, so the seed never won).
   const identity = [
     parentId ?? "",
     input.displayName ?? "",
     input.firstName ?? "",
     input.lastName ?? "",
-  ].join("|").trim();
+  ]
+    .map((f) => f.trim())
+    .filter((f) => f.length > 0)
+    .join("|");
   // T-018: NO random fallback — see deterministicParentCode.
   const suffix = identity.length > 0
-    ? stableHash(identity)
+    ? stableHash(fallbackSeed && fallbackSeed.length > 0 ? fallbackSeed : identity)
     : stableHash(fallbackSeed ?? "orphan-student");
   return `ELV-${year}-${suffix}`;
 }
