@@ -217,7 +217,7 @@ export function SplashScreen({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-surface-background transition-opacity duration-400"
+      className="fixed inset-0 z-splash flex flex-col items-center justify-center bg-surface-background transition-opacity duration-400"
       style={{ opacity: exiting ? 0 : 1 }}
       aria-label="El-Imtiyaz"
       role="img"

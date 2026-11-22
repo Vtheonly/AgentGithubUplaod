@@ -27,7 +27,11 @@ export function ToastViewport() {
   const toasts = useToastList();
   if (toasts.length === 0) return null;
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+    // E6.1 (UI-U1): z-toast (the named scale) + the tailwindcss-animate
+    // verb `slide-in-from-bottom-4 fade-in-0` — the ONE animation family.
+    // The former bare z literal (100) + the custom slide-up keyframe are
+    // retired (DUP-023/028).
+    <div className="fixed bottom-4 right-4 z-toast flex flex-col gap-2 max-w-sm">
       {toasts.map((t) => {
         const styles = SEVERITY_STYLES[t.severity];
         const Icon = styles.icon;
@@ -35,7 +39,7 @@ export function ToastViewport() {
           <div
             key={t.id}
             className={cn(
-              "flex items-start gap-3 rounded-md border p-3 shadow-lg backdrop-blur-sm animate-slide-up",
+              "flex items-start gap-3 rounded-md border p-3 shadow-lg backdrop-blur-sm animate-in fade-in-0 slide-in-from-bottom-4",
               styles.container,
             )}
           >

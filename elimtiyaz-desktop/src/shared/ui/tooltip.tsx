@@ -15,9 +15,9 @@ export const TooltipTrigger = TooltipPrimitive.Trigger;
  * - collisionPadding={8}: viewport-edge triggers keep an 8px margin —
  *   radix flips the side automatically (avoidCollisions default) and the
  *   padding stops the flipped surface from kissing the edge.
- * - z-[70]: one layer ABOVE the modal surface (unified-modal is z-50) —
- *   tooltips opened inside modals (the see-details drill-downs, the
- *   payment dialogs) always paint on top.
+ * - z-tooltip (E6.1/UI-U1): one layer ABOVE the modal surface
+ *   (unified-modal is z-50) — tooltips opened inside modals (the
+ *   see-details drill-downs, the payment dialogs) always paint on top.
  */
 export const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
@@ -28,7 +28,7 @@ export const TooltipContent = React.forwardRef<
     sideOffset={sideOffset}
     collisionPadding={collisionPadding}
     className={cn(
-      "z-[70] rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md",
+      "z-tooltip rounded-md border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md",
       "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
       className,
     )}

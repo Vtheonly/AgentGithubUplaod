@@ -110,6 +110,23 @@ module.exports = {
         // entry removed — the pill radius lives in the CSS custom property
         // --radius-pill (index.css :root) that the scrollbar thumb reads.
       },
+      // E6.1 (DUP-023/028, UI-U1): the NAMED z-scale — the single authority
+      // for stacking order. Before this, five unrelated surfaces each
+      // hard-coded their own literal (z-[70] on the tooltip AND the
+      // inspector, z-[100] on the toast viewport, z-[90] on the dead
+      // ModalHost) — the layers worked by accident, and the splash's
+      // z-[200] was an unnamed magic number. The named scale makes the
+      // stacking intent readable and auditable:
+      //   z-tooltip  70 — one layer ABOVE every modal surface (z-50)
+      //   z-toast   100 — the top persistent layer (viewport + items)
+      //   z-splash  200 — the boot layer (splash-screen.tsx ONLY — the
+      //                    documented exception: it must cover EVERYTHING,
+      //                    including toasts, during boot)
+      zIndex: {
+        tooltip: "70",
+        toast: "100",
+        splash: "200",
+      },
       fontFamily: {
         sans: ['Inter', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Consolas', 'monospace'],
@@ -132,18 +149,12 @@ module.exports = {
           from: { opacity: "1", transform: "scale(1)" },
           to: { opacity: "0", transform: "scale(0.95)" },
         },
-        "slide-in-right": {
-          from: { transform: "translateX(100%)" },
-          to: { transform: "translateX(0)" },
-        },
-        "slide-out-right": {
-          from: { transform: "translateX(0)" },
-          to: { transform: "translateX(100%)" },
-        },
-        "slide-up": {
-          from: { transform: "translateY(8px)", opacity: "0" },
-          to: { transform: "translateY(0)", opacity: "1" },
-        },
+        // E6.1 (DUP-023/028): the custom "slide-in-right" / "slide-out-right"
+        // / "slide-up" keyframes + their animation entries DELETED — the ONE
+        // animation family is tailwindcss-animate (already a plugin): the
+        // drawer uses `slide-in-from-right` / `slide-out-to-right`, the
+        // toast `slide-in-from-bottom-4`. The fade/zoom pairs stay: they
+        // predate the plugin and pin the same verbs' exact timing.
         // DEAD-017 (T-589): the Radix accordion keyframes + their animation
         // entries deleted — no Radix Accordion exists in the dependency tree
         // and no component ever consumed the animate-accordion-* classes.
@@ -153,9 +164,6 @@ module.exports = {
         "fade-out": "fade-out 150ms ease-in",
         "zoom-in-95": "zoom-in-95 200ms cubic-bezier(0.16, 1, 0.3, 1)",
         "zoom-out-95": "zoom-out-95 150ms ease-in",
-        "slide-in-right": "slide-in-right 250ms cubic-bezier(0.16, 1, 0.3, 1)",
-        "slide-out-right": "slide-out-right 200ms ease-in",
-        "slide-up": "slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
   },

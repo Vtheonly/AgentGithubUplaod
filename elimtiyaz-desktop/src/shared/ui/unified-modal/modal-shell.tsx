@@ -46,9 +46,14 @@ function overlayClass(variant: ModalVariant): string {
 function contentClass(variant: ModalVariant, size: ModalSize, contentClassName?: string): string {
   const base = "data-[state=open]:animate-in data-[state=closed]:animate-out";
   if (variant === "drawer") {
+    // E6.1 (DUP-023/028): the custom "slide-in-right"/"slide-out-right"
+    // keyframes retired — the ONE animation family is tailwindcss-animate
+    // (`slide-in-from-right` / `slide-out-to-right` with fade + zoom steps).
     return cn(
       "fixed end-0 top-0 z-50 flex h-full flex-col border-s border-border bg-popover shadow-2xl",
-      "data-[state=open]:slide-in-right data-[state=closed]:slide-out-right",
+      "data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
+      "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+      "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
       DRAWER_SIZE_CLASS[mapSizeForDrawer(size)],
       contentClassName,
     );

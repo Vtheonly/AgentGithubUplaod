@@ -828,7 +828,7 @@ export function DataInspectorProvider({
       {/* The compact provenance popup — top-10 color coded at a glance */}
       {request && resolved && !expanded && (
         <div
-          className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md"
+          className="fixed right-5 top-24 z-tooltip w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md"
           data-testid="inspector-compact"
         >
           <div className="border-b border-border/60 px-4 py-3">
