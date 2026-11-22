@@ -12,7 +12,12 @@ import type { LucideIcon } from "lucide-react";
 import { Clock } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
 import { Avatar, AvatarFallback } from "../../../shared/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../shared/ui/card";
 import { KpiCard } from "../../../shared/ui/kpi-card";
 import { ComingSoonCard } from "../../../shared/layout/coming-soon-card";
 
@@ -54,15 +59,24 @@ export interface RoleDashboardLayoutProps {
   readonly children?: ReactNode;
 }
 
-export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode {
+export function RoleDashboardLayout(
+  props: RoleDashboardLayoutProps,
+): ReactNode {
   const { role, actorName, kpis, tasks = [], actions = [], children } = props;
-  const initials = actorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const initials = actorName
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   return (
     <div className="grid grid-cols-1 gap-4 p-6 pb-12">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar>
+          <Avatar>
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
           <div>
             <div className="text-lg font-semibold">{role} Dashboard</div>
             <div className="text-xs text-muted-foreground">{actorName}</div>
@@ -71,12 +85,20 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="size-3" />
-            {new Date().toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+            {new Date().toLocaleString("fr-FR", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
           </div>
           {actions.map((a, i) => {
             const Icon = a.icon;
             return (
-              <Button key={i} variant={a.variant ?? "outline"} size="sm" onClick={a.onClick}>
+              <Button
+                key={i}
+                variant={a.variant ?? "outline"}
+                size="sm"
+                onClick={a.onClick}
+              >
                 {Icon && <Icon className="size-4" />}
                 {a.label}
               </Button>
@@ -101,18 +123,41 @@ export function RoleDashboardLayout(props: RoleDashboardLayoutProps): ReactNode 
       </div>
 
       {tasks.length > 0 && (
-        <DashboardSection title="Tâches en attente" action={<span className="text-xs text-muted-foreground">{tasks.length} à traiter</span>}>
+        <DashboardSection
+          title="Tâches en attente"
+          action={
+            <span className="text-xs text-muted-foreground">
+              {tasks.length} à traiter
+            </span>
+          }
+        >
           <ul className="divide-y divide-border">
             {tasks.map((t) => (
               <li key={t.id} className="flex items-center justify-between py-2">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{t.label}</div>
-                  {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
+                  {t.description && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      {t.description}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {t.dueIn && <span className="text-xs text-muted-foreground">{t.dueIn}</span>}
-                  {t.priority === "high" && <span className="rounded bg-status-danger/10 px-1.5 py-0.5 text-[10px] text-status-danger">Urgent</span>}
-                  {t.onClick && <Button variant="ghost" size="sm" onClick={t.onClick}>Ouvrir</Button>}
+                  {t.dueIn && (
+                    <span className="text-xs text-muted-foreground">
+                      {t.dueIn}
+                    </span>
+                  )}
+                  {t.priority === "high" && (
+                    <span className="rounded bg-status-danger/10 px-1.5 py-0.5 text-[10px] text-status-danger">
+                      Urgent
+                    </span>
+                  )}
+                  {t.onClick && (
+                    <Button variant="ghost" size="sm" onClick={t.onClick}>
+                      Ouvrir
+                    </Button>
+                  )}
                 </div>
               </li>
             ))}
@@ -155,7 +200,9 @@ export function DashboardSection({
             {title}
           </CardTitle>
           {description && (
-            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {description}
+            </p>
           )}
         </div>
         {action}

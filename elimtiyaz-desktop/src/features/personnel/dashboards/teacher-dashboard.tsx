@@ -45,11 +45,9 @@ import { StatusChip } from "../../../shared/ui/status-chip";
 import { UnifiedModal } from "../../../shared/ui/unified-modal";
 import { RollCallScreen } from "../../academics/roll-call-screen";
 import { GradeEntryScreen } from "../../academics/grade-entry-screen";
-import {
-  RoleDashboardLayout,
-  type DashboardKpi,
-  type DashboardTask,
-} from "./role-dashboard-layout";
+import { type DashboardKpi, type DashboardTask } from "./role-dashboard-layout";
+import { RoleDashboardTemplate } from "./role-dashboard-template";
+import { Role } from "../../../core/rbac/roles";
 
 const HomeworkSchema = z.object({
   classId: z.string().min(1, "Classe requise"),
@@ -203,9 +201,8 @@ export function TeacherDashboard() {
 
   return (
     <>
-      <RoleDashboardLayout
-        role="Enseignant"
-        actorName={session?.displayName ?? "Enseignant"}
+      <RoleDashboardTemplate
+        role={Role.Teacher}
         kpis={kpis}
         tasks={tasks}
         actions={[
@@ -275,7 +272,7 @@ export function TeacherDashboard() {
             </div>
           )}
         </div>
-      </RoleDashboardLayout>
+      </RoleDashboardTemplate>
 
       <AutoFormModal
         open={homeworkOpen}

@@ -95,11 +95,14 @@ describe("T-374 — WORKFORCE-502: no user_profiles.id fallback on the personnel
   });
 
   it("latestFor never runs with a foreign key (both memo guards)", () => {
+    // E6.10 note: prettier re-indents/wraps the memo's ternary — match with
+    // a whitespace-tolerant regex (the semantic pin is unchanged: latestFor
+    // runs ONLY under the personnelId guard, never on a foreign key).
     expect(
-      WORKER_DASHBOARD.includes(
-        "return personnelId\n        ? repos.workforceAttendance.latestFor(personnelId, today)\n        : null;",
+      WORKER_DASHBOARD.match(
+        /return personnelId\s*\?\s*repos\.workforceAttendance\.latestFor\(personnelId, today\)\s*:\s*null;/,
       ),
-    ).toBe(true);
+    ).not.toBeNull();
     expect(
       ATTENDANCE_CENTER.includes(
         "return myPersonnelId\n      ? repos.workforceAttendance.latestFor(myPersonnelId, todayIso)\n      : null;",

@@ -10,21 +10,30 @@
  */
 import { useMemo, useState } from "react";
 import {
-  PackagePlus, PackageMinus, Boxes, AlertTriangle, ScanLine,
-  Send, ClipboardCheck, Truck,
+  PackagePlus,
+  PackageMinus,
+  Boxes,
+  AlertTriangle,
+  ScanLine,
+  Send,
+  ClipboardCheck,
+  Truck,
 } from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
-import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import {
+  AutoFormModal,
+  type AutoFormField,
+} from "../../../shared/ui/auto-form";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { Button } from "../../../shared/ui/button";
-import {
-  RoleDashboardLayout,
-  type DashboardKpi,
-} from "./role-dashboard-layout";
+import { type DashboardKpi } from "./role-dashboard-layout";
+import { RoleDashboardTemplate } from "./role-dashboard-template";
+import { Role } from "../../../core/rbac/roles";
+
 import {
   INVENTORY_TRANSACTION_LABELS_FR,
   INVENTORY_CATEGORY_LABELS_FR,
@@ -39,21 +48,30 @@ import {
   type DispatchStatus,
 } from "../../../domain/model/operations-workforce";
 
-const RECEIPT_STATUS_TONE: Record<ReceiptStatus, "info" | "warning" | "success" | "neutral"> = {
+const RECEIPT_STATUS_TONE: Record<
+  ReceiptStatus,
+  "info" | "warning" | "success" | "neutral"
+> = {
   pending: "info",
   partial: "warning",
   received: "success",
   cancelled: "neutral",
 };
 
-const DISPATCH_STATUS_TONE: Record<DispatchStatus, "info" | "warning" | "success" | "neutral"> = {
+const DISPATCH_STATUS_TONE: Record<
+  DispatchStatus,
+  "info" | "warning" | "success" | "neutral"
+> = {
   pending: "warning",
   preparing: "info",
   dispatched: "success",
   cancelled: "neutral",
 };
 
-const TRANSACTION_TONE: Record<InventoryTransactionType, "success" | "info" | "neutral" | "danger" | "warning"> = {
+const TRANSACTION_TONE: Record<
+  InventoryTransactionType,
+  "success" | "info" | "neutral" | "danger" | "warning"
+> = {
   receive: "success",
   dispatch: "info",
   scan: "neutral",
@@ -66,7 +84,12 @@ const ScanSchema = z.object({
   sku: z.string().min(2, "SKU requis"),
   label: z.string().min(2, "Désignation requise"),
   category: z.enum([
-    "fournitures", "mobilier", "manuels", "informatique", "entretien", "autre",
+    "fournitures",
+    "mobilier",
+    "manuels",
+    "informatique",
+    "entretien",
+    "autre",
   ]),
   unit: z.string().min(1, "Unité requise"),
   quantity: z.number().min(1, "Quantité minimum 1"),
@@ -81,7 +104,10 @@ const DamageSchema = z.object({
 function formatTimestamp(iso: string): string {
   try {
     return new Date(iso).toLocaleString("fr-FR", {
-      hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
     });
   } catch {
     return iso;
@@ -93,9 +119,18 @@ export function WarehouseWorkerDashboard() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const receipts = useObservable(() => repos.warehouseTasks.observeReceipts(), []);
-  const dispatches = useObservable(() => repos.warehouseTasks.observeDispatches(), []);
-  const activity = useObservable(() => repos.inventory.observeTransactions(10), []);
+  const receipts = useObservable(
+    () => repos.warehouseTasks.observeReceipts(),
+    [],
+  );
+  const dispatches = useObservable(
+    () => repos.warehouseTasks.observeDispatches(),
+    [],
+  );
+  const activity = useObservable(
+    () => repos.inventory.observeTransactions(10),
+    [],
+  );
   const items = useObservable(() => repos.inventory.observeItems(), []);
 
   const [scanOpen, setScanOpen] = useState(false);
@@ -112,22 +147,39 @@ export function WarehouseWorkerDashboard() {
 
   async function markReceived(r: PendingReceipt) {
     if (!session) return;
-    const res = await repos.warehouseTasks.receiveReceipt(r.id, session.userId, session.displayName);
-    if (res.ok) toast.showSuccess("Réception validée", `${r.supplierName} — ${r.expectedQuantity} reçus.`);
+    const res = await repos.warehouseTasks.receiveReceipt(
+      r.id,
+      session.userId,
+      session.displayName,
+    );
+    if (res.ok)
+      toast.showSuccess(
+        "Réception validée",
+        `${r.supplierName} — ${r.expectedQuantity} reçus.`,
+      );
     else toast.showError("Erreur", res.error.userMessage);
   }
 
   async function handleDispatch(d: PendingDispatch) {
     if (!session) return;
     if (d.status === "pending") {
-      const prepared = await repos.warehouseTasks.prepareDispatch(d.id, session.userId, session.displayName);
+      const prepared = await repos.warehouseTasks.prepareDispatch(
+        d.id,
+        session.userId,
+        session.displayName,
+      );
       if (!prepared.ok) {
         toast.showError("Erreur", "Impossible de préparer l'expédition.");
         return;
       }
     }
-    const res = await repos.warehouseTasks.dispatchDispatch(d.id, session.userId, session.displayName);
-    if (res.ok) toast.showSuccess("Expédié", `${d.itemLabel} vers ${d.destination}`);
+    const res = await repos.warehouseTasks.dispatchDispatch(
+      d.id,
+      session.userId,
+      session.displayName,
+    );
+    if (res.ok)
+      toast.showSuccess("Expédié", `${d.itemLabel} vers ${d.destination}`);
     else toast.showError("Erreur", res.error.userMessage);
   }
 
@@ -166,44 +218,107 @@ export function WarehouseWorkerDashboard() {
   }
 
   const kpis: readonly DashboardKpi[] = [
-    { label: "Réceptions en attente", value: receipts.filter((r) => r.status === "pending").length, icon: PackagePlus },
-    { label: "Expéditions en attente", value: dispatches.filter((d) => d.status === "pending").length, icon: PackageMinus },
+    {
+      label: "Réceptions en attente",
+      value: receipts.filter((r) => r.status === "pending").length,
+      icon: PackagePlus,
+    },
+    {
+      label: "Expéditions en attente",
+      value: dispatches.filter((d) => d.status === "pending").length,
+      icon: PackageMinus,
+    },
     { label: "Stock critique", value: lowStockAlerts, icon: Boxes },
     { label: "Avaries récentes", value: damagedReports, icon: AlertTriangle },
   ];
 
   const scanFields: readonly AutoFormField[] = [
-    { name: "sku", label: "SKU / Code-barres", type: "text", required: true, placeholder: "STY-BLE-50" },
-    { name: "label", label: "Désignation", type: "text", required: true, placeholder: "Stylos bleus" },
     {
-      name: "category", label: "Catégorie", type: "select", required: true,
-      options: Object.entries(INVENTORY_CATEGORY_LABELS_FR).map(([value, label]) => ({ label, value })),
+      name: "sku",
+      label: "SKU / Code-barres",
+      type: "text",
+      required: true,
+      placeholder: "STY-BLE-50",
     },
-    { name: "unit", label: "Unité", type: "text", required: true, placeholder: "lot, pièce…" },
-    { name: "quantity", label: "Quantité", type: "number", required: true, min: 1 },
+    {
+      name: "label",
+      label: "Désignation",
+      type: "text",
+      required: true,
+      placeholder: "Stylos bleus",
+    },
+    {
+      name: "category",
+      label: "Catégorie",
+      type: "select",
+      required: true,
+      options: Object.entries(INVENTORY_CATEGORY_LABELS_FR).map(
+        ([value, label]) => ({ label, value }),
+      ),
+    },
+    {
+      name: "unit",
+      label: "Unité",
+      type: "text",
+      required: true,
+      placeholder: "lot, pièce…",
+    },
+    {
+      name: "quantity",
+      label: "Quantité",
+      type: "number",
+      required: true,
+      min: 1,
+    },
   ];
 
   const damageFields: readonly AutoFormField[] = [
     {
-      name: "itemId", label: "Article", type: "select", required: true, wide: true,
+      name: "itemId",
+      label: "Article",
+      type: "select",
+      required: true,
+      wide: true,
       options: items.map((i) => ({
         label: `${i.label} (${i.sku}) - Stock: ${i.quantityOnHand}`,
         value: i.id,
       })),
     },
-    { name: "quantity", label: "Quantité avariée", type: "number", required: true, min: 1 },
-    { name: "reason", label: "Motif", type: "textarea", required: true, wide: true, placeholder: "Ex. Casse, humidité…" },
+    {
+      name: "quantity",
+      label: "Quantité avariée",
+      type: "number",
+      required: true,
+      min: 1,
+    },
+    {
+      name: "reason",
+      label: "Motif",
+      type: "textarea",
+      required: true,
+      wide: true,
+      placeholder: "Ex. Casse, humidité…",
+    },
   ];
 
   return (
     <>
-      <RoleDashboardLayout
-        role="Magasinier"
-        actorName={session?.displayName ?? "Magasinier"}
+      <RoleDashboardTemplate
+        role={Role.WarehouseWorker}
         kpis={kpis}
         actions={[
-          { label: "Scanner", icon: ScanLine, variant: "default", onClick: () => setScanOpen(true) },
-          { label: "Signaler avarie", icon: AlertTriangle, variant: "outline", onClick: () => setDamageOpen(true) },
+          {
+            label: "Scanner",
+            icon: ScanLine,
+            variant: "default",
+            onClick: () => setScanOpen(true),
+          },
+          {
+            label: "Signaler avarie",
+            icon: AlertTriangle,
+            variant: "outline",
+            onClick: () => setDamageOpen(true),
+          },
         ]}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -217,79 +332,104 @@ export function WarehouseWorkerDashboard() {
                 Aucune réception en attente.
               </p>
             ) : (
-            <ul className="divide-y divide-border">
-              {receipts.map((r) => (
-                <li key={r.id} className="py-2 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      <span className="font-mono text-xs text-muted-foreground mr-1">
-                        {r.purchaseRequestCode ?? "—"}
-                      </span>
-                      {r.supplierName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Qté : {r.expectedQuantity}
-                      {r.receivedQuantity > 0 && ` · reçue ${r.receivedQuantity}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <StatusChip label={RECEIPT_STATUS_LABELS_FR[r.status]} tone={RECEIPT_STATUS_TONE[r.status]} />
-                    {r.status !== "received" && r.status !== "cancelled" && (
-                      <Button size="sm" onClick={() => markReceived(r)}>
-                        <ClipboardCheck className="size-3.5 mr-1" /> Réceptionner
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+              <ul className="divide-y divide-border">
+                {receipts.map((r) => (
+                  <li
+                    key={r.id}
+                    className="py-2 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        <span className="font-mono text-xs text-muted-foreground mr-1">
+                          {r.purchaseRequestCode ?? "—"}
+                        </span>
+                        {r.supplierName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Qté : {r.expectedQuantity}
+                        {r.receivedQuantity > 0 &&
+                          ` · reçue ${r.receivedQuantity}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusChip
+                        label={RECEIPT_STATUS_LABELS_FR[r.status]}
+                        tone={RECEIPT_STATUS_TONE[r.status]}
+                      />
+                      {r.status !== "received" && r.status !== "cancelled" && (
+                        <Button size="sm" onClick={() => markReceived(r)}>
+                          <ClipboardCheck className="size-3.5 mr-1" />{" "}
+                          Réceptionner
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 
           <div className="rounded-lg border bg-card p-4">
-            <h3 className="text-sm font-semibold mb-3">Expéditions à préparer</h3>
+            <h3 className="text-sm font-semibold mb-3">
+              Expéditions à préparer
+            </h3>
             {/* WORKFORCE-511 (T-485): same honest empty state. */}
             {dispatches.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
                 Aucune expédition à préparer.
               </p>
             ) : (
-            <ul className="divide-y divide-border">
-              {dispatches.map((d) => {
-                const isDispatched = d.status === "dispatched" || d.status === "cancelled";
-                return (
-                  <li key={d.id} className="py-2 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{d.itemLabel}</p>
-                      <p className="text-xs text-muted-foreground">
-                        <Truck className="inline size-3 mr-1" />
-                        {d.destination} · x{d.quantity}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <StatusChip label={DISPATCH_STATUS_LABELS_FR[d.status]} tone={DISPATCH_STATUS_TONE[d.status]} />
-                      {!isDispatched && (
-                        <Button
-                          size="sm"
-                          variant={d.status === "preparing" ? "default" : "outline"}
-                          onClick={() => handleDispatch(d)}
-                        >
-                          <Send className="size-3.5 mr-1" /> Expédier
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+              <ul className="divide-y divide-border">
+                {dispatches.map((d) => {
+                  const isDispatched =
+                    d.status === "dispatched" || d.status === "cancelled";
+                  return (
+                    <li
+                      key={d.id}
+                      className="py-2 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {d.itemLabel}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <Truck className="inline size-3 mr-1" />
+                          {d.destination} · x{d.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusChip
+                          label={DISPATCH_STATUS_LABELS_FR[d.status]}
+                          tone={DISPATCH_STATUS_TONE[d.status]}
+                        />
+                        {!isDispatched && (
+                          <Button
+                            size="sm"
+                            variant={
+                              d.status === "preparing" ? "default" : "outline"
+                            }
+                            onClick={() => handleDispatch(d)}
+                          >
+                            <Send className="size-3.5 mr-1" /> Expédier
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         </div>
 
         <div className="rounded-lg border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-3">Activité récente du stock</h3>
+          <h3 className="text-sm font-semibold mb-3">
+            Activité récente du stock
+          </h3>
           {activity.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Aucune activité récente.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Aucune activité récente.
+            </p>
           ) : (
             <ul className="divide-y divide-border">
               {activity.map((a) => (
@@ -298,7 +438,7 @@ export function WarehouseWorkerDashboard() {
             </ul>
           )}
         </div>
-      </RoleDashboardLayout>
+      </RoleDashboardTemplate>
 
       <AutoFormModal
         open={scanOpen}
@@ -333,12 +473,20 @@ function TransactionRow({ tx }: { tx: InventoryTransaction }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm truncate">
-          <span className="font-mono text-xs text-muted-foreground">{tx.itemSku}</span> — {tx.itemLabel}
+          <span className="font-mono text-xs text-muted-foreground">
+            {tx.itemSku}
+          </span>{" "}
+          — {tx.itemLabel}
         </p>
-        <p className="text-xs text-muted-foreground">{formatTimestamp(tx.timestamp)}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatTimestamp(tx.timestamp)}
+        </p>
       </div>
-      <span className={`text-sm font-mono font-semibold ${tx.delta >= 0 ? "text-status-success" : "text-status-danger"}`}>
-        {tx.delta >= 0 ? "+" : ""}{tx.delta}
+      <span
+        className={`text-sm font-mono font-semibold ${tx.delta >= 0 ? "text-status-success" : "text-status-danger"}`}
+      >
+        {tx.delta >= 0 ? "+" : ""}
+        {tx.delta}
       </span>
       <StatusChip
         label={INVENTORY_TRANSACTION_LABELS_FR[tx.type]}

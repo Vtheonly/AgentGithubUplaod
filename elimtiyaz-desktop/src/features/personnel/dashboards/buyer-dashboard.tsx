@@ -10,20 +10,28 @@
  * form-state.
  */
 import { useMemo, useState } from "react";
-import { ShoppingCart, Truck, Building2, Plus, PackageCheck } from "lucide-react";
+import {
+  ShoppingCart,
+  Truck,
+  Building2,
+  Plus,
+  PackageCheck,
+} from "lucide-react";
 import { z } from "zod";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
-import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import {
+  AutoFormModal,
+  type AutoFormField,
+} from "../../../shared/ui/auto-form";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { Button } from "../../../shared/ui/button";
-import {
-  RoleDashboardLayout,
-  type DashboardKpi,
-  type DashboardTask,
-} from "./role-dashboard-layout";
+import { type DashboardKpi, type DashboardTask } from "./role-dashboard-layout";
+import { RoleDashboardTemplate } from "./role-dashboard-template";
+import { Role } from "../../../core/rbac/roles";
+
 import {
   PURCHASE_REQUEST_STATUS_LABELS_FR,
   PURCHASE_REQUEST_PRIORITY_LABELS_FR,
@@ -31,7 +39,10 @@ import {
   type PurchaseRequestPriority,
 } from "../../../domain/model/operations-workforce";
 
-const PURCHASE_STATUS_TONE: Record<PurchaseRequestStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
+const PURCHASE_STATUS_TONE: Record<
+  PurchaseRequestStatus,
+  "neutral" | "info" | "warning" | "success" | "danger"
+> = {
   draft: "neutral",
   submitted: "info",
   approved: "warning",
@@ -52,11 +63,21 @@ const PurchaseRequestSchema = z.object({
 type PurchaseRequestFormData = z.infer<typeof PurchaseRequestSchema>;
 
 /** Linear progression for the "Avancer" button — skips terminal/side statuses. */
-const ADVANCE_ORDER: PurchaseRequestStatus[] = ["draft", "submitted", "approved", "ordered", "received"];
+const ADVANCE_ORDER: PurchaseRequestStatus[] = [
+  "draft",
+  "submitted",
+  "approved",
+  "ordered",
+  "received",
+];
 
-function nextStatus(current: PurchaseRequestStatus): PurchaseRequestStatus | null {
+function nextStatus(
+  current: PurchaseRequestStatus,
+): PurchaseRequestStatus | null {
   const idx = ADVANCE_ORDER.indexOf(current);
-  return idx === -1 || idx === ADVANCE_ORDER.length - 1 ? null : ADVANCE_ORDER[idx + 1];
+  return idx === -1 || idx === ADVANCE_ORDER.length - 1
+    ? null
+    : ADVANCE_ORDER[idx + 1];
 }
 
 export function BuyerDashboard() {
@@ -67,14 +88,20 @@ export function BuyerDashboard() {
   const requests = useObservable(() => repos.purchaseRequests.observe(), []);
   const suppliers = useObservable(() => repos.suppliers.observe(), []);
   const myTasks = useObservable(
-    () => session ? repos.tasks.observeByAssignee(session.userId) : repos.tasks.observe(),
+    () =>
+      session
+        ? repos.tasks.observeByAssignee(session.userId)
+        : repos.tasks.observe(),
     [session?.userId],
   );
 
   const [newRequestOpen, setNewRequestOpen] = useState(false);
 
   const openRequests = useMemo(
-    () => requests.filter((r) => r.status !== "received" && r.status !== "cancelled"),
+    () =>
+      requests.filter(
+        (r) => r.status !== "received" && r.status !== "cancelled",
+      ),
     [requests],
   );
   const pendingDeliveries = useMemo(
@@ -101,10 +128,25 @@ export function BuyerDashboard() {
   );
 
   const formFields: readonly AutoFormField[] = [
-    { name: "title", label: "Objet de la commande", type: "text", required: true, wide: true, placeholder: "Ex. Manuels scolaires T2" },
-    { name: "supplierId", label: "Fournisseur", type: "select", options: supplierOptions },
     {
-      name: "priority", label: "Priorité", type: "select", required: true,
+      name: "title",
+      label: "Objet de la commande",
+      type: "text",
+      required: true,
+      wide: true,
+      placeholder: "Ex. Manuels scolaires T2",
+    },
+    {
+      name: "supplierId",
+      label: "Fournisseur",
+      type: "select",
+      options: supplierOptions,
+    },
+    {
+      name: "priority",
+      label: "Priorité",
+      type: "select",
+      required: true,
       options: [
         { label: "Basse", value: "low" },
         { label: "Moyenne", value: "medium" },
@@ -112,8 +154,19 @@ export function BuyerDashboard() {
         { label: "Urgente", value: "urgent" },
       ],
     },
-    { name: "amount", label: "Montant estimé (DZD)", type: "money", required: true },
-    { name: "description", label: "Description détaillée", type: "textarea", wide: true, placeholder: "Précisez le besoin…" },
+    {
+      name: "amount",
+      label: "Montant estimé (DZD)",
+      type: "money",
+      required: true,
+    },
+    {
+      name: "description",
+      label: "Description détaillée",
+      type: "textarea",
+      wide: true,
+      placeholder: "Précisez le besoin…",
+    },
   ];
 
   async function handleCreate(data: PurchaseRequestFormData) {
@@ -124,18 +177,23 @@ export function BuyerDashboard() {
       priority: data.priority as PurchaseRequestPriority,
       supplierId: data.supplierId || null,
       departmentId: null,
-      lines: [{
-        id: `prl-${Date.now()}`,
-        description: data.title,
-        quantity: 1,
-        unit: "forfait",
-        estimatedUnitPrice: data.amount,
-      }],
+      lines: [
+        {
+          id: `prl-${Date.now()}`,
+          description: data.title,
+          quantity: 1,
+          unit: "forfait",
+          estimatedUnitPrice: data.amount,
+        },
+      ],
       requestedBy: session.userId,
       requestedByName: session.displayName,
     });
     if (res.ok) {
-      toast.showSuccess("Demande créée", "Le brouillon d'achat a été enregistré.");
+      toast.showSuccess(
+        "Demande créée",
+        "Le brouillon d'achat a été enregistré.",
+      );
       setNewRequestOpen(false);
     } else {
       throw new Error(res.error.userMessage);
@@ -146,16 +204,29 @@ export function BuyerDashboard() {
     if (!session) return;
     const next = nextStatus(current);
     if (!next) return;
-    const res = await repos.purchaseRequests.updateStatus(id, next, session.userId, session.displayName);
+    const res = await repos.purchaseRequests.updateStatus(
+      id,
+      next,
+      session.userId,
+      session.displayName,
+    );
     if (res.ok) {
-      toast.showSuccess("Statut mis à jour", `Passé à : ${PURCHASE_REQUEST_STATUS_LABELS_FR[next]}`);
+      toast.showSuccess(
+        "Statut mis à jour",
+        `Passé à : ${PURCHASE_REQUEST_STATUS_LABELS_FR[next]}`,
+      );
     } else {
       toast.showError("Erreur", res.error.userMessage);
     }
   }
 
   const kpis: readonly DashboardKpi[] = [
-    { label: "Demandes ouvertes", value: openRequests.length, icon: ShoppingCart, trend: `${openRequests.length} en cours` },
+    {
+      label: "Demandes ouvertes",
+      value: openRequests.length,
+      icon: ShoppingCart,
+      trend: `${openRequests.length} en cours`,
+    },
     { label: "Livraisons en attente", value: pendingDeliveries, icon: Truck },
     { label: "Fournisseurs", value: suppliers.length, icon: Building2 },
     {
@@ -169,32 +240,46 @@ export function BuyerDashboard() {
     id: t.id,
     label: t.title,
     description: t.dueDate ? `Échéance : ${t.dueDate}` : undefined,
-    priority: t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
+    priority:
+      t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
   }));
 
   return (
     <>
-      <RoleDashboardLayout
-        role="Acheteur"
-        actorName={session?.displayName ?? "Acheteur"}
+      <RoleDashboardTemplate
+        role={Role.Buyer}
         kpis={kpis}
         tasks={tasks}
         actions={[
-          { label: "Nouvelle demande", icon: Plus, variant: "default", onClick: () => setNewRequestOpen(true) },
+          {
+            label: "Nouvelle demande",
+            icon: Plus,
+            variant: "default",
+            onClick: () => setNewRequestOpen(true),
+          },
         ]}
       >
         <div className="rounded-lg border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-3">Toutes les demandes d'achat</h3>
+          <h3 className="text-sm font-semibold mb-3">
+            Toutes les demandes d'achat
+          </h3>
           <ul className="divide-y divide-border">
             {requests.map((r) => {
               const next = nextStatus(r.status);
               return (
-                <li key={r.id} className="py-3 flex items-center justify-between gap-3">
+                <li
+                  key={r.id}
+                  className="py-3 flex items-center justify-between gap-3"
+                >
                   <div>
-                    <span className="font-mono text-xs text-muted-foreground mr-2">{r.requestCode}</span>
+                    <span className="font-mono text-xs text-muted-foreground mr-2">
+                      {r.requestCode}
+                    </span>
                     <span className="font-medium text-sm">{r.title}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {r.supplierId ? (supplierNameById.get(r.supplierId) ?? "—") : "Fournisseur non assigné"}
+                      {r.supplierId
+                        ? (supplierNameById.get(r.supplierId) ?? "—")
+                        : "Fournisseur non assigné"}
                       {" · "}
                       {new Intl.NumberFormat("fr-FR").format(r.totalAmount)} DZD
                       {" · "}
@@ -202,9 +287,16 @@ export function BuyerDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <StatusChip label={PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]} tone={PURCHASE_STATUS_TONE[r.status]} />
+                    <StatusChip
+                      label={PURCHASE_REQUEST_STATUS_LABELS_FR[r.status]}
+                      tone={PURCHASE_STATUS_TONE[r.status]}
+                    />
                     {next && (
-                      <Button size="sm" variant="outline" onClick={() => handleAdvance(r.id, r.status)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAdvance(r.id, r.status)}
+                      >
                         <PackageCheck className="size-3.5 mr-1" /> Avancer
                       </Button>
                     )}
@@ -214,7 +306,7 @@ export function BuyerDashboard() {
             })}
           </ul>
         </div>
-      </RoleDashboardLayout>
+      </RoleDashboardTemplate>
 
       <AutoFormModal
         open={newRequestOpen}

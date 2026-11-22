@@ -25,11 +25,9 @@ import { useObservable } from "../../../shared/hooks/use-observable";
 import { useAuth } from "../../../app/providers/auth-provider";
 import { useToast } from "../../../app/providers/toast-provider";
 import type { Role } from "../../../core/rbac/roles";
-import {
-  RoleDashboardLayout,
-  type DashboardKpi,
-  type DashboardTask,
-} from "./role-dashboard-layout";
+import { type DashboardKpi, type DashboardTask } from "./role-dashboard-layout";
+import { RoleDashboardTemplate } from "./role-dashboard-template";
+
 import { formatDzd } from "../../../core/format/currency";
 import { REQUEST_TYPE_LABELS_FR } from "../../../domain/model/workforce";
 // T-521: the expense labels for the admin task list's expense entries.
@@ -41,7 +39,6 @@ interface Props {
 
 export function AdministratorDashboard({ role }: Props) {
   const repos = useRepositories();
-  const { session } = useAuth();
   const toast = useToast();
 
   const personnel = useObservable(() => repos.personnel.observe(), []);
@@ -88,12 +85,6 @@ export function AdministratorDashboard({ role }: Props) {
   );
 
   const isFullAdmin = role === "super_admin";
-  const roleLabel =
-    role === "super_admin"
-      ? "Super Administrateur"
-      : role === "financial_officer"
-        ? "Agent Financier"
-        : "Agent de Support";
 
   const kpis: readonly DashboardKpi[] = [
     {
@@ -143,14 +134,14 @@ export function AdministratorDashboard({ role }: Props) {
       id: exp.id,
       label: `Dépense : ${exp.title} (${exp.requestCode})`,
       description: `${EXPENSE_CATEGORY_LABELS_FR[exp.category]} · ${exp.payee}`,
-      priority: (exp.urgency === "high" ? "high" : "medium") as "high" | "medium",
+      priority: (exp.urgency === "high" ? "high" : "medium") as
+        "high" | "medium",
     })),
   ];
 
   return (
-    <RoleDashboardLayout
-      role={roleLabel}
-      actorName={session?.displayName ?? "Administrateur"}
+    <RoleDashboardTemplate
+      role={role}
       kpis={kpis}
       tasks={dashboardTasks}
       actions={
@@ -190,6 +181,6 @@ export function AdministratorDashboard({ role }: Props) {
           </div>
         </div>
       )}
-    </RoleDashboardLayout>
+    </RoleDashboardTemplate>
   );
 }

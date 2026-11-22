@@ -11,8 +11,15 @@
  */
 import { useMemo, useState } from "react";
 import {
-  ClipboardList, CheckCircle2, CalendarClock, Clock,
-  Plus, PlayCircle, StopCircle, PauseCircle, RotateCcw,
+  ClipboardList,
+  CheckCircle2,
+  CalendarClock,
+  Clock,
+  Plus,
+  PlayCircle,
+  StopCircle,
+  PauseCircle,
+  RotateCcw,
   MessageSquare,
 } from "lucide-react";
 import { z } from "zod";
@@ -23,14 +30,16 @@ import { useToast } from "../../../app/providers/toast-provider";
 // BUG-014 / S-U4 (E2.5): the ONE school-local day-key helper — this surface's
 // hand-rolled en-CA/Africa/Algiers idiom became it (outputs preserved verbatim).
 import { schoolLocalDateKey } from "../../../domain/calc/shared/dates";
-import { AutoFormModal, type AutoFormField } from "../../../shared/ui/auto-form";
+import {
+  AutoFormModal,
+  type AutoFormField,
+} from "../../../shared/ui/auto-form";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { Button } from "../../../shared/ui/button";
-import {
-  RoleDashboardLayout,
-  type DashboardKpi,
-  type DashboardTask,
-} from "./role-dashboard-layout";
+import { type DashboardKpi, type DashboardTask } from "./role-dashboard-layout";
+import { RoleDashboardTemplate } from "./role-dashboard-template";
+import { Role } from "../../../core/rbac/roles";
+
 import {
   TASK_STATUS_LABELS_FR,
   type AttendanceEventType,
@@ -42,7 +51,10 @@ import {
 // Intl en-CA/Africa/Algiers hand-roll — same output, one home).
 const todayIso = () => schoolLocalDateKey();
 
-const TASK_STATUS_TONE: Record<TaskStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
+const TASK_STATUS_TONE: Record<
+  TaskStatus,
+  "neutral" | "info" | "warning" | "danger" | "success"
+> = {
   pending: "neutral",
   assigned: "info",
   in_progress: "warning",
@@ -59,7 +71,9 @@ const CLOCK_STATE_LABEL_FR: Record<ClockState, string> = {
   break: "En pause",
 };
 
-function clockStateFromEvent(eventType: AttendanceEventType | null): ClockState {
+function clockStateFromEvent(
+  eventType: AttendanceEventType | null,
+): ClockState {
   if (!eventType) return "out";
   if (eventType === "clock_in" || eventType === "break_end") return "in";
   if (eventType === "break_start") return "break";
@@ -77,7 +91,11 @@ type LeaveFormData = z.infer<typeof LeaveSchema>;
 
 const leaveFields: readonly AutoFormField[] = [
   {
-    name: "type", label: "Type de demande", type: "select", required: true, wide: true,
+    name: "type",
+    label: "Type de demande",
+    type: "select",
+    required: true,
+    wide: true,
     options: [
       { label: "Congé", value: "leave" },
       { label: "Absence", value: "absence" },
@@ -88,7 +106,13 @@ const leaveFields: readonly AutoFormField[] = [
   },
   { name: "fromDate", label: "Du", type: "date", required: true },
   { name: "toDate", label: "Au", type: "date", required: true },
-  { name: "reason", label: "Motif", type: "textarea", wide: true, placeholder: "Précisez le motif de la demande…" },
+  {
+    name: "reason",
+    label: "Motif",
+    type: "textarea",
+    wide: true,
+    placeholder: "Précisez le motif de la demande…",
+  },
 ];
 
 export interface WorkerDashboardProps {
@@ -102,7 +126,10 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
 
   const personnel = useObservable(() => repos.personnel.observe(), []);
   const allTasks = useObservable(
-    () => session ? repos.tasks.observeByAssignee(session.userId) : repos.tasks.observe(),
+    () =>
+      session
+        ? repos.tasks.observeByAssignee(session.userId)
+        : repos.tasks.observe(),
     [session?.userId],
   );
 
@@ -137,19 +164,16 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
   const personnelId = myPersonnelId;
 
   const today = todayIso();
-  const latestEvent = useMemo(
-    () => {
-      // `clockTick` is an intentional recompute trigger, not a data
-      // dependency: it increments after every clock punch so this read
-      // re-runs even though its inputs (repos/personnelId/today) are
-      // unchanged. `void` keeps the reference lint-visible.
-      void clockTick;
-      return personnelId
-        ? repos.workforceAttendance.latestFor(personnelId, today)
-        : null;
-    },
-    [repos.workforceAttendance, personnelId, today, clockTick],
-  );
+  const latestEvent = useMemo(() => {
+    // `clockTick` is an intentional recompute trigger, not a data
+    // dependency: it increments after every clock punch so this read
+    // re-runs even though its inputs (repos/personnelId/today) are
+    // unchanged. `void` keeps the reference lint-visible.
+    void clockTick;
+    return personnelId
+      ? repos.workforceAttendance.latestFor(personnelId, today)
+      : null;
+  }, [repos.workforceAttendance, personnelId, today, clockTick]);
   const clockState = clockStateFromEvent(latestEvent?.eventType ?? null);
 
   const myTasks = useMemo(
@@ -182,7 +206,9 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
       return;
     }
     const result = await repos.workforceAttendance.recordEvent({
-      personnelId, date: today, eventType,
+      personnelId,
+      date: today,
+      eventType,
     });
     if (result.ok) {
       setClockTick((t) => t + 1);
@@ -197,9 +223,16 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
 
   async function updateTaskStatus(taskId: string, status: TaskStatus) {
     if (!session) return;
-    const result = await repos.tasks.updateTaskStatus(taskId, status, session.userId);
+    const result = await repos.tasks.updateTaskStatus(
+      taskId,
+      status,
+      session.userId,
+    );
     if (result.ok) {
-      toast.showSuccess("Tâche mise à jour", `Statut : ${TASK_STATUS_LABELS_FR[status]}.`);
+      toast.showSuccess(
+        "Tâche mise à jour",
+        `Statut : ${TASK_STATUS_LABELS_FR[status]}.`,
+      );
     } else {
       toast.showError("Erreur", "Impossible de mettre à jour la tâche.");
     }
@@ -234,46 +267,71 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
 
   const kpis: readonly DashboardKpi[] = [
     { label: "Tâches affectées", value: myTasks.length, icon: ClipboardList },
-    { label: "Terminées cette semaine", value: completedThisWeek, icon: CheckCircle2 },
+    {
+      label: "Terminées cette semaine",
+      value: completedThisWeek,
+      icon: CheckCircle2,
+    },
     { label: "Demandes en attente", value: pendingLeave, icon: CalendarClock },
-    { label: "Heures cette semaine", value: `${me?.weeklyHoursLogged ?? 0}h`, icon: Clock, trend: `Objectif : ${me?.weeklyHoursTarget ?? 0}h` },
+    {
+      label: "Heures cette semaine",
+      value: `${me?.weeklyHoursLogged ?? 0}h`,
+      icon: Clock,
+      trend: `Objectif : ${me?.weeklyHoursTarget ?? 0}h`,
+    },
   ];
 
   const tasks: readonly DashboardTask[] = myTasks.slice(0, 6).map((t) => ({
     id: t.id,
     label: t.title,
     description: t.dueDate ? `Échéance : ${t.dueDate}` : "Sans échéance",
-    priority: t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
+    priority:
+      t.priority === "urgent" || t.priority === "high" ? "high" : "medium",
   }));
 
   return (
     <>
-      <RoleDashboardLayout
-        role="Ouvrier"
-        actorName={session?.displayName ?? "Ouvrier"}
+      <RoleDashboardTemplate
+        role={Role.Worker}
         kpis={kpis}
         tasks={tasks}
         actions={[
-          { label: "Demander un congé", icon: Plus, variant: "default", onClick: () => setLeaveOpen(true) },
+          {
+            label: "Demander un congé",
+            icon: Plus,
+            variant: "default",
+            onClick: () => setLeaveOpen(true),
+          },
         ]}
       >
         {/* Clock-in / out card — stateful, doesn't fit KPI/task/feed slots */}
         <div className="rounded-lg border bg-card p-5">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
-              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                clockState === "in" ? "bg-status-success/15 text-status-success"
-                : clockState === "break" ? "bg-status-warning/15 text-status-warning"
-                : "bg-muted text-muted-foreground"
-              }`}>
+              <div
+                className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                  clockState === "in"
+                    ? "bg-status-success/15 text-status-success"
+                    : clockState === "break"
+                      ? "bg-status-warning/15 text-status-warning"
+                      : "bg-muted text-muted-foreground"
+                }`}
+              >
                 <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">État du pointage</p>
-                <p className="text-xl font-semibold">{CLOCK_STATE_LABEL_FR[clockState]}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                  État du pointage
+                </p>
+                <p className="text-xl font-semibold">
+                  {CLOCK_STATE_LABEL_FR[clockState]}
+                </p>
                 {latestEvent && (
                   <p className="text-xs text-muted-foreground">
-                    Dernier événement : {new Date(latestEvent.timestamp).toLocaleTimeString("fr-FR")}
+                    Dernier événement :{" "}
+                    {new Date(latestEvent.timestamp).toLocaleTimeString(
+                      "fr-FR",
+                    )}
                   </p>
                 )}
               </div>
@@ -286,10 +344,18 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
               )}
               {clockState === "in" && (
                 <>
-                  <Button size="sm" variant="outline" onClick={() => recordEvent("break_start")}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => recordEvent("break_start")}
+                  >
                     <PauseCircle className="size-4" /> Pause
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => recordEvent("clock_out")}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => recordEvent("clock_out")}
+                  >
                     <StopCircle className="size-4" /> Pointer le départ
                   </Button>
                 </>
@@ -299,7 +365,11 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
                   <Button size="sm" onClick={() => recordEvent("break_end")}>
                     <RotateCcw className="size-4" /> Reprise
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => recordEvent("clock_out")}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => recordEvent("clock_out")}
+                  >
                     <StopCircle className="size-4" /> Pointer le départ
                   </Button>
                 </>
@@ -312,29 +382,53 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
         <div className="rounded-lg border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Mes tâches</h3>
           {myTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Aucune tâche ne vous est affectée pour le moment.</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Aucune tâche ne vous est affectée pour le moment.
+            </p>
           ) : (
             <ul className="divide-y divide-border">
               {myTasks.slice(0, 8).map((task) => (
-                <li key={task.id} className="py-3 flex items-center gap-3 flex-wrap">
+                <li
+                  key={task.id}
+                  className="py-3 flex items-center gap-3 flex-wrap"
+                >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{task.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {task.dueDate ? `Échéance ${task.dueDate}` : "Sans échéance"}
+                      {task.dueDate
+                        ? `Échéance ${task.dueDate}`
+                        : "Sans échéance"}
                     </p>
                   </div>
-                  <StatusChip label={TASK_STATUS_LABELS_FR[task.status]} tone={TASK_STATUS_TONE[task.status]} />
-                  {(task.status === "pending" || task.status === "assigned") && (
-                    <Button size="sm" onClick={() => updateTaskStatus(task.id, "in_progress")}>
+                  <StatusChip
+                    label={TASK_STATUS_LABELS_FR[task.status]}
+                    tone={TASK_STATUS_TONE[task.status]}
+                  />
+                  {(task.status === "pending" ||
+                    task.status === "assigned") && (
+                    <Button
+                      size="sm"
+                      onClick={() => updateTaskStatus(task.id, "in_progress")}
+                    >
                       <PlayCircle className="size-4" /> Démarrer
                     </Button>
                   )}
                   {task.status === "in_progress" && (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => updateTaskStatus(task.id, "needs_review")}>
-                        <CheckCircle2 className="size-4" /> Soumettre pour validation
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          updateTaskStatus(task.id, "needs_review")
+                        }
+                      >
+                        <CheckCircle2 className="size-4" /> Soumettre pour
+                        validation
                       </Button>
-                      <Button size="sm" onClick={() => updateTaskStatus(task.id, "completed")}>
+                      <Button
+                        size="sm"
+                        onClick={() => updateTaskStatus(task.id, "completed")}
+                      >
                         <CheckCircle2 className="size-4" /> Terminer
                       </Button>
                     </>
@@ -358,9 +452,15 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
           {supervisor ? (
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <p className="text-sm font-medium">{supervisor.firstName} {supervisor.lastName}</p>
-                <p className="text-xs text-muted-foreground">{supervisor.position}</p>
-                <p className="text-xs text-muted-foreground font-mono">{supervisor.phone}</p>
+                <p className="text-sm font-medium">
+                  {supervisor.firstName} {supervisor.lastName}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {supervisor.position}
+                </p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {supervisor.phone}
+                </p>
               </div>
               {/* CHAT-301 (T-480): the placeholder toast is GONE — the button
                   now opens the REAL internal chat deep link (the Personnel
@@ -376,10 +476,12 @@ export function WorkerDashboard({ onOpenChat }: WorkerDashboardProps) {
               </Button>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-2">Aucun superviseur rattaché.</p>
+            <p className="text-sm text-muted-foreground py-2">
+              Aucun superviseur rattaché.
+            </p>
           )}
         </div>
-      </RoleDashboardLayout>
+      </RoleDashboardTemplate>
 
       <AutoFormModal
         open={leaveOpen}

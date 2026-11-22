@@ -93,16 +93,24 @@ describe("T-480 / WORKFORCE-509 — assignee filters match ACCOUNT ids (the T-37
     expect(
       MANAGER_DASHBOARD.includes("teamAccountIds.has(id)"),
     ).toBe(true);
+    // E6.10 note: prettier wraps the map/filter chain — match with a
+    // wrap-tolerant regex (the semantic pin is unchanged: the team filter
+    // joins on team ACCOUNT ids, the T-371 key discipline).
     expect(
-      MANAGER_DASHBOARD.includes(
-        "teamMembers.map((p) => p.userId).filter((id): id is string => id !== null)",
+      MANAGER_DASHBOARD.match(
+        /teamMembers\s*\.map\(\(p\) => p\.userId\)\s*\.filter\(\(id\): id is string => id !== null\)/,
       ),
-    ).toBe(true);
+    ).not.toBeNull();
     // The personnel-keyed filters survive untouched (the correct keys for
     // leave_requests + workforce_attendance_events).
+    // E6.10 note: prettier wraps the filter callback — match with a
+    // wrap-tolerant regex (the semantic pin is unchanged: leave_requests
+    // stays personnel-keyed).
     expect(
-      MANAGER_DASHBOARD.includes("leaveRequests.filter((r) => teamIds.has(r.personnelId)"),
-    ).toBe(true);
+      MANAGER_DASHBOARD.match(
+        /leaveRequests\.filter\(\s*\(r\) => teamIds\.has\(r\.personnelId\)/,
+      ),
+    ).not.toBeNull();
     expect(
       MANAGER_DASHBOARD.includes("teamIds.has(e.personnelId)"),
     ).toBe(true);
