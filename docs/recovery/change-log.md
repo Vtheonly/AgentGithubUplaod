@@ -1,4 +1,7 @@
 
+## 2026-11-22 — Session 47 (the owner's major financial investigation)
+- c5dfdf4c: the financial forensics (the 1 350 000 was the S46 demo synthetic — the REAL defects are OUAGED ARIS ×2 645 000 (×10 typo), BENADOUDA 400 000 addend, TASLGHOUA 394 000 dettes, HABRI 791 000 embedded family sum, BERDAI −92 000 créance, HEROUA/KHALEF contradicting twin rows) + the financial fault inspector (8 contextual rules, 4-way verdicts, evidence chains, wired into the import engine, 6 findings/0 false positives on the real workbook) + the traceable family-statement PDF + the FOOTER-overlap root cause of the 'still misaligned' complaint (contact × 'Généré le' ~15pt on every page, since the original generator). 143 tests GREEN, tsc 0, geometry+overlap audits clean.
+
 ## 2026-11-22 — Session 46 (the owner-reported statement misalignment)
 - 36cd861c: the account statement's visual alignment — the Émis-le date drew at x=600 on a 595pt page (off the sheet, on EVERY statement ever generated); amounts left-fixed at +460 (ragged, 7-digit amounts 4.8pt past the margin); no cell clipping; continuation rows overlapped the header box; the synthèse row was 8pt short; the count-note could be silently dropped. All fixed; measured before AND after by a new geometry-extraction technique (inflate the Flate content streams, parse the Tm/Tj pairs, measure with pdf-lib's own Helvetica metrics). 3 new t-368 pins (14/14), neighborhoods 79 GREEN, tsc 0.
 
