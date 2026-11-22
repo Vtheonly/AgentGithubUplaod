@@ -23,7 +23,7 @@
  *   - ai-config-tab / ai-copilot-provider: role OR permission.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseAuthRepository } from "../../infrastructure/supabase/repositories/supabase-auth-repository";
@@ -116,5 +116,101 @@ describe("T-266 leg 1 — SupabaseAuthRepository repairs a DB-derived SuperAdmin
       expect(res.value.permissions.has(Permission.UseAI)).toBe(false);
       expect(res.value.permissions.has(Permission.ViewPersonnel)).toBe(true);
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  Leg 2 — BUG-010 (E2.6): the persisted-session restore stamps       */
+/*  through the ONE ensureSuperAdminPermissions                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The T-266 docstring above promised this leg; it was never written. BUG-010
+ * re-opened the exact gap: the session.ts invariant comment claimed `can()`
+ * was a SuperAdmin bypass site (it is NOT — T-313 pins no-bypass: the stamp
+ * IS the bypass), and loadSession carried a SECOND hand-rolled stamp. This
+ * pin proves the restore path repairs a stripped snapshot through the ONE
+ * ensureSuperAdminPermissions — BEFORE any server refresh lands, and it
+ * SURVIVES a refresh that reports no session (mock Ok(null) keeps a
+ * non-expired stored session).
+ */
+describe("T-266 leg 2 — BUG-010: a stripped persisted SuperAdmin snapshot is repaired on restore", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    // A stale snapshot exactly as T-266 found it: SuperAdmin persisted with
+    // ONLY view_roster (a permission source that lagged the client enum) and
+    // NOT yet expired — so the restore path, not refreshSession, decides.
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        userId: "auth-user-1",
+        tenantId: PROFILE.tenant_id,
+        homeTenantId: null,
+        email: PROFILE.email,
+        displayName: PROFILE.display_name,
+        avatarUrl: null,
+        role: Role.SuperAdmin,
+        permissions: [Permission.ViewRoster],
+        accessToken: "tok",
+        refreshToken: "rtok",
+        // MILLIseconds (the domain Session contract — NOT the Supabase
+        // seconds unit used by the authSession fixture above).
+        expiresAt: Date.now() + 3_600_000,
+        locale: "fr",
+      }),
+    );
+  });
+
+  it("the restored session carries the FULL stamp at first render — before the server refresh lands — and survives a null refresh", async () => {
+    // Gate the startup refresh so the assertion below observes the state
+    // BEFORE any refreshSession result could (re)stamp or evict.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const repos = {
+      ...mockRepositories,
+      auth: {
+        ...mockRepositories.auth,
+        refreshSession: async () => {
+          await gate;
+          return { ok: true as const, value: null };
+        },
+      },
+    };
+
+    // Holder object (TS control-flow cannot see the nested Probe's
+    // assignment, so a bare `let` would narrow to never after render).
+    const probe: { observed: { count: number; loading: boolean } | null } = {
+      observed: null,
+    };
+    function Probe() {
+      const { session, isLoading } = useAuth();
+      probe.observed = session
+        ? { count: session.permissions.size, loading: isLoading }
+        : { count: -1, loading: isLoading };
+      return null;
+    }
+
+    render(
+      <RepositoryProvider repositories={repos as typeof mockRepositories}>
+        <AuthProvider>
+          <Probe />
+        </AuthProvider>
+      </RepositoryProvider>,
+    );
+
+    // BEFORE the refresh resolves: the snapshot said ONE permission; the
+    // restore path (loadSession → ensureSuperAdminPermissions) must already
+    // carry the full client enum — the BUG-010 "unstamped until
+    // refreshSession" window is closed.
+    expect(probe.observed?.count).toBe(Object.values(Permission).length);
+
+    // Release the refresh (Ok(null) — the mock contract that KEEPS a
+    // non-expired stored session) and settle: the session must survive,
+    // still fully stamped.
+    release();
+    await waitFor(() => expect(probe.observed?.loading).toBe(false));
+    expect(probe.observed?.count).toBe(Object.values(Permission).length);
   });
 });

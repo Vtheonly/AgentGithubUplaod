@@ -32,7 +32,6 @@ import { isSuperAdmin } from "../../core/rbac/session";
 import { getSyncQueueStore } from "../../infrastructure/sync/sync-queue-store";
 import { isExpired } from "../../core/rbac/session";
 import { Permission } from "../../core/rbac/permissions";
-import { Role } from "../../core/rbac/roles";
 import { isNetworkError } from "../../core/app-error";
 import { useRepositories } from "./repository-provider";
 import { AuditActions } from "../../core/audit-actions";
@@ -61,6 +60,13 @@ interface SerializedSession extends Omit<Session, "permissions"> {
   permissions: Permission[];
 }
 
+/**
+ * The ONE SuperAdmin permission stamp (T-266/AI-309: the DB catalog may lag
+ * the client permission enum). Every Session entry point — sign-in, refresh,
+ * AND the persisted-session restore in loadSession — stamps the full enum
+ * into a SuperAdmin's set, so `can()` needs no bypass (T-313: the stamp IS
+ * the bypass; gate membership stays ordinary Set reads).
+ */
 function ensureSuperAdminPermissions(s: Session): Session {
   if (isSuperAdmin(s)) {
     const fullPerms = new Set(s.permissions);
@@ -329,13 +335,11 @@ function loadSession(): Session | null {
       Array.isArray(parsed.permissions) ? parsed.permissions : [],
     );
 
-    // If session belongs to SuperAdmin, make sure all permissions are granted
-    // (T-266/AI-309: the DB catalog may lag the client permission enum).
-    if (parsed.role === Role.SuperAdmin) {
-      Object.values(Permission).forEach((p) => permissions.add(p));
-    }
-
-    return { ...parsed, permissions };
+    // BUG-010 (E2.6): the restore path goes through the ONE stamp — this
+    // previously hand-rolled its own full-enum loop, a second definition of
+    // the T-266/AI-309 invariant that had already drifted from
+    // ensureSuperAdminPermissions once.
+    return ensureSuperAdminPermissions({ ...parsed, permissions });
   } catch {
     return null;
   }

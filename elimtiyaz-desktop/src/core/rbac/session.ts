@@ -48,8 +48,13 @@ export interface Session {
 
 /**
  * True only for the canonical SuperAdmin role. Kept as a named predicate so
- * the bypass sites (can / hasRole / hasAnyRole / feature-gate / route-access)
- * share ONE definition of the invariant.
+ * the bypass sites (hasRole / hasAnyRole / feature-gate / route-access)
+ * share ONE definition of the invariant. `can()` is deliberately NOT a
+ * bypass site (T-313): a SuperAdmin passes permission checks through
+ * ordinary Set membership because every Session producer stamps the full
+ * enum (buildSession / ensureSuperAdminPermissions / loadSession) — an
+ * in-`can()` bypass would mask a producer regression (a SuperAdmin session
+ * with a broken stamp would still pass every gate instead of failing loud).
  */
 export function isSuperAdmin(session: Session | null | undefined): boolean {
   return session?.role === Role.SuperAdmin;
