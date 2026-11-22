@@ -634,4 +634,45 @@ describeOrSkip("Real Excel import — 2027-2026.xlsx (the new format, config-dri
     // DIFFERENT spreadsheet formats, ONE canonical financial system —
     // the mandate's core acceptance criterion.
   }, TEST_TIMEOUT_MS);
+
+  it("S47 — the financial fault inspector flags the REAL anomalies of the real workbook (OUAGED, TASLGHOUA, BERDAI, HEROUA, KHALEF) as import warnings", async () => {
+    const { engine } = makeBundle();
+    const ctx = await engine.importFile(xlsxBytes, XLSX_PATH!, { dryRun: false });
+
+    const financeWarnings = ctx.warnings.filter((w) => w.rule.startsWith("finance:"));
+    // Signal, not noise: the whole real 1 139-row workbook produces a
+    // bounded finding list (every rule is contextual, not a blanket gate).
+    expect(financeWarnings.length).toBeGreaterThan(0);
+    expect(financeWarnings.length).toBeLessThan(80);
+
+    const byRule = new Map<string, string[]>();
+    for (const w of financeWarnings) {
+      byRule.set(w.rule, [...(byRule.get(w.rule) ?? []), w.message]);
+    }
+
+    // OUAGED ARIS — the ×10 devis typo (2 645 000 vs the PRIM ~300 000 norm).
+    const outliers = byRule.get("finance:devis_outlier") ?? [];
+    expect(outliers.some((m) => m.includes("OUAGED ARIS") && m.includes("[suspicious]"))).toBe(true);
+    // TASLGHOUA NAILA — prior-year dettes 394 000 > the 300 000 devis.
+    const dettes = byRule.get("finance:dettes_exceeds_devis") ?? [];
+    expect(dettes.some((m) => m.includes("TASLGHOUA NAILA"))).toBe(true);
+    // BERDAI MAROUAN — créance 99 000 ≠ devis − versements 191 000.
+    const creance = byRule.get("finance:creance_invariant") ?? [];
+    expect(creance.some((m) => m.includes("BERDAI MAROUAN") && m.includes("[confirmed_error]"))).toBe(true);
+    // The twin-row contradictions — HEROUA MOSADEK (33 000 vs 30 000) and
+    // KHALEF RAYAN (80 000 vs 158 000, same phone).
+    const dups = byRule.get("finance:duplicate_identity_conflict") ?? [];
+    expect(dups.some((m) => m.includes("HEROUA") && m.includes("MOSADEK"))).toBe(true);
+    expect(dups.some((m) => m.includes("KHALEF RAYAN"))).toBe(true);
+
+    // A NORMAL student never appears in any finding (spot-check a real
+    // clean row — the first PEER of the sheet).
+    expect(financeWarnings.some((w) => w.message.includes("ZIREG LEA"))).toBe(false);
+
+    // In-app limitation, honestly surfaced: the embedded-aggregate rule
+    // (HABRI LINA's 791 000 cross-row family sum) needs FORMULA access —
+    // the engine reads cached values only, so it cannot fire here. The
+    // formula-aware harness layer covers it (see Session-47 report).
+    expect(byRule.get("finance:embedded_aggregate") ?? []).toHaveLength(0);
+  }, TEST_TIMEOUT_MS);
 });

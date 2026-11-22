@@ -18,6 +18,11 @@ import type { BatchUpsertRow } from "./storage/storage-adapter";
 import { defaultLogger } from "./utils/logger";
 import { ConfigurationError, ImportEngineError } from "./errors";
 import { findSchemaByName } from "./schemas";
+import {
+  inspectFinancialRecords,
+  sortFaultsForReport,
+  type FinancialRecordContext,
+} from "../../../domain/calc/finance/financial-fault-inspector";
 import type ExcelJS from "exceljs";
 
 export interface AuditSink {
@@ -426,6 +431,10 @@ export class ImportEngine {
     // sequential loop inside it — byte-identical legacy behavior.
     const batchRows: BatchUpsertRow[] = [];
 
+    // S47: the ETAT financial records collected for the fault inspection
+    // (every validated row, dry-run included — the inspection is read-only).
+    const financialRecords: FinancialRecordContext[] = [];
+
     await this.parser.iterateRows(ws, schema, {
       onRow: async (rawRow, rowIndex) => {
         sheetResult.rowsRead += 1;
@@ -503,6 +512,11 @@ export class ImportEngine {
           return;
         }
 
+        // S47: collect the financial context for the sheet-level fault
+        // inspection (null when the sheet carries no financial fields).
+        const financial = etatRecordToFinancialContext(record, rowIndex);
+        if (financial) financialRecords.push(financial);
+
         if (options.dryRun) {
           sheetResult.rowsImported += 1;
           this.emit("sheet:row", {
@@ -522,6 +536,37 @@ export class ImportEngine {
         this.emit("sheet:progress", { sheet: sheetName, read, total });
       },
     });
+
+    // S47 (the owner-requested financial fault inspection): a contextual
+    // DOMAIN-level pass over the WHOLE sheet's validated records — peer
+    // statistics need the full set, so it runs at the sheet seam, after
+    // parsing and before the batch write. Findings surface as import
+    // warnings (rule "finance:<rule>") so the report carries them; nothing
+    // is auto-corrected (a fault is a finding, never a verdict).
+    if (financialRecords.length > 0) {
+      const faults = sortFaultsForReport(
+        inspectFinancialRecords(financialRecords),
+      );
+      for (const fault of faults) {
+        ctx.addWarning({
+          sheet: sheetName,
+          rule: `finance:${fault.rule}`,
+          message: `[${fault.verdict}] ${fault.subject} — ${fault.summary}`,
+        });
+        this.emit("sheet:warn", {
+          sheet: sheetName,
+          warning: {
+            rule: `finance:${fault.rule}`,
+            message: `[${fault.verdict}] ${fault.subject} — ${fault.summary}`,
+          },
+        });
+      }
+      if (faults.length > 0) {
+        defaultLogger.warn(
+          `Financial fault inspector: ${faults.length} finding(s) on « ${sheetName} »`,
+        );
+      }
+    }
 
     // PERF-503 (T-417): the single batch write for this sheet. The adapter
     // resolves identities against ONE in-memory snapshot (instead of
@@ -604,6 +649,60 @@ export class ImportEngine {
 const defaultNoOpAuditSink: AuditSink = {
   async logAction() {},
 };
+
+/**
+ * S47 — map a validated ETAT import record onto the fault inspector's
+ * financial context. Returns null for records/schemas without financial
+ * fields (Devis/BON/REF sheets — non-fatal, simply not inspectable).
+ * Keys follow the canonical record contract (etat-2026-2027 +
+ * etat-2027-2026): nom, nem, niveau, classe, option, remise, devisAnnuel,
+ * dettes, reglementsDettes, totalVersements, totalCreance, fi, v2 (the
+ * V1 relabeling), v2Alt, v3, distination, t1, t2, t3.
+ */
+function etatRecordToFinancialContext(
+  record: ImportRecord,
+  rowIndex: number,
+): FinancialRecordContext | null {
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const str = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() ? v.trim() : null;
+  if (num(record.devisAnnuel) === null && num(record.dettes) === null) {
+    return null;
+  }
+  const option = str(record.option);
+  return {
+    excelRow: rowIndex,
+    studentName: str(record.nom) ?? `(sans nom, ligne ${rowIndex})`,
+    phone: str(record.nem),
+    level: str(record.niveau),
+    className: str(record.classe),
+    remise: num(record.remise),
+    devisAnnuel: num(record.devisAnnuel),
+    dettes: num(record.dettes),
+    reglementsDettes: num(record.reglementsDettes),
+    totalVersements: num(record.totalVersements),
+    totalCreance: num(record.totalCreance),
+    tuitionComponents:
+      num(record.fi) !== null ||
+      num(record.v2) !== null ||
+      num(record.v2Alt) !== null ||
+      num(record.v3) !== null
+        ? {
+            fi: num(record.fi),
+            v1: num(record.v2),
+            v2Alt: num(record.v2Alt),
+            v3: num(record.v3),
+          }
+        : null,
+    transportDestination: str(record.distination),
+    transportComponents:
+      num(record.t1) !== null || num(record.t2) !== null || num(record.t3) !== null
+        ? { t1: num(record.t1), t2: num(record.t2), t3: num(record.t3) }
+        : null,
+    hasTransportOption: option?.toUpperCase() === "TRNSP",
+  };
+}
 
 export function createImportEngine(config?: ImportEngineConfig): ImportEngine {
   return new ImportEngine(config);

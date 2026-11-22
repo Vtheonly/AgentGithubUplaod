@@ -533,6 +533,25 @@ describe("S46 — the account statement's drawn geometry", () => {
       expect(d.right).toBeLessThanOrEqual(PAGE_W - MARGIN + 0.75);
     }
   });
+
+  it("S47 — the footer never overlaps: the contact line and the 'Généré le' text keep a real gap (the ~15pt collision on EVERY page of every document, fixed)", async () => {
+    const bytes = await generateAccountStatementPdf(
+      Array.from({ length: 3 }, (_, i) => makePayment({ amount: 100_000 + i })),
+      makeParent(),
+    );
+    const items = extractTextGeometry(bytes);
+    const contact = items.find((it) => it.str.startsWith("El-Imtiyaz · Oran"));
+    const gen = items.find((it) => it.str.startsWith("Généré le"));
+    expect(contact).toBeDefined();
+    expect(gen).toBeDefined();
+    // The contact line ends where it ends; the generated-at text is
+    // right-aligned at the margin — the gap must be POSITIVE.
+    expect(gen!.x - contact!.right).toBeGreaterThanOrEqual(4);
+    // And the page label sits below, right-aligned at the margin.
+    const pageLabel = items.find((it) => /^Page 1\/1$/.test(it.str.trim()));
+    expect(pageLabel).toBeDefined();
+    expect(pageLabel!.right).toBeLessThanOrEqual(PAGE_W - MARGIN + 0.75);
+  });
 });
 
 /* Type-only import guard (fixtures above reference these shapes). */

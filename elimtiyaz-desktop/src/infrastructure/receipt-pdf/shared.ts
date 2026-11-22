@@ -147,6 +147,13 @@ export function continuationHeader(
  * every multi-page document. Page numbers now come from
  * `stampPageFooters` AFTER all content is rendered (two-pass: render, then
  * stamp the true count).
+ *
+ * S47 (the owner-reported "still misaligned" PDF): the contact line is
+ * ~310pt wide at size 8, but "Généré le …" was pinned at a fixed
+ * `PAGE_W - MARGIN - 200` (x≈345) — the two footer texts OVERLAPPED by
+ * ~15pt on every page of every generated document. The right-side texts
+ * are now MEASURED and right-aligned at the margin, so any date length
+ * keeps a real gap after the contact line.
  */
 export function drawFooter(page: PdfPage, font: PDFFont, generatedAt: string) {
   const y = 40;
@@ -160,17 +167,22 @@ export function drawFooter(page: PdfPage, font: PDFFont, generatedAt: string) {
     "El-Imtiyaz · Oran, Algérie · Téléphone: +213 41 XX XX XX · Email: contact@elimtiyaz.dz",
     { x: MARGIN, y, size: 8, font, color: TEXT_MUTED },
   );
-  page.drawText(
-    `Généré le ${formatDateTime(generatedAt)}`,
-    { x: PAGE_W - MARGIN - 200, y, size: 8, font, color: TEXT_MUTED },
-  );
+  const gen = `Généré le ${formatDateTime(generatedAt)}`;
+  page.drawText(gen, {
+    x: PAGE_W - MARGIN - font.widthOfTextAtSize(gen, 8),
+    y,
+    size: 8,
+    font,
+    color: TEXT_MUTED,
+  });
 }
 
 /**
  * T-368 (REPT-502) — two-pass page numbering: call AFTER the generator has
  * rendered every page. Writes the separator + contact line + the TRUE
  * "Page i/N" on EVERY page (continuation pages previously carried no
- * footer at all).
+ * footer at all). S47: the label is right-aligned at the margin (was a
+ * fixed offset that left it floating mid-right).
  */
 export function stampPageFooters(doc: PDFDocument, font: PDFFont, generatedAt = new Date().toISOString()) {
   const pages = doc.getPages();
@@ -179,7 +191,7 @@ export function stampPageFooters(doc: PDFDocument, font: PDFFont, generatedAt = 
     drawFooter(page, font, generatedAt);
     const label = `Page ${i + 1}/${total}`;
     page.drawText(label, {
-      x: PAGE_W - MARGIN - 200 + 140,
+      x: PAGE_W - MARGIN - font.widthOfTextAtSize(label, 8),
       y: 26,
       size: 8,
       font,
