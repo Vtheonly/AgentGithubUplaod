@@ -312,8 +312,13 @@ export function EditStudentModal({
           <Select value={paymentPlan} onValueChange={(v) => setPaymentPlan(v as PaymentPlan)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="tranches">3 tranches (40/30/30)</SelectItem>
-              <SelectItem value="full_annual">Année complète (−10% avant le 30 juin)</SelectItem>
+              {/* E2.6 / BUG-027: the REAL policy — 5% of the scolarité
+                  before June 30 of the start year (EARLY_PAYMENT_RATE /
+                  earlyPaymentCutoff, school-price-matrix.ts), FI and
+                  transport excluded. The old copy overstated the discount
+                  and claimed a fixed-percentage split no era ever applied. */}
+              <SelectItem value="tranches">3 tranches (montants par le barème)</SelectItem>
+              <SelectItem value="full_annual">Année complète (−5 % de la scolarité avant le 30 juin)</SelectItem>
             </SelectContent>
           </Select>
         </FormField>

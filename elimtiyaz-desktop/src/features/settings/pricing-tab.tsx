@@ -6,7 +6,7 @@
  *
  * Iteration 6 layout:
  *   1. Tuition card — per-grade-level (14 grades) with 3-tranche editor
- *   2. Transport card — per-destination (4 destinations) with 3-tranche editor
+ *   2. Transport card — per-destination (the full transport matrix) with 3-tranche editor
  *   3. Registration / Monthly / Penalties card
  *   4. 2nd Apron surcharge card
  *   5. Complementary services card (psychology, speech therapy — semester + annual)

@@ -1,5 +1,5 @@
 /**
- * Transport card — per-destination (4 destinations) with 3-tranche editor.
+ * Transport card — per-destination (TRANSPORT_DESTINATIONS, the full matrix) with 3-tranche editor.
  *
  * Extracted from `pricing-tab.tsx` (iteration 6-a). Behavior preserved
  * exactly — only file location + import paths changed.
@@ -67,7 +67,10 @@ export function TransportCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bus className="size-5 text-primary" />
-          Transport scolaire (4 destinations)
+          {/* E2.6 / BUG-027: dynamic — the matrix grew from the 4 legacy
+              zones to 28 destinations; a hardcoded count lies again at the
+              next town added. */}
+          Transport scolaire ({TRANSPORT_DESTINATIONS.length} destinations)
         </CardTitle>
         <CardDescription>
           Chaque destination a son propre découpage en 3 tranches :

@@ -345,7 +345,10 @@ export function RbacMatrixEditor() {
         </div>
 
         <p className="text-[11px] text-muted-foreground mt-4">
-          Plan §02.07 — 6 rôles × 28 permissions. Les modifications sont journalisées dans l'audit log.
+          {/* E2.6 / BUG-027: derived, never hardcoded — the role and
+              permission catalogs have both grown since §02.07 was
+              written (both old counts were stale). */}
+          Plan §02.07 — {staffRoleList.length} rôles × {Object.values(Permission).length} permissions. Les modifications sont journalisées dans l'audit log.
           Les rôles Parent et Étudiant ne sont pas éditables ici (portail web).
         </p>
       </CardContent>
