@@ -6989,3 +6989,43 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 - **The live visual verification (the T-589 Verify gate):** the mock-backend boot measured `document.documentElement.className === "light"`, meta theme-color `#f8fafc`, `--surface-panel #ffffff`, body `rgb(248,250,252)`, ZERO dark `.dashboard-card`s in the DOM, and the screenshots' pixel census 94.9% bright / 0.3% dark — the KPI/statistics surfaces render with real mock data (ÉLÈVES 15 · 8 foyers, REVENU MENSUEL 110,5 k DZD, ENCOURS 4,3 M DZD, ASSIDUITÉ 83%, the T1/T2/T3 wave meters). The screenshots: `download/dashboard-light-overview.png` + `download/dashboard-light-analytics.png`.
 
 **Session-39 closeout census (2026-11-22):** **the five-shard full-vitest census 342 test files (341 passed + 1 skipped) / 5,668 passed / 0 failed / 5 skipped** (the +1 file / +11 tests over the S38 record attributed exactly to t-e45 [6, NEW] + t-546 [20 → 25: the 5 new T-589 flip pins]) · `npx tsc --noEmit` 0 · `npx tsc -p electron/tsconfig.json --noEmit` 0 · the append-only guard OK (5 migrations, +0) · the unbounded-read guard OK (12 raw sites, 9 allowlisted, 0 active) · **the baseline moved citing the Session-39 dashboard-redesign lane** · FINDINGS_INDEX: DEAD-003/010 + ARCH-036 + BUG-039 + DEAD-017 + BUG-075 CLOSED; ARCH-009 + DUP-029 PARTIAL (the precise splits documented at the rows). **OPS-015/G2 live locks STAND** (zero live traffic, zero deploys, zero cap lifts, zero packaged builds — the screenshots ran on the LOCAL mock backend only). **T-614 STILL OWNER-BLOCKED.** Next: **T-596 (the dashboard overhaul — L) with E6.7 + E6.8 + E6.10, then E2.6 (the client-side defect batch) resumes**.
+
+## T-614/P1 — The charter Rule-3 from-scratch validation of the FULL chain 0001..0005 (the §A.2 apply-window precondition)
+
+**Problem IDs:** OPS-016 (the relocation lane) · the MIGRATION-CONSOLIDATION-AND-EGRESS-CHARTER Rule 3 (the standing gate: "any apply of the schema to a real target runs ONLY after a fresh 100% local from-scratch validation pass") · OPS-017 (the new project's honest today-state: alive/uncapped/schema-empty).
+
+**Status:** REGISTERED (Session 40, 2026-11-22 — the owner-directed relocation-reconnect lane, chat directive "do more tasks that are related to the relocation and reconnecting with the new db").
+
+**Contract (per the charter Part 1 Rule 3 + Part 2's audit-of-record format):** re-run the S26-harness discipline against the CURRENT chain — the whole 5-file set (0001 + the Stage-A 0002..0005, which the S26 re-validation pre-dates) single-pass on a fresh PGlite 0.5.17 instance with the `0000_local_compat` prologue (auth schema + uid()/jwt()/role() shims + auth.users; storage schema + foldername→text[]/filename/extension; the platform roles; the supabase_realtime publication; the pgjwt skip-guard), byte-untouched migration files, and the written census table on EVERY axis vs the audit-of-record expectations (tables/views/matviews/functions/triggers/FKs/indexes/sequences/policies/buckets/RLS/seeds/migration rows). The harness lives OUTSIDE the repository (the charter's rule; a chmod-friendly workdir) — the committed artifact is the VERIFICATION DOC `docs/recovery/t-a2-chain-from-scratch-validation-2026-11-22.md` (the census of record + the exact reproduction spec). Zero network I/O; OPS-015/G2-safe.
+
+## T-614/P2 — The Stage-A census re-pin: CONSOLIDATED_BASELINE.functions 147 → the measured full-chain count (the C-29 family)
+
+**Problem IDs:** the C-29 family (pre-Stage-A constants lagging the Stage-A chain — the S35 closeout moved migrationCount/migrationVersion but the function axis was left at the 0001-only value 147; the chain statically adds 10 NEW public functions: read_dashboard_kpis/revenue_by_month/debt_aging/demographics [0002], read_reconcile_inputs [0003], pull_installments_for_sync [0004], sync_safe_uuid/sync_j/fn_deterministic_student_code/sync_apply_batch [0005] — refresh_materialized_view is an OR-REPLACE of the 0001 original).
+
+**Status:** REGISTERED (Session 40 — measured by P1's census, re-pinned with the empirical number).
+
+**Contract:** update `scripts/preflight-target.mjs` CONSOLIDATED_BASELINE.functions + the t-575 pins to the MEASURED count (expected 157; the P1 census is the evidence) — so the T-575 preflight of record does not false-RED at the owner's apply window. Verify: the t-575 suite GREEN + the focused neighborhood; no other axis moves.
+
+## T-614/P3 — The desktop reconnect tool: scripts/prepare-cutover-profile.mjs (the T-573 profile writer)
+
+**Problem IDs:** OPS-021 (the cutover dependency set) · the T-573 card's operator gap (the profile write API exists on the preload bridge but NO renderer/CLI surface consumes it — the documented path is hand-dropping backend-profile.json into userData).
+
+**Status:** REGISTERED (Session 40).
+
+**Contract:** a committed operator script (the relocate-auth/preflight-target conventions: pure module + thin CLI, fail-closed, zero network I/O, NEVER a committed key) that builds the validated `backend-profile.json` for the relocation target from the OPERATOR's environment (`SUPABASE_TARGET_URL` + `SUPABASE_TARGET_PUBLISHABLE_KEY`, the §A.5 pattern) and writes it to `--userData <dir>` (default: dry-run printing the target path + the profile WITHOUT persisting; `--write` required to touch disk). The emitted profile MUST pass `validateBackendProfile` from `electron/backend-profile-contract.ts` — proven by the new t-t614 suite importing BOTH the script and the real contract (no mirror drift). Verify: the new suite + typecheck + the focused neighborhood.
+
+## T-614/P4 — The website reconnect tool: the elimtiyaz-website cutover-commit generator (§A.7 steps 1+5, the executable half)
+
+**Problem IDs:** OPS-021 · T-614's card boundary (the website repo's pinning-test commit is §A.7 step 5 — at cutover time the hub session makes it; the NEW project's publishable key is NOT recorded anywhere, so the commit cannot be made today — only PREPARED).
+
+**Status:** REGISTERED (Session 40 — executes in `Vtheonly/elimtiyaz-website`, this repo's sibling; the website repo's own conventions apply).
+
+**Contract:** a committed operator script in the WEBSITE repo (`scripts/prepare-cutover-commit.mjs`, the same conventions: pure module + thin CLI, fail-closed on a missing env key, never pushes, never commits by itself) that generates the §A.7 step-1 committed-defaults re-point (src/lib/public-config.ts URL+key) + the step-5 pinning re-pins (t-516 CURRENT_LIVE_PROJECT_REF/URL/key assertions, t-096 the URL pin, t-107 the legacy-key absence scan) + the `.env.example` doc row, from `SUPABASE_TARGET_URL` + `SUPABASE_TARGET_PUBLISHABLE_KEY` in the operator's environment; `--apply` rewrites the files in place (git diff shows the operator exactly what would land), default dry-run prints the planned diff. No default changes without the env values — the live portal's OLD-ref bundle stays authoritative until the owner's redeploy (§A.7 "choose exactly ONE; never leave the OLD defaults effective" is honored: nothing changes today). Verify: the website repo's own vitest suite + the tool's test.
+
+## T-614/P5 — The cutover runbook + the Session-40 closeout
+
+**Problem IDs:** OPS-021 · the T-614 card (the checklist is spread across EXECUTION-PLAN §12, RELOAD-GUIDE §A.2/§A.7, and the charter — the owner at the window needs ONE ordered page).
+
+**Status:** REGISTERED (Session 40).
+
+**Contract:** `docs/recovery/t-614-cutover-runbook.md` — the one-page ordered operator sequence for the owner's window binding: the env checklist (the §A.0.5 credential set) → P1's validation fresh → §A.2's apply (CLI or SQL-Editor route) + the verification gate SQL → the T-575 preflight remote lanes → the EF deploy + secrets (§A.2.3) → the auth config (§A.7.3) → the desktop profile (P3's tool) → the website cutover commit (P4's tool) + the Vercel env/redeploy → the §A.6/§A.7 smoke checklists. Plus the session closeout: the queue rewrite, the baseline move if the census moves, SESSION_LOG row 40, the probe record (honest boundary: the token-held lanes recorded N/A this window), merge to main, push.
