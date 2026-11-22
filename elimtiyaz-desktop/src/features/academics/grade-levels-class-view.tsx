@@ -178,73 +178,84 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
               onOpenChange={() => toggleLevelCollapse(gradeCode)}
             >
               <Card key={gradeCode} className="overflow-hidden">
-                <CollapsibleTrigger className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border cursor-pointer select-none hover:bg-muted/30 transition-colors text-left w-full">
-                  <div className="flex items-center gap-3">
-                    <span className="p-0.5 rounded text-muted-foreground">
-                      {isCollapsed ? (
-                        <ChevronRight className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </span>
-                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <span>{label}</span>
-                      <Badge variant="outline" className="font-normal text-xs">
-                        {levelClasses.length} classe(s)
-                      </Badge>
-                      {Array.from(
-                        new Set(
-                          levelClasses
-                            .map((c) => c.filiereCode)
-                            .filter((f): f is string => !!f && f !== "general"),
-                        ),
-                      ).map((f) => (
+                {/* asChild: the trigger is the header DIV (role=button via
+                  Radix) — a native <button> trigger would nest the header's
+                  action buttons inside a button (invalid HTML, the inner
+                  buttons unclickable — the t-474 catch). */}
+                <CollapsibleTrigger asChild>
+                  <div className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border cursor-pointer select-none hover:bg-muted/30 transition-colors text-left w-full">
+                    <div className="flex items-center gap-3">
+                      <span className="p-0.5 rounded text-muted-foreground">
+                        {isCollapsed ? (
+                          <ChevronRight className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </span>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <span>{label}</span>
                         <Badge
-                          key={f}
-                          variant="secondary"
-                          className="font-normal text-[10px]"
+                          variant="outline"
+                          className="font-normal text-xs"
                         >
-                          {trackLabelFr(f)} (
-                          {
-                            levelClasses.filter((c) => c.filiereCode === f)
-                              .length
-                          }
-                          )
+                          {levelClasses.length} classe(s)
                         </Badge>
-                      ))}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {canCreate && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs text-primary hover:bg-primary/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedGradeForPlacement(gradeCode);
-                          setPlacementStudioOpen(true);
-                        }}
-                        title={`Répartir les élèves de ${label}`}
-                      >
-                        <Users className="h-3.5 w-3.5 mr-1" />
-                        Répartir ({gradeCode.toUpperCase()})
-                      </Button>
-                    )}
-                    {canCreate && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openCreateForGrade(gradeCode);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Ajouter une classe à ce niveau
-                      </Button>
-                    )}
+                        {Array.from(
+                          new Set(
+                            levelClasses
+                              .map((c) => c.filiereCode)
+                              .filter(
+                                (f): f is string => !!f && f !== "general",
+                              ),
+                          ),
+                        ).map((f) => (
+                          <Badge
+                            key={f}
+                            variant="secondary"
+                            className="font-normal text-[10px]"
+                          >
+                            {trackLabelFr(f)} (
+                            {
+                              levelClasses.filter((c) => c.filiereCode === f)
+                                .length
+                            }
+                            )
+                          </Badge>
+                        ))}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {canCreate && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-primary hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedGradeForPlacement(gradeCode);
+                            setPlacementStudioOpen(true);
+                          }}
+                          title={`Répartir les élèves de ${label}`}
+                        >
+                          <Users className="h-3.5 w-3.5 mr-1" />
+                          Répartir ({gradeCode.toUpperCase()})
+                        </Button>
+                      )}
+                      {canCreate && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCreateForGrade(gradeCode);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Ajouter une classe à ce niveau
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent asChild>

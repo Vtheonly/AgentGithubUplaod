@@ -15,7 +15,7 @@ The dashboard-overhaul queue head is CLEARED (E6.7 + E6.8 + E6.10 + T-596, all R
 3. Then the plan's forward lanes per the census (next-task.md): the E6 remainder (E6.1-E6.6, E6.11, E6.12), E7A/E7B (T-576, T-578-T-588, T-597-T-602), the §16 overhaul (T-587/T-612/T-613), and the E1/E3/E4/E5 phase items.
 
 ## Session-opening gates (§15.14)
-- `cd elimtiyaz-desktop && npx tsc --noEmit` (0) + the full vitest battery; the S43 baseline was **345 files (344+1 skipped) / 5,719 / 5 skipped** — this session added `t-596-numbers-equal` (+3 tests: **345 files / 5,722**) — move `scripts/test-baseline.json` citing Session 44.
+- `cd elimtiyaz-desktop && npx tsc --noEmit` (0) + the full vitest battery; the S43 baseline was 345 files (344+1 skipped) / 5,719 / 5 skipped — this session added `t-596-numbers-equal` (+3 tests) and the baseline is MOVED citing Session 44: the measured full battery **346 files (345+1 skipped) / 5,722 passed / 0 failed / 5 skipped** (the first run surfaced two real breaks — the t-e25 pre-split source-pin + the grade-levels missing asChild [a native button trigger nesting action buttons, caught by t-474] — both fixed and re-measured GREEN).
 - `git pull`; every session's commits are on main.
 
 ## Key operational facts

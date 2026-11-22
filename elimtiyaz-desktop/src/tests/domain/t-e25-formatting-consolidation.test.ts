@@ -361,7 +361,10 @@ describe("E2.5 — the shared primitives' pins", () => {
     // The ad-hoc joins are dead at the converted surfaces (representative
     // guards — the full conversion is 16 files): the id-fallback map, the
     // mixed sort comparator, the drawer initials, the aging resolver.
-    const ec = src("features/dashboard/components/analytics/executive-cards.tsx");
+    // E6.8 note: the debtor rows moved from the executive-cards.tsx monolith
+    // into debt-triage-card.tsx (the barrel re-exports it) — the pin follows
+    // the code.
+    const ec = src("features/dashboard/components/analytics/debt-triage-card.tsx");
     expect(ec).toContain("personDisplayName(p, p.id)");
     expect(ec).not.toContain("p.displayName || `${p.firstName} ${p.lastName}`");
     const md = src("features/financials/manual-debt-modal.tsx");
