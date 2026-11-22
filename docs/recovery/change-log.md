@@ -1,4 +1,7 @@
 
+## 2026-11-22 — Session 46 (the owner-reported statement misalignment)
+- 36cd861c: the account statement's visual alignment — the Émis-le date drew at x=600 on a 595pt page (off the sheet, on EVERY statement ever generated); amounts left-fixed at +460 (ragged, 7-digit amounts 4.8pt past the margin); no cell clipping; continuation rows overlapped the header box; the synthèse row was 8pt short; the count-note could be silently dropped. All fixed; measured before AND after by a new geometry-extraction technique (inflate the Flate content streams, parse the Tm/Tj pairs, measure with pdf-lib's own Helvetica metrics). 3 new t-368 pins (14/14), neighborhoods 79 GREEN, tsc 0.
+
 ## 2026-11-22 — Session 45 (E2.6 wave 3: the 8-defect closeout)
 - BUG-010 `6d97ed65`: the ONE SuperAdmin stamp on every session entry point (restore included) + the session.ts invariant comment corrected + ai-309's missing leg-2 pin.
 - BUG-016 `d649926a`: academic-tab's gpa memo gets the subjectConfigurations dep AND the class context (without it the dep was dead) + the formula caption derived from the recipes in play.
