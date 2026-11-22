@@ -36,6 +36,7 @@
  */
 import type { GradeLevel } from "./student";
 import type { AcademicCycle, AcademicTerm } from "./academic";
+import { personDisplayName } from "./person";
 
 /** Status of a teacher within an academic year. */
 export type TeacherStatus = "active" | "on_leave" | "inactive";
@@ -77,6 +78,19 @@ export interface Teacher {
   readonly qualifiedSubjectIds: readonly string[];
   readonly createdAt: string;
   readonly updatedAt: string;
+}
+
+/**
+ * E2.6 / BUG-022: the teacher display name — the ONE person resolver
+ * (composed join-trim + the "—" fallback). Teacher carries no displayName
+ * column (only the denormalized personnel names), but the composition
+ * rules (trim, missing parts) must not be hand-rolled per surface —
+ * `visualization-tools` hand-composed `${firstName} ${lastName}` before.
+ */
+export function teacherDisplayName(
+  t: Pick<Teacher, "firstName" | "lastName">,
+): string {
+  return personDisplayName(t);
 }
 
 export interface CreateTeacherInput {

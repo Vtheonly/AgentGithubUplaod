@@ -21,6 +21,7 @@ import type { Assessment } from "../../../domain/model/academic";
 import type { Payment } from "../../../domain/model/payment";
 import type { Parent } from "../../../domain/model/parent";
 import type { Student } from "../../../domain/model/student";
+import { studentDisplayName } from "../../../domain/model/student";
 import { calculateAttendanceRate as attendanceRateOf } from "../../../domain/model/academic";
 import { formatDzdPlain } from "../../../core/format/currency";
 import {
@@ -183,8 +184,9 @@ export function detectAttendanceAnomalies(
     if (!sigFlag && !absFlag) return;
     out.push({
       studentId: c.student.id,
-      studentName:
-        c.student.displayName ?? `${c.student.firstName} ${c.student.lastName}`,
+      // E2.6 / BUG-022: the canonical resolver — the `??` fallback missed
+      // EMPTY-STRING displayNames (a "" label rendered for the anomaly).
+      studentName: studentDisplayName(c.student),
       attendanceRate: rate,
       unexcusedAbsences: unexcused,
       classRate: mean,
@@ -220,7 +222,10 @@ export interface GradeAnomaly {
 export function detectGradeAnomalies(
   perStudent: readonly {
     studentId: string;
-    assessments: readonly Pick<Assessment, "subjectId" | "subjectAverage">[];
+    assessments: readonly Pick<
+      Assessment,
+      "subjectId" | "subjectAverage" | "coefficient"
+    >[];
   }[],
   subjects: readonly { id: string; name: string }[],
 ): GradeAnomaly[] {
@@ -229,9 +234,25 @@ export function detectGradeAnomalies(
   for (const { studentId, assessments } of perStudent) {
     const entries = assessments
       .filter((a) => typeof a.subjectAverage === "number" && Number.isFinite(a.subjectAverage))
-      .map((a) => ({ subjectId: a.subjectId, value: a.subjectAverage as number }));
+      .map((a) => ({
+        subjectId: a.subjectId,
+        value: a.subjectAverage as number,
+        // E2.6 / BUG-022: the snapshot coefficient (null → 1, the neutral
+        // weight) — the baseline must weigh a coef-4 module more than a
+        // coef-1 module, like every canonical GPA surface.
+        coef: a.coefficient ?? 1,
+      }));
     if (entries.length < 3) continue; // need a baseline
-    const baseline = entries.reduce((s, e) => s + e.value, 0) / entries.length;
+    // E2.6 / BUG-022: COEFFICIENT-WEIGHTED baseline (Σ(value×coef)/Σcoef) —
+    // the plain mean let a coef-1 module drag the "moyenne personnelle" as
+    // much as a coef-4 one, fabricating collapse flags on strong profiles.
+    // All-zero coefficients degrade to the plain mean (the detector stays
+    // usable; the canonical GPA would return null here, but this baseline
+    // is intra-student context, not the official GPA).
+    const totalCoef = entries.reduce((s, e) => s + e.coef, 0);
+    const baseline = totalCoef > 0
+      ? entries.reduce((s, e) => s + e.value * e.coef, 0) / totalCoef
+      : entries.reduce((s, e) => s + e.value, 0) / entries.length;
     for (const e of entries) {
       const gap = e.value - baseline;
       if (gap <= -4) {
@@ -463,8 +484,9 @@ export function scoreInterventionRisk(candidates: readonly {
 
     out.push({
       studentId: c.student.id,
-      studentName:
-        c.student.displayName ?? `${c.student.firstName} ${c.student.lastName}`,
+      // E2.6 / BUG-022: the canonical resolver — the `??` fallback missed
+      // EMPTY-STRING displayNames (a "" label rendered for the anomaly).
+      studentName: studentDisplayName(c.student),
       classId: c.student.classId ?? null,
       gpa: c.gpa,
       isPassing: c.isPassing,

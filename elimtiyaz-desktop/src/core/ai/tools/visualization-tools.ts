@@ -24,6 +24,7 @@ import type { ToolDefinition } from "../agent-types";
 import { withArtifact, validateChartArtifact } from "../artifacts";
 import { parentDisplayName } from "../../../domain/model/parent";
 import { studentDisplayName } from "../../../domain/model/student";
+import { teacherDisplayName } from "../../../domain/model/teacher";
 import type { AcademicYear } from "../../../domain/model/academic";
 import type { DiagramNode, DiagramEdge } from "../artifacts";
 
@@ -259,7 +260,9 @@ export async function executeVisualizationTool(
           const tid = `teacher-${i}`;
           nodes.push({
             id: tid,
-            label: `${t.firstName} ${t.lastName}`,
+            // E2.6 / BUG-022: the ONE teacher resolver (trim + missing
+            // parts) — no hand-composed first+last here.
+            label: teacherDisplayName(t),
             sublabel: t.code,
             level: 1,
             kind: "branch" as const,
