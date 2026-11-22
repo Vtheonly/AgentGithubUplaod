@@ -77,7 +77,7 @@ describe("T-575 A — the consolidated-baseline constants (the charter's audit o
     expect(CONSOLIDATED_BASELINE.views).toBe(14);
     expect(CONSOLIDATED_BASELINE.matviews).toBe(5);
     expect(CONSOLIDATED_BASELINE.buckets).toBe(11);
-    expect(CONSOLIDATED_BASELINE.functions).toBe(147);
+    expect(CONSOLIDATED_BASELINE.functions).toBe(157);
     expect(CONSOLIDATED_BASELINE.rlsEnabledTables).toBe(99);
     expect(CONSOLIDATED_BASELINE.t376Checks).toBe(12);
   });
@@ -162,7 +162,7 @@ function baselineCensus() {
     buckets: 11,
     publicPolicies: 242,
     storagePolicies: 22,
-    functions: 147,
+    functions: 157,
     publicTriggers: 89,
     authMirrorTriggers: 1,
     rlsEnabled: 99,
@@ -246,6 +246,25 @@ describe("T-575 C — evaluateCensus (RED-then-GREEN on every axis)", () => {
     expect(verdict.failures.join(" ")).toContain("3/5");
   });
 
+  // T-614/P2 (Session 40): the MEASURED full-chain census (the charter Rule-3
+  // from-scratch validation — docs/recovery/t-a2-chain-from-scratch-validation-
+  // 2026-11-22.md) observes 157 public functions. The pre-Stage-A constant 147
+  // would have false-REDed the preflight of record at the owner's apply
+  // window (the C-29 family: constants lagging the chain). Pinned both ways:
+  // the measured observation passes; the stale 147 observation FAILS.
+  it("T-614/P2: the MEASURED 157 observation is GREEN; the stale 147 observation REDs the functions axis", () => {
+    const measured = baselineCensus();
+    measured.functions = 157;
+    expect(evaluateCensus(measured).ok).toBe(true);
+
+    const stale = baselineCensus();
+    stale.functions = 147;
+    const verdict = evaluateCensus(stale);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.failures.join(" ")).toContain("functions");
+    expect(verdict.failures.join(" ")).toContain("147");
+  });
+
   it("RED: an unpinned search_path on even ONE helper fails (the 54001 recursion trap)", () => {
     const observed = baselineCensus();
     observed.rlsHelpers[0] = { proname: observed.rlsHelpers[0].proname, prosecdef: true, proconfig: null };
@@ -285,7 +304,7 @@ describe("T-575 C — evaluateCensus (RED-then-GREEN on every axis)", () => {
       buckets: [{ n: 11 }],
       publicPolicies: [{ n: "242" }],
       storagePolicies: [{ n: "22" }],
-      functions: [{ n: "147" }],
+      functions: [{ n: "157" }],
       publicTriggers: [{ n: "89" }],
       authMirrorTriggers: [{ n: "1" }],
       rlsEnabled: [{ n: "99" }],
@@ -612,7 +631,7 @@ function rowsForQuery(query: string, overrides: QueryOverrides = {}): Array<Reco
   if (query.includes("supabase_migrations.schema_migrations")) return [
     { version: "0001" }, { version: "0002" }, { version: "0003" }, { version: "0004" }, { version: "0005" },
   ];
-  if (query.includes("pg_proc")) return [{ n: "147" }];
+  if (query.includes("pg_proc")) return [{ n: "157" }];
   return [];
 }
 

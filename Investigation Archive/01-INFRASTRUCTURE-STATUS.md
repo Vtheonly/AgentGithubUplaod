@@ -625,3 +625,29 @@ IS32 GET issues/32/comments (AgentGithubUplaod, PAT)      -> 200, 0 comments (th
 - GH1 GitHub PAT: **200 (login: Vtheonly)** · VC1 Vercel PAT: **200 (user: merselfares2-9361)**
 - W1 https://elimtiyaz-website.vercel.app/: **200** · IS32 Issue #32 comments: **0 (the 28th consecutive silent run)**
 - Verdict: the OPS-011 cap state unchanged; the G2 spend-cap lift is still the owner's billing action; zero live traffic beyond this GET-only set (OPS-015 honored).
+
+## Session 40 probe run (2026-11-22, GET-only, the runnable lanes — the T-614 relocation-preparation session)
+
+> **Environment note (fresh sandbox):** the S34 secrets store (`/home/z/my-project/.secrets/`) did NOT survive into this window — the Supabase management token, the Vercel PAT, and the NEW project's publishable key are ABSENT from this session's env set (the honest boundary; every live-side cutover lane that needs them is recorded N/A below and remains the owner's window). The GitHub lane is live through the session's pushes (the tokens embedded in the three repos' remotes).
+
+```
+Old project (vebfehrpzajhstyhinnw — quota-blocked source)
+P3oa GET /rest/v1/tenants?select=id&limit=1 (the committed publishable key) -> 402 exceed_egress_quota (UNCHANGED — OPS-011 now 29-run-stable)
+P5oa GET /auth/v1/health (the committed publishable key)       -> 402 exceed_egress_quota (the same body — the cap state unchanged)
+
+New project (gvuvibcsfjhwcjikgxql — the relocation target)
+P3n  GET /rest/v1/tenants?select=id&limit=1 (publishable) -> N/A (the NEW project's publishable key is not in this window's env set — not recoverable without the owner; the schema-empty vs applied state is asserted instead by the S40 P1 from-scratch validation + will be re-probed at the window)
+P5n  GET /auth/v1/health                                  -> N/A (same boundary)
+
+Tokens
+GH1  GET api.github.com/user (the remotes' token)          -> 200 VALID (login Vtheonly — this session's 5 hub pushes + the website push landed through it)
+VC1  GET api.vercel.com/v2/user (PAT)                      -> N/A (PAT not recoverable this window — recorded; ready for T-614's owner window the moment it is re-supplied)
+
+Website lane
+W1   GET https://elimtiyaz-website.vercel.app/             -> 200 (the portal live; still OLD-project-pinned per the S27 audit — the T-614 redeploy pending, owner-gated; the S40 P4 generator is ready and INERT)
+
+Owner gate
+IS32 GET issues/32/comments (AgentGithubUplaod)            -> 200, 0 comments (the 29th consecutive silent run; the execution authority remains the owner's standing chat directives)
+```
+
+**Verdict:** OPS-011 is now **29-run-stable** (S2→S40) — the identical 402 signature on the OLD-project lane (the owner's billing action exclusively). The G2 spend-cap lift remains the owner's action. **OPS-015/G2 live locks STAND** — this session executed the T-614 PREPARATION lane only (the P1 validation is in-memory wasm; P3/P4 are inert tooling; zero live traffic beyond this GET-only set, zero deploys, zero cap lifts, zero packaged builds). The cutover itself runs from `docs/recovery/t-614-cutover-runbook.md` at the owner's window.
