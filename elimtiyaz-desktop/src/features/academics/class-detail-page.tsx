@@ -78,7 +78,7 @@ export function ClassDetailPage() {
   // person-navigation layer — the hook was called in 1cead9d without this
   // wiring (tsc 2304 'openStudent').
   const { openStudent } = usePersonNavigation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const highlightedStudentId = searchParams.get("studentId");
   const tabParam = searchParams.get("tab");
   const initialTab =
@@ -90,6 +90,26 @@ export function ClassDetailPage() {
         ? "grades"
         : "students";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  // BUG-026 (E2.6): ?tab= was read ONLY in the useState initializer — the
+  // page never remounts on a same-route navigation, so a later deep link
+  // with a DIFFERENT tab left the view stuck on the old one. Apply the
+  // param whenever it APPEARS, then consume it (replace) so a stale URL
+  // value can never fight the operator's own tab switches afterwards —
+  // the dashboard-page idiom, made reactive.
+  useEffect(() => {
+    if (tabParam === null) return;
+    setActiveTab(initialTab);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("tab");
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
   const navigate = useNavigate();
   const repos = useRepositories();
   const { session } = useAuth();
