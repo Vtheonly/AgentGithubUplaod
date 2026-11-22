@@ -39,11 +39,26 @@ export function crossCheckPayments(
   ledgerEntries: readonly LedgerEntry[],
 ): ReconciliationViolation[] {
   const out: ReconciliationViolation[] = [];
+  // E2.6/BUG-021: Map.set silently OVERWROTE duplicate ledger entries for
+  // the same payment — a doubled entry (the exact corruption this check
+  // exists to catch) was hidden because only the last row survived in the
+  // map and the amount check compared against it alone. Detect and report
+  // duplicates instead.
   const ledgerBySourceId = new Map<string, LedgerEntry>();
+  const duplicateSourceIds = new Set<string>();
   for (const e of ledgerEntries) {
     if (e.type === "payment" && e.sourceType === "payment") {
-      ledgerBySourceId.set(e.sourceId, e);
+      if (ledgerBySourceId.has(e.sourceId)) duplicateSourceIds.add(e.sourceId);
+      else ledgerBySourceId.set(e.sourceId, e);
     }
+  }
+  for (const id of duplicateSourceIds) {
+    out.push({
+      severity: "error",
+      code: "DUPLICATE_LEDGER_PAYMENT_ENTRY",
+      message: `Multiple ledger entries reference payment ${id} — exactly one is expected.`,
+      details: { paymentId: id },
+    });
   }
   for (const p of payments) {
     const entry = ledgerBySourceId.get(p.id);
@@ -93,11 +108,23 @@ export function crossCheckInstallments(
   ledgerEntries: readonly LedgerEntry[],
 ): ReconciliationViolation[] {
   const out: ReconciliationViolation[] = [];
+  // E2.6/BUG-021: same duplicate-detection as the payments lane — the
+  // PK-keyed Map.set overwrite hid doubled charge entries.
   const ledgerBySourceId = new Map<string, LedgerEntry>();
+  const duplicateSourceIds = new Set<string>();
   for (const e of ledgerEntries) {
     if (e.type === "charge" && e.sourceType === "installment") {
-      ledgerBySourceId.set(e.sourceId, e);
+      if (ledgerBySourceId.has(e.sourceId)) duplicateSourceIds.add(e.sourceId);
+      else ledgerBySourceId.set(e.sourceId, e);
     }
+  }
+  for (const id of duplicateSourceIds) {
+    out.push({
+      severity: "error",
+      code: "DUPLICATE_LEDGER_INSTALLMENT_ENTRY",
+      message: `Multiple ledger entries reference installment ${id} — exactly one is expected.`,
+      details: { installmentId: id },
+    });
   }
   for (const inst of installments) {
     const entry = ledgerBySourceId.get(inst.id);

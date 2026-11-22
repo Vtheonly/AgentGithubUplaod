@@ -103,8 +103,13 @@ export function PromotionClassReviewModal({
         academicYear: sourceAcademicYear,
         targetAcademicYear,
         passingThreshold: threshold,
+        // BUG-002: the class context so Layer-2 subject configurations
+        // (year × level) actually match instead of falling to legacy.
+        classContext: cls
+          ? { academicLevelId: cls.academicLevelId, academicYearId: cls.academicYearId }
+          : undefined,
       }),
-    [students, assessments, subjects, sourceAcademicYear, targetAcademicYear, threshold],
+    [students, assessments, subjects, sourceAcademicYear, targetAcademicYear, threshold, cls],
   );
 
   const candidates: PromotionCandidate[] = useMemo(

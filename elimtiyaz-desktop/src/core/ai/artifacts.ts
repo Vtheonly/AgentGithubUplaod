@@ -45,10 +45,15 @@ export type ChartType =
 
 export type ChartUnit = "DZD" | "percent" | "count" | "rate" | "score";
 
-/** One series of a chart. `data.length` MUST equal `categories.length`. */
+/**
+ * One series of a chart. `data.length` MUST equal `categories.length`.
+ * E2.6/BUG-023: `null` points are allowed — an honest "no value" (e.g. a
+ * moving-average window that has not filled yet); renderers must skip them
+ * (a line gap), never treat them as 0.
+ */
 export interface ChartSeries {
   readonly name: string;
-  readonly data: readonly number[];
+  readonly data: readonly (number | null)[];
   /** Optional hex color; the renderer palette assigns one when absent. */
   readonly color?: string;
 }
@@ -191,7 +196,7 @@ export function validateChartArtifact(v: unknown): ChartArtifact | null {
   for (const s of v.series) {
     if (!isRecord(s) || typeof s.name !== "string" || !Array.isArray(s.data)) return null;
     if (s.data.length !== n) return null;
-    if (s.data.some((d) => !isFiniteNumber(d))) return null;
+    if (s.data.some((d) => d !== null && !isFiniteNumber(d))) return null; // BUG-023: null = honest gap, allowed
     if (s.color !== undefined && !/^#[0-9a-fA-F]{6}$/.test(String(s.color))) return null;
     series.push({ name: s.name, data: [...s.data], color: s.color as string | undefined });
   }
@@ -199,10 +204,10 @@ export function validateChartArtifact(v: unknown): ChartArtifact | null {
   // Pie/donut/stacked semantics: exactly one series (pie/donut), all
   // values non-negative (pie/donut can't render negatives).
   if ((v.chartType === "pie" || v.chartType === "donut") && series.length !== 1) return null;
-  if ((v.chartType === "pie" || v.chartType === "donut") && series[0].data.some((d) => d < 0)) {
+  if ((v.chartType === "pie" || v.chartType === "donut") && series[0].data.some((d) => d == null || d < 0)) {
     return null;
   }
-  if (v.chartType === "stacked_bar" && series.some((s) => s.data.some((d) => d < 0))) return null;
+  if (v.chartType === "stacked_bar" && series.some((s) => s.data.some((d) => d == null || d < 0))) return null;
 
   const unit = v.unit === undefined ? undefined : (v.unit as ChartUnit);
   if (unit !== undefined && !CHART_UNITS.includes(unit)) return null;

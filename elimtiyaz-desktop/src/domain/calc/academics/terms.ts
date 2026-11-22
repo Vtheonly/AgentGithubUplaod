@@ -30,21 +30,39 @@ export function currentTermWindow(now: Date = new Date()): TermWindow {
   const month = now.getMonth(); // 0-indexed
   const day = now.getDate();
 
+  // BUG-001: Jan 1 – Mar 15 is T2 of the school year that STARTED the
+  // previous September (the docstring's own window: T2 = Dec 16 – Mar 15),
+  // not the tail of T3. The old `month < 8` predicate lumped the whole
+  // Jan–Jul range into the previous year's T3, so a fresh T2 never gave
+  // students their clean absence slate. Only Apr–Aug (after Mar 15, before
+  // Sep 1) falls into the tail of the previous year's T3.
+  const nowDate = new Date(year, month, day);
+
+  // Jan (0) and Feb (1): entirely inside T2 of the (year-1) school year.
+  // Mar (2): T2 through the 15th, T3 from the 16th.
+  if (month <= 1 || (month === 2 && day <= 15)) {
+    return {
+      term: "T2",
+      start: new Date(year - 1, 11, 16),
+      end: new Date(year, 2, 15),
+      label: `T2 ${year - 1}-${year}`,
+    };
+  }
+  // Apr–Aug (after T2 ends, before Sep 1) → tail of the previous year's T3.
+  if (month < 8) {
+    return {
+      term: "T3",
+      start: new Date(year, 2, 16),
+      end: new Date(year, 5, 30),
+      label: `T3 ${year - 1}-${year}`,
+    };
+  }
+
   const t1Start = new Date(year, 8, 1); // Sep 1
   const t1End = new Date(year, 11, 15); // Dec 15
   const t2End = new Date(year + 1, 2, 15); // Mar 15 next year
   const t3End = new Date(year + 1, 5, 30); // Jun 30 next year
 
-  // Aug (and before Sep 1) → tail of previous year's T3.
-  if (month < 8) {
-    return {
-      term: "T3",
-      start: new Date(year - 1, 11, 16),
-      end: new Date(year, 5, 30),
-      label: `T3 ${year - 1}-${year}`,
-    };
-  }
-  const nowDate = new Date(year, month, day);
   if (nowDate <= t1End) {
     return { term: "T1", start: t1Start, end: t1End, label: `T1 ${year}-${year + 1}` };
   }

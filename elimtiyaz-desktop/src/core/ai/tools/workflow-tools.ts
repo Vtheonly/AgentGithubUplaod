@@ -40,7 +40,7 @@ import {
 import { computeDescriptiveStats } from "../analysis/statistics";
 import { parentDisplayName } from "../../../domain/model/parent";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
-import { calculateAttendanceRate } from "../../../domain/model/academic";
+import { calculateAttendanceRate, DEFAULT_PASSING_GRADE } from "../../../domain/model/academic";
 import { computeParentSummary } from "../../../domain/calc/ledger/balance";
 import { formatDzdPlain } from "../../../core/format/currency";
 import { isoWindow } from "../../format/date";
@@ -150,6 +150,11 @@ export async function executeWorkflowTool(
   switch (name) {
     /* ---------------- plan_collection_campaign ---------------- */
     case "plan_collection_campaign": {
+      // BUG-005: sort BEFORE slicing — the old `.filter().slice()` took an
+      // arbitrary repository-order prefix and never consulted the strategy,
+      // so "amount_first" could plan its campaign around the SMALLEST
+      // debtors. The explicit prioritization below then only re-ranked the
+      // already-truncated set.
       const strategyArg = String(args.strategy ?? "balanced");
       const strategy =
         strategyArg === "amount_first" || strategyArg === "aging_first" ? strategyArg : "balanced";
@@ -157,21 +162,28 @@ export async function executeWorkflowTool(
         ? Math.max(1, Number(args.min_days_overdue))
         : 1;
       const limit = Math.min(25, Math.max(1, Number(args.limit) || 15));
+      const preSort =
+        strategy === "amount_first"
+          ? (a: { outstandingAmount: number }, b: { outstandingAmount: number }) =>
+              b.outstandingAmount - a.outstandingAmount
+          : strategy === "aging_first"
+            ? (a: { daysOverdue: number }, b: { daysOverdue: number }) => b.daysOverdue - a.daysOverdue
+            : undefined;
 
-      const debtors: DebtorInput[] = repos.debt
+      const candidates = repos.debt
         .observeSummary()
         .get()
-        .filter((d) => d.daysOverdue >= minDays)
-        .slice(0, limit)
-        .map((d) => ({
-          parentId: d.parentId,
-          parentName: d.parentName,
-          parentPhone: d.parentPhone,
-          studentCount: d.studentCount,
-          outstandingAmount: d.outstandingAmount,
-          daysOverdue: d.daysOverdue,
-          bucket: d.bucket,
-        }));
+        .filter((d) => d.daysOverdue >= minDays);
+      const pool = (preSort ? [...candidates].sort(preSort) : candidates).slice(0, limit);
+      const debtors: DebtorInput[] = pool.map((d) => ({
+        parentId: d.parentId,
+        parentName: d.parentName,
+        parentPhone: d.parentPhone,
+        studentCount: d.studentCount,
+        outstandingAmount: d.outstandingAmount,
+        daysOverdue: d.daysOverdue,
+        bucket: d.bucket,
+      }));
       if (debtors.length === 0) {
         return JSON.stringify({ error: "Aucun débiteur pour ces critères — la campagne serait vide." });
       }
@@ -422,11 +434,20 @@ export async function executeWorkflowTool(
       for (const cid of targetClassIds) {
         const cls = repos.classes.observeById(cid).get();
         if (!cls) continue;
+        // BUG-002: the class context + configurations so Layer-2 rows match.
+        const configurations = repos.subjects.observeConfigurations().get();
+        const classContext = {
+          academicLevelId: cls.academicLevelId,
+          academicYearId: cls.academicYearId,
+        };
         for (const s of repos.students.observeByClass(cid).get()) {
           const gpa = evaluateStudentTermPerformance(
             s.id,
             repos.grades.observeForStudent(s.id).get(),
             subjects,
+            configurations,
+            DEFAULT_PASSING_GRADE,
+            classContext,
           );
           const records = repos.attendance.observeByStudent(s.id, from, to).get();
           candidates.push({

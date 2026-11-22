@@ -31,7 +31,7 @@ import { studentDisplayName } from "../../../domain/model/student";
 import { AGING_BUCKET_LABELS_FR } from "../../../domain/model/payment";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { formatDzdPlain } from "../../../core/format/currency";
-import type { Subject } from "../../../domain/model/academic";
+import { DEFAULT_PASSING_GRADE, type Subject } from "../../../domain/model/academic";
 
 /* ------------------------------------------------------------------ */
 /*  Tool schemas                                                       */
@@ -311,7 +311,11 @@ export async function executeDocumentTool(
           const subjects = repos.subjects.observe().get();
           columns = ["Élève", "Code", "Moyenne /20", "Statut", "Évaluations manquantes"];
           rows = students.map((s) => {
-            const gpa = evaluateGpa(repos, s.id, subjects);
+            const gpa = evaluateGpa(repos, s.id, subjects, {
+              // BUG-002: the class context so Layer-2 rows match.
+              academicLevelId: cls.academicLevelId,
+              academicYearId: cls.academicYearId,
+            });
             return [
               studentDisplayName(s),
               s.code,
@@ -388,9 +392,22 @@ export async function executeDocumentTool(
   }
 }
 
-/** GPA helper (canonical engine) — used by the class_performance export. */
-function evaluateGpa(repos: Repositories, studentId: string, subjects: readonly Subject[]) {
+/** GPA helper (canonical engine) — used by the class_performance export.
+ * BUG-002: carries the class context so Layer-2 configuration rows match. */
+function evaluateGpa(
+  repos: Repositories,
+  studentId: string,
+  subjects: readonly Subject[],
+  classContext?: { academicLevelId?: string | null; academicYearId?: string | null },
+) {
   const assessments = repos.grades.observeForStudent(studentId).get();
-  const result = evaluateStudentTermPerformance(studentId, assessments, subjects);
+  const result = evaluateStudentTermPerformance(
+    studentId,
+    assessments,
+    subjects,
+    repos.subjects.observeConfigurations().get(),
+    DEFAULT_PASSING_GRADE,
+    classContext,
+  );
   return { gpa: result.gpa, isPassing: result.isPassing, missing: result.missingAssessmentsCount };
 }

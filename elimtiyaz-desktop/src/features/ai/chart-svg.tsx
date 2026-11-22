@@ -179,7 +179,7 @@ function XLabels({ categories, slots }: { categories: readonly string[]; slots: 
 function BarChart({ chart }: { chart: ChartArtifact }) {
   const series = chart.series[0];
   const data = series.data;
-  const max = niceMax(Math.max(...data, 0));
+  const max = niceMax(Math.max(...data.map((v) => v ?? 0), 0));
   const bandW = (W - PAD.left - PAD.right) / data.length;
   const barW = Math.min(46, bandW * 0.62);
   const slots = data.map((_, i) => PAD.left + bandW * i + bandW / 2);
@@ -187,6 +187,7 @@ function BarChart({ chart }: { chart: ChartArtifact }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={chart.title}>
       <AxisFrame maxY={max} unit={chart.unit} />
       {data.map((v, i) => {
+        if (v == null) return null; // BUG-023: an honest gap, never a fake 0-height bar
         const h = (v / max) * (H - PAD.top - PAD.bottom);
         return (
           <g key={i}>
@@ -221,7 +222,7 @@ function BarChart({ chart }: { chart: ChartArtifact }) {
 
 function GroupedBarChart({ chart }: { chart: ChartArtifact }) {
   const series = chart.series;
-  const max = niceMax(Math.max(...series.flatMap((s) => s.data), 0));
+  const max = niceMax(Math.max(...series.flatMap((s) => s.data.map((v) => v ?? 0)), 0));
   const bandW = (W - PAD.left - PAD.right) / chart.categories.length;
   const groupW = Math.min(46, bandW * 0.8);
   const barW = Math.max(3, groupW / series.length);
@@ -232,6 +233,7 @@ function GroupedBarChart({ chart }: { chart: ChartArtifact }) {
       {chart.categories.map((_, ci) =>
         series.map((s, si) => {
           const v = s.data[ci];
+          if (v == null) return null; // BUG-023: honest gap
           const h = (v / max) * (H - PAD.top - PAD.bottom);
           const x = slots[ci] - groupW / 2 + si * barW;
           return (
@@ -256,7 +258,7 @@ function GroupedBarChart({ chart }: { chart: ChartArtifact }) {
 
 function StackedBarChart({ chart }: { chart: ChartArtifact }) {
   const series = chart.series;
-  const totals = chart.categories.map((_, ci) => series.reduce((s, ser) => s + ser.data[ci], 0));
+  const totals = chart.categories.map((_, ci) => series.reduce((s, ser) => s + (ser.data[ci] ?? 0), 0));
   const max = niceMax(Math.max(...totals, 0));
   const bandW = (W - PAD.left - PAD.right) / chart.categories.length;
   const barW = Math.min(46, bandW * 0.62);
@@ -269,7 +271,7 @@ function StackedBarChart({ chart }: { chart: ChartArtifact }) {
         return (
           <g key={ci}>
             {series.map((s, si) => {
-              const h = (s.data[ci] / max) * (H - PAD.top - PAD.bottom);
+              const h = ((s.data[ci] ?? 0) / max) * (H - PAD.top - PAD.bottom);
               const y = H - PAD.bottom - acc - h;
               acc += h;
               return (
@@ -296,7 +298,7 @@ function StackedBarChart({ chart }: { chart: ChartArtifact }) {
 
 function LineChart({ chart, area }: { chart: ChartArtifact; area: boolean }) {
   const series = chart.series;
-  const all = series.flatMap((s) => s.data);
+  const all = series.flatMap((s) => s.data.map((v) => v ?? 0));
   const max = niceMax(Math.max(...all, 0));
   const min = Math.min(0, ...all);
   const span = max - min || 1;
@@ -307,7 +309,20 @@ function LineChart({ chart, area }: { chart: ChartArtifact; area: boolean }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={chart.title}>
       <AxisFrame maxY={max} unit={chart.unit} />
       {series.map((s, si) => {
-        const points = s.data.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+        // BUG-023: null points split the polyline into segments (an honest
+        // gap) instead of fabricating a 0-valued vertex.
+        const segments: string[][] = [[]];
+        s.data.forEach((v, i) => {
+          if (v == null) {
+            if (segments[segments.length - 1].length > 0) segments.push([]);
+          } else {
+            segments[segments.length - 1].push(`${x(i)},${y(v)}`);
+          }
+        });
+        const points = segments
+          .filter((seg) => seg.length > 0)
+          .map((seg) => seg.join(" "))
+          .join(" ");
         const color = drawerPalette()[si % drawerPalette().length];
         return (
           <g key={si}>
@@ -326,9 +341,11 @@ function LineChart({ chart, area }: { chart: ChartArtifact; area: boolean }) {
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            {s.data.map((v, i) => (
-              <circle key={i} cx={x(i)} cy={y(v)} r={2.6} fill={color} />
-            ))}
+            {s.data.map((v, i) =>
+              v == null ? null : (
+                <circle key={i} cx={x(i)} cy={y(v)} r={2.6} fill={color} />
+              ),
+            )}
           </g>
         );
       })}
@@ -343,7 +360,7 @@ function LineChart({ chart, area }: { chart: ChartArtifact; area: boolean }) {
 
 function PieChart({ chart, donut }: { chart: ChartArtifact; donut: boolean }) {
   const data = chart.series[0].data;
-  const total = data.reduce((s, v) => s + v, 0);
+  const total: number = data.reduce<number>((acc, v) => acc + (v ?? 0), 0);
   const cx = W / 2;
   const cy = (H - 20) / 2;
   const r = Math.min(H - 60, W / 2 - 130) / 1.15;
@@ -353,7 +370,7 @@ function PieChart({ chart, donut }: { chart: ChartArtifact; donut: boolean }) {
   // starting at 12 o'clock, clockwise.
   let angle = -Math.PI / 2;
   const slices = data.map((value, i) => {
-    const frac = total > 0 ? value / total : 0;
+    const frac = total > 0 ? (value ?? 0) / total : 0;
     const a0 = angle;
     const a1 = angle + frac * Math.PI * 2;
     angle = a1;
@@ -388,7 +405,7 @@ function PieChart({ chart, donut }: { chart: ChartArtifact; donut: boolean }) {
             {fitLabel(c, 100)}
           </text>
           <text x={16} y={20} fontSize={9} className="fill-muted-foreground">
-            {total > 0 ? ((data[i] / total) * 100).toFixed(0) : 0}% · {fmtValue(data[i], chart.unit)}
+            {total > 0 ? (((data[i] ?? 0) / total) * 100).toFixed(0) : 0}% · {fmtValue(data[i] ?? 0, chart.unit)}
           </text>
         </g>
       ))}
