@@ -350,3 +350,86 @@ describe("E2.6 / BUG-005 — plan_collection_campaign slices before sorting", ()
     expect(names).not.toContain("Récent Un");
   });
 });
+
+describe("E2.6 / BUG-024 — logger redaction of the AI provider key fields", () => {
+  it("groqApiKey/openRouterApiKey/customApiKey are redacted in nested contexts", async () => {
+    const mod = await import("../../../core/logger");
+    expect(typeof mod.redact).toBe("function");
+    const out = mod.redact({
+      provider: "groq",
+      config: { groqApiKey: "gsk-secret", openRouterApiKey: null, customApiKey: "sk-x" },
+      note: "settings save",
+    }) as Record<string, unknown>;
+    const cfg = out.config as Record<string, unknown>;
+    expect(cfg.groqApiKey).toBe("***");
+    expect(cfg.openRouterApiKey).toBe("***"); // the KEY is always masked (value irrelevant)
+    expect(cfg.customApiKey).toBe("***");
+    expect(out.provider).toBe("groq");
+  });
+});
+
+describe("E2.6 / BUG-023 — analyze_revenue_trends moving-average honesty", () => {
+  it("the leading moving-average nulls are preserved (null), not zero-fabricated", async () => {
+    const { movingAverage } = await import("../../../core/ai/analysis/statistics");
+    const ma = movingAverage([100, 200, 300, 400], 3);
+    // The first two windows are unfillable → honest nulls.
+    expect(ma[0]).toBeNull();
+    expect(ma[1]).toBeNull();
+    expect(ma[2]).toBe(200);
+    expect(ma[3]).toBe(300);
+  });
+
+  it("the tool's chart series carries nulls (source pin: no ?? 0 fabrication)", () => {
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    const src = readFileSync("src/core/ai/tools/analysis-tools.ts", "utf8");
+    expect(src).not.toContain("ma.map((v) => v ?? 0)");
+    expect(src).toContain("data: ma },");
+  });
+});
+
+describe("E2.6 / BUG-021 — cross-check duplicate-ledger overwrite", () => {
+  // Fixtures carry only the fields the check reads; cast past the full
+  // LedgerEntry shape (parentId/studentId/category/method/... are unused).
+  const payEntry = (id: string) =>
+    ({
+      id, tenantId: "t1", accountId: "acc", type: "payment" as const,
+      sourceType: "payment" as const, sourceId: "pay-1", amount: 500, label: "P",
+      entryDate: "2026-01-01", academicYear: "2026-2027", paymentStatus: "completed",
+      createdAt: "2026-01-01T00:00:00Z", createdBy: "u",
+    }) as unknown as Parameters<typeof import("../../../domain/calc/reconcile/cross-checks").crossCheckPayments>[1][number];
+  const instEntry = (id: string) =>
+    ({
+      id, tenantId: "t1", accountId: "acc", type: "charge" as const,
+      sourceType: "installment" as const, sourceId: "inst-1", amount: 500, label: "T1",
+      entryDate: "2026-01-01", academicYear: "2026-2027", paymentStatus: "completed",
+      createdAt: "2026-01-01T00:00:00Z", createdBy: "u",
+    }) as unknown as Parameters<typeof import("../../../domain/calc/reconcile/cross-checks").crossCheckInstallments>[1][number];
+
+  it("crossCheckPayments reports DUPLICATE ledger entries (no silent Map.set overwrite)", async () => {
+    const { crossCheckPayments } = await import("../../../domain/calc/reconcile/cross-checks");
+    const violations = crossCheckPayments(
+      [{ id: "pay-1", amount: 500, status: "completed", receiptNumber: "R-1" }],
+      [payEntry("l-1"), payEntry("l-2")],
+    );
+    expect(violations.some((v) => v.code === "DUPLICATE_LEDGER_PAYMENT_ENTRY")).toBe(true);
+  });
+
+  it("crossCheckInstallments reports DUPLICATE ledger entries too", async () => {
+    const { crossCheckInstallments } = await import("../../../domain/calc/reconcile/cross-checks");
+    const violations = crossCheckInstallments(
+      [{ id: "inst-1", parentId: "p1", studentId: null, category: "tuition", amountDue: 500, label: "T1" }],
+      [instEntry("l-1"), instEntry("l-2")],
+    );
+    expect(violations.some((v) => v.code === "DUPLICATE_LEDGER_INSTALLMENT_ENTRY")).toBe(true);
+  });
+
+  it("a single clean ledger entry per payment still passes without the duplicate violation", async () => {
+    const { crossCheckPayments } = await import("../../../domain/calc/reconcile/cross-checks");
+    const violations = crossCheckPayments(
+      [{ id: "pay-1", amount: 500, status: "completed", receiptNumber: "R-1" }],
+      [payEntry("l-1")],
+    );
+    expect(violations.some((v) => v.code === "DUPLICATE_LEDGER_PAYMENT_ENTRY")).toBe(false);
+    expect(violations.length).toBe(0);
+  });
+});

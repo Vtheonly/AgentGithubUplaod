@@ -33,9 +33,15 @@ const SENSITIVE_KEYS = new Set([
   "apikey",
   "authorization",
   "cookie",
+  // E2.6/BUG-024: the AIProviderConfig key fields (domain/model/ai.ts) —
+  // latent (no current call site logs the whole config) but the redactor
+  // must never let them through when one appears.
+  "groqapikey",
+  "openrouterapikey",
+  "customapikey",
 ]);
 
-function redact(value: unknown, depth = 0): unknown {
+export function redact(value: unknown, depth = 0): unknown {
   if (depth > 4 || value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
   const out: Record<string, unknown> = {};

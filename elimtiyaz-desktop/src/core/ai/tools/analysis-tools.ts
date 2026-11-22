@@ -277,7 +277,10 @@ export async function executeAnalysisTool(
         categories: points.map((p) => p.label),
         series: [
           { name: "Revenu mensuel", data: values },
-          { name: `Moyenne mobile ${window} mois`, data: ma.map((v) => v ?? 0) },
+          // E2.6/BUG-023: keep the leading moving-average nulls HONEST (null = the
+              // window has not filled yet), matching statistics.ts's own
+              // convention — the old ?? 0 fabricated a zero-revenue ramp.
+              { name: `Moyenne mobile ${window} mois`, data: ma },
         ],
         unit: "DZD",
         caption: `Tendance ${trend.direction === "rising" ? "à la hausse" : trend.direction === "falling" ? "à la baisse" : "stable"} — variation totale ${trend.totalChangePercent !== null ? `${trend.totalChangePercent > 0 ? "+" : ""}${trend.totalChangePercent}%` : "n/a"}.`,
