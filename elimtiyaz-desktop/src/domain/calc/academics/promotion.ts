@@ -8,7 +8,7 @@ import {
   type Subject,
 } from "../../model/academic";
 import { CYCLE_OF_GRADE } from "../../model/promotion-cycle";
-import { evaluateStudentTermPerformance, rankClassPerformance } from "./gpa";
+import { evaluateStudentTermPerformance, rankClassPerformance, type GpaClassContext } from "./gpa";
 
 export interface PromotionCandidate {
   readonly student: Student;
@@ -96,6 +96,10 @@ export function buildPromotionReviewQueue(input: {
   academicYear: string;
   targetAcademicYear: string;
   passingThreshold?: number;
+  /** BUG-002: the class context (level/year ids) so Layer-2 configuration
+   *  rows can actually match (optional — legacy callers keep the legacy
+   *  fallback). */
+  classContext?: GpaClassContext;
 }): PromotionReviewQueue {
   const threshold = input.passingThreshold ?? DEFAULT_PASSING_GRADE;
 
@@ -107,6 +111,7 @@ export function buildPromotionReviewQueue(input: {
       input.subjects,
       input.subjectConfigurations ?? [],
       threshold,
+      input.classContext ?? {},
     );
   });
 

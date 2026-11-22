@@ -55,7 +55,7 @@ import { computeParentSummary } from "../../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap } from "../../../domain/calc/ledger/overdue";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
 import { currentTermWindow } from "../../../domain/calc/academics/terms";
-import { calculateAttendanceRate } from "../../../domain/model/academic";
+import { calculateAttendanceRate, DEFAULT_PASSING_GRADE } from "../../../domain/model/academic";
 import { AGING_BUCKET_LABELS_FR, PAYMENT_METHOD_LABELS_FR, PAYMENT_STATUS_LABELS_FR } from "../../../domain/model/payment";
 // Canonical name renderers (DATA-005/T-134): NEVER compose first+last by
 // hand — the live corpus carries displayName-only rows.
@@ -578,7 +578,21 @@ export async function executeCoreTool(
         const term = currentTermWindow();
 
         // Canonical engine — the SAME GPA computation the bulletins use.
-        const gpaResult = evaluateStudentTermPerformance(studentId, assessments, subjects);
+        // BUG-002: thread the class context (level/year ids) + the
+        // configurations so Layer-2 rows can actually match.
+        const studentClass = student.classId
+          ? repos.classes.observeById(student.classId).get()
+          : null;
+        const gpaResult = evaluateStudentTermPerformance(
+          studentId,
+          assessments,
+          subjects,
+          repos.subjects.observeConfigurations().get(),
+          DEFAULT_PASSING_GRADE,
+          studentClass
+            ? { academicLevelId: studentClass.academicLevelId, academicYearId: studentClass.academicYearId }
+            : undefined,
+        );
 
         // T-267: attendance joins the profile (the canonical rate fn).
         const to = new Date();
@@ -666,10 +680,23 @@ export async function executeCoreTool(
 
         const students = repos.students.observeByClass(classId).get();
         const subjects = repos.subjects.observe().get();
+        // BUG-002: the class context + configurations so Layer-2 rows match.
+        const configurations = repos.subjects.observeConfigurations().get();
+        const classContext = {
+          academicLevelId: cls.academicLevelId,
+          academicYearId: cls.academicYearId,
+        };
 
         const performances = students.map((s) => {
           const assessments = repos.grades.observeForStudent(s.id).get();
-          const gpaResult = evaluateStudentTermPerformance(s.id, assessments, subjects);
+          const gpaResult = evaluateStudentTermPerformance(
+            s.id,
+            assessments,
+            subjects,
+            configurations,
+            DEFAULT_PASSING_GRADE,
+            classContext,
+          );
           return {
             student_id: s.id,
             name: studentDisplayName(s),

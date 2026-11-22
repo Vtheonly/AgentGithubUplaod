@@ -49,7 +49,7 @@ import {
   type ClassPerformanceRow,
 } from "../analysis/insights";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
-import { calculateAttendanceRate } from "../../../domain/model/academic";
+import { calculateAttendanceRate, DEFAULT_PASSING_GRADE } from "../../../domain/model/academic";
 import { formatDzdPlain } from "../../../core/format/currency";
 import { isoWindow } from "../../format/date";
 import { studentDisplayName } from "../../../domain/model/student";
@@ -195,13 +195,26 @@ function classPerformanceRow(
   if (!cls) return null;
   const students = repos.students.observeByClass(classId).get();
   const subjects = repos.subjects.observe().get();
+  // BUG-002: the class context + configurations so Layer-2 rows match.
+  const configurations = repos.subjects.observeConfigurations().get();
+  const classContext = {
+    academicLevelId: cls.academicLevelId,
+    academicYearId: cls.academicYearId,
+  };
 
   const gpas: number[] = [];
   let passing = 0;
   let atRisk = 0;
   for (const s of students) {
     const assessments = repos.grades.observeForStudent(s.id).get();
-    const gpa = evaluateStudentTermPerformance(s.id, assessments, subjects);
+    const gpa = evaluateStudentTermPerformance(
+      s.id,
+      assessments,
+      subjects,
+      configurations,
+      DEFAULT_PASSING_GRADE,
+      classContext,
+    );
     if (gpa.gpa !== null) {
       gpas.push(gpa.gpa);
       if (gpa.isPassing) passing++;
@@ -331,9 +344,22 @@ export async function executeAnalysisTool(
           if (!cls) return JSON.stringify({ error: "Classe introuvable." });
           const students = repos.students.observeByClass(classId).get();
           const subjects = repos.subjects.observe().get();
+          // BUG-002: the class context + configurations so Layer-2 rows match.
+          const configurations = repos.subjects.observeConfigurations().get();
+          const classContext = {
+            academicLevelId: cls.academicLevelId,
+            academicYearId: cls.academicYearId,
+          };
           values = students
             .map((s) =>
-              evaluateStudentTermPerformance(s.id, repos.grades.observeForStudent(s.id).get(), subjects).gpa,
+              evaluateStudentTermPerformance(
+                s.id,
+                repos.grades.observeForStudent(s.id).get(),
+                subjects,
+                configurations,
+                DEFAULT_PASSING_GRADE,
+                classContext,
+              ).gpa,
             )
             .filter((g): g is number => g !== null);
           label = `Moyennes des élèves — ${cls.name}`;

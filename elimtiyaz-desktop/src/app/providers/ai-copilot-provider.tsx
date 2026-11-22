@@ -44,6 +44,7 @@ import { Role } from "../../core/rbac/roles";
 import { useAuth } from "./auth-provider";
 import { logger } from "../../core/logger";
 import { evaluateStudentTermPerformance } from "../../domain/calc/academics/gpa";
+import { DEFAULT_PASSING_GRADE } from "../../domain/model/academic";
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import { buildOverdueDueDateMap } from "../../domain/calc/ledger/overdue";
 import { parentDisplayName } from "../../domain/model/parent";
@@ -317,6 +318,14 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
                 s.id,
                 repos.grades.observeForStudent(s.id).get(),
                 subjects,
+                // BUG-002: the class context + configurations so the
+                // Layer-2 subject-configuration rows actually match.
+                repos.subjects.observeConfigurations().get(),
+                DEFAULT_PASSING_GRADE,
+                {
+                  academicLevelId: cls.academicLevelId,
+                  academicYearId: cls.academicYearId,
+                },
               );
               return {
                 name: studentDisplayName(s),

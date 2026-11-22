@@ -40,7 +40,7 @@ import {
 import { computeDescriptiveStats } from "../analysis/statistics";
 import { parentDisplayName } from "../../../domain/model/parent";
 import { evaluateStudentTermPerformance } from "../../../domain/calc/academics/gpa";
-import { calculateAttendanceRate } from "../../../domain/model/academic";
+import { calculateAttendanceRate, DEFAULT_PASSING_GRADE } from "../../../domain/model/academic";
 import { computeParentSummary } from "../../../domain/calc/ledger/balance";
 import { formatDzdPlain } from "../../../core/format/currency";
 import { isoWindow } from "../../format/date";
@@ -422,11 +422,20 @@ export async function executeWorkflowTool(
       for (const cid of targetClassIds) {
         const cls = repos.classes.observeById(cid).get();
         if (!cls) continue;
+        // BUG-002: the class context + configurations so Layer-2 rows match.
+        const configurations = repos.subjects.observeConfigurations().get();
+        const classContext = {
+          academicLevelId: cls.academicLevelId,
+          academicYearId: cls.academicYearId,
+        };
         for (const s of repos.students.observeByClass(cid).get()) {
           const gpa = evaluateStudentTermPerformance(
             s.id,
             repos.grades.observeForStudent(s.id).get(),
             subjects,
+            configurations,
+            DEFAULT_PASSING_GRADE,
+            classContext,
           );
           const records = repos.attendance.observeByStudent(s.id, from, to).get();
           candidates.push({

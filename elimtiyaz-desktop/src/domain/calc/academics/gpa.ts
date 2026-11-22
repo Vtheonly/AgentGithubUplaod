@@ -27,6 +27,19 @@ export interface StudentRankResult extends StudentGpaResult {
 }
 
 /**
+ * BUG-002: the class context (level/year ids) the Layer-2 configuration
+ * match requires. Without it `resolveSubjectConfiguration` can never match
+ * a configuration row (every row carries academicYearId + academicLevelId)
+ * and silently falls to the legacy directory columns — the configured
+ * coefficients/recipes were ignored by every GPA consumer.
+ */
+export interface GpaClassContext {
+  readonly academicLevelId?: string | null;
+  readonly academicYearId?: string | null;
+  readonly direction?: string;
+}
+
+/**
  * Calculates GPA and evaluates passing status for a single student given their assessments.
  *
  * T-345 (MATIERE-500/ADR-018): the coefficient and the recipe resolve
@@ -34,6 +47,10 @@ export interface StudentRankResult extends StudentGpaResult {
  * is never re-resolved), then the subject-configuration context, then the
  * legacy directory columns. The old `a.coefficient || subject?.coefficient
  * || 1` chain is gone.
+ *
+ * BUG-002: pass `context` (the class's academicLevelId/academicYearId) so
+ * the Layer-2 configuration rows can actually match; without it the
+ * resolver falls to the legacy layer even when configurations exist.
  */
 export function evaluateStudentTermPerformance(
   studentId: string,
@@ -41,12 +58,19 @@ export function evaluateStudentTermPerformance(
   subjects: readonly Subject[],
   configurations: readonly SubjectConfiguration[] = [],
   passingThreshold = DEFAULT_PASSING_GRADE,
+  context: GpaClassContext = {},
 ): StudentGpaResult {
   const studentAssessments = assessments.filter((a) => a.studentId === studentId);
 
   const mapped = studentAssessments.map((a) => {
     const subject = subjects.find((s) => s.id === a.subjectId);
-    const resolved = resolveSubjectConfiguration({ subject, configurations });
+    const resolved = resolveSubjectConfiguration({
+      subject,
+      configurations,
+      academicLevelId: context.academicLevelId,
+      academicYearId: context.academicYearId,
+      direction: context.direction,
+    });
     return {
       subjectAverage:
         a.subjectAverage ??
