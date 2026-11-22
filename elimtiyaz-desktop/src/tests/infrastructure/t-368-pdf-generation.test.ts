@@ -22,7 +22,7 @@
  * suite + tsc --noEmit + eslint (re-run after every change, incl. tests).
  */
 import { describe, it, expect } from "vitest";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";
 import { generateAccountStatementPdf } from "../../infrastructure/receipt-pdf/account-statement";
 import { generateBulletinPdf } from "../../infrastructure/receipt-pdf/bulletin";
@@ -404,6 +404,134 @@ describe("T-368 / REPT-502 — multi-page documents carry real page counts", () 
     expect(doc.getPageCount()).toBe(1);
     const pages = await extractPageText(doc);
     expect(pages[0]).toContain("Page 1/1");
+  });
+});
+
+
+/* ============================================================ */
+/*  S46 — the statement's DRAWN GEOMETRY (the alignment fix)     */
+/* ============================================================ */
+
+/**
+ * S46 (the owner-reported "visually misaligned" statement): three geometry
+ * defects, proven by extracting the ACTUAL drawn text positions from the
+ * produced PDF (inflate the Flate content streams, parse the Tm/Tj pairs):
+ *
+ *   1. The "Émis le" date drew at x=600 on a 595pt page — off the sheet,
+ *      invisible on EVERY statement ever generated.
+ *   2. The amount column was left-fixed at x=+460: ragged digits (7
+ *      distinct right edges) and 7-digit amounts ran past the right margin.
+ *   3. Continuation-page rows overlapped the table-header box; the summary
+ *      row ended 8pt short of the right margin.
+ */
+import { inflateSync } from "node:zlib";
+import { PAGE_W, MARGIN } from "../../infrastructure/receipt-pdf/shared";
+
+interface DrawnText { x: number; y: number; size: number; bold: boolean; str: string; right: number }
+
+/** Inflate the Flate content streams and extract every drawn text item. */
+function extractTextGeometry(pdfBytes: Uint8Array): DrawnText[] {
+  const buf = Buffer.from(pdfBytes);
+  const latin = buf.toString("latin1");
+  const out: DrawnText[] = [];
+  const re = /\/Filter\s*\/FlateDecode\s*\/Length\s+(\d+)|\/Length\s+(\d+)\s*\/Filter\s*\/FlateDecode/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(latin))) {
+    const len = Number(m[1] || m[2]);
+    const kw = latin.indexOf("stream", m.index);
+    let start = kw + 6;
+    if (latin[start] === "\r") start++;
+    if (latin[start] === "\n") start++;
+    let content: string;
+    try {
+      content = inflateSync(buf.subarray(start, start + len)).toString("latin1");
+    } catch {
+      continue;
+    }
+    for (const block of content.split("BT").slice(1)) {
+      const et = block.indexOf("ET");
+      const body = et >= 0 ? block.slice(0, et) : block;
+      const tf = body.match(/\/([A-Za-z0-9-]+)\s+([\d.]+)\s+Tf/);
+      const tm = body.match(/1 0 0 1\s+(-?[\d.]+)\s+(-?[\d.]+)\s+Tm/);
+      const tj = body.match(/<([0-9A-Fa-f]+)>\s+Tj/);
+      if (!tf || !tm || !tj) continue;
+      const hex = tj[1];
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      const str = Buffer.from(bytes).toString("latin1");
+      // Width via pdf-lib's own Helvetica metrics (the generator's fonts).
+      const size = Number(tf[2]);
+      const bold = tf[1].includes("Bold");
+      const width = bold
+        ? helveticaBoldMetrics.widthOfTextAtSize(str, size)
+        : helveticaMetrics.widthOfTextAtSize(str, size);
+      out.push({ x: Number(tm[1]), y: Number(tm[2]), size, bold, str, right: Number(tm[1]) + width });
+    }
+  }
+  return out;
+}
+
+// The metrics instance (created once at module scope — embedding is sync-safe
+// against a fresh empty doc).
+const metricsDoc = await PDFDocument.create();
+const helveticaMetrics = await metricsDoc.embedFont(StandardFonts.Helvetica);
+const helveticaBoldMetrics = await metricsDoc.embedFont(StandardFonts.HelveticaBold);
+
+describe("S46 — the account statement's drawn geometry", () => {
+  // The alignment-defect vector: every method, the two long labels, and the
+  // 7-digit amount that overflowed the margin.
+  const ALIGN_PAYMENTS: Payment[] = Array.from({ length: 12 }, (_, i) =>
+    makePayment({
+      amount: i === 0 ? 1_350_000 : 102_000,
+      method: (["cash", "check", "transfer"] as const)[i % 3],
+      status: i === 1 ? "pending_clearance" : "paid",
+      category: i === 2 ? "extracurricular" : "tuition",
+      receiptNumber: `REC-2026-${String(i + 1).padStart(6, "0")}`,
+    }),
+  );
+
+  it("NO drawn text breaches the 50pt content margins (the Émis-le date drew at x=600 — off the 595pt sheet)", async () => {
+    const bytes = await generateAccountStatementPdf(ALIGN_PAYMENTS, makeParent());
+    const items = extractTextGeometry(bytes);
+    expect(items.length).toBeGreaterThan(40);
+    const rightLimit = PAGE_W - MARGIN + 0.75; // 546.03
+    for (const it of items) {
+      expect(
+        it.right,
+        `"${it.str}" (x=${it.x}, size ${it.size}) breaches the right margin`,
+      ).toBeLessThanOrEqual(rightLimit);
+    }
+  });
+
+  it("the amount column shares ONE right edge — right-aligned digits (was left-fixed at +460: ragged, overflowing)", async () => {
+    const bytes = await generateAccountStatementPdf(ALIGN_PAYMENTS, makeParent());
+    const items = extractTextGeometry(bytes);
+    // Table-row amounts: BOLD grouped numbers (the synthèse totals are size
+    // 12; the count note is size 8 regular).
+    const rowAmounts = items.filter(
+      (it) =>
+        it.bold &&
+        it.size === 9 &&
+        /^\d{1,3}( \d{3})+$/.test(it.str.trim()),
+    );
+    expect(rowAmounts.length).toBe(ALIGN_PAYMENTS.length);
+    const rights = new Set(rowAmounts.map((a) => Math.round(a.right)));
+    expect(rights.size).toBe(1);
+    // ...and the shared edge is INSIDE the content width.
+    const edge = [...rights][0];
+    expect(edge).toBeLessThanOrEqual(PAGE_W - MARGIN);
+    expect(edge).toBeGreaterThan(PAGE_W - MARGIN - 30);
+  });
+
+  it("the Émis-le date renders INSIDE the page (its own meta row now)", async () => {
+    const bytes = await generateAccountStatementPdf(ALIGN_PAYMENTS, makeParent());
+    const items = extractTextGeometry(bytes);
+    const dateItems = items.filter((it) => /^\d{2}\/\d{2}\/\d{4}$/.test(it.str.trim()));
+    expect(dateItems.length).toBeGreaterThanOrEqual(1);
+    for (const d of dateItems) {
+      expect(d.x).toBeGreaterThan(0);
+      expect(d.right).toBeLessThanOrEqual(PAGE_W - MARGIN + 0.75);
+    }
   });
 });
 

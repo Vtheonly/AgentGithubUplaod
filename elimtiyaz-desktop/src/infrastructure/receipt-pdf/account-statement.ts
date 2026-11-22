@@ -42,6 +42,7 @@ import {
   continuationHeader,
   drawKeyValue,
   drawBox,
+  drawCellClipped,
   stampPageFooters,
 } from "./shared";
 
@@ -55,14 +56,35 @@ const TITLE = "RELEVÉ DE COMPTE";
 /** Row height + rule for the transaction table. */
 const ROW_H = 16;
 
+/**
+ * S46 (the statement-alignment fix) — the column geometry, ONE source of
+ * truth for the header AND the rows. The amount column is RIGHT-ALIGNED at
+ * a shared edge (financial-table convention: the digits line up; the old
+ * left-fixed x=+460 ragged the column and overflowed the margin on
+ * 7-digit amounts).
+ */
+const COL_DATE = MARGIN + 10;
+const COL_RECEIPT = MARGIN + 80;
+const COL_METHOD = MARGIN + 180;
+const COL_CATEGORY = MARGIN + 260;
+const COL_STATUS = MARGIN + 350;
+const AMOUNT_RIGHT = MARGIN + CONTENT_W - 12;
+
 function drawTableHeader(page: PDFPage, font: PDFFont, y: number) {
   drawBox(page, MARGIN, y - 18, CONTENT_W, 18, BRAND_BLUE_DEEP);
-  page.drawText("Date", { x: MARGIN + 10, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
-  page.drawText("Reçu", { x: MARGIN + 80, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
-  page.drawText("Méthode", { x: MARGIN + 180, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
-  page.drawText("Catégorie", { x: MARGIN + 260, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
-  page.drawText("Statut", { x: MARGIN + 350, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
-  page.drawText("Montant", { x: MARGIN + 460, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  page.drawText("Date", { x: COL_DATE, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  page.drawText("Reçu", { x: COL_RECEIPT, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  page.drawText("Méthode", { x: COL_METHOD, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  page.drawText("Catégorie", { x: COL_CATEGORY, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  page.drawText("Statut", { x: COL_STATUS, y: y - 13, size: 8, font, color: rgb(1, 1, 1) });
+  // S46: the header shares the rows' right edge.
+  page.drawText("Montant", {
+    x: AMOUNT_RIGHT - font.widthOfTextAtSize("Montant", 8),
+    y: y - 13,
+    size: 8,
+    font,
+    color: rgb(1, 1, 1),
+  });
 }
 
 export async function generateAccountStatementPdf(
@@ -79,11 +101,15 @@ export async function generateAccountStatementPdf(
 
   // Statement meta
   drawBox(page, MARGIN, y - 60, CONTENT_W, 60, undefined, BORDER);
-  drawKeyValue(page, font, MARGIN + 15, y - 18, "Parent:", parentDisplayName(parent));
-  drawKeyValue(page, font, MARGIN + 15, y - 36, "Code:", parent.code);
-  drawKeyValue(page, font, MARGIN + 280, y - 18, "Téléphone:", parent.phone);
-  drawKeyValue(page, font, MARGIN + 280, y - 36, "E-mail:", parent.email ?? "—");
-  drawKeyValue(page, font, MARGIN + 440, y - 18, "Émis le:", formatDate(new Date().toISOString()));
+  // S46: explicit labelWidths, and the issue date gets its OWN row — the
+  // old three-column grid drew the "Émis le" value at x=600 on a 595pt
+  // page (drawn, but off the sheet: the date was invisible on every
+  // statement ever generated).
+  drawKeyValue(page, font, MARGIN + 15, y - 18, "Parent:", parentDisplayName(parent), 70);
+  drawKeyValue(page, font, MARGIN + 15, y - 36, "Code:", parent.code, 70);
+  drawKeyValue(page, font, MARGIN + 245, y - 18, "Téléphone:", parent.phone, 80);
+  drawKeyValue(page, font, MARGIN + 245, y - 36, "E-mail:", parent.email ?? "—", 80);
+  drawKeyValue(page, font, MARGIN + 15, y - 54, "Émis le:", formatDate(new Date().toISOString()), 70);
 
   y -= 90;
 
@@ -95,17 +121,25 @@ export async function generateAccountStatementPdf(
   page.drawText("SYNTHÈSE", { x: MARGIN, y, size: 10, font: fontBold, color: TEXT_PRIMARY });
   y -= 18;
 
-  drawBox(page, MARGIN, y - 60, CONTENT_W / 3 - 8, 50, rgb(0xeb / 255, 0xf6 / 255, 0xf0 / 255), SUCCESS);
+  // S46: the three summary boxes evenly fill the content width (flush left
+  // AND right — the old CONTENT_W/3 arithmetic left the row 8pt short on
+  // the right, visibly asymmetric against the meta box above it).
+  const BOX_GAP = 8;
+  const BOX_W = (CONTENT_W - 2 * BOX_GAP) / 3;
+
+  drawBox(page, MARGIN, y - 60, BOX_W, 50, rgb(0xeb / 255, 0xf6 / 255, 0xf0 / 255), SUCCESS);
   page.drawText("Payé", { x: MARGIN + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
   page.drawText(dzdPdf(totalPaid), { x: MARGIN + 15, y: y - 34, size: 12, font: fontBold, color: SUCCESS });
 
-  drawBox(page, MARGIN + CONTENT_W / 3, y - 60, CONTENT_W / 3 - 8, 50, rgb(0xfb / 255, 0xf3 / 255, 0xeb / 255), WARNING);
-  page.drawText("En attente", { x: MARGIN + CONTENT_W / 3 + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
-  page.drawText(dzdPdf(totalPending), { x: MARGIN + CONTENT_W / 3 + 15, y: y - 34, size: 12, font: fontBold, color: WARNING });
+  const box2X = MARGIN + BOX_W + BOX_GAP;
+  drawBox(page, box2X, y - 60, BOX_W, 50, rgb(0xfb / 255, 0xf3 / 255, 0xeb / 255), WARNING);
+  page.drawText("En attente", { x: box2X + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
+  page.drawText(dzdPdf(totalPending), { x: box2X + 15, y: y - 34, size: 12, font: fontBold, color: WARNING });
 
-  drawBox(page, MARGIN + 2 * (CONTENT_W / 3), y - 60, CONTENT_W / 3 - 8, 50, rgb(0xfa / 255, 0xfa / 255, 0xfa / 255), BORDER);
-  page.drawText("Remboursé", { x: MARGIN + 2 * (CONTENT_W / 3) + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
-  page.drawText(dzdPdf(totalRefunded), { x: MARGIN + 2 * (CONTENT_W / 3) + 15, y: y - 34, size: 12, font: fontBold, color: TEXT_PRIMARY });
+  const box3X = MARGIN + 2 * (BOX_W + BOX_GAP);
+  drawBox(page, box3X, y - 60, BOX_W, 50, rgb(0xfa / 255, 0xfa / 255, 0xfa / 255), BORDER);
+  page.drawText("Remboursé", { x: box3X + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
+  page.drawText(dzdPdf(totalRefunded), { x: box3X + 15, y: y - 34, size: 12, font: fontBold, color: TEXT_PRIMARY });
 
   y -= 80;
 
@@ -125,14 +159,29 @@ export async function generateAccountStatementPdf(
     if (y < PAGE_BOTTOM_LIMIT) {
       page = continuationHeader(doc, font, TITLE);
       drawTableHeader(page, font, PAGE_H - 110);
-      y = PAGE_H - 130;
+      // S46: the first-page rhythm (box top at Y → first row baseline at
+      // Y-22). The old PAGE_H-130 sat 2pt higher — the first row of every
+      // continuation page overlapped the header box's bottom edge.
+      y = PAGE_H - 110 - 22;
     }
-    page.drawText(formatDate(p.collectedAt), { x: MARGIN + 10, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(sanitizePdfText(p.receiptNumber), { x: MARGIN + 80, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(label(PAYMENT_METHOD_LABELS_FR, p.method), { x: MARGIN + 180, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(paymentCategoryLabelFr(p.category), { x: MARGIN + 260, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(label(PAYMENT_STATUS_LABELS_FR, p.status), { x: MARGIN + 350, y, size: 9, font, color: TEXT_PRIMARY });
-    page.drawText(dzdPdf(p.amount), { x: MARGIN + 460, y, size: 9, font: fontBold, color: TEXT_PRIMARY });
+    // S46: every cell is clipped to its column width — long labels can
+    // never bleed into the neighbouring column.
+    drawCellClipped(page, font, formatDate(p.collectedAt), COL_DATE, y, 9, 66, TEXT_PRIMARY);
+    drawCellClipped(page, font, sanitizePdfText(p.receiptNumber), COL_RECEIPT, y, 9, 94, TEXT_PRIMARY);
+    drawCellClipped(page, font, label(PAYMENT_METHOD_LABELS_FR, p.method), COL_METHOD, y, 9, 74, TEXT_PRIMARY);
+    drawCellClipped(page, font, paymentCategoryLabelFr(p.category), COL_CATEGORY, y, 9, 84, TEXT_PRIMARY);
+    drawCellClipped(page, font, label(PAYMENT_STATUS_LABELS_FR, p.status), COL_STATUS, y, 9, 100, TEXT_PRIMARY);
+    // S46: right-aligned at the shared edge — the digits line up and the
+    // widest amount (1 350 000) stays inside the margin (the old
+    // left-fixed x=+460 ran 4.8pt past it).
+    const amountStr = dzdPdf(p.amount);
+    page.drawText(amountStr, {
+      x: AMOUNT_RIGHT - fontBold.widthOfTextAtSize(amountStr, 9),
+      y,
+      size: 9,
+      font: fontBold,
+      color: TEXT_PRIMARY,
+    });
     y -= ROW_H;
     page.drawLine({
       start: { x: MARGIN, y: y + 4 },
@@ -148,9 +197,13 @@ export async function generateAccountStatementPdf(
     const countNote = sanitizePdfText(
       `${sorted.length} transaction(s) listée(s) — document complet.`,
     );
-    if (y >= PAGE_BOTTOM_LIMIT - 14) {
-      page.drawText(countNote, { x: MARGIN, y, size: 8, font, color: TEXT_MUTED });
+    // S46: if the last row filled the page, the note FLOWS onto a fresh
+    // continuation page instead of being silently dropped.
+    if (y < PAGE_BOTTOM_LIMIT) {
+      page = continuationHeader(doc, font, TITLE);
+      y = PAGE_H - 130;
     }
+    page.drawText(countNote, { x: MARGIN, y, size: 8, font, color: TEXT_MUTED });
   }
 
   stampPageFooters(doc, font, new Date().toISOString());

@@ -222,6 +222,34 @@ export function drawBox(
   });
 }
 
+/**
+ * S46 (the statement-alignment fix) — draw a table cell, clipping with an
+ * ellipsis when the text would run past its column width. Long labels (the
+ * 95pt "En cours d'encaissement", a long receipt number) can never collide
+ * with the next column again; the ellipsis keeps the truncation honest.
+ */
+export function drawCellClipped(
+  page: PdfPage,
+  font: PDFFont,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  maxW: number,
+  color: ReturnType<typeof rgb>,
+) {
+  const t = sanitizePdfText(text);
+  if (font.widthOfTextAtSize(t, size) <= maxW) {
+    page.drawText(t, { x, y, size, font, color });
+    return;
+  }
+  let s = t;
+  while (s.length > 0 && font.widthOfTextAtSize(`${s}...`, size) > maxW) {
+    s = s.slice(0, -1);
+  }
+  page.drawText(`${s}...`, { x, y, size, font, color });
+}
+
 export function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];
