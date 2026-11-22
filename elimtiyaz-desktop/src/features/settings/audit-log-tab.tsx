@@ -13,7 +13,17 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Filter, ScrollText, ChevronDown, ChevronRight, User, IdCard, ShieldCheck, Radio } from "lucide-react";
+import {
+  Download,
+  Filter,
+  ScrollText,
+  ChevronDown,
+  ChevronRight,
+  User,
+  IdCard,
+  ShieldCheck,
+  Radio,
+} from "lucide-react";
 import { useRepositories } from "../../app/providers/repository-provider";
 import type { AuditEntry, AuditLogFilter } from "../../domain/model/audit";
 import {
@@ -22,7 +32,21 @@ import {
   type DiffRow,
 } from "../../domain/calc/diff/field-diff";
 import { formatDateTime } from "../../core/format/date";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../../shared/ui/card";
+// E6.7 (UI-U7a): the shared expandable primitive — the showRaw
+// hand-rolled toggle collapses onto Radix (aria-expanded/aria-controls
+// and keyboard toggling owned by the primitive).
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../shared/ui/collapsible";
 import { Button } from "../../shared/ui/button";
 import { Input } from "../../shared/ui/input";
 import { Label } from "../../shared/ui/label";
@@ -31,7 +55,10 @@ import { ScrollArea } from "../../shared/ui/scroll-area";
 import { EmptyState, LoadingState } from "../../shared/layout/state-views";
 import { UnifiedModal } from "../../shared/ui/unified-modal";
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from "../../shared/ui/dropdown-menu";
 import { useToast } from "../../app/providers/toast-provider";
 import { exportAuditLog } from "../../infrastructure/excel/reports";
@@ -119,7 +146,10 @@ export function AuditLogTab() {
         })),
         format,
       );
-      toast.showSuccess("Export généré", `${entries.length} entrées exportées en ${format.toUpperCase()}.`);
+      toast.showSuccess(
+        "Export généré",
+        `${entries.length} entrées exportées en ${format.toUpperCase()}.`,
+      );
       // VAULT §12.01 — system exports are tracked audit events.
       void repos.audit.log({
         action: "system.export",
@@ -132,7 +162,10 @@ export function AuditLogTab() {
         note: `Export ${format.toUpperCase()} du journal d'audit (${entries.length} entrée(s))`,
       });
     } catch (e) {
-      toast.showError("Échec de l'export", e instanceof Error ? e.message : String(e));
+      toast.showError(
+        "Échec de l'export",
+        e instanceof Error ? e.message : String(e),
+      );
     } finally {
       setExporting(null);
     }
@@ -144,11 +177,16 @@ export function AuditLogTab() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base flex items-center gap-2">
-              <ScrollText className="h-4 w-4 text-primary" /> {t("settings.audit")}
+              <ScrollText className="h-4 w-4 text-primary" />{" "}
+              {t("settings.audit")}
               <button
                 type="button"
                 onClick={() => setLive((v) => !v)}
-                title={live ? "Flux temps réel actif — la liste se rafraîchit à chaque événement" : "Flux temps réel en pause — cliquer pour réactiver"}
+                title={
+                  live
+                    ? "Flux temps réel actif — la liste se rafraîchit à chaque événement"
+                    : "Flux temps réel en pause — cliquer pour réactiver"
+                }
                 className={cn(
                   "ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
                   live
@@ -161,12 +199,17 @@ export function AuditLogTab() {
               </button>
             </CardTitle>
             <CardDescription>
-              Traçabilité universelle — append-only, aucun contournement possible.
+              Traçabilité universelle — append-only, aucun contournement
+              possible.
             </CardDescription>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={entries.length === 0 || exporting !== null}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={entries.length === 0 || exporting !== null}
+              >
                 <Download className="h-4 w-4" />
                 {exporting ? `Export ${exporting.toUpperCase()}…` : "Export"}
                 <ChevronDown className="h-3 w-3" />
@@ -187,7 +230,9 @@ export function AuditLogTab() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-2 border-b border-border p-3">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t("settings.auditFilter.action")}</Label>
+          <Label className="text-xs text-muted-foreground">
+            {t("settings.auditFilter.action")}
+          </Label>
           <Input
             value={actionInput}
             onChange={(e) => setActionInput(e.target.value)}
@@ -196,7 +241,9 @@ export function AuditLogTab() {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t("settings.auditFilter.entity")}</Label>
+          <Label className="text-xs text-muted-foreground">
+            {t("settings.auditFilter.entity")}
+          </Label>
           <Input
             value={entityInput}
             onChange={(e) => setEntityInput(e.target.value)}
@@ -205,7 +252,9 @@ export function AuditLogTab() {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">{t("settings.auditFilter.actor")}</Label>
+          <Label className="text-xs text-muted-foreground">
+            {t("settings.auditFilter.actor")}
+          </Label>
           <Input
             value={actorInput}
             onChange={(e) => setActorInput(e.target.value)}
@@ -259,20 +308,35 @@ export function AuditLogTab() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono text-primary">{e.action}</code>
-                    <span className="text-xs text-muted-foreground">{e.entityType}</span>
+                    <code className="text-xs font-mono text-primary">
+                      {e.action}
+                    </code>
+                    <span className="text-xs text-muted-foreground">
+                      {e.entityType}
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {e.actorName}
                     {e.actorRole && (
-                      <Badge variant="outline" className="ml-1.5 text-[9px] py-0 px-1">{e.actorRole}</Badge>
+                      <Badge
+                        variant="outline"
+                        className="ml-1.5 text-[9px] py-0 px-1"
+                      >
+                        {e.actorRole}
+                      </Badge>
                     )}{" "}
                     → {e.entityId}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-muted-foreground">{formatDateTime(e.at)}</p>
-                  {e.diff && <Badge variant="outline" className="text-[9px]">diff</Badge>}
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatDateTime(e.at)}
+                  </p>
+                  {e.diff && (
+                    <Badge variant="outline" className="text-[9px]">
+                      diff
+                    </Badge>
+                  )}
                 </div>
               </li>
             ))}
@@ -297,10 +361,16 @@ export function AuditLogTab() {
 /* ------------------------------------------------------------------ */
 
 /** Parse the entry's diff JSON into the before/after snapshots. */
-function parseAuditDiff(entry: AuditEntry | null): { before: unknown; after: unknown } {
+function parseAuditDiff(entry: AuditEntry | null): {
+  before: unknown;
+  after: unknown;
+} {
   if (!entry?.diff) return { before: null, after: null };
   try {
-    const parsed = JSON.parse(entry.diff) as { before?: unknown; after?: unknown };
+    const parsed = JSON.parse(entry.diff) as {
+      before?: unknown;
+      after?: unknown;
+    };
     return { before: parsed.before ?? null, after: parsed.after ?? null };
   } catch {
     return { before: null, after: null };
@@ -310,7 +380,11 @@ function parseAuditDiff(entry: AuditEntry | null): { before: unknown; after: unk
 /** One red/green field row — TABLE presentation (T-308, 48th session). */
 function DiffFieldRow({ row }: { row: DiffRow }) {
   const tone =
-    row.kind === "added" ? "added" : row.kind === "removed" ? "removed" : "changed";
+    row.kind === "added"
+      ? "added"
+      : row.kind === "removed"
+        ? "removed"
+        : "changed";
   return (
     <tr
       data-testid="audit-diff-row"
@@ -340,11 +414,16 @@ function DiffFieldRow({ row }: { row: DiffRow }) {
           </code>
         </div>
         {row.path !== row.field && row.path.includes(".") && (
-          <p className="text-[9px] font-mono text-muted-foreground/70 mt-0.5 pl-3 break-all">{row.path}</p>
+          <p className="text-[9px] font-mono text-muted-foreground/70 mt-0.5 pl-3 break-all">
+            {row.path}
+          </p>
         )}
       </td>
       {/* OLD value — RED, struck through (the owner's explicit request). */}
-      <td className="px-2.5 py-2 border-r border-border/60" data-testid="diff-old-cell">
+      <td
+        className="px-2.5 py-2 border-r border-border/60"
+        data-testid="diff-old-cell"
+      >
         {row.kind === "added" ? (
           <span className="text-[11px] text-muted-foreground/50 italic">—</span>
         ) : (
@@ -373,7 +452,13 @@ function DiffFieldRow({ row }: { row: DiffRow }) {
   );
 }
 
-function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose: () => void }) {
+function AuditDiffDrawer({
+  entry,
+  onClose,
+}: {
+  entry: AuditEntry | null;
+  onClose: () => void;
+}) {
   const [showRaw, setShowRaw] = useState(false);
   const { before, after } = parseAuditDiff(entry);
   const rows = useMemo(
@@ -399,12 +484,15 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
         <span className="flex items-center gap-2 text-base">
           <code className="font-mono text-primary">{entry?.action}</code>
           <span className="text-muted-foreground">·</span>
-          <span className="text-sm font-normal">{entry?.entityType}:{entry?.entityId}</span>
+          <span className="text-sm font-normal">
+            {entry?.entityType}:{entry?.entityId}
+          </span>
         </span>
       }
       description={
         <>
-          {entry?.actorName} • {entry ? formatDateTime(entry.at) : ""} • IP {entry?.ipAddress ?? "—"}
+          {entry?.actorName} • {entry ? formatDateTime(entry.at) : ""} • IP{" "}
+          {entry?.ipAddress ?? "—"}
         </>
       }
       hideCancel
@@ -414,7 +502,9 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
       <div className="space-y-3">
         {/* Actor attribution block — T-296: Name + Account ID + Role */}
         <div className="rounded border bg-muted/30 p-2.5 space-y-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Opérateur</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Opérateur
+          </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <span className="flex items-center gap-1.5 text-sm font-medium">
               <User className="h-3.5 w-3.5 text-primary" />
@@ -430,7 +520,9 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
                 {entry.actorRole}
               </Badge>
             ) : (
-              <span className="text-[10px] text-muted-foreground/60 italic">rôle non enregistré</span>
+              <span className="text-[10px] text-muted-foreground/60 italic">
+                rôle non enregistré
+              </span>
             )}
           </div>
         </div>
@@ -438,27 +530,42 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
         {entry?.note && (
           <div>
             <p className="text-xs uppercase text-muted-foreground mb-1">Note</p>
-            <p className="text-sm text-foreground bg-muted/30 rounded p-2">{entry.note}</p>
+            <p className="text-sm text-foreground bg-muted/30 rounded p-2">
+              {entry.note}
+            </p>
           </div>
         )}
 
         {/* Field-level diff summary */}
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-xs uppercase text-muted-foreground">Diff par champ</p>
+          <p className="text-xs uppercase text-muted-foreground">
+            Diff par champ
+          </p>
           {counts.total > 0 ? (
             <>
-              <Badge variant="outline" className="text-[9px] text-status-danger border-status-danger/40">
+              <Badge
+                variant="outline"
+                className="text-[9px] text-status-danger border-status-danger/40"
+              >
                 {`${counts.removed} supprimé${counts.removed === 1 ? "" : "s"}`}
               </Badge>
-              <Badge variant="outline" className="text-[9px] text-primary border-primary/40">
+              <Badge
+                variant="outline"
+                className="text-[9px] text-primary border-primary/40"
+              >
                 {`${counts.changed} modifié${counts.changed === 1 ? "" : "s"}`}
               </Badge>
-              <Badge variant="outline" className="text-[9px] text-status-success border-status-success/40">
+              <Badge
+                variant="outline"
+                className="text-[9px] text-status-success border-status-success/40"
+              >
                 {`${counts.added} ajouté${counts.added === 1 ? "" : "s"}`}
               </Badge>
             </>
           ) : (
-            <span className="text-xs text-muted-foreground italic">aucune différence structurelle</span>
+            <span className="text-xs text-muted-foreground italic">
+              aucune différence structurelle
+            </span>
           )}
         </div>
 
@@ -467,7 +574,10 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
         {rows.length > 0 ? (
           <div className="rounded-md border border-border/70 overflow-hidden">
             <div className="max-h-[40vh] overflow-y-auto">
-              <table data-testid="audit-diff-table" className="w-full text-xs border-collapse">
+              <table
+                data-testid="audit-diff-table"
+                className="w-full text-xs border-collapse"
+              >
                 <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm">
                   <tr className="text-left uppercase">
                     <th className="px-2.5 py-2 text-[10px] font-semibold text-muted-foreground border-b border-border/70 border-r border-border/60 w-[28%]">
@@ -492,38 +602,47 @@ function AuditDiffDrawer({ entry, onClose }: { entry: AuditEntry | null; onClose
         ) : (
           <div className="rounded border border-dashed p-4 text-center">
             <p className="text-xs text-muted-foreground">
-              Avant et après sont structurellement identiques (aucun champ modifié).
+              Avant et après sont structurellement identiques (aucun champ
+              modifié).
             </p>
           </div>
         )}
 
-        {/* Collapsible raw JSON (forensic view) */}
-        <div className="border-t border-border pt-2">
-          <button
-            type="button"
-            onClick={() => setShowRaw((v) => !v)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {showRaw ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        {/* Collapsible raw JSON (forensic view) — E6.7: the shared primitive */}
+        <Collapsible
+          open={showRaw}
+          onOpenChange={setShowRaw}
+          className="border-t border-border pt-2"
+        >
+          <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+            {showRaw ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
             Vue JSON brute (expert — forensique)
-          </button>
-          {showRaw && (
+          </CollapsibleTrigger>
+          <CollapsibleContent>
             <div className="grid grid-cols-2 gap-3 mt-2">
               <div>
-                <p className="text-xs uppercase text-muted-foreground mb-1">Avant</p>
+                <p className="text-xs uppercase text-muted-foreground mb-1">
+                  Avant
+                </p>
                 <pre className="bg-status-danger/10 border border-status-danger/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
                   {before == null ? "null" : JSON.stringify(before, null, 2)}
                 </pre>
               </div>
               <div>
-                <p className="text-xs uppercase text-muted-foreground mb-1">Après</p>
+                <p className="text-xs uppercase text-muted-foreground mb-1">
+                  Après
+                </p>
                 <pre className="bg-status-success/10 border border-status-success/30 rounded p-2 text-xs font-mono overflow-x-auto max-h-[40vh]">
                   {after == null ? "null" : JSON.stringify(after, null, 2)}
                 </pre>
               </div>
             </div>
-          )}
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </UnifiedModal>
   );
@@ -540,7 +659,8 @@ export function AccessDeniedCard() {
         <ScrollText className="h-8 w-8 text-status-danger" />
         <p className="text-sm font-medium">Accès refusé</p>
         <p className="text-xs text-muted-foreground max-w-md">
-          Le journal d'audit est réservé au Super Administrateur et à l'Agent Financier (plan §12).
+          Le journal d'audit est réservé au Super Administrateur et à l'Agent
+          Financier (plan §12).
         </p>
       </CardContent>
     </Card>

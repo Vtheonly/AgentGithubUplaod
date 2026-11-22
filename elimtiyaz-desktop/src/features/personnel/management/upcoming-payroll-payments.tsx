@@ -28,6 +28,14 @@ import {
   LineChart,
   Users,
 } from "lucide-react";
+// E6.7 (UI-U7a): the shared expandable primitive — the hand-rolled
+// expandedPeriod button + {expanded && <tr>} pattern collapses onto Radix
+// (per-wave tbody: valid HTML, keeps the single-open accordion semantics).
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../../shared/ui/collapsible";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import {
@@ -128,8 +136,8 @@ export function UpcomingPersonnelPayments() {
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               Vagues de paie à venir, dates de paiement et fonds requis avant
-              chaque échéance — même calcul canonique que Finance
-              (Diagnostic) et Statistiques.
+              chaque échéance — même calcul canonique que Finance (Diagnostic)
+              et Statistiques.
             </CardDescription>
           </div>
           {nextFunding && (
@@ -154,7 +162,7 @@ export function UpcomingPersonnelPayments() {
 
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs [&_tbody+tbody>tr:first-child]:border-t [&_tbody+tbody>tr:first-child]:border-border/40">
             <thead className="bg-muted/30 text-muted-foreground border-b border-border text-left">
               <tr>
                 <th className="py-2.5 px-3 w-6" aria-label="Détail" />
@@ -165,28 +173,30 @@ export function UpcomingPersonnelPayments() {
                     <Users className="h-3 w-3" /> Effectif
                   </span>
                 </th>
-                <th className="py-2.5 px-3 text-right">Masse salariale attendue</th>
+                <th className="py-2.5 px-3 text-right">
+                  Masse salariale attendue
+                </th>
                 <th className="py-2.5 px-3">Date de paiement</th>
                 <th className="py-2.5 px-3 text-right">Fonds sécurisés</th>
-                <th className="py-2.5 px-3 text-right">Besoin de financement</th>
+                <th className="py-2.5 px-3 text-right">
+                  Besoin de financement
+                </th>
                 <th className="py-2.5 px-3 text-center">Disponibilité</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
-              {projectedWaves.map((wave) => {
-                const expanded = expandedPeriod === wave.period;
-                return (
-                  <WaveRow
-                    key={wave.period}
-                    wave={wave}
-                    expanded={expanded}
-                    onToggle={() =>
-                      setExpandedPeriod(expanded ? null : wave.period)
-                    }
-                  />
-                );
-              })}
-            </tbody>
+            {projectedWaves.map((wave) => {
+              const expanded = expandedPeriod === wave.period;
+              return (
+                <WaveRow
+                  key={wave.period}
+                  wave={wave}
+                  expanded={expanded}
+                  onToggle={() =>
+                    setExpandedPeriod(expanded ? null : wave.period)
+                  }
+                />
+              );
+            })}
           </table>
         </div>
 
@@ -196,17 +206,13 @@ export function UpcomingPersonnelPayments() {
           <p className="text-[10px] text-muted-foreground">
             Projection sur les salaires de base actuels — les primes et
             déductions futures ne sont pas prévisibles avant leur
-            enregistrement. Les fonds sécurisés incluent les virements en
-            cours.
+            enregistrement. Les fonds sécurisés incluent les virements en cours.
           </p>
           {recentHistory.length > 0 && (
             <p className="text-[10px] text-muted-foreground">
               Réalisé ({recentHistory.length} derniers mois) :{" "}
               {recentHistory
-                .map(
-                  (m) =>
-                    `${m.label} ${formatDzdPlain(m.actualPaid)} DA`,
-                )
+                .map((m) => `${m.label} ${formatDzdPlain(m.actualPaid)} DA`)
                 .join(" · ")}
             </p>
           )}
@@ -287,62 +293,71 @@ function WaveRow({
 }) {
   const isOverdue = wave.phase === "overdue";
   return (
-    <>
-      <tr
-        className={`hover:bg-accent/5 transition-colors ${isOverdue ? "bg-status-danger/5" : ""}`}
-      >
-        <td className="py-2.5 px-3">
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={expanded ? "Replier le détail" : "Déplier le détail"}
-            className="text-muted-foreground hover:text-foreground"
-            data-testid={`wave-breakdown-toggle-${wave.period}`}
-          >
-            {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5" />
-            )}
-          </button>
-        </td>
-        <td className="py-2.5 px-3 font-semibold text-foreground font-mono">
-          {periodLabelFr(wave.period)}
-        </td>
-        <td className="py-2.5 px-3 text-muted-foreground">
-          {PHASE_LABELS_FR[wave.phase]}
-        </td>
-        <td className="py-2.5 px-3 text-center font-mono">
-          {wave.personnelCount}
-        </td>
-        <td className="py-2.5 px-3 text-right font-mono font-semibold">
-          {formatDzdPlain(wave.expectedPayroll)} DA
-        </td>
-        <td className="py-2.5 px-3 font-mono">{formatDate(wave.paymentDate)}</td>
-        <td className="py-2.5 px-3 text-right font-mono text-status-success">
-          {wave.securedAmount > 0
-            ? `${formatDzdPlain(wave.securedAmount)} DA`
-            : "—"}
-        </td>
-        <td
-          className={`py-2.5 px-3 text-right font-mono font-bold ${
-            wave.remainingFundingRequirement > 0
-              ? "text-status-warning"
-              : "text-status-success"
-          }`}
-          data-testid={`wave-remaining-${wave.period}`}
+    <Collapsible asChild open={expanded} onOpenChange={() => onToggle()}>
+      <tbody className="divide-y divide-border/40">
+        <tr
+          className={`hover:bg-accent/5 transition-colors ${isOverdue ? "bg-status-danger/5" : ""}`}
         >
-          {formatDzdPlain(wave.remainingFundingRequirement)} DA
-        </td>
-        <td className="py-2.5 px-3 text-center">
-          <StatusChip
-            label={PAYROLL_READINESS_LABELS_FR[wave.readiness]}
-            tone={READINESS_TONES[wave.readiness]}
-          />
-        </td>
-      </tr>
-      {expanded && <BreakdownRow wave={wave} />}
-    </>
+          <td className="py-2.5 px-3">
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                aria-label={
+                  expanded ? "Replier le détail" : "Déplier le détail"
+                }
+                className="text-muted-foreground hover:text-foreground"
+                data-testid={`wave-breakdown-toggle-${wave.period}`}
+              >
+                {expanded ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </CollapsibleTrigger>
+          </td>
+          <td className="py-2.5 px-3 font-semibold text-foreground font-mono">
+            {periodLabelFr(wave.period)}
+          </td>
+          <td className="py-2.5 px-3 text-muted-foreground">
+            {PHASE_LABELS_FR[wave.phase]}
+          </td>
+          <td className="py-2.5 px-3 text-center font-mono">
+            {wave.personnelCount}
+          </td>
+          <td className="py-2.5 px-3 text-right font-mono font-semibold">
+            {formatDzdPlain(wave.expectedPayroll)} DA
+          </td>
+          <td className="py-2.5 px-3 font-mono">
+            {formatDate(wave.paymentDate)}
+          </td>
+          <td className="py-2.5 px-3 text-right font-mono text-status-success">
+            {wave.securedAmount > 0
+              ? `${formatDzdPlain(wave.securedAmount)} DA`
+              : "—"}
+          </td>
+          <td
+            className={`py-2.5 px-3 text-right font-mono font-bold ${
+              wave.remainingFundingRequirement > 0
+                ? "text-status-warning"
+                : "text-status-success"
+            }`}
+            data-testid={`wave-remaining-${wave.period}`}
+          >
+            {formatDzdPlain(wave.remainingFundingRequirement)} DA
+          </td>
+          <td className="py-2.5 px-3 text-center">
+            <StatusChip
+              label={PAYROLL_READINESS_LABELS_FR[wave.readiness]}
+              tone={READINESS_TONES[wave.readiness]}
+            />
+          </td>
+        </tr>
+        <CollapsibleContent asChild>
+          <BreakdownRow wave={wave} />
+        </CollapsibleContent>
+      </tbody>
+    </Collapsible>
   );
 }
 

@@ -35,15 +35,31 @@ import {
   School,
   ArrowRight,
 } from "lucide-react";
+// E6.7 (UI-U7a): the shared expandable primitive — the hand-rolled
+// expanded-button + {expanded && …} block collapses onto Radix.
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../../shared/ui/collapsible";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { resolveSubjectConfiguration } from "../../../domain/calc/academics/subject-config";
 import { useToast } from "../../../app/providers/toast-provider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { Badge } from "../../../shared/ui/badge";
 import { StatusChip } from "../../../shared/ui/status-chip";
-import { generateBulletinPdf, downloadPdf } from "../../../infrastructure/receipt-pdf";
+import {
+  generateBulletinPdf,
+  downloadPdf,
+} from "../../../infrastructure/receipt-pdf";
 import {
   computeOverallGpa,
   computeSubjectAverage,
@@ -59,21 +75,33 @@ import { trackLabelFr } from "../../../domain/model/filiere";
 import type { AcademicTerm } from "../../../domain/model/academic";
 import { TERMS } from "./types";
 
-export function AcademicTab({ studentId, onClose }: { studentId: string; onClose?: () => void }) {
+export function AcademicTab({
+  studentId,
+  onClose,
+}: {
+  studentId: string;
+  onClose?: () => void;
+}) {
   const repos = useRepositories();
   const toast = useToast();
   const navigate = useNavigate();
   const [term, setTerm] = useState<AcademicTerm>("T1");
   const [downloading, setDownloading] = useState(false);
   const [expandedYear, setExpandedYear] = useState<string | null>(null);
-  const assessments = useObservable(() => repos.grades.observeForStudent(studentId), [studentId]);
+  const assessments = useObservable(
+    () => repos.grades.observeForStudent(studentId),
+    [studentId],
+  );
 
   // FIX (academic history): `academicHistory` is now a real (optional) field
   // on the Student model, appended by the batch-promotion flow — the previous
   // `as unknown as` cast read a field that never existed, so the card was
   // always empty. Also derive a lightweight equivalent view from stored
   // assessments so the tab shows meaningful data before the first promotion.
-  const student = useObservable(() => repos.students.observeById(studentId), [studentId]);
+  const student = useObservable(
+    () => repos.students.observeById(studentId),
+    [studentId],
+  );
   const history = student?.academicHistory ?? [];
   const subjects = useObservable(() => repos.subjects.observe(), []);
 
@@ -91,7 +119,8 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
   // student's full tenure and filtered per expanded year (hooks cannot be
   // called inside the history map). Wide range keeps it reactive-safe.
   const attendanceAll = useObservable(
-    () => repos.attendance.observeByStudent(studentId, "2000-01-01", "2100-12-31"),
+    () =>
+      repos.attendance.observeByStudent(studentId, "2000-01-01", "2100-12-31"),
     [studentId],
   );
 
@@ -107,7 +136,8 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
           const subject = subjects.find((s) => s.id === a.subjectId);
           return {
             subjectAverage:
-              a.subjectAverage ?? computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
+              a.subjectAverage ??
+              computeSubjectAverage(a.devoir1, a.devoir2, a.examen),
             // T-345 (ADR-018): the assessment snapshot first (non-retroactive),
             // then the canonical resolver — ONE rule.
             coefficient:
@@ -149,7 +179,10 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
 
   async function handleDownloadBulletin() {
     if (!student) {
-      toast.showWarning("Élève introuvable", "Impossible de générer le bulletin.");
+      toast.showWarning(
+        "Élève introuvable",
+        "Impossible de générer le bulletin.",
+      );
       return;
     }
     if (termAssessments.length === 0) {
@@ -170,7 +203,10 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
       downloadPdf(pdfBytes, fileName);
       toast.showSuccess("Bulletin téléchargé", fileName);
     } catch (e) {
-      toast.showError("Échec du téléchargement", e instanceof Error ? e.message : String(e));
+      toast.showError(
+        "Échec du téléchargement",
+        e instanceof Error ? e.message : String(e),
+      );
     } finally {
       setDownloading(false);
     }
@@ -196,14 +232,15 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
               </div>
               <p className="text-xs text-muted-foreground">
                 {student?.gradeLevel
-                  ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ?? student.gradeLevel)
+                  ? (GRADE_LEVEL_LABELS_FR[student.gradeLevel] ??
+                    student.gradeLevel)
                   : student?.level
                     ? LEVEL_LABELS_FR[student.level]
                     : "—"}
                 {student?.filiereCode && student.filiereCode !== "general"
                   ? ` · ${trackLabelFr(student.filiereCode)}${student.specialiteCode ? ` — ${trackLabelFr(student.specialiteCode)}` : ""}`
-                  : ""}
-                {" "}· Année scolaire {assignedClass?.academicYear ?? "2025-2026"}
+                  : ""}{" "}
+                · Année scolaire {assignedClass?.academicYear ?? "2025-2026"}
               </p>
             </div>
 
@@ -218,7 +255,9 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50 text-xs">
             <div>
-              <span className="text-muted-foreground">Enseignant responsable :</span>{" "}
+              <span className="text-muted-foreground">
+                Enseignant responsable :
+              </span>{" "}
               <span className="font-medium text-foreground">
                 {assignedClass?.homeroomTeacherName ?? "Non désigné"}
               </span>
@@ -249,9 +288,13 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                 title="Télécharger le bulletin PDF"
               >
                 {downloading ? (
-                  <><FileText className="h-3 w-3" /> Génération…</>
+                  <>
+                    <FileText className="h-3 w-3" /> Génération…
+                  </>
                 ) : (
-                  <><Download className="h-3 w-3" /> Bulletin PDF</>
+                  <>
+                    <Download className="h-3 w-3" /> Bulletin PDF
+                  </>
                 )}
               </Button>
               <div className="flex gap-1">
@@ -270,7 +313,8 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
             </div>
           </CardTitle>
           <CardDescription>
-            Moyenne = (D1 + D2 + 2·Examen) / 4 — chaque note sur 20 (plan §06.02)
+            Moyenne = (D1 + D2 + 2·Examen) / 4 — chaque note sur 20 (plan
+            §06.02)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -294,7 +338,9 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                   </thead>
                   <tbody className="divide-y divide-border">
                     {termAssessments.map((a) => {
-                      const subject = subjects.find((s) => s.id === a.subjectId);
+                      const subject = subjects.find(
+                        (s) => s.id === a.subjectId,
+                      );
                       return (
                         <tr key={a.id}>
                           <td className="p-2 font-medium">
@@ -305,10 +351,18 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                               </span>
                             )}
                           </td>
-                          <td className="p-2 text-center font-mono">{a.devoir1 ?? "—"}</td>
-                          <td className="p-2 text-center font-mono">{a.devoir2 ?? "—"}</td>
-                          <td className="p-2 text-center font-mono">{a.examen ?? "—"}</td>
-                          <td className="p-2 text-center text-muted-foreground">{a.coefficient}</td>
+                          <td className="p-2 text-center font-mono">
+                            {a.devoir1 ?? "—"}
+                          </td>
+                          <td className="p-2 text-center font-mono">
+                            {a.devoir2 ?? "—"}
+                          </td>
+                          <td className="p-2 text-center font-mono">
+                            {a.examen ?? "—"}
+                          </td>
+                          <td className="p-2 text-center text-muted-foreground">
+                            {a.coefficient}
+                          </td>
                           <td className="p-2 text-center font-mono font-semibold">
                             {a.subjectAverage?.toFixed(2) ?? "—"}
                           </td>
@@ -319,8 +373,12 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                 </table>
               </div>
               <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/20 p-3">
-                <span className="text-sm font-medium">Moyenne générale pondérée</span>
-                <span className={`font-mono font-bold text-lg ${gpa != null && gpa >= 10 ? "text-status-success" : "text-status-danger"}`}>
+                <span className="text-sm font-medium">
+                  Moyenne générale pondérée
+                </span>
+                <span
+                  className={`font-mono font-bold text-lg ${gpa != null && gpa >= 10 ? "text-status-success" : "text-status-danger"}`}
+                >
                   {gpa != null ? gpa.toFixed(2) : "—"} / 20
                 </span>
               </div>
@@ -333,7 +391,8 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
         <CardHeader>
           <CardTitle className="text-sm">Historique académique</CardTitle>
           <CardDescription>
-            Append-only — cliquez sur une année pour révèler le bulletin complet (plan §04.07)
+            Append-only — cliquez sur une année pour révèler le bulletin complet
+            (plan §04.07)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -350,12 +409,19 @@ export function AcademicTab({ studentId, onClose }: { studentId: string; onClose
                   expanded={expandedYear === (h.id ?? h.academicYear)}
                   onToggle={() =>
                     setExpandedYear((prev) =>
-                      prev === (h.id ?? h.academicYear) ? null : (h.id ?? h.academicYear),
+                      prev === (h.id ?? h.academicYear)
+                        ? null
+                        : (h.id ?? h.academicYear),
                     )
                   }
-                  yearAssessments={assessments.filter((a) => a.academicYear === h.academicYear)}
+                  yearAssessments={assessments.filter(
+                    (a) => a.academicYear === h.academicYear,
+                  )}
                   subjects={subjects}
-                  attendanceRecords={filterAttendanceForYear(attendanceAll, h.academicYear)}
+                  attendanceRecords={filterAttendanceForYear(
+                    attendanceAll,
+                    h.academicYear,
+                  )}
                 />
               ))}
             </ul>
@@ -385,46 +451,57 @@ function HistoryYearItem({
   subjects: readonly import("../../../domain/model/academic").Subject[];
   attendanceRecords: readonly import("../../../domain/model/academic").AttendanceRecord[];
 }) {
-  const attendanceRate = attendanceRecords.length > 0
-    ? calculateAttendanceRate(attendanceRecords)
-    : null;
+  const attendanceRate =
+    attendanceRecords.length > 0
+      ? calculateAttendanceRate(attendanceRecords)
+      : null;
 
   return (
-    <li className="rounded-md border border-border text-sm">
-      <button
-        type="button"
-        className="w-full text-left p-3 hover:bg-accent/5 transition-colors"
-        onClick={onToggle}
-        aria-expanded={expanded}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <span className="font-medium flex items-center gap-1.5">
-            {expanded ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            {entry.academicYear}
-          </span>
-          <StatusChip
-            label={PROMOTION_DECISION_LABELS_FR[entry.decision]}
-            tone={entry.decision === "promoted" || entry.decision === "graduated" ? "success" : entry.decision === "repeated" ? "warning" : "info"}
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground pl-5">
-          <span>
-            {LEVEL_LABELS_FR[entry.level]} · Année {entry.gradeYear}
-            {entry.filiereCode && entry.filiereCode !== "general"
-              ? ` · ${trackLabelFr(entry.filiereCode)}${entry.specialiteCode ? ` — ${trackLabelFr(entry.specialiteCode)}` : ""}`
-              : ""}
-            {entry.className ? ` · ${entry.className}` : ""}
-          </span>
-          <span>Moy. {entry.gpa.toFixed(2)}{entry.rank ? ` · Rang ${entry.rank}` : ""}</span>
-        </div>
-      </button>
+    <Collapsible asChild open={expanded} onOpenChange={() => onToggle()}>
+      <li className="rounded-md border border-border text-sm">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full text-left p-3 hover:bg-accent/5 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-medium flex items-center gap-1.5">
+                {expanded ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                {entry.academicYear}
+              </span>
+              <StatusChip
+                label={PROMOTION_DECISION_LABELS_FR[entry.decision]}
+                tone={
+                  entry.decision === "promoted" ||
+                  entry.decision === "graduated"
+                    ? "success"
+                    : entry.decision === "repeated"
+                      ? "warning"
+                      : "info"
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground pl-5">
+              <span>
+                {LEVEL_LABELS_FR[entry.level]} · Année {entry.gradeYear}
+                {entry.filiereCode && entry.filiereCode !== "general"
+                  ? ` · ${trackLabelFr(entry.filiereCode)}${entry.specialiteCode ? ` — ${trackLabelFr(entry.specialiteCode)}` : ""}`
+                  : ""}
+                {entry.className ? ` · ${entry.className}` : ""}
+              </span>
+              <span>
+                Moy. {entry.gpa.toFixed(2)}
+                {entry.rank ? ` · Rang ${entry.rank}` : ""}
+              </span>
+            </div>
+          </button>
+        </CollapsibleTrigger>
 
-      {expanded && (
-        <div className="border-t border-border px-3 py-3 space-y-3">
+        <CollapsibleContent className="border-t border-border px-3 py-3 space-y-3">
           {/* Subject breakdown per term — read-only (append-only rule §04.07) */}
           {TERMS.map((t) => {
             const rows = yearAssessments.filter((a) => a.term === t);
@@ -450,12 +527,21 @@ function HistoryYearItem({
                       {rows.map((a) => (
                         <tr key={a.id}>
                           <td className="p-1.5 font-medium">
-                            {subjects.find((s) => s.id === a.subjectId)?.name ?? a.subjectId}
+                            {subjects.find((s) => s.id === a.subjectId)?.name ??
+                              a.subjectId}
                           </td>
-                          <td className="p-1.5 text-center font-mono">{a.devoir1 ?? "—"}</td>
-                          <td className="p-1.5 text-center font-mono">{a.devoir2 ?? "—"}</td>
-                          <td className="p-1.5 text-center font-mono">{a.examen ?? "—"}</td>
-                          <td className="p-1.5 text-center text-muted-foreground">{a.coefficient}</td>
+                          <td className="p-1.5 text-center font-mono">
+                            {a.devoir1 ?? "—"}
+                          </td>
+                          <td className="p-1.5 text-center font-mono">
+                            {a.devoir2 ?? "—"}
+                          </td>
+                          <td className="p-1.5 text-center font-mono">
+                            {a.examen ?? "—"}
+                          </td>
+                          <td className="p-1.5 text-center text-muted-foreground">
+                            {a.coefficient}
+                          </td>
                           <td className="p-1.5 text-center font-mono font-semibold">
                             {a.subjectAverage?.toFixed(2) ?? "—"}
                           </td>
@@ -470,7 +556,8 @@ function HistoryYearItem({
 
           {yearAssessments.length === 0 && (
             <p className="text-xs text-muted-foreground italic">
-              Aucune note détaillée archivée pour cette année (seule la synthèse est conservée).
+              Aucune note détaillée archivée pour cette année (seule la synthèse
+              est conservée).
             </p>
           )}
 
@@ -489,7 +576,9 @@ function HistoryYearItem({
           {/* Attendance rate + promotion outcome summary */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-md border border-border p-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Taux de présence</p>
+              <p className="text-[10px] uppercase text-muted-foreground">
+                Taux de présence
+              </p>
               <p className="text-sm font-mono font-semibold">
                 {attendanceRate != null
                   ? `${(attendanceRate * 100).toFixed(0)} %`
@@ -497,7 +586,9 @@ function HistoryYearItem({
               </p>
             </div>
             <div className="rounded-md border border-border p-2">
-              <p className="text-[10px] uppercase text-muted-foreground">Décision de promotion</p>
+              <p className="text-[10px] uppercase text-muted-foreground">
+                Décision de promotion
+              </p>
               <p className="text-sm font-medium">
                 {PROMOTION_DECISION_LABELS_FR[entry.decision]}
               </p>
@@ -506,12 +597,12 @@ function HistoryYearItem({
 
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
             <FileText className="h-3 w-3" />
-            Année archivée — lecture seule (append-only). Toute correction exige une nouvelle
-            entrée auditée.
+            Année archivée — lecture seule (append-only). Toute correction exige
+            une nouvelle entrée auditée.
           </p>
-        </div>
-      )}
-    </li>
+        </CollapsibleContent>
+      </li>
+    </Collapsible>
   );
 }
 

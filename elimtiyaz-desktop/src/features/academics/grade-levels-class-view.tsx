@@ -17,6 +17,14 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { Card, CardContent } from "../../shared/ui/card";
+// E6.7 (UI-U7a): the shared expandable primitive — the clickable-div
+// header + dead chevron button anti-pattern becomes a REAL trigger
+// (role=button, tabindex, Enter/Space, aria-expanded — Radix-owned).
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../shared/ui/collapsible";
 import { Button } from "../../shared/ui/button";
 import { Badge } from "../../shared/ui/badge";
 import { Input } from "../../shared/ui/input";
@@ -46,7 +54,12 @@ import {
   type AcademicLevel,
 } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
-import { getFilieresForGrade, getSpecialitesForFiliere, normalizeTrackCode, trackLabelFr } from "../../domain/model/filiere";
+import {
+  getFilieresForGrade,
+  getSpecialitesForFiliere,
+  normalizeTrackCode,
+  trackLabelFr,
+} from "../../domain/model/filiere";
 import { ClassPlacementStudioModal } from "./placement/class-placement-studio-modal";
 import { ClassStudentMultiSelect } from "./placement/class-student-multi-select";
 
@@ -159,149 +172,163 @@ export function GradeLevelsClassView({ canCreate }: { canCreate: boolean }) {
           const isCollapsed = !!collapsedLevels[gradeCode];
           const label = GRADE_LEVEL_LABELS_FR[gradeCode] ?? gradeCode;
           return (
-            <Card key={gradeCode} className="overflow-hidden">
-              <div
-                className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border cursor-pointer select-none hover:bg-muted/30 transition-colors"
-                onClick={() => toggleLevelCollapse(gradeCode)}
-              >
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    className="p-0.5 rounded text-muted-foreground hover:text-foreground"
-                  >
-                    {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
-                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <span>{label}</span>
-                    <Badge variant="outline" className="font-normal text-xs">
-                      {levelClasses.length} classe(s)
-                    </Badge>
-                    {Array.from(
-                      new Set(
-                        levelClasses
-                          .map((c) => c.filiereCode)
-                          .filter((f): f is string => !!f && f !== "general"),
-                      ),
-                    ).map((f) => (
-                      <Badge key={f} variant="secondary" className="font-normal text-[10px]">
-                        {trackLabelFr(f)} ({levelClasses.filter((c) => c.filiereCode === f).length})
-                      </Badge>
-                    ))}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-1">
-                  {canCreate && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs text-primary hover:bg-primary/10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedGradeForPlacement(gradeCode);
-                        setPlacementStudioOpen(true);
-                      }}
-                      title={`Répartir les élèves de ${label}`}
-                    >
-                      <Users className="h-3.5 w-3.5 mr-1" />
-                      Répartir ({gradeCode.toUpperCase()})
-                    </Button>
-                  )}
-                  {canCreate && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openCreateForGrade(gradeCode);
-                      }}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Ajouter une classe à ce niveau
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {!isCollapsed && (
-                <CardContent className="p-4">
-                  {levelClasses.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
-                      Aucune classe créée pour le niveau {label}.
-                      {canCreate && (
-                        <div className="mt-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-xs text-primary"
-                            onClick={() => openCreateForGrade(gradeCode)}
-                          >
-                            + Créer la première classe de {label}
-                          </Button>
-                        </div>
+            <Collapsible
+              asChild
+              open={!isCollapsed}
+              onOpenChange={() => toggleLevelCollapse(gradeCode)}
+            >
+              <Card key={gradeCode} className="overflow-hidden">
+                <CollapsibleTrigger className="flex items-center justify-between p-3.5 bg-muted/20 border-b border-border cursor-pointer select-none hover:bg-muted/30 transition-colors text-left w-full">
+                  <div className="flex items-center gap-3">
+                    <span className="p-0.5 rounded text-muted-foreground">
+                      {isCollapsed ? (
+                        <ChevronRight className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
                       )}
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                      {levelClasses.map((cls) => (
-                        <div
-                          key={cls.id}
-                          onClick={() => navigate(`/academics/class/${cls.id}`)}
-                          className="rounded-lg border border-border bg-card p-3.5 hover:border-primary/50 hover:bg-accent/5 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+                    </span>
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                      <span>{label}</span>
+                      <Badge variant="outline" className="font-normal text-xs">
+                        {levelClasses.length} classe(s)
+                      </Badge>
+                      {Array.from(
+                        new Set(
+                          levelClasses
+                            .map((c) => c.filiereCode)
+                            .filter((f): f is string => !!f && f !== "general"),
+                        ),
+                      ).map((f) => (
+                        <Badge
+                          key={f}
+                          variant="secondary"
+                          className="font-normal text-[10px]"
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
-                                {cls.name}
-                              </p>
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] shrink-0 font-mono"
-                              >
-                                {cls.code}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <Building2 className="h-3.5 w-3.5" />
-                              Salle : {cls.room ?? "Non assignée"}
-                            </p>
-                            {cls.filiereCode && cls.filiereCode !== "general" && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <GraduationCap className="h-3.5 w-3.5" />
-                                {trackLabelFr(cls.filiereCode)}
-                                {cls.specialiteCode ? ` — ${trackLabelFr(cls.specialiteCode)}` : ""}
-                              </p>
-                            )}
-                          </div>
-                          {cls.notes && (
-                            <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50 line-clamp-2 italic">
-                              <StickyNote className="h-3 w-3 inline mr-1 text-primary" />
-                              {cls.notes}
-                            </div>
-                          )}
-                          <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground flex items-center gap-1">
-                              <Users className="h-3.5 w-3.5 text-primary" />
-                              <strong className="text-foreground">
-                                {cls.enrolledCount}
-                              </strong>{" "}
-                              élève(s)
-                            </span>
-                            <span className="text-primary group-hover:translate-x-0.5 transition-transform flex items-center">
-                              Détails{" "}
-                              <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
-                            </span>
-                          </div>
-                        </div>
+                          {trackLabelFr(f)} (
+                          {
+                            levelClasses.filter((c) => c.filiereCode === f)
+                              .length
+                          }
+                          )
+                        </Badge>
                       ))}
-                    </div>
-                  )}
-                </CardContent>
-              )}
-            </Card>
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {canCreate && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-primary hover:bg-primary/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedGradeForPlacement(gradeCode);
+                          setPlacementStudioOpen(true);
+                        }}
+                        title={`Répartir les élèves de ${label}`}
+                      >
+                        <Users className="h-3.5 w-3.5 mr-1" />
+                        Répartir ({gradeCode.toUpperCase()})
+                      </Button>
+                    )}
+                    {canCreate && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openCreateForGrade(gradeCode);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Ajouter une classe à ce niveau
+                      </Button>
+                    )}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent asChild>
+                  <CardContent className="p-4">
+                    {levelClasses.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg">
+                        Aucune classe créée pour le niveau {label}.
+                        {canCreate && (
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-primary"
+                              onClick={() => openCreateForGrade(gradeCode)}
+                            >
+                              + Créer la première classe de {label}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {levelClasses.map((cls) => (
+                          <div
+                            key={cls.id}
+                            onClick={() =>
+                              navigate(`/academics/class/${cls.id}`)
+                            }
+                            className="rounded-lg border border-border bg-card p-3.5 hover:border-primary/50 hover:bg-accent/5 transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                                  {cls.name}
+                                </p>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] shrink-0 font-mono"
+                                >
+                                  {cls.code}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <Building2 className="h-3.5 w-3.5" />
+                                Salle : {cls.room ?? "Non assignée"}
+                              </p>
+                              {cls.filiereCode &&
+                                cls.filiereCode !== "general" && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    <GraduationCap className="h-3.5 w-3.5" />
+                                    {trackLabelFr(cls.filiereCode)}
+                                    {cls.specialiteCode
+                                      ? ` — ${trackLabelFr(cls.specialiteCode)}`
+                                      : ""}
+                                  </p>
+                                )}
+                            </div>
+                            {cls.notes && (
+                              <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded border border-border/50 line-clamp-2 italic">
+                                <StickyNote className="h-3 w-3 inline mr-1 text-primary" />
+                                {cls.notes}
+                              </div>
+                            )}
+                            <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <Users className="h-3.5 w-3.5 text-primary" />
+                                <strong className="text-foreground">
+                                  {cls.enrolledCount}
+                                </strong>{" "}
+                                élève(s)
+                              </span>
+                              <span className="text-primary group-hover:translate-x-0.5 transition-transform flex items-center">
+                                Détails{" "}
+                                <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           );
         })}
       </div>
@@ -447,10 +474,9 @@ function CreateClassModal({
       setAlert({
         tone: "error",
         title: "Niveau introuvable",
-        description:
-          levelResult.ok
-            ? `Le catalogue academic_levels n'a pas de ligne pour le code « ${gradeCode} » — vérifiez la migration du catalogue académique.`
-            : levelResult.error.userMessage,
+        description: levelResult.ok
+          ? `Le catalogue academic_levels n'a pas de ligne pour le code « ${gradeCode} » — vérifiez la migration du catalogue académique.`
+          : levelResult.error.userMessage,
       });
       return;
     }
@@ -633,10 +659,7 @@ function CreateClassModal({
             catalog filtered by the selected grade). */}
         {filieres.length > 1 && (
           <div className="grid grid-cols-2 gap-3">
-            <FormField
-              label="Filière"
-              hint="Cours commun si aucune sélection"
-            >
+            <FormField label="Filière" hint="Cours commun si aucune sélection">
               <Select
                 value={filiereCode || "__general__"}
                 onValueChange={(v) => {
@@ -660,7 +683,9 @@ function CreateClassModal({
               <FormField label="Spécialité">
                 <Select
                   value={specialiteCode || "__none__"}
-                  onValueChange={(v) => setSpecialiteCode(v === "__none__" ? "" : v)}
+                  onValueChange={(v) =>
+                    setSpecialiteCode(v === "__none__" ? "" : v)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucune" />

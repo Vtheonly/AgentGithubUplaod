@@ -39,6 +39,14 @@ import {
 import { Badge } from "../../shared/ui/badge";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { Button } from "../../shared/ui/button";
+// E6.7 (UI-U7a): the shared expandable primitive — the hand-rolled
+// open-button + {open && …} block collapses onto Radix (aria-expanded,
+// aria-controls, data-state owned by the primitive).
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../shared/ui/collapsible";
 // T-469 (DEBT-103): the canonical amount classification + the defaults —
 // the per-year remaining's band derives from the SAME configured
 // thresholds the « Suivi des Dettes » statuses use.
@@ -65,7 +73,11 @@ import {
   type PricingConfigIndex,
 } from "../../domain/calc/ledger/year-history";
 import { PAYMENT_CATEGORY_LABELS_FR } from "../../domain/model/payment";
-import type { Installment, Payment, PaymentAllocation } from "../../domain/model/payment";
+import type {
+  Installment,
+  Payment,
+  PaymentAllocation,
+} from "../../domain/model/payment";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { AcademicYear } from "../../domain/model/academic";
 
@@ -78,7 +90,10 @@ const SETTLEMENT_LABEL_FR: Record<YearChargeItem["settlement"], string> = {
   outstanding: "Non réglée",
 };
 
-const SETTLEMENT_TONE: Record<YearChargeItem["settlement"], "success" | "warning" | "neutral" | "danger"> = {
+const SETTLEMENT_TONE: Record<
+  YearChargeItem["settlement"],
+  "success" | "warning" | "neutral" | "danger"
+> = {
   fully_paid: "success",
   partially_paid: "warning",
   pending_clearance: "warning",
@@ -91,7 +106,10 @@ function settlementLabel(s: {
   readonly chargeLabel: string | null;
   readonly paymentId: string | null;
 }): string {
-  return s.chargeLabel ?? (s.paymentId ? `Paiement ${s.paymentId.slice(0, 8)}` : "Charge");
+  return (
+    s.chargeLabel ??
+    (s.paymentId ? `Paiement ${s.paymentId.slice(0, 8)}` : "Charge")
+  );
 }
 
 /* ── T-442 (UI-323): the service-group presentation helpers ────────── */
@@ -136,245 +154,328 @@ function YearCard({
   const last = record.balanceEvolution[record.balanceEvolution.length - 1];
 
   return (
-    <div className="rounded-md border border-border bg-card">
-      {/* Card header — always visible */}
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-semibold tabular-nums">{record.academicYear}</span>
-            {record.isOpen ? (
-              <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-emerald-600">en cours</Badge>
-            ) : (
-              <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground">clôturée</Badge>
-            )}
-            {record.reEnrolledOwing && (
-              <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-amber-600">réinscrit avec dette</Badge>
-            )}
-            {record.leftOwing && (
-              <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-rose-600">parti avec dette</Badge>
-            )}
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-md border border-border bg-card"
+    >
+      {/* Card header — always visible (E6.7: the trigger semantics —
+          aria-expanded/aria-controls — are Radix-owned now) */}
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-2 px-3 py-2.5 text-left"
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-semibold tabular-nums">
+                {record.academicYear}
+              </span>
+              {record.isOpen ? (
+                <Badge
+                  variant="outline"
+                  className="h-4 px-1.5 text-[10px] text-emerald-600"
+                >
+                  en cours
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="h-4 px-1.5 text-[10px] text-muted-foreground"
+                >
+                  clôturée
+                </Badge>
+              )}
+              {record.reEnrolledOwing && (
+                <Badge
+                  variant="outline"
+                  className="h-4 px-1.5 text-[10px] text-amber-600"
+                >
+                  réinscrit avec dette
+                </Badge>
+              )}
+              {record.leftOwing && (
+                <Badge
+                  variant="outline"
+                  className="h-4 px-1.5 text-[10px] text-rose-600"
+                >
+                  parti avec dette
+                </Badge>
+              )}
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Facturé {formatDzd(record.totalCharged)} · Payé{" "}
+              {formatDzd(record.totalPaidOnCharges)}
+              {record.totalPendingOnCharges > 0 &&
+                ` · En attente ${formatDzd(record.totalPendingOnCharges)}`}
+              {record.pricingConfig &&
+                ` · Tarif : ${record.pricingConfig.label}`}
+            </p>
           </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Facturé {formatDzd(record.totalCharged)} · Payé {formatDzd(record.totalPaidOnCharges)}
-            {record.totalPendingOnCharges > 0 && ` · En attente ${formatDzd(record.totalPendingOnCharges)}`}
-            {record.pricingConfig && ` · Tarif : ${record.pricingConfig.label}`}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-xs tabular-nums font-semibold">
-            Reste fin d&apos;année : {formatDzd(record.yearEndOutstanding)}
-          </span>
-          {/* T-442 (UI-323): the per-year still-owed-today figure — shown
+          <div className="flex shrink-0 flex-col items-end gap-0.5">
+            <span className="text-xs tabular-nums font-semibold">
+              Reste fin d&apos;année : {formatDzd(record.yearEndOutstanding)}
+            </span>
+            {/* T-442 (UI-323): the per-year still-owed-today figure — shown
               when it differs from the year-end snapshot (a later-year
               settlement moved it) so the card answers "what remains
               unpaid on THIS year TODAY". */}
-          {record.outstandingStillOwedNow > 0 &&
-            Math.abs(record.outstandingStillOwedNow - record.yearEndOutstanding) > 0.001 && (
-              <span className="text-[11px] tabular-nums text-rose-600 dark:text-rose-400">
-                Reste aujourd&apos;hui : {formatDzd(record.outstandingStillOwedNow)}
-              </span>
-            )}
-          {/* T-469 (DEBT-103): the per-year remaining's AMOUNT band — the
+            {record.outstandingStillOwedNow > 0 &&
+              Math.abs(
+                record.outstandingStillOwedNow - record.yearEndOutstanding,
+              ) > 0.001 && (
+                <span className="text-[11px] tabular-nums text-rose-600 dark:text-rose-400">
+                  Reste aujourd&apos;hui :{" "}
+                  {formatDzd(record.outstandingStillOwedNow)}
+                </span>
+              )}
+            {/* T-469 (DEBT-103): the per-year remaining's AMOUNT band — the
               SECOND canonical dimension, evaluated from the SAME configured
               thresholds (a big carried-forward remainder is flagged at a
               glance; the edges are in the title — the §15.66b rule). */}
-          {(() => {
-            const band = classifyOutstandingAmount(
-              record.outstandingStillOwedNow,
-              debtThresholds ?? DEFAULT_DEBT_AGING_THRESHOLDS,
-            );
-            const bandTone =
-              band === "red" ? "danger" : band === "yellow" ? "warning" : "success";
-            return (
-              <span
-                className="text-[10px] tabular-nums"
-                title={`Dimension montant — seuils configurés : jaune ≥ ${((debtThresholds?.amountYellowDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd) ?? 0).toLocaleString("fr-DZ")} DZD, rouge > ${((debtThresholds?.amountRedDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd) ?? 0).toLocaleString("fr-DZ")} DZD`}
-              >
-                <StatusChip label={DEBT_AMOUNT_LEVEL_LABELS_FR[band]} tone={bandTone} />
+            {(() => {
+              const band = classifyOutstandingAmount(
+                record.outstandingStillOwedNow,
+                debtThresholds ?? DEFAULT_DEBT_AGING_THRESHOLDS,
+              );
+              const bandTone =
+                band === "red"
+                  ? "danger"
+                  : band === "yellow"
+                    ? "warning"
+                    : "success";
+              return (
+                <span
+                  className="text-[10px] tabular-nums"
+                  title={`Dimension montant — seuils configurés : jaune ≥ ${(debtThresholds?.amountYellowDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd ?? 0).toLocaleString("fr-DZ")} DZD, rouge > ${(debtThresholds?.amountRedDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd ?? 0).toLocaleString("fr-DZ")} DZD`}
+                >
+                  <StatusChip
+                    label={DEBT_AMOUNT_LEVEL_LABELS_FR[band]}
+                    tone={bandTone}
+                  />
+                </span>
+              );
+            })()}
+            {record.carriedForwardFromPriorYear > 0 && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <ArrowLeftRight className="h-3 w-3" aria-hidden />
+                Reporté : {formatDzd(record.carriedForwardFromPriorYear)}
               </span>
-            );
-          })()}
-          {record.carriedForwardFromPriorYear > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <ArrowLeftRight className="h-3 w-3" aria-hidden />
-              Reporté : {formatDzd(record.carriedForwardFromPriorYear)}
-            </span>
-          )}
-          {open ? (
-            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-          )}
-        </div>
-      </button>
+            )}
+            {open ? (
+              <ChevronUp
+                className="h-3.5 w-3.5 text-muted-foreground"
+                aria-hidden
+              />
+            ) : (
+              <ChevronDown
+                className="h-3.5 w-3.5 text-muted-foreground"
+                aria-hidden
+              />
+            )}
+          </div>
+        </button>
+      </CollapsibleTrigger>
 
-      {open && (
-        <div className="space-y-3 border-t border-border px-3 py-2.5">
-          {/* T-442 (UI-323): the services of the year — the per-service
+      <CollapsibleContent className="space-y-3 border-t border-border px-3 py-2.5">
+        {/* T-442 (UI-323): the services of the year — the per-service
               breakdown (FI / scolarité per tranche / transport / each other
               service) with due/paid/remaining per group: "exactly what
               those amounts covered" at the year level. */}
-          {record.serviceBreakdown.length > 0 && (
-            <div>
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Services de l&apos;année ({record.serviceBreakdown.length})
-              </p>
-              <ul className="space-y-1">
-                {record.serviceBreakdown.map((g) => (
-                  <li
-                    key={`${g.key}-${g.category}`}
-                    className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        {serviceGroupLabel(g)}
-                        {trancheChips(g.trancheNumbers) && (
-                          <span className="ml-1.5 font-normal text-muted-foreground">{trancheChips(g.trancheNumbers)}</span>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {g.chargeCount} charge(s) · Dû {formatDzd(g.amountDue)} · Payé {formatDzd(g.amountPaid)}
-                        {g.amountPending > 0 && ` · En attente ${formatDzd(g.amountPending)}`}
-                      </p>
-                    </div>
-                    <span
-                      className="tabular-nums font-medium"
-                      title="Reste à payer sur ce service (INV-4)"
-                    >
-                      Reste {formatDzd(g.remaining)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* The charges — what they were supposed to pay / paid / not paid */}
-          {record.charges.length > 0 && (
-            <div>
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Charges de l&apos;année ({record.charges.length})
-              </p>
-              <ul className="space-y-1">
-                {record.charges.map((c) => (
-                  <li
-                    key={c.installmentId}
-                    className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        {chargeWaveChip(c) && (
-                          <span className="mr-1.5 inline-block rounded bg-primary/10 px-1 py-px text-[10px] font-semibold text-primary" title="Tranche (modèle officiel T-425)">
-                            {chargeWaveChip(c)}
-                          </span>
-                        )}
-                        {c.label}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Échéance {formatDate(c.dueDate)} · Dû {formatDzd(c.amountDue)} · Payé {formatDzd(c.amountPaid)}
-                        {c.settlement === "fully_paid" && c.settledAt && ` · Réglée le ${formatDate(c.settledAt)}`}
-                        {c.attribution.source === "due_date" && " · année dérivée de l'échéance"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="tabular-nums text-muted-foreground">
-                        Reste {formatDzd(c.remaining)}
-                      </span>
-                      <StatusChip tone={SETTLEMENT_TONE[c.settlement]} label={SETTLEMENT_LABEL_FR[c.settlement]} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Payments made in the year — each with WHAT it covered (T-442) */}
-          {record.paymentsMadeInYear.length > 0 && (
-            <div>
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Paiements de l&apos;année ({record.paymentsMadeInYear.length}) — {formatDzd(record.paymentsMadeInYearTotal)}
-              </p>
-              <ul className="space-y-1">
-                {record.paymentsMadeInYear.map((p) => (
-                  <li key={p.ledgerEntryId} className="rounded-sm bg-muted/40 px-2 py-1 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        {formatDate(p.at)} · {p.receiptNumber ?? "Paiement"}
-                      </span>
-                      <span className="tabular-nums">{formatDzd(p.amount)}</span>
-                    </div>
-                    {/* T-442 (UI-323): the payment's coverage — exactly what
-                        it settled (the waterfall's allocation rows). */}
-                    {p.coverageBasis === "allocations" ? (
-                      <ul className="mt-0.5 space-y-0.5 pl-2">
-                        {p.coveredCharges.map((l, i) => (
-                          <li
-                            key={`${l.installmentId}-${i}`}
-                            className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
-                          >
-                            <span className="min-w-0 truncate">
-                              <ArrowLeftRight className="mr-1 inline h-3 w-3 shrink-0" aria-hidden />
-                              {l.chargeLabel ?? "Charge"}
-                              {l.targetYear !== record.academicYear && (
-                                <span className="font-medium"> (dette {l.targetYear})</span>
-                              )}
-                            </span>
-                            <span className="tabular-nums">{formatDzd(l.allocatedAmount)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-0.5 pl-2 text-[11px] italic text-muted-foreground">
-                        couverture non enregistrée (données antérieures sans affectations)
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Cross-year settlements — later-year payments settling THIS year */}
-          {record.settlementsReceivedFromLaterYears.length > 0 && (
-            <div className="rounded-sm border border-amber-200 bg-amber-50/60 px-2 py-1.5 dark:border-amber-900/60 dark:bg-amber-950/30">
-              <p className="mb-1 text-[11px] font-medium text-amber-800 dark:text-amber-400">
-                <ArrowLeftRight className="mr-1 inline h-3 w-3" aria-hidden />
-                Dette réglée par des paiements d&apos;années suivantes —{" "}
-                {formatDzd(record.settlementsReceivedFromLaterYearsTotal)}
-              </p>
-              <ul className="space-y-1">
-                {record.settlementsReceivedFromLaterYears.map((s, i) => (
-                  <li key={`${s.paymentId}-${s.installmentId}-${i}`} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-muted-foreground">
-                      {s.at ? formatDate(s.at) : "—"} · {settlementLabel(s)}{" "}
-                      <span className="font-medium">(année {s.paymentYear})</span>
-                    </span>
-                    <span className="tabular-nums">{formatDzd(s.allocatedAmount)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Balance evolution summary */}
-          {record.balanceEvolution.length > 0 && (
-            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Landmark className="h-3 w-3" aria-hidden />
-              Évolution : {record.balanceEvolution.length} événements · solde final{" "}
-              <span className="tabular-nums font-medium">{formatDzd(last?.runningOutstanding ?? 0)}</span>
-              {record.yearEndBasis !== "allocations" && (
-                <span className="italic"> · détail de règlement estimé (données antérieures sans affectations)</span>
-              )}
+        {record.serviceBreakdown.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Services de l&apos;année ({record.serviceBreakdown.length})
             </p>
-          )}
-        </div>
-      )}
-    </div>
+            <ul className="space-y-1">
+              {record.serviceBreakdown.map((g) => (
+                <li
+                  key={`${g.key}-${g.category}`}
+                  className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {serviceGroupLabel(g)}
+                      {trancheChips(g.trancheNumbers) && (
+                        <span className="ml-1.5 font-normal text-muted-foreground">
+                          {trancheChips(g.trancheNumbers)}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {g.chargeCount} charge(s) · Dû {formatDzd(g.amountDue)} ·
+                      Payé {formatDzd(g.amountPaid)}
+                      {g.amountPending > 0 &&
+                        ` · En attente ${formatDzd(g.amountPending)}`}
+                    </p>
+                  </div>
+                  <span
+                    className="tabular-nums font-medium"
+                    title="Reste à payer sur ce service (INV-4)"
+                  >
+                    Reste {formatDzd(g.remaining)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* The charges — what they were supposed to pay / paid / not paid */}
+        {record.charges.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Charges de l&apos;année ({record.charges.length})
+            </p>
+            <ul className="space-y-1">
+              {record.charges.map((c) => (
+                <li
+                  key={c.installmentId}
+                  className="grid grid-cols-[1fr_auto] items-center gap-x-2 rounded-sm bg-muted/40 px-2 py-1 text-xs"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {chargeWaveChip(c) && (
+                        <span
+                          className="mr-1.5 inline-block rounded bg-primary/10 px-1 py-px text-[10px] font-semibold text-primary"
+                          title="Tranche (modèle officiel T-425)"
+                        >
+                          {chargeWaveChip(c)}
+                        </span>
+                      )}
+                      {c.label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Échéance {formatDate(c.dueDate)} · Dû{" "}
+                      {formatDzd(c.amountDue)} · Payé {formatDzd(c.amountPaid)}
+                      {c.settlement === "fully_paid" &&
+                        c.settledAt &&
+                        ` · Réglée le ${formatDate(c.settledAt)}`}
+                      {c.attribution.source === "due_date" &&
+                        " · année dérivée de l'échéance"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="tabular-nums text-muted-foreground">
+                      Reste {formatDzd(c.remaining)}
+                    </span>
+                    <StatusChip
+                      tone={SETTLEMENT_TONE[c.settlement]}
+                      label={SETTLEMENT_LABEL_FR[c.settlement]}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Payments made in the year — each with WHAT it covered (T-442) */}
+        {record.paymentsMadeInYear.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Paiements de l&apos;année ({record.paymentsMadeInYear.length}) —{" "}
+              {formatDzd(record.paymentsMadeInYearTotal)}
+            </p>
+            <ul className="space-y-1">
+              {record.paymentsMadeInYear.map((p) => (
+                <li
+                  key={p.ledgerEntryId}
+                  className="rounded-sm bg-muted/40 px-2 py-1 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">
+                      {formatDate(p.at)} · {p.receiptNumber ?? "Paiement"}
+                    </span>
+                    <span className="tabular-nums">{formatDzd(p.amount)}</span>
+                  </div>
+                  {/* T-442 (UI-323): the payment's coverage — exactly what
+                        it settled (the waterfall's allocation rows). */}
+                  {p.coverageBasis === "allocations" ? (
+                    <ul className="mt-0.5 space-y-0.5 pl-2">
+                      {p.coveredCharges.map((l, i) => (
+                        <li
+                          key={`${l.installmentId}-${i}`}
+                          className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground"
+                        >
+                          <span className="min-w-0 truncate">
+                            <ArrowLeftRight
+                              className="mr-1 inline h-3 w-3 shrink-0"
+                              aria-hidden
+                            />
+                            {l.chargeLabel ?? "Charge"}
+                            {l.targetYear !== record.academicYear && (
+                              <span className="font-medium">
+                                {" "}
+                                (dette {l.targetYear})
+                              </span>
+                            )}
+                          </span>
+                          <span className="tabular-nums">
+                            {formatDzd(l.allocatedAmount)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-0.5 pl-2 text-[11px] italic text-muted-foreground">
+                      couverture non enregistrée (données antérieures sans
+                      affectations)
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Cross-year settlements — later-year payments settling THIS year */}
+        {record.settlementsReceivedFromLaterYears.length > 0 && (
+          <div className="rounded-sm border border-amber-200 bg-amber-50/60 px-2 py-1.5 dark:border-amber-900/60 dark:bg-amber-950/30">
+            <p className="mb-1 text-[11px] font-medium text-amber-800 dark:text-amber-400">
+              <ArrowLeftRight className="mr-1 inline h-3 w-3" aria-hidden />
+              Dette réglée par des paiements d&apos;années suivantes —{" "}
+              {formatDzd(record.settlementsReceivedFromLaterYearsTotal)}
+            </p>
+            <ul className="space-y-1">
+              {record.settlementsReceivedFromLaterYears.map((s, i) => (
+                <li
+                  key={`${s.paymentId}-${s.installmentId}-${i}`}
+                  className="flex items-center justify-between gap-2 text-xs"
+                >
+                  <span className="text-muted-foreground">
+                    {s.at ? formatDate(s.at) : "—"} · {settlementLabel(s)}{" "}
+                    <span className="font-medium">(année {s.paymentYear})</span>
+                  </span>
+                  <span className="tabular-nums">
+                    {formatDzd(s.allocatedAmount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Balance evolution summary */}
+        {record.balanceEvolution.length > 0 && (
+          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Landmark className="h-3 w-3" aria-hidden />
+            Évolution : {record.balanceEvolution.length} événements · solde
+            final{" "}
+            <span className="tabular-nums font-medium">
+              {formatDzd(last?.runningOutstanding ?? 0)}
+            </span>
+            {record.yearEndBasis !== "allocations" && (
+              <span className="italic">
+                {" "}
+                · détail de règlement estimé (données antérieures sans
+                affectations)
+              </span>
+            )}
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -432,7 +533,15 @@ export function ParentYearHistorySection({
         })),
         pricingConfigs,
       }),
-    [parentId, installments, payments, allocations, ledgerEntries, academicYears, pricingConfigs],
+    [
+      parentId,
+      installments,
+      payments,
+      allocations,
+      ledgerEntries,
+      academicYears,
+      pricingConfigs,
+    ],
   );
 
   const parentDisplayName = parentName?.trim() || undefined;
@@ -511,10 +620,15 @@ export function ParentYearHistorySection({
         <p className="rounded-sm border border-rose-200 bg-rose-50/60 px-2 py-1 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-400">
           <CheckCircle2 className="mr-1 inline h-3 w-3" aria-hidden />
           Dette des années antérieures encore due aujourd&apos;hui :{" "}
-          <span className="font-semibold tabular-nums">{formatDzd(history.priorYearOutstandingStillOwed)}</span>
+          <span className="font-semibold tabular-nums">
+            {formatDzd(history.priorYearOutstandingStillOwed)}
+          </span>
           <span className="ml-1.5 inline-flex flex-wrap gap-x-1.5">
             {history.priorYearsStillOwed.map((x) => (
-              <span key={x.academicYear} className="rounded bg-rose-100/70 px-1.5 py-px text-[11px] tabular-nums dark:bg-rose-900/40">
+              <span
+                key={x.academicYear}
+                className="rounded bg-rose-100/70 px-1.5 py-px text-[11px] tabular-nums dark:bg-rose-900/40"
+              >
                 {x.academicYear} : {formatDzd(x.outstanding)}
               </span>
             ))}
@@ -523,7 +637,11 @@ export function ParentYearHistorySection({
       )}
       <div className="space-y-2">
         {history.years.map((y) => (
-          <YearCard key={y.academicYear} record={y} debtThresholds={debtThresholds} />
+          <YearCard
+            key={y.academicYear}
+            record={y}
+            debtThresholds={debtThresholds}
+          />
         ))}
       </div>
     </div>
