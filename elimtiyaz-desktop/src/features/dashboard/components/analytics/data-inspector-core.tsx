@@ -53,8 +53,14 @@ import { Badge } from "../../../../shared/ui/badge";
 import { formatDzdPlain } from "../../../../core/format/currency";
 import { useRepositories } from "../../../../app/providers/repository-provider";
 import { useObservable } from "../../../../shared/hooks/use-observable";
-import { NO_ANALYTICS_FILTERS, type AnalyticsFilterState } from "./analytics-derivations";
-import { evaluateStudentRiskProfiles, type StudentRiskProfile } from "./operational-query-engine";
+import {
+  NO_ANALYTICS_FILTERS,
+  type AnalyticsFilterState,
+} from "./analytics-derivations";
+import {
+  evaluateStudentRiskProfiles,
+  type StudentRiskProfile,
+} from "./operational-query-engine";
 import {
   buildResolution,
   contributorColor,
@@ -65,7 +71,13 @@ import {
   type InspectorDomain,
 } from "./data-inspector-lineage";
 
-export { buildResolution, contributorColor, contributorColorByKey, AMOUNT_KIND_LABELS_FR, INSPECTOR_CONTRIBUTOR_PALETTE } from "./data-inspector-lineage";
+export {
+  buildResolution,
+  contributorColor,
+  contributorColorByKey,
+  AMOUNT_KIND_LABELS_FR,
+  INSPECTOR_CONTRIBUTOR_PALETTE,
+} from "./data-inspector-lineage";
 export type {
   InspectRequest,
   LineageContributor,
@@ -135,7 +147,10 @@ function ContributorRow({
     >
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: color }}
+          />
           <PersonLink
             type="parent"
             id={contributor.key}
@@ -184,10 +199,17 @@ export function DataInspectorProvider({
   const parents = useObservable(() => repos.parents.observe(), []);
   const classes = useObservable(() => repos.classes.observe(), []);
   const subjects = useObservable(() => repos.subjects.observe(), []);
-  const subjectConfigurations = useObservable(() => repos.subjects.observeConfigurations(), []);
+  const subjectConfigurations = useObservable(
+    () => repos.subjects.observeConfigurations(),
+    [],
+  );
   const assessments = useObservable(() => repos.grades.observeAll(), []);
   const attendance = useObservable(
-    () => repos.attendance.observeAll(range?.from ?? "2020-01-01", range?.to ?? "2035-12-31"),
+    () =>
+      repos.attendance.observeAll(
+        range?.from ?? "2020-01-01",
+        range?.to ?? "2035-12-31",
+      ),
     [range?.from, range?.to],
   );
   const payments = useObservable(() => repos.payments.observe(), []);
@@ -204,7 +226,8 @@ export function DataInspectorProvider({
   // denominator the percentages render against changes — the owner's
   // explicit rule). "whole-dataset" is the default: it is the basis the
   // KPI cards and the reconciliation line display.
-  const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("whole-dataset");
+  const [referenceMode, setReferenceMode] =
+    useState<ReferencePopulationMode>("whole-dataset");
 
   // Fallback: when the caller does not inject the canonical profiles,
   // compute them with the SAME engine the analytics tab uses (identical
@@ -221,7 +244,17 @@ export function DataInspectorProvider({
       attendance,
       debtSummaries: debts,
     });
-  }, [riskProfilesProp, students, parents, classes, subjects, subjectConfigurations, assessments, attendance, debts]);
+  }, [
+    riskProfilesProp,
+    students,
+    parents,
+    classes,
+    subjects,
+    subjectConfigurations,
+    assessments,
+    attendance,
+    debts,
+  ]);
 
   const resolved = useMemo(() => {
     if (!request) return null;
@@ -239,7 +272,22 @@ export function DataInspectorProvider({
       range,
       riskProfiles: riskProfilesProp ?? computedRiskProfiles,
     });
-  }, [request, students, parents, classes, assessments, attendance, payments, installments, debts, ledger, academicYear, range, riskProfilesProp, computedRiskProfiles]);
+  }, [
+    request,
+    students,
+    parents,
+    classes,
+    assessments,
+    attendance,
+    payments,
+    installments,
+    debts,
+    ledger,
+    academicYear,
+    range,
+    riskProfilesProp,
+    computedRiskProfiles,
+  ]);
 
   // T-467: the top-10 slice — derived FROM the resolved object (the mode
   // switch re-renders; it never re-runs the resolution itself).
@@ -254,10 +302,20 @@ export function DataInspectorProvider({
     return [...resolved.records]
       .filter((record) => {
         if (!needle) return true;
-        return [record.contributorName, record.contributorCode, record.contributorPhone, record.studentName, record.reference, record.description, record.categoryLabel, record.detail]
-          .some((value) => value.toLocaleLowerCase("fr").includes(needle));
+        return [
+          record.contributorName,
+          record.contributorCode,
+          record.contributorPhone,
+          record.studentName,
+          record.reference,
+          record.description,
+          record.categoryLabel,
+          record.detail,
+        ].some((value) => value.toLocaleLowerCase("fr").includes(needle));
       })
-      .sort((a, b) => (sortDescending ? b.amount - a.amount : a.amount - b.amount));
+      .sort((a, b) =>
+        sortDescending ? b.amount - a.amount : a.amount - b.amount,
+      );
   }, [resolved, search, sortDescending]);
 
   function inspectData(next: InspectRequest) {
@@ -326,10 +384,18 @@ export function DataInspectorProvider({
     sheet.getRow(1).font = { bold: true, size: 14 };
     sheet.getRow(11).font = { bold: true };
     sheet.columns.forEach((column) => {
-      column.width = Math.min(36, Math.max(12, Number(column.header?.length ?? 12) + 3));
+      column.width = Math.min(
+        36,
+        Math.max(12, Number(column.header?.length ?? 12) + 3),
+      );
     });
     const buffer = await workbook.xlsx.writeBuffer();
-    downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "elimtiyaz-lineage-audit.xlsx");
+    downloadBlob(
+      new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      "elimtiyaz-lineage-audit.xlsx",
+    );
   }
 
   async function exportPdf() {
@@ -339,7 +405,13 @@ export function DataInspectorProvider({
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     let y = 560;
     const draw = (text: string, size = 9) => {
-      page.drawText(text.slice(0, 130), { x: 30, y, size, font, color: rgb(0.12, 0.12, 0.14) });
+      page.drawText(text.slice(0, 130), {
+        x: 30,
+        y,
+        size,
+        font,
+        color: rgb(0.12, 0.12, 0.14),
+      });
       y -= size + 6;
       if (y < 45) {
         y = 560;
@@ -350,13 +422,20 @@ export function DataInspectorProvider({
     draw(resolved.request.title, 11);
     draw(resolved.definition.slice(0, 120));
     for (const step of resolved.formulaSteps) draw(step.slice(0, 125));
-    draw(`Valeur affichée: ${formatDzdPlain(resolved.request.sourceValue)} · Résolue: ${formatDzdPlain(resolved.resolvedValue)} · Écart: ${formatDzdPlain(resolved.difference)}`);
+    draw(
+      `Valeur affichée: ${formatDzdPlain(resolved.request.sourceValue)} · Résolue: ${formatDzdPlain(resolved.resolvedValue)} · Écart: ${formatDzdPlain(resolved.difference)}`,
+    );
     draw("");
     for (const row of visibleRecords.slice(0, 80)) {
-      draw(`${row.contributorName} · ${row.studentName} · ${row.categoryLabel} · ${formatDzdPlain(row.amount)} · ${Math.round(row.percentage * 10) / 10}% · ${row.sourceTable}:${row.reference}`);
+      draw(
+        `${row.contributorName} · ${row.studentName} · ${row.categoryLabel} · ${formatDzdPlain(row.amount)} · ${Math.round(row.percentage * 10) / 10}% · ${row.sourceTable}:${row.reference}`,
+      );
     }
     const bytes = await pdf.save();
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), "elimtiyaz-lineage-audit.pdf");
+    downloadBlob(
+      new Blob([bytes], { type: "application/pdf" }),
+      "elimtiyaz-lineage-audit.pdf",
+    );
   }
 
   return (
@@ -378,16 +457,31 @@ export function DataInspectorProvider({
         {resolved && (
           <div className="space-y-4">
             {/* WHAT the metric is + WHERE it is scoped */}
-            <div className="rounded-xl border border-border/60 bg-surface-elevated/30 p-3" data-testid="inspector-definition">
+            <div
+              className="rounded-xl border border-border/60 bg-surface-elevated/30 p-3"
+              data-testid="inspector-definition"
+            >
               <div className="flex items-start gap-2">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
-                  <div className="text-xs font-semibold">Qu'est-ce que ce chiffre ?</div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{resolved.definition}</div>
+                  <div className="text-xs font-semibold">
+                    Qu'est-ce que ce chiffre ?
+                  </div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    {resolved.definition}
+                  </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
                     <Badge variant="outline">{resolved.scopeLabel}</Badge>
-                    {resolved.windowLabel && <Badge variant="outline">Fenêtre {resolved.windowLabel}</Badge>}
-                    {resolved.request.metric && <Badge variant="outline">métrique: {resolved.request.metric}</Badge>}
+                    {resolved.windowLabel && (
+                      <Badge variant="outline">
+                        Fenêtre {resolved.windowLabel}
+                      </Badge>
+                    )}
+                    {resolved.request.metric && (
+                      <Badge variant="outline">
+                        métrique: {resolved.request.metric}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -395,35 +489,81 @@ export function DataInspectorProvider({
 
             {/* The reconciliation line: displayed vs resolved vs écart */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Affiché</div><div className="font-mono font-semibold">{formatDzdPlain(resolved.request.sourceValue)}</div></div>
-              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Composants</div><div className="font-mono font-semibold">{formatDzdPlain(resolved.resolvedValue)}</div></div>
-              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Écart</div><div className={`font-mono font-semibold ${Math.abs(resolved.difference) < 0.5 ? "text-status-success" : "text-status-danger"}`}>{formatDzdPlain(resolved.difference)}</div></div>
-              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3"><div className="text-[10px] text-muted-foreground">Enregistrements</div><div className="font-mono font-semibold">{resolved.records.length}</div></div>
+              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+                <div className="text-[10px] text-muted-foreground">Affiché</div>
+                <div className="font-mono font-semibold">
+                  {formatDzdPlain(resolved.request.sourceValue)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+                <div className="text-[10px] text-muted-foreground">
+                  Composants
+                </div>
+                <div className="font-mono font-semibold">
+                  {formatDzdPlain(resolved.resolvedValue)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+                <div className="text-[10px] text-muted-foreground">Écart</div>
+                <div
+                  className={`font-mono font-semibold ${Math.abs(resolved.difference) < 0.5 ? "text-status-success" : "text-status-danger"}`}
+                >
+                  {formatDzdPlain(resolved.difference)}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface-elevated/30 p-3">
+                <div className="text-[10px] text-muted-foreground">
+                  Enregistrements
+                </div>
+                <div className="font-mono font-semibold">
+                  {resolved.records.length}
+                </div>
+              </div>
             </div>
 
             {/* HOW: formula steps + intermediates + source counts */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3" data-testid="inspector-formula">
+            <div
+              className="rounded-xl border border-primary/20 bg-primary/5 p-3"
+              data-testid="inspector-formula"
+            >
               <div className="flex items-start gap-2">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold">Comment ce chiffre est calculé</div>
+                  <div className="text-xs font-semibold">
+                    Comment ce chiffre est calculé
+                  </div>
                   <ol className="mt-1.5 space-y-1">
                     {resolved.formulaSteps.map((step, index) => (
-                      <li key={index} className="text-[11px] leading-relaxed text-muted-foreground">
-                        <span className="mr-1 font-mono text-primary">{index + 1}.</span>
+                      <li
+                        key={index}
+                        className="text-[11px] leading-relaxed text-muted-foreground"
+                      >
+                        <span className="mr-1 font-mono text-primary">
+                          {index + 1}.
+                        </span>
                         {step}
                       </li>
                     ))}
                   </ol>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px]">
                     {resolved.intermediates.map((inter) => (
-                      <Badge key={inter.label} variant="outline" className="font-mono">{inter.label}: {inter.value}</Badge>
+                      <Badge
+                        key={inter.label}
+                        variant="outline"
+                        className="font-mono"
+                      >
+                        {inter.label}: {inter.value}
+                      </Badge>
                     ))}
                   </div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
-                    {Object.entries(resolved.sourceCounts).map(([source, count]) => (
-                      <Badge key={source} variant="secondary">{source}: {count}</Badge>
-                    ))}
+                    {Object.entries(resolved.sourceCounts).map(
+                      ([source, count]) => (
+                        <Badge key={source} variant="secondary">
+                          {source}: {count}
+                        </Badge>
+                      ),
+                    )}
                   </div>
                 </div>
               </div>
@@ -432,14 +572,25 @@ export function DataInspectorProvider({
             {/* WHO: top-10 contributors, color coded — T-467 (DASH-411):
                 the user-selectable reference population + the full context
                 (denominator, combined top-10, remaining population). */}
-            <div className="rounded-xl border border-border/60 bg-surface-panel/60 p-3" data-testid="inspector-contributors">
+            <div
+              className="rounded-xl border border-border/60 bg-surface-panel/60 p-3"
+              data-testid="inspector-contributors"
+            >
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <PieChart className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold">Top contributeurs (10)</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{resolved.contributors.length} au total</span>
+                  <span className="text-xs font-semibold">
+                    Top contributeurs (10)
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {resolved.contributors.length} au total
+                  </span>
                 </div>
-                <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact />
+                <ReferencePopulationSelector
+                  mode={referenceMode}
+                  onChange={setReferenceMode}
+                  compact
+                />
               </div>
               {/* T-467: the reference-context lines — what the percentages
                   are measured against, the combined top-10, the remainder. */}
@@ -448,13 +599,45 @@ export function DataInspectorProvider({
                 data-testid="inspector-reference-context"
               >
                 <div className="font-semibold text-foreground mb-0.5">
-                  Population de référence : {referenceMode === "top10" ? "les 10 premiers seuls" : "l'ensemble du dataset"}
+                  Population de référence :{" "}
+                  {referenceMode === "top10"
+                    ? "les 10 premiers seuls"
+                    : "l'ensemble du dataset"}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 font-mono">
-                  <span>Dénominateur : <b className="text-foreground">{formatDzdPlain(referenceMode === "top10" ? resolved.reference.top10Total : resolved.reference.totalValue)}</b></span>
-                  <span>Top 10 cumulé : <b className="text-foreground">{formatDzdPlain(resolved.reference.top10Total)}</b> ({resolved.reference.top10CombinedPct.toFixed(1)}% du dataset)</span>
-                  <span>Reste de la population : <b className="text-foreground">{resolved.reference.remainderCount}</b> foyers · {formatDzdPlain(resolved.reference.remainderAmount)} ({resolved.reference.remainderPct.toFixed(1)}%)</span>
-                  <span>Classement par : <b className="text-foreground">{resolved.reference.metricLabel}</b></span>
+                  <span>
+                    Dénominateur :{" "}
+                    <b className="text-foreground">
+                      {formatDzdPlain(
+                        referenceMode === "top10"
+                          ? resolved.reference.top10Total
+                          : resolved.reference.totalValue,
+                      )}
+                    </b>
+                  </span>
+                  <span>
+                    Top 10 cumulé :{" "}
+                    <b className="text-foreground">
+                      {formatDzdPlain(resolved.reference.top10Total)}
+                    </b>{" "}
+                    ({resolved.reference.top10CombinedPct.toFixed(1)}% du
+                    dataset)
+                  </span>
+                  <span>
+                    Reste de la population :{" "}
+                    <b className="text-foreground">
+                      {resolved.reference.remainderCount}
+                    </b>{" "}
+                    foyers ·{" "}
+                    {formatDzdPlain(resolved.reference.remainderAmount)} (
+                    {resolved.reference.remainderPct.toFixed(1)}%)
+                  </span>
+                  <span>
+                    Classement par :{" "}
+                    <b className="text-foreground">
+                      {resolved.reference.metricLabel}
+                    </b>
+                  </span>
                 </div>
                 {referenceMode === "top10"
                   ? "Les pourcentages sont relatifs UNIQUEMENT aux 10 premiers — les dix somment à 100% (répartition interne)."
@@ -464,39 +647,88 @@ export function DataInspectorProvider({
                   colors; in Top-10 mode the ten fill the whole bar (their
                   own 100%), in whole-dataset mode the bar shows the top-10's
                   share OF THE WHOLE (a deliberately partial bar). */}
-              <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-stacked-bar">
+              <div
+                className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/60"
+                data-testid="inspector-stacked-bar"
+              >
                 {topContributors.map((c, rank) => (
                   <div
                     key={c.key}
                     title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
                     className="h-full"
-                    style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%` }}
+                    style={{
+                      backgroundColor: contributorColor(rank),
+                      width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%`,
+                    }}
                   />
                 ))}
               </div>
               <div className="mt-2 space-y-1.5">
                 {topContributors.map((c, rank) => (
-                  <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} mode={referenceMode} />
+                  <ContributorRow
+                    key={c.key}
+                    contributor={c}
+                    rank={rank}
+                    resolvedValue={resolved.resolvedValue}
+                    mode={referenceMode}
+                  />
                 ))}
               </div>
               {resolved.remainderCount > 0 && (
                 <div className="border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
-                  + {resolved.remainderCount} autres contributeurs · {formatDzdPlain(resolved.remainderAmount)} · {resolved.reference.remainderPct.toFixed(1)}% du dataset
+                  + {resolved.remainderCount} autres contributeurs ·{" "}
+                  {formatDzdPlain(resolved.remainderAmount)} ·{" "}
+                  {resolved.reference.remainderPct.toFixed(1)}% du dataset
                 </div>
               )}
             </div>
 
             {/* Search / sort / export */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-[260px] flex-1"><Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 text-xs" placeholder="Rechercher famille, élève, référence, catégorie…" /></div>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => setSortDescending((v) => !v)}><ArrowDownUp className="h-3.5 w-3.5" />Montant {sortDescending ? "↓" : "↑"}</Button>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => void exportExcel()}><FileSpreadsheet className="h-3.5 w-3.5" />Excel</Button>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => void exportPdf()}><FileText className="h-3.5 w-3.5" />PDF</Button>
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 text-xs"
+                  placeholder="Rechercher famille, élève, référence, catégorie…"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => setSortDescending((v) => !v)}
+              >
+                <ArrowDownUp className="h-3.5 w-3.5" />
+                Montant {sortDescending ? "↓" : "↑"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => void exportExcel()}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Excel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => void exportPdf()}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                PDF
+              </Button>
             </div>
 
             {/* WHERE: the source records, each tagged with its contributor color */}
             <div className="overflow-auto rounded-xl border border-border/70">
-              <table className="w-full text-xs" data-testid="inspector-records-table">
+              <table
+                className="w-full text-xs"
+                data-testid="inspector-records-table"
+              >
                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">Famille</th>
@@ -512,12 +744,22 @@ export function DataInspectorProvider({
                 </thead>
                 <tbody>
                   {visibleRecords.map((row) => {
-                    const color = contributorColorByKey(resolved.contributors, row.contributorKey);
+                    const color = contributorColorByKey(
+                      resolved.contributors,
+                      row.contributorKey,
+                    );
                     return (
-                      <tr key={`${row.id}-${row.reference}`} className="border-t border-border/50">
+                      <tr
+                        key={`${row.id}-${row.reference}`}
+                        className="border-t border-border/50"
+                      >
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5">
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} title={row.contributorName} />
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: color }}
+                              title={row.contributorName}
+                            />
                             {/* T-467 (DASH-411): the family is CLICKABLE — the
                                 parent's detail drawer (the owner's mandate). */}
                             <PersonLink
@@ -533,20 +775,45 @@ export function DataInspectorProvider({
                           {/* T-467: the student is clickable too, when the row
                               carries a resolvable student id. */}
                           {row.studentId ? (
-                            <PersonLink type="student" id={row.studentId} name={row.studentName} showMenu={false} />
+                            <PersonLink
+                              type="student"
+                              id={row.studentId}
+                              name={row.studentName}
+                              showMenu={false}
+                            />
                           ) : (
                             row.studentName
                           )}
                         </td>
                         <td className="px-3 py-2">
-                          <Badge variant="outline" className="text-[10px]">{row.categoryLabel}</Badge>
-                          <div className="mt-0.5 text-[10px] text-muted-foreground">{row.detail}</div>
+                          <Badge variant="outline" className="text-[10px]">
+                            {row.categoryLabel}
+                          </Badge>
+                          <div className="mt-0.5 text-[10px] text-muted-foreground">
+                            {row.detail}
+                          </div>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono" style={{ color }}>{formatDzdPlain(row.amount)}</td>
-                        <td className="px-3 py-2 text-right font-mono" style={{ color }}>{(row.percentage).toFixed(1)}%</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{dateLabel(row.date)}</td>
-                        <td className="px-3 py-2 font-mono text-[10px]">{row.reference}</td>
-                        <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">{row.sourceTable}</td>
+                        <td
+                          className="px-3 py-2 text-right font-mono"
+                          style={{ color }}
+                        >
+                          {formatDzdPlain(row.amount)}
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right font-mono"
+                          style={{ color }}
+                        >
+                          {row.percentage.toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {dateLabel(row.date)}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[10px]">
+                          {row.reference}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[10px] text-muted-foreground">
+                          {row.sourceTable}
+                        </td>
                         <td className="px-3 py-2">{row.status}</td>
                       </tr>
                     );
@@ -560,15 +827,31 @@ export function DataInspectorProvider({
 
       {/* The compact provenance popup — top-10 color coded at a glance */}
       {request && resolved && !expanded && (
-        <div className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md" data-testid="inspector-compact">
+        <div
+          className="fixed right-5 top-24 z-[70] w-[340px] overflow-hidden rounded-2xl border border-border/80 bg-surface-panel/95 shadow-2xl backdrop-blur-md"
+          data-testid="inspector-compact"
+        >
           <div className="border-b border-border/60 px-4 py-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Provenance</div>
-                <div className="truncate text-sm font-semibold text-foreground">{request.title}</div>
-                <div className="mt-1 font-mono text-base font-bold">{formatDzdPlain(request.sourceValue)}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Provenance
+                </div>
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {request.title}
+                </div>
+                <div className="mt-1 font-mono text-base font-bold">
+                  {formatDzdPlain(request.sourceValue)}
+                </div>
               </div>
-              <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-muted" onClick={() => setRequest(null)} aria-label="Fermer"><X className="h-4 w-4" /></button>
+              <button
+                type="button"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+                onClick={() => setRequest(null)}
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
           <div className="px-4 py-3 space-y-3">
@@ -576,38 +859,96 @@ export function DataInspectorProvider({
                 population line — right in the compact popup, so the
                 percentages cannot be misunderstood at a glance. */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-[10px] text-muted-foreground" data-testid="inspector-compact-reference">
-                Base : {referenceMode === "top10" ? "les 10 premiers" : "tout le dataset"} ({formatDzdPlain(referenceMode === "top10" ? resolved.reference.top10Total : resolved.reference.totalValue)})
+              <span
+                className="text-[10px] text-muted-foreground"
+                data-testid="inspector-compact-reference"
+              >
+                Base :{" "}
+                {referenceMode === "top10"
+                  ? "les 10 premiers"
+                  : "tout le dataset"}{" "}
+                (
+                {formatDzdPlain(
+                  referenceMode === "top10"
+                    ? resolved.reference.top10Total
+                    : resolved.reference.totalValue,
+                )}
+                )
               </span>
-              <ReferencePopulationSelector mode={referenceMode} onChange={setReferenceMode} compact />
+              <ReferencePopulationSelector
+                mode={referenceMode}
+                onChange={setReferenceMode}
+                compact
+              />
             </div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-muted/60" data-testid="inspector-compact-bar">
+            <div
+              className="flex h-2 overflow-hidden rounded-full bg-muted/60"
+              data-testid="inspector-compact-bar"
+            >
               {topContributors.map((c, rank) => (
                 <div
                   key={c.key}
                   className="h-full"
-                  style={{ backgroundColor: contributorColor(rank), width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%` }}
+                  style={{
+                    backgroundColor: contributorColor(rank),
+                    width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%`,
+                  }}
                   title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
                 />
               ))}
             </div>
             <div className="space-y-2">
               {topContributors.map((c, rank) => (
-                <ContributorRow key={c.key} contributor={c} rank={rank} resolvedValue={resolved.resolvedValue} mode={referenceMode} />
+                <ContributorRow
+                  key={c.key}
+                  contributor={c}
+                  rank={rank}
+                  resolvedValue={resolved.resolvedValue}
+                  mode={referenceMode}
+                />
               ))}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              Top 10 cumulé : {formatDzdPlain(resolved.reference.top10Total)} ({resolved.reference.top10CombinedPct.toFixed(1)}% du dataset){resolved.remainderCount > 0 ? ` · reste : ${resolved.remainderCount} familles · ${formatDzdPlain(resolved.remainderAmount)} (${resolved.reference.remainderPct.toFixed(1)}%)` : ""}
+              Top 10 cumulé : {formatDzdPlain(resolved.reference.top10Total)} (
+              {resolved.reference.top10CombinedPct.toFixed(1)}% du dataset)
+              {resolved.remainderCount > 0
+                ? ` · reste : ${resolved.remainderCount} familles · ${formatDzdPlain(resolved.remainderAmount)} (${resolved.reference.remainderPct.toFixed(1)}%)`
+                : ""}
             </div>
-            {resolved.remainderCount > 0 && <div className="border-t border-border/50 pt-2 text-[11px] text-muted-foreground">+ {resolved.remainderCount} autres familles · {formatDzdPlain(resolved.remainderAmount)}</div>}
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-[10px] leading-relaxed text-muted-foreground" data-testid="inspector-compact-formula">
-              {resolved.formulaSteps[resolved.formulaSteps.length - 1] ?? resolved.formula}
+            {resolved.remainderCount > 0 && (
+              <div className="border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
+                + {resolved.remainderCount} autres familles ·{" "}
+                {formatDzdPlain(resolved.remainderAmount)}
+              </div>
+            )}
+            <div
+              className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-[10px] leading-relaxed text-muted-foreground"
+              data-testid="inspector-compact-formula"
+            >
+              {resolved.formulaSteps[resolved.formulaSteps.length - 1] ??
+                resolved.formula}
               <br />
-              {Math.abs(resolved.difference) < 0.5 ? "Rapprochement 100%" : `Écart détecté: ${formatDzdPlain(resolved.difference)}`}
+              {Math.abs(resolved.difference) < 0.5
+                ? "Rapprochement 100%"
+                : `Écart détecté: ${formatDzdPlain(resolved.difference)}`}
             </div>
             <div className="flex gap-2">
-              <Button size="sm" className="flex-1 text-xs" onClick={() => setExpanded(true)}><ArrowUpRight className="h-3.5 w-3.5" />Agrandir / forensic</Button>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => void exportExcel()}><Download className="h-3.5 w-3.5" /></Button>
+              <Button
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => setExpanded(true)}
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" />
+                Agrandir / forensic
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs"
+                onClick={() => void exportExcel()}
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -618,7 +959,10 @@ export function DataInspectorProvider({
 
 export function useDataInspector(): InspectorContextValue {
   const context = useContext(DataInspectorContext);
-  if (!context) throw new Error("useDataInspector must be used inside DataInspectorProvider");
+  if (!context)
+    throw new Error(
+      "useDataInspector must be used inside DataInspectorProvider",
+    );
   return context;
 }
 
@@ -685,8 +1029,14 @@ export function InspectTrigger({
   );
 }
 
-export function inspectRequestForKpi(domain: InspectorDomain, title: string, sourceValue: number, filters?: InspectRequest["filters"]): InspectRequest {
+export function inspectRequestForKpi(
+  domain: InspectorDomain,
+  title: string,
+  sourceValue: number,
+  filters?: InspectRequest["filters"],
+): InspectRequest {
   return { domain, title, sourceValue, filters: filters ?? {} };
 }
 
-export const EMPTY_INSPECTOR_FILTERS: AnalyticsFilterState = NO_ANALYTICS_FILTERS;
+export const EMPTY_INSPECTOR_FILTERS: AnalyticsFilterState =
+  NO_ANALYTICS_FILTERS;

@@ -46,7 +46,11 @@ export function ReferencePopulationSelector({
   /** The glossary key for the mode explanation tip. */
   tipKey?: string;
 }) {
-  const options: { value: ReferencePopulationMode; label: string; title: string }[] = [
+  const options: {
+    value: ReferencePopulationMode;
+    label: string;
+    title: string;
+  }[] = [
     {
       value: "whole-dataset",
       label: "Tout le dataset",
@@ -100,12 +104,14 @@ export function referenceSharePct(
   contributor: { shareOfTotalPct: number; shareOfTop10Pct: number },
   mode: ReferencePopulationMode,
 ): number {
-  return mode === "top10" ? contributor.shareOfTop10Pct : contributor.shareOfTotalPct;
+  return mode === "top10"
+    ? contributor.shareOfTop10Pct
+    : contributor.shareOfTotalPct;
 }
 
 /** The denominator label (the mode's own reference population). */
-export function referencePopulationLabel(mode: ReferencePopulationMode): string {
-  return mode === "top10"
-    ? "les 10 premiers seuls"
-    : "l'ensemble du dataset";
+export function referencePopulationLabel(
+  mode: ReferencePopulationMode,
+): string {
+  return mode === "top10" ? "les 10 premiers seuls" : "l'ensemble du dataset";
 }

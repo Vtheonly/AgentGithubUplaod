@@ -148,7 +148,10 @@ describe("T-502 (DEBT-104) — the default + the migration + the wiring (source 
       join(__dirname, "../../../features/dashboard/components/analytics/operational-query-console.tsx"),
       "utf-8",
     );
-    expect(consoleSrc).toContain("operationalPresetsFor(severeDebtDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.severeDebtDzd");
+    // E6.8 note: prettier wraps the call args — match with a wrap-tolerant
+    // regex (the semantic pin is unchanged: the presets derive from the
+    // PROP with the documented default chain, never an independent hardcode).
+    expect(consoleSrc).toMatch(/operationalPresetsFor\(\s*severeDebtDzd \?\? DEFAULT_DEBT_AGING_THRESHOLDS\.severeDebtDzd/);
     // The mandate's requirement 7: no independent hardcode overrides the
     // configuration — the literal 40 000 appears ONLY as the documented
     // fallback default (the ?? chain), never as a filter constant.

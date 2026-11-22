@@ -84,7 +84,9 @@ export function InfoTip({ tip, className, size = 12 }: InfoTipProps) {
           side="top"
           className="w-max max-w-[380px] px-3 py-2.5 space-y-1.5 text-left leading-relaxed"
         >
-          <p className="text-xs font-semibold text-popover-foreground">{title}</p>
+          <p className="text-xs font-semibold text-popover-foreground">
+            {title}
+          </p>
           {META_FIELDS.map((field) => {
             const value = t(`statsTips.${tip}.${field}`, { defaultValue: "" });
             if (!value) return null;
@@ -109,7 +111,11 @@ export function InfoTip({ tip, className, size = 12 }: InfoTipProps) {
               <span className="font-semibold uppercase tracking-wide text-[9px] text-muted-foreground mr-1">
                 {t(`statsTips._meta.formula`, { defaultValue: "" })}
               </span>
-              <Latex tex={formula} display className="text-popover-foreground" />
+              <Latex
+                tex={formula}
+                display
+                className="text-popover-foreground"
+              />
               {vars && (
                 <p className="text-[10px] text-popover-foreground/80 mt-1">
                   <span className="font-semibold uppercase tracking-wide text-[9px] text-muted-foreground mr-1">

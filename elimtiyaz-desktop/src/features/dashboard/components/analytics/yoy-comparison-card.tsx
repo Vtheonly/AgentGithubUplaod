@@ -92,18 +92,19 @@ export function YoYComparisonCard({
             Données simulées
           </span>
         )}
-        {(mockActive || summary.deltaPercent !== null) && prevSeries.length > 0 && (
-          <span
-            className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
-              summary.deltaPercent! >= 0
-                ? "bg-status-success/15 text-status-success border-status-success/30"
-                : "bg-status-danger/15 text-status-danger border-status-danger/30"
-            }`}
-          >
-            {summary.deltaPercent! >= 0 ? "▲ +" : "▼ "}
-            {summary.deltaPercent}%{mockActive ? " (simulé)" : ""} global
-          </span>
-        )}
+        {(mockActive || summary.deltaPercent !== null) &&
+          prevSeries.length > 0 && (
+            <span
+              className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+                summary.deltaPercent! >= 0
+                  ? "bg-status-success/15 text-status-success border-status-success/30"
+                  : "bg-status-danger/15 text-status-danger border-status-danger/30"
+              }`}
+            >
+              {summary.deltaPercent! >= 0 ? "▲ +" : "▼ "}
+              {summary.deltaPercent}%{mockActive ? " (simulé)" : ""} global
+            </span>
+          )}
         {mockOfferable && (
           <button
             type="button"
@@ -133,13 +134,16 @@ export function YoYComparisonCard({
       <CardContent className="p-4 flex-1">
         {!hasPrevious && !mockActive ? (
           <div className="text-center py-10" data-testid="yoy-unavailable-wrap">
-            <p className="text-xs text-muted-foreground" data-testid="yoy-unavailable">
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="yoy-unavailable"
+            >
               Données de l'année précédente non disponibles pour {currentYear}.
             </p>
             {revenue.length > 0 && (
               <p className="text-[11px] text-muted-foreground/80 mt-2">
-                Astuce : activez « Démo N−1 (simulé) » pour prévisualiser la comparaison
-                avec une série simulée clairement identifiée.
+                Astuce : activez « Démo N−1 (simulé) » pour prévisualiser la
+                comparaison avec une série simulée clairement identifiée.
               </p>
             )}
           </div>
@@ -157,55 +161,56 @@ export function YoYComparisonCard({
                 className="text-[10px] font-semibold uppercase tracking-wider text-status-warning pb-1"
                 data-testid="yoy-mock-legend"
               >
-                Série N−1 simulée — démonstration uniquement, aucune donnée réelle
+                Série N−1 simulée — démonstration uniquement, aucune donnée
+                réelle
               </p>
             )}
             <div className="h-[220px] w-full" data-testid="yoy-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={summary.points}
-                margin={{ top: 10, right: 8, bottom: 0, left: -14 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={DASHBOARD_THEME.gridStroke}
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="label"
-                  {...DASHBOARD_THEME.axisTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  {...DASHBOARD_THEME.axisTick}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
-                />
-                <Tooltip
-                  contentStyle={DASHBOARD_THEME.tooltipStyle}
-                  formatter={(val: number, name: string) => [
-                    `${formatDzdPlain(val)} DZD`,
-                    name,
-                  ]}
-                />
-                <Bar
-                  dataKey="previous"
-                  name={mockActive ? "N−1 (simulé)" : `N−1 (${previousYear})`}
-                  fill={mockActive ? chartPalette.gold : chartPalette.slate}
-                  radius={[3, 3, 0, 0]}
-                  barSize={14}
-                />
-                <Bar
-                  dataKey="current"
-                  name={`N (${currentYear})`}
-                  fill={chartPalette.primary}
-                  radius={[3, 3, 0, 0]}
-                  barSize={14}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={summary.points}
+                  margin={{ top: 10, right: 8, bottom: 0, left: -14 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={DASHBOARD_THEME.gridStroke}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    {...DASHBOARD_THEME.axisTick}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    {...DASHBOARD_THEME.axisTick}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={DASHBOARD_THEME.tooltipStyle}
+                    formatter={(val: number, name: string) => [
+                      `${formatDzdPlain(val)} DZD`,
+                      name,
+                    ]}
+                  />
+                  <Bar
+                    dataKey="previous"
+                    name={mockActive ? "N−1 (simulé)" : `N−1 (${previousYear})`}
+                    fill={mockActive ? chartPalette.gold : chartPalette.slate}
+                    radius={[3, 3, 0, 0]}
+                    barSize={14}
+                  />
+                  <Bar
+                    dataKey="current"
+                    name={`N (${currentYear})`}
+                    fill={chartPalette.primary}
+                    radius={[3, 3, 0, 0]}
+                    barSize={14}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </>
         )}

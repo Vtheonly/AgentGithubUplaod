@@ -88,7 +88,13 @@ const TAB_SRC = readFileSync(
   join(__dirname, "../../../features/dashboard/tabs/analytics-tab.tsx"),
   "utf8",
 );
+// E6.8: the wave card's source moved from the executive-cards.tsx monolith
+// into its own module (the barrel re-exports it) — the pins follow the card.
 const CARDS_SRC = readFileSync(
+  join(__dirname, "../../../features/dashboard/components/analytics/wave-velocity-card.tsx"),
+  "utf8",
+);
+const CARDS_BARREL_SRC = readFileSync(
   join(__dirname, "../../../features/dashboard/components/analytics/executive-cards.tsx"),
   "utf8",
 );
@@ -184,6 +190,6 @@ describe("T-447 (STATS-402 §2.1) — the wave card renders with the derivation'
 
 describe("T-447 (TECHDEBT-100) — the unreferenced ExecutiveDashboard composite is removed", () => {
   it("executive-cards.tsx exports no ExecutiveDashboard (zero importers — the audit's DEAD-CODE-REMOVED verdict)", () => {
-    expect(CARDS_SRC).not.toContain("export function ExecutiveDashboard");
+    expect(CARDS_BARREL_SRC).not.toContain("export function ExecutiveDashboard");
   });
 });

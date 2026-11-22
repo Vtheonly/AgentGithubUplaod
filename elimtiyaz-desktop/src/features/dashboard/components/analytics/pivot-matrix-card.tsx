@@ -28,7 +28,12 @@ interface Props {
   embedded?: boolean;
 }
 
-export function PivotMatrixCard({ profiles, classes, headerActions, embedded = false }: Props) {
+export function PivotMatrixCard({
+  profiles,
+  classes,
+  headerActions,
+  embedded = false,
+}: Props) {
   const [dimension, setDimension] = useState<PivotDimension>("cycle");
   const [sortKey, setSortKey] = useState<
     "studentCount" | "totalDebt" | "averageGpa"

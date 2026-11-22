@@ -4,7 +4,10 @@
 
 import { useMemo, useState } from "react";
 import { InfoTip } from "./info-tip";
-import { ReferencePopulationSelector, type ReferencePopulationMode } from "./reference-population-selector";
+import {
+  ReferencePopulationSelector,
+  type ReferencePopulationMode,
+} from "./reference-population-selector";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -50,18 +53,22 @@ export function DebtorsParetoCard({
   onOpenParent?: (parentId: string) => void;
   totalOutstanding?: number;
 }) {
-  const [referenceMode, setReferenceMode] = useState<ReferencePopulationMode>("top10");
+  const [referenceMode, setReferenceMode] =
+    useState<ReferencePopulationMode>("top10");
   const data = useMemo(
     () => derivePareto(topDebtors, 8, totalOutstanding),
     [topDebtors, totalOutstanding],
   );
   const displayedTotal = data.reduce((s, d) => s + d.amount, 0);
   const effectiveMode: ReferencePopulationMode =
-    referenceMode === "whole-dataset" && (typeof totalOutstanding !== "number" || totalOutstanding <= 0)
+    referenceMode === "whole-dataset" &&
+    (typeof totalOutstanding !== "number" || totalOutstanding <= 0)
       ? "top10"
       : referenceMode;
   const cumulativeValue = (d: (typeof data)[number]) =>
-    effectiveMode === "whole-dataset" ? d.cumOfTotalPct ?? d.cumPercent : d.cumPercent;
+    effectiveMode === "whole-dataset"
+      ? (d.cumOfTotalPct ?? d.cumPercent)
+      : d.cumPercent;
   const paretoCut = data.findIndex((d) => cumulativeValue(d) >= 80) + 1;
   const chartData = data.map((d) => ({
     ...d,
@@ -99,15 +106,24 @@ export function DebtorsParetoCard({
           </CardDescription>
         </div>
 
-        <ReferencePopulationSelector mode={effectiveMode} onChange={setReferenceMode} compact tipKey="pareto.referenceMode" />
+        <ReferencePopulationSelector
+          mode={effectiveMode}
+          onChange={setReferenceMode}
+          compact
+          tipKey="pareto.referenceMode"
+        />
 
         {paretoCut > 0 && (
           <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30">
-            {paretoCut} foyer(s) = 80% {effectiveMode === "top10" ? "des top débiteurs" : "du dataset"}
+            {paretoCut} foyer(s) = 80%{" "}
+            {effectiveMode === "top10" ? "des top débiteurs" : "du dataset"}
           </span>
         )}
         {clickable && (
-          <span className="text-[10px] text-muted-foreground/80" data-testid="pareto-click-hint">
+          <span
+            className="text-[10px] text-muted-foreground/80"
+            data-testid="pareto-click-hint"
+          >
             Cliquez une barre pour ouvrir le dossier famille
           </span>
         )}
@@ -123,7 +139,10 @@ export function DebtorsParetoCard({
             Aucun débiteur identifié sur la période active.
           </p>
         ) : (
-          <div className="h-[260px] min-h-[260px] w-full" data-testid="pareto-chart">
+          <div
+            className="h-[260px] min-h-[260px] w-full"
+            data-testid="pareto-chart"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}

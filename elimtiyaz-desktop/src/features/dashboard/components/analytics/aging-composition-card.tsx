@@ -48,7 +48,8 @@ export function AgingCompositionCard({
             <InfoTip tip="aging.card" />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Répartition proportionnelle de la dette globale par tranche de retard
+            Répartition proportionnelle de la dette globale par tranche de
+            retard
           </CardDescription>
         </div>
 
@@ -107,8 +108,12 @@ export function AgingCompositionCard({
                 <thead>
                   <tr className="text-muted-foreground border-b border-border/60 text-left">
                     <th className="py-2 px-2 font-medium">Tranche de Retard</th>
-                    <th className="py-2 px-2 text-right font-medium">Encours</th>
-                    <th className="py-2 px-2 text-right font-medium">Familles</th>
+                    <th className="py-2 px-2 text-right font-medium">
+                      Encours
+                    </th>
+                    <th className="py-2 px-2 text-right font-medium">
+                      Familles
+                    </th>
                     <th className="py-2 px-2 text-right font-medium">Part</th>
                     <th className="py-2 px-2 text-right font-medium w-16" />
                   </tr>
@@ -129,7 +134,10 @@ export function AgingCompositionCard({
                           style={{ backgroundColor: AGING_COLORS[seg.bucket] }}
                         />
                         {seg.label}
-                        <InfoTip tip={`aging.b${seg.bucket === "0_30" ? "0_30" : seg.bucket === "31_60" ? "31_60" : seg.bucket === "61_90" ? "61_90" : seg.bucket === "91_180" ? "91_180" : "180plus"}`} size={10} />
+                        <InfoTip
+                          tip={`aging.b${seg.bucket === "0_30" ? "0_30" : seg.bucket === "31_60" ? "31_60" : seg.bucket === "61_90" ? "61_90" : seg.bucket === "91_180" ? "91_180" : "180plus"}`}
+                          size={10}
+                        />
                       </td>
                       <td className="text-right font-mono font-bold text-foreground py-2 px-2">
                         {formatDzd(seg.amount, { compact: true })}

@@ -211,38 +211,38 @@ export function CategoryMixCard({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-        <div
-          className="flex items-center gap-1 rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
-          data-testid="category-metric-toggle"
-        >
-          <InfoTip tip="categoryMix.toggle" size={11} />
-          <button
-            type="button"
-            onClick={() => setMetric("amount")}
-            aria-pressed={metric === "amount"}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              metric === "amount"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+          <div
+            className="flex items-center gap-1 rounded-md border border-border bg-surface-elevated/40 p-0.5 text-xs"
+            data-testid="category-metric-toggle"
           >
-            Montant
-          </button>
-          <button
-            type="button"
-            onClick={() => setMetric("count")}
-            aria-pressed={metric === "count"}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              metric === "count"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Nb Opérations
-          </button>
-        </div>
-        {/* T-503 (UI-334): the inspection controls live ON the chart. */}
-        <CardHeaderActions>{headerActions}</CardHeaderActions>
+            <InfoTip tip="categoryMix.toggle" size={11} />
+            <button
+              type="button"
+              onClick={() => setMetric("amount")}
+              aria-pressed={metric === "amount"}
+              className={`px-2.5 py-1 rounded transition-colors ${
+                metric === "amount"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Montant
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetric("count")}
+              aria-pressed={metric === "count"}
+              className={`px-2.5 py-1 rounded transition-colors ${
+                metric === "count"
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Nb Opérations
+            </button>
+          </div>
+          {/* T-503 (UI-334): the inspection controls live ON the chart. */}
+          <CardHeaderActions>{headerActions}</CardHeaderActions>
         </div>
       </CardHeader>
 

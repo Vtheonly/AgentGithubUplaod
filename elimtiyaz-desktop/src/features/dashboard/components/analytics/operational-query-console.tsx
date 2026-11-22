@@ -226,8 +226,7 @@ function Student360Modal({
   onClose: () => void;
 }) {
   const repos = useRepositories();
-  const { openStudent, openParent, navigateToStudent } =
-    usePersonNavigation();
+  const { openStudent, openParent, navigateToStudent } = usePersonNavigation();
 
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
@@ -681,8 +680,8 @@ function Student360Modal({
                     <div>
                       <div className="font-medium">{nextInstallment.label}</div>
                       <div className="text-[10px] text-muted-foreground">
-                        {PAYMENT_CATEGORY_LABELS_FR[nextInstallment.category]} · échéance{" "}
-                        {formatShortDate(nextInstallment.dueDate)}
+                        {PAYMENT_CATEGORY_LABELS_FR[nextInstallment.category]} ·
+                        échéance {formatShortDate(nextInstallment.dueDate)}
                       </div>
                     </div>
                     <span className="font-mono font-bold">
@@ -693,7 +692,8 @@ function Student360Modal({
                             nextInstallment.amountPaid -
                             nextInstallment.amountPending,
                         ),
-                      )} DA
+                      )}{" "}
+                      DA
                     </span>
                   </div>
                 ) : (
@@ -743,7 +743,8 @@ function Student360Modal({
                           {paymentDescription(payment, studentInstallments)}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          {formatDate(payment.collectedAt)} · {PAYMENT_METHOD_LABELS_FR[payment.method]} ·{" "}
+                          {formatDate(payment.collectedAt)} ·{" "}
+                          {PAYMENT_METHOD_LABELS_FR[payment.method]} ·{" "}
                           {PAYMENT_STATUS_LABELS_FR[payment.status]}
                         </div>
                       </div>
@@ -751,9 +752,11 @@ function Student360Modal({
                         {formatDzdPlain(payment.amount)} DA
                       </span>
                     </div>
-                    {(payment.expectedAmount != null || payment.excessAmount) && (
+                    {(payment.expectedAmount != null ||
+                      payment.excessAmount) && (
                       <div className="mt-1 text-[10px] text-muted-foreground">
-                        Attendu : {formatDzdPlain(payment.expectedAmount ?? 0)} DA
+                        Attendu : {formatDzdPlain(payment.expectedAmount ?? 0)}{" "}
+                        DA
                         {payment.excessAmount
                           ? ` · Excédent : ${formatDzdPlain(payment.excessAmount)} DA`
                           : ""}
@@ -780,10 +783,18 @@ function Student360Modal({
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-surface-panel text-muted-foreground">
                     <tr className="border-b border-border/60">
-                      <th className="px-3 py-2 text-left font-medium">Année / période</th>
-                      <th className="px-3 py-2 text-left font-medium">Matière</th>
-                      <th className="px-3 py-2 text-right font-medium">Moyenne</th>
-                      <th className="px-3 py-2 text-right font-medium">Coeff.</th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Année / période
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">
+                        Matière
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium">
+                        Moyenne
+                      </th>
+                      <th className="px-3 py-2 text-right font-medium">
+                        Coeff.
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -854,7 +865,10 @@ function Student360Modal({
 
           {parent && (
             <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-muted-foreground">
-              Parent lié: <span className="font-medium text-foreground">{profile.parentName}</span>
+              Parent lié:{" "}
+              <span className="font-medium text-foreground">
+                {profile.parentName}
+              </span>
               {parent.phone ? ` · ${parent.phone}` : ""}
             </div>
           )}
@@ -881,7 +895,10 @@ export function OperationalQueryConsole({
   // severe-debt edge (the tab passes the active thresholds' value; the
   // default preserves the pre-0147 40 000 behavior by construction).
   const presets = useMemo(
-    () => operationalPresetsFor(severeDebtDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.severeDebtDzd ?? 40_000),
+    () =>
+      operationalPresetsFor(
+        severeDebtDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.severeDebtDzd ?? 40_000,
+      ),
     [severeDebtDzd],
   );
 
@@ -925,9 +942,7 @@ export function OperationalQueryConsole({
     return profiles
       .filter((p) => {
         if (activePreset) {
-          const preset = presets.find(
-            (pr) => pr.id === activePreset,
-          );
+          const preset = presets.find((pr) => pr.id === activePreset);
           if (preset) {
             if (
               preset.filterCategory &&
@@ -959,7 +974,15 @@ export function OperationalQueryConsole({
         if (valA === valB) return 0;
         return sortAsc ? (valA > valB ? 1 : -1) : valA < valB ? 1 : -1;
       });
-  }, [profiles, activePreset, effectiveSelectedCategory, search, sortField, sortAsc, presets]);
+  }, [
+    profiles,
+    activePreset,
+    effectiveSelectedCategory,
+    search,
+    sortField,
+    sortAsc,
+    presets,
+  ]);
 
   const queryStats = useMemo(() => {
     const count = filteredProfiles.length;
@@ -1023,7 +1046,8 @@ export function OperationalQueryConsole({
                   className="h-8 gap-1.5 border-primary/40 bg-primary/5 text-primary text-xs"
                 >
                   <Bot className="h-3.5 w-3.5" />
-                  Interroger l'IA sur cette sélection ({filteredProfiles.length})
+                  Interroger l'IA sur cette sélection ({filteredProfiles.length}
+                  )
                 </Button>
               )}
               {/* T-503 (UI-334): the inspection controls live ON the console. */}
@@ -1137,7 +1161,9 @@ export function OperationalQueryConsole({
           <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-surface-elevated/40 border border-border/50 text-muted-foreground">
             <span>
               Dossiers filtrés :{" "}
-              <strong className="text-foreground font-mono">{queryStats.count}</strong>
+              <strong className="text-foreground font-mono">
+                {queryStats.count}
+              </strong>
             </span>
             <div className="flex items-center gap-4">
               {queryStats.totalDebt > 0 && (
