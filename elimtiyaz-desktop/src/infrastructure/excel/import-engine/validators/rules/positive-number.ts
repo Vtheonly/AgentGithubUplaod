@@ -25,7 +25,16 @@ export type ParsedNumber =
  * Tente de convertir une valeur brute en nombre.
  *
  * Gère les erreurs Excel (`#REF!`, `#N/A`, …), les séparateurs français
- * (espace, virgule décimale), et les symboles monétaires (`DA`, `€`, `$`).
+ * (espace, virgule décimale), et les symboles monétaires (`DA`, `DZD`,
+ * `€`, `$`).
+ *
+ * T-582 / BUG-052 (2026-11-23): les deux pièges de l'ancien parseur sont
+ * fermés — (1) la devise n'est plus un char-class `[DA€$]` qui effaçait les
+ * LETTRES D et A n'importe où ("1D500" devenait silencieusement 1500) :
+ * seul un jeton de devise EN FIN de chaîne est retiré ; (2) le point n'est
+ * un séparateur de milliers QUE s'il est suivi d'exactement 3 chiffres
+ * puis d'un séparateur ou de la fin ("1.500" → 1500, "1.500,00" → 1500) ;
+ * tout autre point reste décimal ("1.5" → 1.5, "12.34" → 12.34).
  */
 export function parseNumber(raw: unknown): ParsedNumber {
   if (raw === null || raw === undefined || raw === "") return null;
@@ -37,10 +46,15 @@ export function parseNumber(raw: unknown): ParsedNumber {
   }
   // Retirer espaces fines et insécables
   s = s.replace(/[\s\u00A0]/g, "").replace(/\s/g, "");
+  // BUG-052 (1) : devise = jeton EN FIN uniquement (DZD, DA, €, $) —
+  // jamais un char-class de lettres. "500 DA" → 500 ; "1D500" reste
+  // "1D500" → erreur nan (fail-closed), plus 1500 silencieux.
+  s = s.replace(/(DZD|DA|€|\$)$/i, "");
   // Remplacer virgule décimale
   s = s.replace(",", ".");
-  // Retirer éventuels symboles monétaires
-  s = s.replace(/[DA€$]/gi, "");
+  // BUG-052 (2) : point = milliers seulement devant exactement 3 chiffres
+  // suivis d'un séparateur ou de la fin. Les autres points restent décimaux.
+  s = s.replace(/\.(\d{3})(?=[^\d]|$)/g, "$1");
   if (s === "" || s === "-") return null;
   const n = Number(s);
   if (Number.isNaN(n)) return { error: "nan", raw: String(raw) };
