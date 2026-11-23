@@ -29,6 +29,7 @@
  * (outside ToastProvider) would throw "useToast must be used within
  * <ToastProvider>" at mount.
  */
+import { lazy, Suspense } from "react";
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { TooltipProvider } from "../shared/ui/tooltip";
@@ -39,14 +40,32 @@ import { ToastProvider } from "./providers/toast-provider";
 import { AICopilotProvider } from "./providers/ai-copilot-provider";
 import { UserPreferencesProvider } from "./providers/user-preferences-provider";
 import { ToastViewport } from "../shared/layout/toast-viewport";
-import { TestDataAutofill } from "../shared/devtools/test-data/use-test-data-autofill";
+/*
+ * T-583 (E1.8 completion — ARCH-010/ADD-5): the Ctrl+O test-data autofill
+ * is a DEVTOOLS surface. The static mount pulled the whole autofill engine
+ * (generators + classifier + Radix dance) into the EAGER production
+ * bundle; the lazy import + `import.meta.env.DEV` gate keeps it a dev-build
+ * affordance — production builds never reference the chunk (the component
+ * never mounts, so the dynamic import never fires). The t-399 suite keeps
+ * importing the module directly and stays the behavioral contract.
+ */
+const TestDataAutofill = lazy(
+  () => import("../shared/devtools/test-data/use-test-data-autofill").then((m) => ({ default: m.TestDataAutofill })),
+);
 // T-502 (UI-332): the application-wide keyboard zoom (Ctrl+= / Ctrl++ /
 // Ctrl+- / Ctrl+0) — mounted at the App root so every view has it.
 import { useKeyboardZoom } from "../shared/hooks/use-keyboard-zoom";
 import { SplashGate } from "./splash-gate";
-import { AppShell } from "./app-shell";
+/*
+ * T-583: the authenticated shell is a lazy route-level chunk — it carries
+ * the sidebar/topbar + the eleven feature pages. Keeping it static kept
+ * EVERY feature module in the eager entry bundle; the lazy import moves
+ * them behind the login + first-navigation boundary.
+ */
+const AppShell = lazy(() => import("./app-shell").then((m) => ({ default: m.AppShell })));
 import { LoginScreen } from "../features/auth/login-screen";
 import { buildWhatsAppUrl } from "../shared/utils/whatsapp";
+import { LoadingState } from "../shared/layout/state-views";
 
 /**
  * Electron's renderer `window.open()` can otherwise create a new BrowserWindow
@@ -135,9 +154,14 @@ export function App() {
                     <AppRoutes />
                   </SplashGate>
                   <ToastViewport />
-                  {/* T-399 (OPS-321): Ctrl+O test-data autofill — live on
-                      every screen, inside ToastProvider + i18n. */}
-                  <TestDataAutofill />
+                  {/* T-399 (OPS-321) / T-583 (E1.8): Ctrl+O test-data autofill
+                      — DEV BUILDS ONLY, lazily mounted (never in the eager
+                      production bundle). */}
+                  {import.meta.env.DEV ? (
+                    <Suspense fallback={null}>
+                      <TestDataAutofill />
+                    </Suspense>
+                  ) : null}
                 </TooltipProvider>
               </AICopilotProvider>
             </ToastProvider>
@@ -165,5 +189,11 @@ function AppRoutes() {
     return <Navigate to="/" replace />;
   }
 
-  return <AppShell />;
+  // T-583: the authenticated shell + its pages load as async chunks; the
+  // fallback is the shared loading state (never a blank screen).
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <AppShell />
+    </Suspense>
+  );
 }

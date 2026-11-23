@@ -30,15 +30,16 @@ import { useRepositories } from "./repository-provider";
 import type { ActionProposal } from "../../core/ai/agent-types";
 import type { DocumentArtifact } from "../../core/ai/artifacts";
 import { parseToolArtifact } from "../../core/ai/artifacts";
-import {
-  generateAccountStatementPdf,
-  generateClassReportPdf,
-  generateDebtReportPdf,
-  generatePaymentPlanPdf,
-  downloadPdf,
-} from "../../infrastructure/receipt-pdf";
+/*
+ * T-583 (startup acceleration): the PDF report generators (pdf-lib) and
+ * the XLSX/CSV export engine (exceljs) are DEV-TIME-HEAVY dependencies
+ * used ONLY inside downloadArtifact — a user-initiated download. The
+ * static imports dragged vendor-pdf + vendor-excel (~1.3 MB) into the
+ * EAGER boot graph; the dynamic imports below load them on first use.
+ * The generator FUNCTIONS are the same modules — no parallel
+ * implementation (Existing-Implementation-First).
+ */
 import { resolveAllocationsForPayments } from "../../domain/calc/payment/payment-coverage";
-import { buildXlsxBuffer, downloadBlob } from "../../infrastructure/excel/export-engine";
 import { useToast } from "./toast-provider";
 import { Permission } from "../../core/rbac/permissions";
 import { Role } from "../../core/rbac/roles";
@@ -297,6 +298,14 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
   const downloadArtifact = useCallback(
     async (artifact: DocumentArtifact): Promise<void> => {
       if (artifact.format === "pdf") {
+        // T-583: pdf-lib (+ the report builders) load on first download.
+        const {
+          generateAccountStatementPdf,
+          generateClassReportPdf,
+          generateDebtReportPdf,
+          generatePaymentPlanPdf,
+          downloadPdf,
+        } = await import("../../infrastructure/receipt-pdf");
         switch (artifact.documentType) {
           case "parent_statement": {
             const parentId = String(artifact.params.parentId ?? "");
@@ -464,6 +473,10 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Document sans lignes embarquées — impossible d'exporter.");
       }
       if (artifact.format === "xlsx") {
+        // T-583: exceljs loads on first XLSX download.
+        const { buildXlsxBuffer, downloadBlob } = await import(
+          "../../infrastructure/excel/export-engine"
+        );
         const keys = artifact.columns.map((c) => slugifyKey(c));
         const recordRows = artifact.rows.map((r) => {
           const rec: Record<string, string | number | boolean | null> = {};
@@ -489,6 +502,9 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
       }
 
       // CSV
+      // T-583: downloadBlob lives in the export-engine module (which
+      // carries exceljs) — loaded on demand for the CSV path too.
+      const { downloadBlob } = await import("../../infrastructure/excel/export-engine");
       const esc = (v: string | number | null) => {
         if (v === null) return "";
         const s = String(v);

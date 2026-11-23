@@ -35,8 +35,13 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import ExcelJS from "exceljs";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+/*
+ * T-583 (startup acceleration): ExcelJS + pdf-lib are EXPORT-ONLY
+ * dependencies (the lineage audit downloads) — the static imports kept
+ * ~1.3 MB of vendor chunks in the eager boot graph. Both load on first
+ * export click (the dynamic imports inside exportExcel/exportPdf); the
+ * generators are the same modules (no re-implementation).
+ */
 // T-580 (BUG-049): the PDF export routes through the WinAnsi-safe pair —
 // formatDzdPlain's U+202F grouping and non-WinAnsi name glyphs crash
 // pdf-lib's Helvetica drawText.
@@ -334,6 +339,9 @@ export function DataInspectorProvider({
 
   async function exportExcel() {
     if (!resolved) return;
+    // T-583: exceljs loads on first export (the dashboard's boot graph
+    // no longer carries it).
+    const ExcelJS = (await import("exceljs")).default;
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Audit");
     sheet.addRow(["El-Imtiyaz — Audit de lignage (data lineage)"]);
@@ -404,6 +412,9 @@ export function DataInspectorProvider({
 
   async function exportPdf() {
     if (!resolved) return;
+    // T-583: pdf-lib loads on first export (the dashboard's boot graph
+    // no longer carries it).
+    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([842, 595]);
     const font = await pdf.embedFont(StandardFonts.Helvetica);

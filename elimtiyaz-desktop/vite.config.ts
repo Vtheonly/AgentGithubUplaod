@@ -127,6 +127,12 @@ export default defineConfig({
             "@radix-ui/react-checkbox",
           ],
           "vendor-charts": ["recharts"],
+          // T-583: tailwind-merge + clsx (the cn() helper — used by the
+          // EAGER entry graph) were landing inside vendor-charts via
+          // rollup's shared-dep grouping, which forced the ENTIRE recharts
+          // chunk to modulepreload at boot. Their own tiny chunk keeps
+          // recharts behind the lazy dashboard route where it belongs.
+          "vendor-tw": ["tailwind-merge", "clsx"],
           "vendor-pdf": ["pdf-lib"],
           "vendor-excel": ["exceljs"],
           "vendor-i18n": ["i18next", "react-i18next"],

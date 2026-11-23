@@ -18,6 +18,11 @@
  * The splash plays once per session (tracked via `sessionStorage` by the
  * host `SplashGate`) and fades out over the last 400 ms before `onDone`.
  *
+ * T-583 (startup acceleration — the ≤1 s mandate): the default duration
+ * drops 2,200 → 1,000 ms and the splash is DISMISSIBLE — any pointerdown
+ * (click / tap / touch) starts the exit immediately, so a returning user
+ * never waits on the brand animation.
+ *
  * Defensive rendering: if the host environment cannot provide a 2D canvas
  * context (jsdom during tests, very old browsers), the splash silently
  * falls back to a static brand panel and still fires `onDone` after the
@@ -28,9 +33,12 @@ import { ParticleEngine, DEFAULT_PALETTE } from "../../shared/particle-engine";
 import type { LogoMode } from "../../shared/particle-engine";
 import { INTRO_LOGO_SRC } from "../../shared/ui/particle-canvas";
 
+// T-583: the brand intro is capped at ONE second (was 2,200 ms).
+export const SPLASH_DURATION_MS = 1000;
+
 export function SplashScreen({
   onDone,
-  durationMs = 2200,
+  durationMs = SPLASH_DURATION_MS,
 }: {
   onDone: () => void;
   durationMs?: number;
@@ -214,6 +222,18 @@ export function SplashScreen({
     };
   }, [onDone, durationMs]);
 
+  // T-583: DISMISSIBLE — any pointerdown starts the exit immediately
+  // (a 150 ms micro-fade, not an instant cut) and fires onDone. The
+  // scheduled timers above are cancelled by the unmount cleanup once
+  // onDone flips SplashGate's state.
+  const dismissedRef = useRef(false);
+  const onDismissPointerDown = () => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    setExiting(true);
+    window.setTimeout(onDone, 150);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -221,6 +241,8 @@ export function SplashScreen({
       style={{ opacity: exiting ? 0 : 1 }}
       aria-label="El-Imtiyaz"
       role="img"
+      // T-583: click/tap-to-skip — the splash never holds the user hostage.
+      onPointerDown={onDismissPointerDown}
     >
       {/*
         Particle canvas — fills the whole splash. The engine renders the
