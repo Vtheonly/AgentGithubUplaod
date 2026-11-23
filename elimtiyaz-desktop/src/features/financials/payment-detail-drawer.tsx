@@ -33,6 +33,7 @@ import { Button } from "../../shared/ui/button";
 import { Card, CardContent } from "../../shared/ui/card";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { generatePaymentReceiptPdf, downloadPdf } from "../../infrastructure/receipt-pdf";
+import { PaymentBreakdownCard } from "./payment-breakdown-card";
 
 export function PaymentDetailDrawer({
   paymentId,
@@ -255,7 +256,10 @@ export function PaymentDetailDrawer({
             </Card>
           )}
 
-          {/* Payment Method Details */}
+          {/* Payment Method Details — T-579/BUG-053: the check AND the
+              transfer field sets both render (the transfer block was the
+              S12 runtime-proven asymmetry — the Chèque drawer rendered
+              "DÉTAILS DU CHÈQUE" while the Virement drawer showed nothing). */}
           {entity?.method === "check" && (
             <div className="rounded-xl border border-border bg-surface-elevated/40 p-3.5 space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
@@ -269,6 +273,23 @@ export function PaymentDetailDrawer({
               </div>
             </div>
           )}
+
+          {entity?.method === "transfer" && (
+            <div className="rounded-xl border border-border bg-surface-elevated/40 p-3.5 space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Détails du Virement
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-muted-foreground">Référence :</span> <strong className="font-mono">{entity.transferReference ?? "—"}</strong></div>
+                <div><span className="text-muted-foreground">Banque émettrice :</span> <strong>{entity.transferSourceBank ?? "—"}</strong></div>
+                <div><span className="text-muted-foreground">Enregistré le :</span> <span>{formatDateTime(entity.collectedAt)}</span></div>
+              </div>
+            </div>
+          )}
+
+          {/* T-579: the canonical coverage card — what this payment covers
+              (the payment_allocations precedence chain of T-330). */}
+          {entity && <PaymentBreakdownCard payment={entity} />}
 
           {entity?.notes && (
             <div className="rounded-lg border border-border p-3 text-xs">
