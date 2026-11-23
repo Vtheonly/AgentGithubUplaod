@@ -31,11 +31,11 @@ import {
   EDIT_MENU_LABEL,
   EDIT_ITEM_LABELS,
   type ContextMenuState,
-} from "../../../electron/menu-builders";
+} from "../../../electron/menu-builders.cts";
 
 const SRC = join(__dirname, "../../");
 const MAIN_SRC = readFileSync(join(SRC, "../electron/main.cts"), "utf8");
-const BUILDERS_SRC = readFileSync(join(SRC, "../electron/menu-builders.ts"), "utf8");
+const BUILDERS_SRC = readFileSync(join(SRC, "../electron/menu-builders.cts"), "utf8");
 
 type Item = { label?: string; role?: string; type?: string; enabled?: boolean; submenu?: unknown };
 

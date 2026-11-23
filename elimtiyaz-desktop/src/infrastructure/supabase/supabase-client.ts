@@ -35,7 +35,7 @@ import {
   type BackendKind,
   type BackendProfileSnapshot,
   type BackendProfileV1,
-} from "../../../electron/backend-profile-contract";
+} from "../../../electron/backend-profile-contract.cts";
 
 export { deriveProjectRef, FACTORY_DEFAULT_PROJECT_REF, FACTORY_DEFAULT_SUPABASE_URL };
 

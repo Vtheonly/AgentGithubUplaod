@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * menu-builders.ts — T-577 (E6.8 / ROADMAP 5.8, moved EARLY per v2.3) —
+ * menu-builders.cts — T-577 (E6.8 / ROADMAP 5.8, moved EARLY per v2.3) —
  * the French-labeled editMenu + the context-menu builders (BUG-045)
  * ============================================================================
  *

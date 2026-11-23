@@ -34,7 +34,7 @@ import {
   validateBackendProfile,
   type BackendProfileSnapshot,
   type BackendProfileV1,
-} from "../../../electron/backend-profile-contract";
+} from "../../../electron/backend-profile-contract.cts";
 import {
   describeSupabaseConnection,
   resolveEffectiveSupabaseTarget,

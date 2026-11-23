@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from "electron";
-import type { BackendProfileSnapshot, BackendProfileWriteResult } from "./backend-profile-contract";
+import type { BackendProfileSnapshot, BackendProfileWriteResult } from "./backend-profile-contract.cjs";
 
 export interface SaveFileResult {
   saved: boolean;
@@ -178,7 +178,7 @@ const api = {
       ipcRenderer.invoke("config:delete") as Promise<{ ok: true } | { ok: false; error: string }>,
   },
   // T-573 (ADD-9): the backend profile switcher (the packaged app re-points
-  // WITHOUT a rebuild — see electron/backend-profile-contract.ts).
+  // WITHOUT a rebuild — see electron/backend-profile-contract.cts).
   backendProfile: backendProfileApi,
   shell: {
     openExternal: (url: string): Promise<ExternalOpenResult> =>

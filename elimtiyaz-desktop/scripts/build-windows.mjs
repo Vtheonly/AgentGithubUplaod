@@ -155,7 +155,7 @@ if (!existsSync(join(projectDir, "node_modules"))) {
 // pre-T-573 behavior when nothing is set). The foreign-key hard-fail rule is
 // GONE: re-pointing a packaged build at a healthy target is the whole point
 // (the RUNTIME re-point without a rebuild is the BackendProfile's job —
-// electron/backend-profile-contract.ts). Deterministic default = the
+// electron/backend-profile-contract.cts). Deterministic default = the
 // canonical public key (PUBLIC only — a secret/service-role key is still a
 // hard failure via isValidTargetKey).
 const { loadEnv } = await import("vite");

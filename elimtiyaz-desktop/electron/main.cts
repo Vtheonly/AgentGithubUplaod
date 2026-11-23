@@ -2,8 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { readFileSync, writeFileSync } from "node:fs";
-import { registerBackendProfileIpc } from "./backend-profile";
-import { buildAppMenuTemplate, buildContextMenuTemplate } from "./menu-builders";
+import { registerBackendProfileIpc } from "./backend-profile.cjs";
+import { buildAppMenuTemplate, buildContextMenuTemplate } from "./menu-builders.cjs";
 
 const RENDERER_DIST = path.join(__dirname, "..", "dist");
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";

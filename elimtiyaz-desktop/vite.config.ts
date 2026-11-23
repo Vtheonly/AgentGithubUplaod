@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { defineConfig, Plugin } from "vite";
+import { defineConfig, Plugin, transformWithEsbuild } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,10 +30,49 @@ function stripCrossoriginPlugin(): Plugin {
   };
 }
 
+/**
+ * Transforms `.cts` sources imported by the renderer/vitest graph into ESM.
+ *
+ * The Electron main-process modules are `.cts` by architecture (the ONLY
+ * extension tsc re-maps to `.cjs`, which the CommonJS main process
+ * `require()`s at runtime — see electron/tsconfig.json, module node16).
+ * Two of them are also consumed OUTSIDE the main process, from source:
+ * the pure wire contract (`electron/backend-profile-contract.cts` —
+ * imported by supabase-client.ts and the t-573/t-t614 suites) and the
+ * menu builders (`electron/menu-builders.cts` — imported by the t-577
+ * suite). Vite's built-in esbuild transform only covers `.ts`/`.mts`/
+ * `.tsx`, so this plugin type-strips `.cts` to ESM explicitly. Without
+ * it the renderer build fails to parse the TypeScript source.
+ *
+ * Exported for vitest.config.ts (the standalone Vitest config) so both
+ * pipelines digest the shared sources identically.
+ */
+export function ctsSourcePlugin(): Plugin {
+  return {
+    name: "cts-source-esm-transform",
+    enforce: "pre",
+    async transform(code, id) {
+      const cleanId = id.split("?")[0];
+      if (!cleanId.endsWith(".cts")) return undefined;
+      const result = await transformWithEsbuild(code, cleanId, {
+        loader: "ts",
+        format: "esm",
+        target: "es2022",
+        sourcemap: true,
+      });
+      // Serialized map: esbuild's SourceMap (sourcesContent: (string|null)[])
+      // is not assignable to rollup's SourceMapInput — the JSON string form
+      // is the lossless, type-clean bridge.
+      return { code: result.code, map: result.map ? JSON.stringify(result.map) : undefined };
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     stripCrossoriginPlugin(),
+    ctsSourcePlugin(),
   ],
   base: "./",
   resolve: {

@@ -66,7 +66,7 @@ interface ElImtiyazDesktopApi {
    * ONE init-time snapshot (validated + fail-closed by the main-process
    * service — null outside Electron); `get/write/clear` are the management
    * surface. The structural mirror below is pinned to the wire contract
-   * (`electron/backend-profile-contract.ts`) by the t-573 suite's
+   * (`electron/backend-profile-contract.cts`) by the t-573 suite's
    * expectTypeOf equality gate — drift between the two is a tsc error.
    */
   backendProfile: {
@@ -91,7 +91,7 @@ interface ElImtiyazDesktopApi {
 }
 
 /** T-573: the vite-env mirror of the wire contract's BackendProfileSnapshot
- * (electron/backend-profile-contract.ts) — pinned by the t-573 suite. */
+ * (electron/backend-profile-contract.cts) — pinned by the t-573 suite. */
 interface BackendProfileSnapshotMirror {
   profile: {
     profileVersion: 1;

@@ -17,7 +17,7 @@
  *
  * THIS FILE OWNS THE FS + ELECTRON (it is imported only by `main.cts` and
  * compiled by electron/tsconfig.json). All logic that needs testing lives
- * in the pure contract module (`backend-profile-contract.ts`).
+ * in the pure contract module (`backend-profile-contract.cts`).
  */
 import { app, ipcMain } from "electron";
 import * as fsSync from "node:fs";
@@ -28,7 +28,7 @@ import {
   validateBackendProfile,
   type BackendProfileSnapshot,
   type BackendProfileWriteResult,
-} from "./backend-profile-contract";
+} from "./backend-profile-contract.cjs";
 
 export const BACKEND_PROFILE_FILE_NAME = "backend-profile.json";
 

@@ -17,7 +17,7 @@
  * lock, and re-pointing is the whole point.
  *
  * PURE MODULE (no side effects) so the t-573 suite can unit-test the
- * resolution matrix. The values mirror `electron/backend-profile-contract.ts`'s
+ * resolution matrix. The values mirror `electron/backend-profile-contract.cts`'s
  * factory defaults (build-time mirror: plain node cannot import TS — kept
  * honest by the contract tests pinning the TS side and this mirror being
  * doc-noted).

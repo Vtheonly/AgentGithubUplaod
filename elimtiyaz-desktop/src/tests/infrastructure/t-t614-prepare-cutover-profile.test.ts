@@ -24,7 +24,7 @@ import {
   buildBackendProfileSnapshot,
   deriveProjectRef,
   FACTORY_DEFAULT_SUPABASE_URL,
-} from "../../../electron/backend-profile-contract";
+} from "../../../electron/backend-profile-contract.cts";
 
 const NEW_PROJECT_URL = "https://gvuvibcsfjhwcjikgxql.supabase.co";
 const OLD_PROJECT_URL = "https://vebfehrpzajhstyhinnw.supabase.co";

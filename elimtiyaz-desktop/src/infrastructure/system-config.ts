@@ -39,7 +39,7 @@ import { Errors } from "../core/app-error";
 // `%20/rest/v1/…` request class). Pure string handling; no SDK state.
 import { normalizeSupabaseUrl } from "./supabase/backend-access";
 // T-573: the backend-kind vocabulary (the profile switcher's kinds).
-import type { BackendKind } from "../../electron/backend-profile-contract";
+import type { BackendKind } from "../../electron/backend-profile-contract.cts";
 
 // ============================================================================
 // Types
