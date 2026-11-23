@@ -131,7 +131,11 @@ export default defineConfig({
           "vendor-excel": ["exceljs"],
           "vendor-i18n": ["i18next", "react-i18next"],
           "vendor-forms": ["react-hook-form", "zod", "@hookform/resolvers"],
-          "vendor-query": ["@tanstack/react-query", "zustand"],
+          // BUG-054 follow-up: react-query PRUNED here too — T-592 removed the
+          // dependency (the one-coherent-caching decision) but missed this
+          // manualChunks member; rollup resolves manualChunks entries even
+          // when NOTHING imports them, so a fresh clone could not build.
+          "vendor-query": ["zustand"],
           "vendor-cmdk": ["cmdk"],
         },
       },
