@@ -131,10 +131,19 @@ verify_jwt = false
 # minutes; a parked run resumes within ~10 minutes of its resume_after.
 cron = "*/10 * * * *"
 
+[functions.workflow-scheduled-runner]
+verify_jwt = false
+# T-584: fires DEPLOYED scheduled workflows (calendar_cron_event / schedule
+# trigger roots) whose 5-field cron is due in the (now-10min, now] window.
+# Every 10 minutes; a cron instant fires within ~10 minutes of its due time.
+cron = "*/10 * * * *"
+
 # ============================================================================
 # ARCH-046 (T-registry): the config.toml ↔ supabase/functions/ reconciliation.
-# The 15 function directories + _shared (S27 re-check) now map 1:1 to the
-# functions table entries: the two STALE entries were
+# The 15 function directories + _shared (S27 re-check) mapped 1:1; T-584
+# added the 16th directory (workflow-scheduled-runner) WITH its entry —
+# the 1:1 invariant holds (16 directories + _shared ⇄ 16 entries): the two
+# STALE entries were
 # deleted (generate-receipt-pdf, export-data — no
 # directory exists), and the three code-present directories gained their
 # entries (create-user-account / delete-user-account / send-push-notification).

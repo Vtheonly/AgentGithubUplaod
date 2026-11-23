@@ -280,3 +280,35 @@ Provisioned through the canonical `create-user-account` EF (super_admin caller, 
 **Password policy (SEC-100 — no plaintext staff passwords in any repo file, log, or doc):** the initial passwords were generated at creation (16-char, four classes) and returned ONCE by the EF; every account's password was then rotated through the user's OWN JWT (the exact desktop changePassword path, `PUT /auth/v1/user`) with the new credential sign-in-verified per account. The **final working credentials were delivered to the owner out-of-band** (the 171st session's report — 2026-10-13) and are NOT recorded here. Each employee changes their password at first sign-in (Profile → Changer le mot de passe — the T-003 path, live-proven per account in the T-527 E2E D-section). A lost staff password is re-set through the GoTrue admin API (never the owner-pinned admin credential — §15.23) or by deleting + re-provisioning through the EF (the 409 idempotency guards make re-runs safe).
 
 **THE 2026-10-14 RESET EVENT (T-535 / OPS-323 — the recovery path executed, live-verified):** the owner lost the out-of-band finals and directed a reset of exactly the three unrecoverable accounts (the values exist only as one-way 60-char bcrypt hashes — unrecoverable by design, which the census proved live). All three (`adam.cherif@` / `mohamed.haddad@` / `samir.khelifi@`) were re-set through the GoTrue admin API (`PUT /auth/v1/admin/users/{id}`) with fresh 16-char four-class values; each reset was sign-in-verified immediately (password grant 200 ×3 — Supabase auto-revokes the user's sessions on change, the same semantics as the desktop changePassword path). The new values were delivered to the owner **in the 179th session's chat only** (his explicit instruction — "this time give them to me"), and are NOT recorded here or anywhere in the repo. The owner-pinned admin credential was NOT touched (re-probed unchanged, 200); the two Google-OAuth identities (`merselfares2@gmail.com`, `digitalforgedv@gmail.com` — provider-verified live) carry no Supabase password and were NOT touched. The full auth census (2026-10-14, live): 6 users — the admin (email), the three staff (email), the two Google identities. The two dormant `t464-parent-*@test.el-imtiyaz.dz` profile rows carry no auth users (T-464 residue, untouched).
+
+## 10. The scheduled automation runner — owner deployment & secrets (T-584, 2026-11-24)
+
+The `workflow-scheduled-runner` Edge Function (T-584 / ROADMAP 5.16) fires every DEPLOYED workflow whose `calendar_cron_event`/`schedule` trigger root's 5-field cron is due. It is the third workflow run path (after `workflow-execute` for manual/event runs and `workflow-resume-scheduler` for parked delays) and completes the automation triangle: event triggers (roll-call absences, payments), manual runs, and NOW the schedule family.
+
+**What the owner must deploy on the TARGET project (`gvuvibcsfjhwcjikgxql`):**
+
+```bash
+supabase functions deploy workflow-scheduled-runner \
+  --project-ref gvuvibcsfjhwcjikgxql --no-verify-jwt
+```
+
+The `*/10 * * * *` schedule comes from the committed `supabase/config.toml` `[functions.workflow-scheduled-runner]` entry (the platform's managed scheduler reads it at deploy; the runner window is (now−10 min, now] — a cron instant fires within ~10 minutes of its due time).
+
+**Secrets (NONE new for the managed path):**
+
+| Secret | Needed? | Why |
+|---|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEY` | platform-injected | The managed function scheduler injects the service credential with each invocation — the `cron-auth` gate accepts it. No owner action. |
+| `CRON_SECRET` | ONLY for external schedulers | If the owner prefers `pg_cron` + `pg_net` (or any external scheduler) instead of the managed `config.toml` cron, THAT caller must send `Authorization: Bearer <CRON_SECRET>` — set once with `supabase secrets set CRON_SECRET=<value> --project-ref gvuvibcsfjhwcjikgxql` and pass the same value in every `http_post` call. Never place the service_role/sb_secret value in any client repo. |
+
+**Operational verification after deploy (the owner's one-liner):**
+
+```bash
+curl -s -X POST "https://gvuvibcsfjhwcjikgxql.supabase.co/functions/v1/workflow-scheduled-runner" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" -d '{"dry_run": true}'
+```
+
+The dry-run response enumerates published scheduled workflows, reports `due` for the current window, and simulates each through the engine WITHOUT writing `workflow_runs` rows or consuming daily caps (the `workflow-execute` T-229 dry-run contract). Expected on a fresh tenant: `{"due":0,...}` — deploy the seeded « Clôture Trimestrielle » template from the desktop (Workflow → Modèles) to see `due` move when its quarterly cron (`0 18 1 1,4,7 *`) is in window.
+
+**The working example (T-584's acceptance set):** the seeded « Clôture Trimestrielle » template (scheduled, quarterly cron) + the roll-call `absence_limit_exceeded` bridge (event) + this secrets section. The mock-mode end-to-end is pinned by `src/tests/infrastructure/t-584-scheduled-runner.test.ts` (20 tests: the cron evaluator, the disjoint-window double-fire guard, the selection core, the mock tick firing the deployed template through the real repository, and the deployment wiring source pins).

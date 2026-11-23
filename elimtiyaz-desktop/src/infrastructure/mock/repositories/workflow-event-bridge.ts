@@ -39,6 +39,14 @@ import type {
 } from "../../../domain/model/workflow";
 import type { Student } from "../../../domain/model/student";
 import { parentDisplayName } from "../../../domain/model/parent";
+// T-584: the SHARED pure cron evaluator — ONE implementation consumed by
+// the Edge Function (supabase/functions/workflow-scheduled-runner/) and
+// this mock twin (the `_shared/cron-auth.ts` cross-runtime precedent: the
+// module is Deno-free so both runtimes digest the same source).
+import {
+  parseCronExpression,
+  cronFiresInWindow,
+} from "../../../../supabase/functions/workflow-scheduled-runner/cron.ts";
 
 /* ------------------------------------------------------------------ */
 /*  Entity-context builder (REAL data from the shared store)          */
@@ -452,4 +460,94 @@ export function dispatchPaymentOverdue(
     targetParentId: parentId,
     triggerType: "automatic",
   });
+}
+
+/* ------------------------------------------------------------------ */
+/*  The scheduled tick (T-584)                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * T-584 — one RUNNER TICK for scheduled workflows (mock mode): fire every
+ * DEPLOYED workflow whose calendar_cron_event/schedule trigger root's cron
+ * is due inside the (now − 10 min, now] window.
+ *
+ * This is the desktop-mock twin of the `workflow-scheduled-runner` Edge
+ * Function, driven by the SAME pure core — the cron evaluator
+ * (`supabase/functions/workflow-scheduled-runner/cron.ts`, imported here;
+ * the `_shared/cron-auth.ts` cross-runtime precedent) and the identical
+ * window semantics (adjacent ticks are disjoint — a cron instant fires at
+ * most once). Execution rides the SAME dispatchWorkflowTrigger path as the
+ * event bridges: dry-run engine → real side effects → WorkflowRun + audit.
+ *
+ * A scheduled run carries NO entity context (the cron fired, not an
+ * event): the context is the defaultConditionContext + the schedule facts
+ * (now/window/cron) — mirroring the EF's EngineContext.
+ *
+ * Returns the tick report (the EF's summary shape, mock-side): which
+ * workflows fired and which were skipped, with reasons. Fail-safe per
+ * workflow (errors audit-logged, never thrown) — a tick never breaks the
+ * caller. T-601 (LF-3) will mount this on the main-process scheduler.
+ */
+export async function dispatchScheduledTick(
+  now: Date = new Date(),
+): Promise<{
+  due: string[];
+  fired: readonly WorkflowRun[];
+  skipped: Array<{ id: string; name: string; reason: string }>;
+}> {
+  // The shared core (statically imported at the top — ONE implementation,
+  // no parallel copy).
+  const endMs = now.getTime();
+  const startMs = endMs - 10 * 60 * 1000; // RUNNER_TICK_MS — the EF's cadence
+
+  const fired: WorkflowRun[] = [];
+  const dueIds: string[] = [];
+  const skipped: Array<{ id: string; name: string; reason: string }> = [];
+
+  const candidates = store.workflows.filter((wf) => wf.status === "deployed");
+  for (const wf of candidates) {
+    const triggerNode = wf.nodes.find(
+      (n) => n.type === "trigger" && (n.subtype === "calendar_cron_event" || n.subtype === "schedule"),
+    );
+    if (!triggerNode) continue; // not a scheduled workflow — its bridge owns it
+    const cronExpr = String(triggerNode.config.cron ?? "").trim();
+    if (!cronExpr) {
+      skipped.push({ id: wf.id, name: wf.name, reason: "trigger node carries no cron expression" });
+      continue;
+    }
+    const parsed = parseCronExpression(cronExpr);
+    if (!parsed.ok) {
+      skipped.push({ id: wf.id, name: wf.name, reason: `invalid cron '${cronExpr}': ${parsed.error}` });
+      continue;
+    }
+    if (!cronFiresInWindow(parsed.cron, { startMs, endMs })) continue;
+
+    // DUE — fire through the ONE dispatch path.
+    dueIds.push(wf.id);
+    const context = defaultConditionContext(now);
+    (context.workflow as Record<string, unknown>) = {
+      ...((context.workflow as Record<string, unknown>) ?? {}),
+      now: now.toISOString(),
+      window_start: new Date(startMs).toISOString(),
+      window_end: new Date(endMs).toISOString(),
+      cron: cronExpr,
+      id: wf.id,
+      name: wf.name,
+    };
+    try {
+      const runs = await dispatchWorkflowTrigger({
+        triggerSubtype: triggerNode.subtype,
+        context,
+        actorId: "system",
+        actorName: "Système (planificateur — T-584)",
+        targetParentId: null,
+        triggerType: "scheduled",
+      });
+      fired.push(...runs);
+    } catch (err) {
+      skipped.push({ id: wf.id, name: wf.name, reason: `fire failed: ${String(err)}` });
+    }
+  }
+
+  return { due: dueIds, fired, skipped };
 }

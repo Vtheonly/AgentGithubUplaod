@@ -239,7 +239,15 @@ const termClose: WorkflowTemplate = {
       "Fin de trimestre (cron)",
       60,
       200,
-      { cron: "0 18 * * 12", description: "Fin de trimestre à 18:00" },
+      // T-584 DISCOVERY: the seeded value "0 18 * * 12" was an INVALID
+      // cron (12 in the day-of-week field — the range is 0-7; the author
+      // meant December). The scheduled runner's evaluator rejects it, so
+      // the working example could never fire. Corrected to the quarterly
+      // reading the name demands: 18:00 on the 1st of the month FOLLOWING
+      // each term (T1 Sep–Dec → Jan 1, T2 Jan–Mar → Apr 1, T3 Apr–Jun →
+      // Jul 1 — the term-window convention of workflow-event-bridge's
+      // currentTermWindow).
+      { cron: "0 18 1 1,4,7 *", description: "Clôture trimestrielle — le 1er du mois suivant chaque trimestre à 18:00" },
     );
     const check = makeNode(
       "student_status_match",
