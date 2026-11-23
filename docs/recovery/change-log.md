@@ -5126,3 +5126,12 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 **Standing notes:** the owner must REBUILD the desktop app from main to clear the pasted runtime errors (stale build); the broader white redesign is explicitly fenced OUT of this task by the owner; the concurrent 180th-session agent's T-541..T-545 queue is unaffected.
 
 **Next:** the owner-gated T-541 (GPS Tournées removal) per the concurrent registration; the T-532 phases 4-6 remain queued behind the owner's mandate.
+
+## Session 48 (2026-11-23) — the census answer + the E6 wave (4 cards) + the S47 test gap closed
+
+- **E6.1** `2dd11278` — the named z-scale (z-tooltip 70 / z-toast 100 / z-splash 200) + the custom slide keyframes deleted (the ONE animation family = tailwindcss-animate). t-e61 8/8.
+- **E6.2** `e929068d` — AutoFormModal + Wizard render through ModalShell (the 88vh cap; props unchanged). primitives 18/18.
+- **E6.3** `6e631177` — EntityDetailDrawer renders through ModalShell's drawer preset (visual identity kept). primitives 19/19 + t-405 7/7.
+- **E6.6** `612727a5`+`7f693c79` — BUG-041 (UnifiedModalProps extends the Radix passthrough — data-testid/id/aria type-valid AND forwarded) + DUP-034 (the bare confirm() → ConfirmModal) + ARCH-018 (the dead useModal/ModalHost/ModalProvider stack deleted). t-e66 10/10.
+- **t-471** `3ca4cc15` — the S47 gap closed: 11 direct tests on generateFamilyStatementPdf (geometry + traceable content). The S47 verification re-run at HEAD: inspector 18/18, real-excel 8/8 (the 6 real findings reproduced). The owner's PDF regenerated from the real workbook (download/historique-client-ouaged.pdf; harness at /home/z/my-project/scripts/gen-family-statement.ts).
+- **Census:** 32 cards solved since G0 (S28–45) + S46 + S47 = **34 pre-session; 38 after this session's 4 E-cards; 85 open**.

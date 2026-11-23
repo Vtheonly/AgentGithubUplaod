@@ -7120,6 +7120,22 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Contract (per EXECUTION-PLAN §4 E6.10):** NEW `dashboards/role-dashboard-template.tsx` — the ONE role-dashboard page template: the header label resolves through the CANONICAL core `ROLE_LABELS_FR` (§6 reuse-first — no second map; the administrator dashboard's inline ternary chain retired, its 'Agent de Support' was a non-canonical third variant of support_staff — §15.3 one-wording, aligned to 'Personnel de Soutien') + the actor resolution (prop → session display name → the role's dashboard default; the three admin roles share the 'Administrateur' fallback). All SEVEN dashboards migrated (administrator/buyer/driver/manager/teacher/warehouse-worker/worker). The rendering shell stays RoleDashboardLayout — the template is the wiring layer, not a parallel skeleton (§6).
 
+
+## E6.1 — The named z-scale + the ONE animation family (ROADMAP Phase 5 / 5.2, UI-U1) — RESOLVED-TESTED (Session 48, 2026-11-23)
+**Status:** RESOLVED-TESTED (Session 48 — commit `2dd11278`; the t-e61 suite 8/8: the named-scale regex + the 4-surface no-literal scan + the mounted tooltip/toast/dialog/drawer token classes + the config no-custom-keyframes + the production-source retired-utility walk; the t-559 + t-e26-bug025 neighborhoods green; tsc 0.)
+
+## E6.2 — Wizard + AutoFormModal → ModalShell (ROADMAP Phase 5 / 5.3, UI-U2) — RESOLVED-TESTED (Session 48, 2026-11-23)
+**Status:** RESOLVED-TESTED (Session 48 — commit `e929068d`; primitives 18/18 incl. the two E6.2 pins — the 88vh flex-column + close button + width passthrough on both primitives; t-346 3/3; tsc 0. Props unchanged — consumers untouched.)
+
+## E6.3 — EntityDetailDrawer → ModalShell preset (ROADMAP Phase 5 / 5.4, UI-U3) — RESOLVED-TESTED (Session 48, 2026-11-23)
+**Status:** RESOLVED-TESTED (Session 48 — commit `6e631177`; primitives 19/19 incl. the E6.3 pin — end-anchored/h-full/slide verbs/flex-col/responsive scale + the shell's scrim-60 source contract; t-405 7/7 — a real drawer consumer; tsc 0.)
+
+## E6.6 — Dead modal stack + header slot + T-576 fold (ROADMAP Phase 5 / 5.7) — RESOLVED-TESTED (Session 48, 2026-11-23)
+**Status:** RESOLVED-TESTED (Session 48 — commits `612727a5` + `7f693c79`; the t-e66 suite 10/10: BUG-041 data-testid/id/aria reach the dialog + the shell's classes survive; DUP-034 no bare confirm() in any production tsx + the ConfirmModal flow wired; ARCH-018 the files gone + app.tsx clean + zero references + ConfigurationTab still mounts; the t-560/t-488/t-382 neighborhoods 32/32; tsc 0. BUG-025's header slot was already E2.6-fixed at S45 — verified still green.)
+
+## T-471 — The S47 family-statement test gap closed — RESOLVED-TESTED (Session 48, 2026-11-23)
+**Status:** RESOLVED-TESTED (Session 48 — commit `3ca4cc15`; the t-471 suite 11/11: GEOMETRY — 0 margin breaches, the fee-table's two amount columns each share ONE right edge, the footer gap ≥ 4pt, 9 children flow onto continuation pages with the last rendered; CONTENT — the source ref, the Excel row, the devis formula verbatim, transport destination+tranches, full payment descriptions, the spelled-out balance reconstruction re-computed independently, the four-way verdict labels + evidence, the unavailable list. The S47 verification re-run at HEAD: inspector 18/18 + real-excel 8/8.)
+
 ## T-596 — The dashboard overhaul UX (ROADMAP Phase 5 / 5.21): the numbers-equal acceptance gate + the composition seams (L)
 
 **Problem IDs:** ARCH-040 · BUG-059 · D-U1..U5 · BUG-075 · DUP-027 · UI-U7a/U7b.
