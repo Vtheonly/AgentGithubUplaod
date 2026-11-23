@@ -38,11 +38,17 @@ let PAYMENT: Payment = makePayment({});
 const STABLE_REPOS = {
   payments: {
     observeById: () => obs(PAYMENT),
+    observeByParent: () => obs([PAYMENT]),
     allocationsForPayment: vi.fn(() => Promise.resolve({ ok: true, value: [] })),
   },
   ledger: { observeByParent: () => obs([]) },
   parents: { observe: () => obs([{ id: "par-1", firstName: "A", lastName: "B", code: "P-1", phone: "0555" }]) },
   students: { observe: () => obs([]) },
+  // T-579 (Session 52, the PDF half): the drawer now also observes the family
+  // context (installments / payment history / academic years) for the
+  // SITUATION DE LA FAMILLE block + the every-detail receipt download.
+  installments: { observeByParent: () => obs([]) },
+  academicYears: { observeAll: () => obs([]) },
 };
 
 vi.mock("../../app/providers/repository-provider", () => ({ useRepositories: () => STABLE_REPOS }));

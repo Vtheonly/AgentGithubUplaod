@@ -18,8 +18,13 @@
  *      payment's receiptNumber is one allocation).
  *   3. LAST RESORT: the payment's own category + amount as a single line.
  *
- * It reads the payment's `expectedAmount`, `excessAmount`, and
- * `excessRemark` fields (added by migration 0033) for the totals block.
+ * T-579 (Session 52): the fetch chain now lives in `payment-coverage.ts`
+ * (`resolvePaymentAllocations`) — this card, the drawers, the tabs, the modal
+ * and the PDF call sites share that ONE implementation. When the caller
+ * supplies the family context (installments + familyPayments [+ academicYears]),
+ * the card additionally renders the SITUATION DE LA FAMILLE block from
+ * `buildPaymentCoverage` — the same totals the receipt/statement PDFs draw
+ * (paid-to-date, Prix justifié, reste dû, année scolaire).
  */
 import { useRepositories } from "../../app/providers/repository-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "../../shared/ui/card";
@@ -29,68 +34,64 @@ import { formatRelative } from "../../core/format/date";
 import {
   PAYMENT_METHOD_LABELS_FR,
   PAYMENT_STATUS_LABELS_FR,
-  PAYMENT_CATEGORY_LABELS_FR,
   paymentCategoryLabelFr,
   type Payment,
+  type Installment,
   type PaymentAllocation,
 } from "../../domain/model/payment";
+import type { AcademicYear } from "../../domain/model/academic";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { useEffect, useState } from "react";
+import {
+  buildPaymentCoverage,
+  resolvePaymentAllocations,
+  type PaymentCoverage,
+} from "../../domain/calc/payment/payment-coverage";
 
-export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
+export interface PaymentBreakdownCardProps {
+  payment: Payment;
+  /** The family's installments — enables the family-situation totals block. */
+  installments?: readonly Installment[];
+  /** The family's full payment history — enables paid-to-date / reste dû. */
+  familyPayments?: readonly Payment[];
+  /** The academic years list — resolves the année scolaire label. */
+  academicYears?: readonly AcademicYear[];
+}
+
+export function PaymentBreakdownCard({
+  payment,
+  installments,
+  familyPayments,
+  academicYears,
+}: PaymentBreakdownCardProps) {
   const repos = useRepositories();
   const [allocations, setAllocations] = useState<PaymentAllocation[]>([]);
 
-  // T-330: the canonical chain — payment_allocations table FIRST (the
-  // server waterfall record), the ledger receipt-number join as fallback
-  // (legacy payments / mock mode), single-category line last.
+  // T-330 → T-579: the canonical chain (payment_allocations table FIRST, the
+  // ledger receipt-number join as fallback, single-category line last) — now
+  // the SHARED resolvePaymentAllocations (payment-coverage.ts).
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        // 1. PRIMARY: the canonical table read (Supabase mode; the mock
-        //    repository derives the same lines from its own ledger).
-        if (typeof repos.payments.allocationsForPayment === "function") {
-          const result = await repos.payments.allocationsForPayment(payment.id);
-          if (!cancelled && result.ok && result.value.length > 0) {
-            setAllocations([...result.value]);
-            return;
-          }
-        }
-        // 2. FALLBACK: ledger entries for the parent filtered to this
-        //    payment's receiptNumber (payment-type entries are allocations).
-        const ledgerObs = repos.ledger.observeByParent(payment.parentId);
-        const allEntries = typeof ledgerObs.get === "function" ? ledgerObs.get() : [];
-        const matching = allEntries.filter(
-          (e) =>
-            e.receiptNumber === payment.receiptNumber &&
-            e.type === "payment",
-        );
-        const built: PaymentAllocation[] = matching.map((e) => ({
-          id: `${payment.id}-${e.id}`,
-          paymentId: payment.id,
-          chargeId: null,
-          installmentId: null,
-          category: e.category,
-          allocatedAmount: Math.abs(e.amount),
-          label: (e.metadata?.field as string) ?? null,
-          createdAt: e.at,
-        }));
-        if (!cancelled) setAllocations(built);
-      } catch {
-        if (!cancelled) setAllocations([]);
-      }
-    })();
+    void resolvePaymentAllocations(repos, payment).then((rows) => {
+      if (!cancelled) setAllocations([...rows]);
+    });
     return () => {
       cancelled = true;
     };
-  }, [payment.id, payment.parentId, payment.receiptNumber, repos.ledger, repos.payments]);
+  }, [payment.id, payment.parentId, payment.receiptNumber, repos]);
 
   const expectedTotal = payment.expectedAmount ?? 0;
   const paidTotal = payment.amount;
   const excess = payment.excessAmount ?? (expectedTotal > 0 ? Math.max(0, paidTotal - expectedTotal) : 0);
   const hasExcess = excess > 0;
   const hasBreakdown = allocations.length > 0 || expectedTotal > 0;
+
+  // T-579: the family-situation view model — only when the caller supplied
+  // BOTH the installments and the family history (the totals need both).
+  const situation: PaymentCoverage | null =
+    installments && familyPayments
+      ? buildPaymentCoverage(payment, allocations, installments, { academicYears, familyPayments })
+      : null;
 
   return (
     <Card className="w-full">
@@ -157,6 +158,46 @@ export function PaymentBreakdownCard({ payment }: { payment: Payment }) {
                   <span className="font-mono text-status-success">{formatDzdPlain(paidTotal)}</span>
                 </div>
               </>
+            )}
+          </div>
+        )}
+
+        {/* T-579 — SITUATION DE LA FAMILLE: the same totals the receipt PDF
+            draws (buildPaymentCoverage — ONE builder for every surface). */}
+        {situation && (
+          <div className="rounded-md border border-border p-3 space-y-1.5 bg-muted/20">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+              Situation de la famille
+            </p>
+            {situation.totals.paidToDate !== null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Payé à ce jour (historique)</span>
+                <span className="font-mono">{formatDzdPlain(situation.totals.paidToDate)}</span>
+              </div>
+            )}
+            {situation.totals.totalJustified > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Prix justifié (net)</span>
+                <span className="font-mono">{formatDzdPlain(situation.totals.totalJustified)}</span>
+              </div>
+            )}
+            {situation.totals.remaining !== null && (
+              <div className="border-t border-border mt-1.5 pt-1.5 flex items-center justify-between text-xs font-semibold">
+                <span>Reste dû</span>
+                <span
+                  className={`font-mono ${
+                    situation.totals.remaining > 0 ? "text-status-danger" : "text-status-success"
+                  }`}
+                >
+                  {formatDzdPlain(situation.totals.remaining)}
+                </span>
+              </div>
+            )}
+            {situation.academicYearLabel && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Année scolaire</span>
+                <span className="font-mono">{situation.academicYearLabel}</span>
+              </div>
             )}
           </div>
         )}

@@ -38,6 +38,10 @@ import {
   generateAccountStatementPdf,
   downloadPdf,
 } from "../../infrastructure/receipt-pdf";
+import {
+  resolvePaymentAllocations,
+  resolveAllocationsForPayments,
+} from "../../domain/calc/payment/payment-coverage";
 import type { Parent } from "../../domain/model";
 import { parentDisplayName } from "../../domain/model/parent";
 
@@ -63,7 +67,27 @@ export function ReceiptsTab() {
     setDownloadingId(payment.id);
     try {
       const parent = parents.find((p) => p.id === payment.parentId) ?? null;
-      const bytes = await generatePaymentReceiptPdf(payment, parent);
+      // T-579 (the every-detail contract): the re-download carries the SAME
+      // coverage as the fresh collect — allocations (canonical chain), the
+      // family's installments/payments and the academic years via the shared
+      // repositories' warm observables. Failure degrades to the pre-T-579
+      // receipt layout (non-fatal).
+      let coverage;
+      try {
+        const allocations = await resolvePaymentAllocations(repos, payment);
+        const installments = repos.installments.observeByParent(payment.parentId).get() ?? [];
+        const familyPayments = repos.payments.observeByParent(payment.parentId).get() ?? [];
+        const academicYears = repos.academicYears.observeAll().get() ?? [];
+        coverage = {
+          allocations,
+          installments: installments.length > 0 ? installments : undefined,
+          familyPayments: familyPayments.length > 0 ? familyPayments : undefined,
+          academicYears: academicYears.length > 0 ? academicYears : undefined,
+        };
+      } catch {
+        coverage = undefined;
+      }
+      const bytes = await generatePaymentReceiptPdf(payment, parent, coverage);
       downloadPdf(bytes, `${payment.receiptNumber}.pdf`);
       toast.showSuccess("Reçu téléchargé", `${payment.receiptNumber}.pdf généré.`);
     } catch (e) {
@@ -87,7 +111,29 @@ export function ReceiptsTab() {
         toast.showInfo("Aucun paiement", "Ce parent n'a aucun paiement à inclure.");
         return;
       }
-      const bytes = await generateAccountStatementPdf(parentPayments, parent);
+      // T-579: the every-detail statement — per-payment allocation sub-rows
+      // + the Prix justifié / Reste dû synthèse. The `observeAllocations`
+      // snapshot short-circuits the canonical chain for covered payments.
+      // Failure degrades to the pre-T-579 statement (non-fatal).
+      let coverage;
+      try {
+        const preloaded = repos.payments.observeAllocations?.().get() ?? [];
+        const allocationsByPayment = await resolveAllocationsForPayments(
+          repos,
+          parentPayments,
+          preloaded,
+        );
+        const installments = repos.installments.observeByParent(statementParentId).get() ?? [];
+        const academicYears = repos.academicYears.observeAll().get() ?? [];
+        coverage = {
+          allocationsByPayment,
+          installments: installments.length > 0 ? installments : undefined,
+          academicYears: academicYears.length > 0 ? academicYears : undefined,
+        };
+      } catch {
+        coverage = undefined;
+      }
+      const bytes = await generateAccountStatementPdf(parentPayments, parent, coverage);
       const stamp = new Date().toISOString().slice(0, 10);
       downloadPdf(bytes, `releve-${parent.code}-${stamp}.pdf`);
       toast.showSuccess("Relevé téléchargé", `${parentPayments.length} transactions incluses.`);

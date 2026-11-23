@@ -123,6 +123,7 @@ import {
   generateAccountStatementPdf,
   downloadPdf,
 } from "../../infrastructure/receipt-pdf";
+import { resolveAllocationsForPayments } from "../../domain/calc/payment/payment-coverage";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
 import { TooltipHint } from "../../shared/ui/tooltip";
@@ -273,7 +274,27 @@ export function ParentDetailDrawer({
       return;
     }
     try {
-      const pdfBytes = await generateAccountStatementPdf(payments, p);
+      // T-579 (the every-detail contract): the statement's coverage input —
+      // per-payment allocation sub-rows + the Prix justifié / Reste dû
+      // synthèse. The preloaded `allocations` observable short-circuits the
+      // canonical chain for the payments it covers. Failure degrades to the
+      // pre-T-579 statement layout (non-fatal).
+      let coverage;
+      try {
+        const allocationsByPayment = await resolveAllocationsForPayments(
+          repos,
+          payments,
+          allocations,
+        );
+        coverage = {
+          allocationsByPayment,
+          installments: installments.length > 0 ? installments : undefined,
+          academicYears: academicYears.length > 0 ? academicYears : undefined,
+        };
+      } catch {
+        coverage = undefined;
+      }
+      const pdfBytes = await generateAccountStatementPdf(payments, p, coverage);
       const fileName = `releve-compte-${p.code}-${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadPdf(pdfBytes, fileName);
       toast.showSuccess("Relevé téléchargé", fileName);

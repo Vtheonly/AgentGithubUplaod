@@ -35,6 +35,11 @@ const SRC = join(__dirname, "../../..");
 const read = (rel: string): string => readFileSync(join(SRC, rel), "utf8");
 
 const CARD = read("features/financials/payment-breakdown-card.tsx");
+// T-579 (Session 52): the canonical precedence chain moved OUT of the card
+// into the SHARED domain module (one implementation — the card, the drawers,
+// the tabs, the modal and both PDF generators call it). The source guards
+// below pin the chain WHERE IT LIVES now.
+const COVERAGE = read("domain/calc/payment/payment-coverage.ts");
 const SUPABASE_REPO = read(
   "infrastructure/supabase/repositories/supabase-shared-repositories.ts",
 );
@@ -140,13 +145,17 @@ describe("T-330 — the Supabase row mapping (pure transformation)", () => {
 
 describe("T-330 — PaymentBreakdownCard applies the canonical precedence", () => {
   it("table-first, ledger fallback, cancellation-safe", () => {
-    expect(CARD).toContain("repos.payments.allocationsForPayment(payment.id)");
-    // Table rows win when present…
-    expect(CARD).toMatch(/result\.ok && result\.value\.length > 0/);
+    // T-579: the card DELEGATES to the shared `resolvePaymentAllocations`
+    // (payment-coverage.ts) — the ONE chain implementation.
+    expect(CARD).toContain("resolvePaymentAllocations(repos, payment)");
+    // …the chain itself (the shared module) keeps the canonical order:
+    // table rows win when present…
+    expect(COVERAGE).toContain("repos.payments.allocationsForPayment(payment.id)");
+    expect(COVERAGE).toMatch(/result\.ok && result\.value\.length > 0/);
     // …the ledger join remains the fallback…
-    expect(CARD).toMatch(/e\.receiptNumber === payment\.receiptNumber/);
-    expect(CARD).toMatch(/Math\.abs\(e\.amount\)/);
-    // …and the effect is cancellation-safe (no set-after-unmount).
+    expect(COVERAGE).toMatch(/e\.receiptNumber === payment\.receiptNumber/);
+    expect(COVERAGE).toMatch(/Math\.abs\(e\.amount\)/);
+    // …and the card's effect is cancellation-safe (no set-after-unmount).
     expect(CARD).toContain("let cancelled = false");
   });
 

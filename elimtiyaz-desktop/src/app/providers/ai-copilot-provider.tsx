@@ -37,6 +37,7 @@ import {
   generatePaymentPlanPdf,
   downloadPdf,
 } from "../../infrastructure/receipt-pdf";
+import { resolveAllocationsForPayments } from "../../domain/calc/payment/payment-coverage";
 import { buildXlsxBuffer, downloadBlob } from "../../infrastructure/excel/export-engine";
 import { useToast } from "./toast-provider";
 import { Permission } from "../../core/rbac/permissions";
@@ -302,7 +303,29 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
             const parent = repos.parents.observeById(parentId).get();
             if (!parent) throw new Error("Parent introuvable — les données ont changé depuis la génération.");
             const payments = repos.payments.observeByParent(parentId).get();
-            const bytes = await generateAccountStatementPdf(payments, parent);
+            // T-579: the AI-generated statement carries the SAME every-detail
+            // coverage (allocation sub-rows + Prix justifié / Reste dû) as
+            // the operator surfaces. Failure degrades to the pre-T-579
+            // statement (non-fatal).
+            let coverage;
+            try {
+              const preloaded = repos.payments.observeAllocations?.().get() ?? [];
+              const allocationsByPayment = await resolveAllocationsForPayments(
+                repos,
+                payments,
+                preloaded,
+              );
+              const installments = repos.installments.observeByParent(parentId).get() ?? [];
+              const academicYears = repos.academicYears.observeAll().get() ?? [];
+              coverage = {
+                allocationsByPayment,
+                installments: installments.length > 0 ? installments : undefined,
+                academicYears: academicYears.length > 0 ? academicYears : undefined,
+              };
+            } catch {
+              coverage = undefined;
+            }
+            const bytes = await generateAccountStatementPdf(payments, parent, coverage);
             downloadPdf(bytes, artifact.fileName);
             toast.showSuccess("Relevé téléchargé", artifact.fileName);
             return;

@@ -128,6 +128,12 @@ const STABLE_REPOS = {
   },
   payments: {
     collect: vi.fn(() => Promise.resolve({ ok: true, value: {} })),
+    // T-579 (Session 52): the modal also observes the family's payment
+    // history for the receipt coverage + the success-stage card.
+    observeByParent: () => obs([]),
+  },
+  academicYears: {
+    observeAll: () => obs([]),
   },
 };
 

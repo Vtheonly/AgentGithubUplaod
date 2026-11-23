@@ -66,10 +66,12 @@ import { parentDisplayName } from "../../domain/model/parent";
 import { allocatePaymentToInstallments } from "../../domain/calc/payment/waterfall-allocator";
 import { isInstallmentSettled } from "../../domain/calc/payment/queries";
 import { currentTrancheLabel, installmentRemaining } from "../../domain/calc/payment/queries";
+import { resolvePaymentAllocations } from "../../domain/calc/payment/payment-coverage";
 import { displayParentCredit } from "../../domain/calc/ledger/balance";
 import { PaymentSlider, type PaymentTrancheSpec, type PaymentSliderMode } from "./payment-slider";
 import { DebtMeter } from "./debt-meter";
-import { generatePaymentReceiptPdf } from "../../infrastructure/receipt-pdf/payment-receipt";
+import { generatePaymentReceiptPdf, type ReceiptCoverageOptions } from "../../infrastructure/receipt-pdf/payment-receipt";
+import { PaymentBreakdownCard } from "./payment-breakdown-card";
 import { downloadPdf } from "../../infrastructure/receipt-pdf/download";
 import { uploadPrivateMedia } from "../../infrastructure/storage/media-vault";
 // E2.5 / S-U1 + S-U5: the shared person resolver + the canonical WhatsApp handoff.
@@ -153,6 +155,9 @@ export function UnifiedPaymentModal({
   const [transferSourceBank, setTransferSourceBank] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
+  // T-579: the coverage context resolved after collect() — feeds the receipt
+  // PDF's AFFECTATION/COUVERTURE sections and the success-stage card.
+  const [receiptCoverage, setReceiptCoverage] = useState<ReceiptCoverageOptions | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [alert, setAlert] = useState<Alert | null>(null);
@@ -175,6 +180,14 @@ export function UnifiedPaymentModal({
     () => repos.installments.observeByParent(effectiveParentId ?? ""),
     [effectiveParentId],
   );
+  // T-579: the family's payment history + the academic years — the receipt
+  // PDF's coverage input and the success-stage card's family-situation block
+  // (paid-to-date / Prix justifié / reste dû / année scolaire).
+  const familyPayments = useObservable(
+    () => repos.payments.observeByParent(effectiveParentId ?? ""),
+    [effectiveParentId],
+  );
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
   // T-157 (ADR-010 residual): the debt meter's "Crédit parent disponible" row
   // was dormant — the `unallocatedCredit` prop was never passed at this call
   // site (ADR-010's implementation-map note). Wire it through the canonical
@@ -216,6 +229,7 @@ export function UnifiedPaymentModal({
         setTransferReference("");
         setTransferSourceBank("");
         setReceiptPayment(null);
+        setReceiptCoverage(null);
         setPdfBytes(null);
         setAlert(null);
         setGivenCash(0);
@@ -536,10 +550,36 @@ export function UnifiedPaymentModal({
       if (!receipt.ok) {
         toast.showWarning("Paiement encaissé", "La génération du reçu a échoué.");
       }
+      // T-579 (the every-detail contract): resolve the fresh payment's REAL
+      // allocations through the canonical chain + the family context, then
+      // hand them to the receipt PDF (AFFECTATION / COUVERTURE / MODALITÉS /
+      // totals) and keep them for the success-stage breakdown card. Failure
+      // is non-fatal — the receipt degrades to the pre-T-579 layout.
+      let coverage: ReceiptCoverageOptions | undefined;
+      try {
+        const freshAllocations = await resolvePaymentAllocations(repos, result.value);
+        const familyHistory = [
+          ...familyPayments.filter((p) => p.id !== result.value.id),
+          result.value,
+        ];
+        coverage = {
+          allocations: freshAllocations,
+          installments: installments.length > 0 ? installments : undefined,
+          familyPayments: familyHistory,
+          academicYears: academicYears.length > 0 ? academicYears : undefined,
+        };
+      } catch {
+        coverage = undefined;
+      }
+      setReceiptCoverage(coverage ?? null);
       // Generate PDF bytes for the Stage 2 preview + download.
       setGeneratingPdf(true);
       try {
-        const bytes = await generatePaymentReceiptPdf(result.value, selectedParent ?? undefined);
+        const bytes = await generatePaymentReceiptPdf(
+          result.value,
+          selectedParent ?? undefined,
+          coverage,
+        );
         setPdfBytes(bytes);
       } catch (e) {
         // PDF generation failure is non-fatal — the receipt record exists.
@@ -1219,6 +1259,17 @@ export function UnifiedPaymentModal({
               </div>
             </div>
           </div>
+
+          {/* T-579: the every-detail coverage card — the same lines the
+              receipt PDF draws (ONE builder, every surface). The card fetches
+              its allocations through the shared canonical chain; the family
+              context enables the SITUATION DE LA FAMILLE totals. */}
+          <PaymentBreakdownCard
+            payment={receiptPayment}
+            installments={receiptCoverage?.installments}
+            familyPayments={receiptCoverage?.familyPayments}
+            academicYears={receiptCoverage?.academicYears}
+          />
 
           {/* PDF preview indicator */}
           <div className="rounded-lg border border-border p-3 flex items-center gap-3">

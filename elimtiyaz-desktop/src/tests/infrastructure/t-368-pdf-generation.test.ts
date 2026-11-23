@@ -554,5 +554,246 @@ describe("S46 — the account statement's drawn geometry", () => {
   });
 });
 
+/* ============================================================ */
+/*  T-579 — the every-detail receipt/statement contract (v2.3)   */
+/* ============================================================ */
+/*
+ * The owner's v2.3 expansion: the Encaissement receipt and the account
+ * statement include EVERY detail — what was paid now, the family's
+ * paid-to-date, Prix justifié (net), the EXACT reste dû, the per-tranche
+ * (FI/T1/T2/T3) AND per-category breakdown, the full check/transfer field
+ * set, the collector, and the academic year.
+ *
+ * NOTE ON ACCENTS: every drawn string passes sanitizePdfText (NFD + strip
+ * combining marks) — WinAnsi safety — so the assertions use the SANITIZED
+ * forms ("Annee scolaire", "Prix justifie", "Reste du", "Excedent").
+ */
+describe("T-579 — the every-detail receipt PDF contract", () => {
+  const YEAR_ID = "ay-2026-2027";
+  const YEARS = [
+    {
+      id: YEAR_ID,
+      tenantId: "ten-001",
+      code: "2026-2027",
+      label: "Année scolaire 2026-2027",
+      startDate: "2026-09-01",
+      endDate: "2027-06-30",
+      termStructure: "trimestres" as never,
+      isCurrent: true,
+      isArchived: false,
+    },
+  ];
+
+  /** The family's 4-wave commitment: FI 20k + T1..T3 100k each = 320k. */
+  const INSTALLMENTS = [
+    { id: "inst-fi", label: "Frais d'inscription (FI)", trancheNumber: 0 as const, amountDue: 20_000, category: "tuition" as const },
+    { id: "inst-t1", label: "Tranche 1", trancheNumber: 1 as const, amountDue: 100_000, category: "tuition" as const },
+    { id: "inst-t2", label: "Tranche 2", trancheNumber: 2 as const, amountDue: 100_000, category: "tuition" as const },
+    { id: "inst-t3", label: "Tranche 3", trancheNumber: 3 as const, amountDue: 100_000, category: "tuition" as const },
+  ].map((i) => ({
+    parentId: "par-001",
+    studentId: "stu-001",
+    amountPaid: 0,
+    amountPending: 0,
+    dueDate: "2026-09-15",
+    paidDate: null,
+    status: "unpaid" as const,
+    academicYearId: YEAR_ID,
+    ...i,
+  }));
+
+  /** The check payment under test: 70k covering FI (20k) + T1 tuition (40k) + T1 transport (10k). */
+  const CHECK_PAYMENT = makePayment({
+    id: "pay-t579-check",
+    method: "check",
+    amount: 70_000,
+    expectedAmount: 65_000,
+    excessAmount: 5_000,
+    category: null,
+    academicYearId: YEAR_ID,
+    checkNumber: "CHQ-2026-4471",
+    checkBankName: "CPA Oran",
+    checkIssueDate: "2026-11-02",
+    checkClearanceDate: "2026-11-09",
+    collectedBy: "Mme. KAHINA (guichet)",
+  });
+
+  const CHECK_ALLOCATIONS = [
+    { id: "al-fi", installmentId: "inst-fi", category: "tuition" as const, allocatedAmount: 20_000, label: "Frais d'inscription (FI)" },
+    { id: "al-t1-tui", installmentId: "inst-t1", category: "tuition" as const, allocatedAmount: 40_000, label: "Tranche 1" },
+    { id: "al-t1-tra", installmentId: "inst-t1", category: "transport" as const, allocatedAmount: 10_000, label: "Transport - Tranche 1" },
+  ].map((a) => ({ paymentId: CHECK_PAYMENT.id, chargeId: null, createdAt: BASE_ISO, ...a }));
+
+  /** Earlier cleared history: 50k + 30k → paid-to-date = 150k with this payment. */
+  const PRIOR_PAYMENTS = [
+    makePayment({ id: "pay-prior-1", amount: 50_000, collectedAt: "2026-09-20T09:00:00.000Z", receiptNumber: "REC-2026-000101", academicYearId: YEAR_ID }),
+    makePayment({ id: "pay-prior-2", amount: 30_000, collectedAt: "2026-10-05T09:00:00.000Z", receiptNumber: "REC-2026-000102", academicYearId: YEAR_ID }),
+  ];
+
+  async function receiptText(coverage?: object): Promise<string> {
+    const bytes = await generatePaymentReceiptPdf(CHECK_PAYMENT, makeParent(), coverage as never);
+    const pages = await extractPageText(await loadPdf(bytes));
+    return pages.join("\n");
+  }
+
+  it("renders the full check field set (MODALITÉS DE PAIEMENT + N° chèque + banque + dates)", async () => {
+    const text = await receiptText({});
+    // Static section headers draw RAW (WinAnsi-safe literals — the file's
+    // established convention); key/value labels go through the sanitizer.
+    expect(text).toContain("MODALITÉS DE PAIEMENT");
+    expect(text).toContain("CHQ-2026-4471");
+    expect(text).toContain("CPA Oran");
+    // The collector (contract #7).
+    expect(text).toContain("Encaisse par:");
+    expect(text).toContain("Mme. KAHINA (guichet)");
+  });
+
+  it("renders AFFECTATION / COUVERTURE — allocation labels, per-tranche AND per-category breakdowns", async () => {
+    const text = await receiptText({
+      allocations: CHECK_ALLOCATIONS,
+      installments: INSTALLMENTS,
+      academicYears: YEARS,
+    });
+    expect(text).toContain("AFFECTATION / COUVERTURE");
+    // The allocation lines (labels).
+    expect(text).toContain("Frais d'inscription (FI)");
+    expect(text).toContain("Transport - Tranche 1");
+    // Per-tranche: FI 20k · T1 50k (40k tuition + 10k transport).
+    expect(text).toContain("Par tranche");
+    expect(text).toContain("FI 20 000");
+    expect(text).toContain("T1 50 000");
+    // Per-category: Scolarité 60k · Transport 10k.
+    expect(text).toContain("Par categorie");
+    expect(text).toContain("Scolarite 60 000");
+    expect(text).toContain("Transport 10 000");
+  });
+
+  it("renders the totals contract — payé maintenant, total attendu, excédent, payé à ce jour, prix justifié, reste dû, année scolaire", async () => {
+    const text = await receiptText({
+      allocations: CHECK_ALLOCATIONS,
+      installments: INSTALLMENTS,
+      familyPayments: [...PRIOR_PAYMENTS, CHECK_PAYMENT],
+      academicYears: YEARS,
+    });
+    // 1) paid now.
+    expect(text).toContain("Payé maintenant");
+    expect(text).toContain("70 000");
+    // The card's expected/excess pair.
+    expect(text).toContain("Total attendu");
+    expect(text).toContain("65 000");
+    expect(text).toContain("Excédent (crédit parent)");
+    expect(text).toContain("+5 000");
+    // 2) paid historically: 50k + 30k + this 70k = 150k.
+    expect(text).toContain("Payé à ce jour (famille)");
+    expect(text).toContain("150 000");
+    // 3) Prix justifié: FI 20k + T1..T3 300k = 320k.
+    expect(text).toContain("Prix justifié (net)");
+    expect(text).toContain("320 000");
+    // 4) The EXACT remaining balance: 320k − 150k = 170k.
+    expect(text).toContain("Reste dû");
+    expect(text).toContain("170 000");
+    // 8) The academic year (raw label + sanitized value).
+    expect(text).toContain("Année scolaire : 2026-2027");
+  });
+
+  it("a bare call (no coverage) renders the legacy layout — additive contract", async () => {
+    const text = await receiptText(undefined);
+    // The externally-resolved AFFECTATION/COUVERTURE section is OMITTED…
+    expect(text).not.toContain("AFFECTATION / COUVERTURE");
+    // …while the payment-OWN data (method fields, collector) is the v2.3
+    // contract and renders regardless. The pre-T-579 anchor survives.
+    expect(text).toContain("MODALITÉS DE PAIEMENT");
+    expect(text).toContain("TOTAL PAYÉ");
+  });
+});
+
+describe("T-579 — the every-detail account-statement PDF contract", () => {
+  const YEAR_ID = "ay-2026-2027";
+  const YEARS = [
+    {
+      id: YEAR_ID,
+      tenantId: "ten-001",
+      code: "2026-2027",
+      label: "Année scolaire 2026-2027",
+      startDate: "2026-09-01",
+      endDate: "2027-06-30",
+      termStructure: "trimestres" as never,
+      isCurrent: true,
+      isArchived: false,
+    },
+  ];
+  const INSTALLMENTS = [
+    { id: "inst-fi", label: "Frais d'inscription (FI)", trancheNumber: 0 as const, amountDue: 20_000, category: "tuition" as const },
+    { id: "inst-t1", label: "Tranche 1", trancheNumber: 1 as const, amountDue: 100_000, category: "tuition" as const },
+  ].map((i) => ({
+    parentId: "par-001",
+    studentId: "stu-001",
+    amountPaid: 0,
+    amountPending: 0,
+    dueDate: "2026-09-15",
+    paidDate: null,
+    status: "unpaid" as const,
+    academicYearId: YEAR_ID,
+    ...i,
+  }));
+  const PAYMENTS = [
+    makePayment({ id: "st-pay-1", amount: 50_000, collectedAt: "2026-09-20T09:00:00.000Z", receiptNumber: "REC-2026-000201", academicYearId: YEAR_ID }),
+    makePayment({ id: "st-pay-2", amount: 30_000, method: "check", checkNumber: "CHQ-9", collectedAt: "2026-10-05T09:00:00.000Z", receiptNumber: "REC-2026-000202", academicYearId: YEAR_ID }),
+  ];
+  const ALLOCS_BY_PAYMENT = new Map<string, readonly import("../../domain/model/payment").PaymentAllocation[]>([
+    [
+      "st-pay-1",
+      [
+        {
+          id: "al-1", paymentId: "st-pay-1", chargeId: null, installmentId: "inst-fi",
+          category: "tuition" as const, allocatedAmount: 20_000, label: "Frais d'inscription (FI)", createdAt: BASE_ISO,
+        },
+        {
+          id: "al-2", paymentId: "st-pay-1", chargeId: null, installmentId: "inst-t1",
+          category: "tuition" as const, allocatedAmount: 30_000, label: "Tranche 1", createdAt: BASE_ISO,
+        },
+      ],
+    ],
+  ]);
+
+  it("renders the coverage sub-rows under the paying transaction (label + tranche + amount)", async () => {
+    const bytes = await generateAccountStatementPdf(PAYMENTS, makeParent(), {
+      allocationsByPayment: ALLOCS_BY_PAYMENT,
+      installments: INSTALLMENTS,
+      academicYears: YEARS,
+    });
+    const text = (await extractPageText(await loadPdf(bytes))).join("\n");
+    expect(text).toContain("- Frais d'inscription (FI) (FI)");
+    expect(text).toContain("- Tranche 1 (T1)");
+    expect(text).toContain("20 000");
+  });
+
+  it("renders the SYNTHÈSE extension — Prix justifié, Reste dû, année scolaire (single-year statement)", async () => {
+    const bytes = await generateAccountStatementPdf(PAYMENTS, makeParent(), {
+      allocationsByPayment: ALLOCS_BY_PAYMENT,
+      installments: INSTALLMENTS,
+      academicYears: YEARS,
+    });
+    const text = (await extractPageText(await loadPdf(bytes))).join("\n");
+    // Prix justifié: 20k + 100k = 120k.
+    expect(text).toContain("Prix justifié (net)");
+    expect(text).toContain("120 000");
+    // Reste dû: 120k − 80k paid = 40k.
+    expect(text).toContain("Reste dû");
+    expect(text).toContain("40 000");
+    expect(text).not.toContain("Famille à jour");
+    // The single covering year shows.
+    expect(text).toContain("Année scolaire : 2026-2027");
+  });
+
+  it("a bare call (no coverage) renders the legacy SYNTHÈSE — additive contract", async () => {
+    const bytes = await generateAccountStatementPdf(PAYMENTS, makeParent());
+    const text = (await extractPageText(await loadPdf(bytes))).join("\n");
+    expect(text).not.toContain("Prix justifié (net)");
+    expect(text).not.toContain("Reste dû");
+    expect(text).toContain("SYNTHÈSE");
+  });
+});
+
 /* Type-only import guard (fixtures above reference these shapes). */
 export type { ParentFinancialProfile };

@@ -20,6 +20,11 @@
  *                            (T-164/T-168: read-side derivation behind the
  *                            parent drawer / portal "Prestations facturées"
  *                            views)
+ *   - `payment-coverage`   — resolvePaymentAllocations (THE T-330 precedence
+ *                            chain) + buildPaymentCoverage (T-579 — the ONE
+ *                            every-detail coverage view model shared by the
+ *                            card, the modal, the receipt PDF and the
+ *                            account-statement PDF)
  */
 export * from "./sums";
 export * from "./queries";
@@ -28,3 +33,4 @@ export * from "./lifo-reversal";
 export * from "./clearance";
 export * from "./revenue";
 export * from "./billing-breakdown";
+export * from "./payment-coverage";

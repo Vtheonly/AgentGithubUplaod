@@ -14,9 +14,19 @@
  * rows flow onto "(suite)" continuation pages; amounts render via
  * `dzdPdf` (WinAnsi-safe); every drawn string is sanitized; the footer
  * carries the true page count on every page.
+ *
+ * T-579 (Session 52, the v2.3 every-detail contract): the optional
+ * `coverage` input adds, additively:
+ *   1. Per-payment AFFECTATION sub-rows — each payment row is followed by
+ *      its allocation lines (label + tranche + amount, indented, muted) —
+ *      the SAME lines the receipt and the card draw (`buildPaymentCoverage`).
+ *   2. SYNTHÈSE extension — "Prix justifié (net)" (the family's Σ
+ *      installments due) and "Reste dû" (max(0, Prix justifié − Payé))
+ *      boxes, plus the academic year when one year covers the statement.
+ * Without `coverage` the statement renders exactly as before.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import type { Payment } from "../../domain/model/payment";
+import type { Payment, PaymentAllocation, Installment } from "../../domain/model/payment";
 import { parentDisplayName, type Parent } from "../../domain/model/parent";
 import {
   PAYMENT_METHOD_LABELS_FR,
@@ -24,6 +34,7 @@ import {
   PAYMENT_CATEGORY_LABELS_FR,
   paymentCategoryLabelFr,
 } from "../../domain/model/payment";
+import type { AcademicYear } from "../../domain/model/academic";
 import { formatDate } from "../../core/format/date";
 import {
   PAGE_H,
@@ -34,6 +45,7 @@ import {
   BRAND_BLUE_DEEP,
   SUCCESS,
   WARNING,
+  DANGER,
   TEXT_MUTED,
   TEXT_PRIMARY,
   dzdPdf,
@@ -45,6 +57,7 @@ import {
   drawCellClipped,
   stampPageFooters,
 } from "./shared";
+import { buildPaymentCoverage } from "../../domain/calc/payment/payment-coverage";
 
 /** WinAnsi-safe label lookup (label maps miss → "—", never undefined). */
 function label(map: Record<string, string>, key: string): string {
@@ -87,9 +100,25 @@ function drawTableHeader(page: PDFPage, font: PDFFont, y: number) {
   });
 }
 
+/**
+ * T-579 — the optional every-detail coverage input. Resolve each payment's
+ * allocations through the canonical chain (`resolvePaymentAllocations`);
+ * every field is optional and additive (absent → sub-rows/synthèse extras
+ * are omitted; nothing is fabricated).
+ */
+export interface StatementCoverageOptions {
+  /** Per-payment allocations, keyed by payment id (the canonical chain's output). */
+  readonly allocationsByPayment?: ReadonlyMap<string, readonly PaymentAllocation[]>;
+  /** The family's installments — enables Prix justifié / Reste dû + tranche labels. */
+  readonly installments?: readonly Installment[];
+  /** The academic years list — resolves the année scolaire subtitle. */
+  readonly academicYears?: readonly AcademicYear[];
+}
+
 export async function generateAccountStatementPdf(
   payments: readonly Payment[],
   parent: Pick<Parent, "firstName" | "lastName" | "displayName" | "code" | "phone" | "email">,
+  coverage?: StatementCoverageOptions,
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -141,7 +170,49 @@ export async function generateAccountStatementPdf(
   page.drawText("Remboursé", { x: box3X + 15, y: y - 16, size: 9, font, color: TEXT_MUTED });
   page.drawText(dzdPdf(totalRefunded), { x: box3X + 15, y: y - 34, size: 12, font: fontBold, color: TEXT_PRIMARY });
 
-  y -= 80;
+  // T-579: the every-detail synthèse row — Prix justifié (net) + Reste dû,
+  // plus the academic-year subtitle when one year covers the statement.
+  if (coverage?.installments && coverage.installments.length > 0) {
+    const totalJustified = coverage.installments.reduce((s, i) => s + i.amountDue, 0);
+    const resteDu = Math.max(0, totalJustified - totalPaid);
+
+    // The academic year: the years of the statement's payments — shown only
+    // when they all agree (a multi-year statement shows no single year).
+    const yearSet = new Set(
+      payments
+        .map((p) =>
+          buildPaymentCoverage(p, [], coverage!.installments ?? [], {
+            academicYears: coverage!.academicYears,
+          }).academicYearLabel,
+        )
+        .filter((v): v is string => v !== null),
+    );
+    const yearLabel = yearSet.size === 1 ? [...yearSet][0] : null;
+
+    const JBOX_W = (CONTENT_W - BOX_GAP) / 2;
+    drawBox(page, MARGIN, y - 118, JBOX_W, 50, rgb(0xf5 / 255, 0xf7 / 255, 0xfa / 255), BORDER);
+    page.drawText("Prix justifié (net)", { x: MARGIN + 15, y: y - 74, size: 9, font, color: TEXT_MUTED });
+    page.drawText(dzdPdf(totalJustified), { x: MARGIN + 15, y: y - 92, size: 12, font: fontBold, color: TEXT_PRIMARY });
+    if (yearLabel) {
+      // Raw label (WinAnsi-safe literal), sanitized dynamic value.
+      page.drawText(`Année scolaire : ${sanitizePdfText(yearLabel)}`, {
+        x: MARGIN + 15, y: y - 107, size: 7.5, font, color: TEXT_MUTED,
+      });
+    }
+
+    const rboxX = MARGIN + JBOX_W + BOX_GAP;
+    const resteColor = resteDu > 0 ? DANGER : SUCCESS;
+    drawBox(page, rboxX, y - 118, JBOX_W, 50, undefined, resteColor);
+    page.drawText("Reste dû", { x: rboxX + 15, y: y - 74, size: 9, font, color: TEXT_MUTED });
+    page.drawText(dzdPdf(resteDu), { x: rboxX + 15, y: y - 92, size: 12, font: fontBold, color: resteColor });
+    if (resteDu === 0) {
+      page.drawText("Famille à jour", { x: rboxX + 15, y: y - 107, size: 7.5, font, color: SUCCESS });
+    }
+
+    y -= 138;
+  } else {
+    y -= 80;
+  }
 
   // Transactions table
   page.drawText("TRANSACTIONS", { x: MARGIN, y, size: 10, font: fontBold, color: TEXT_PRIMARY });
@@ -183,6 +254,35 @@ export async function generateAccountStatementPdf(
       color: TEXT_PRIMARY,
     });
     y -= ROW_H;
+
+    // T-579: AFFECTATION sub-rows — the payment's allocation lines (label +
+    // tranche + amount), the SAME lines the receipt/card draw. Indented at
+    // the Reçu column, muted, so the parent row stays the visual anchor.
+    const pAllocs = coverage?.allocationsByPayment?.get(p.id);
+    if (pAllocs && pAllocs.length > 0) {
+      const covLines = buildPaymentCoverage(p, pAllocs, coverage?.installments ?? [], {
+        academicYears: coverage?.academicYears,
+      }).lines;
+      for (const l of covLines) {
+        if (y < PAGE_BOTTOM_LIMIT) {
+          page = continuationHeader(doc, font, TITLE);
+          drawTableHeader(page, font, PAGE_H - 110);
+          y = PAGE_H - 110 - 22;
+        }
+        const sub = sanitizePdfText(`- ${l.label} (${l.trancheKey})`);
+        drawCellClipped(page, font, sub, COL_RECEIPT, y, 7.5, 240, TEXT_MUTED);
+        const subAmt = dzdPdf(l.allocatedAmount);
+        page.drawText(subAmt, {
+          x: AMOUNT_RIGHT - font.widthOfTextAtSize(subAmt, 7.5),
+          y,
+          size: 7.5,
+          font,
+          color: TEXT_MUTED,
+        });
+        y -= 11;
+      }
+    }
+
     page.drawLine({
       start: { x: MARGIN, y: y + 4 },
       end: { x: MARGIN + CONTENT_W, y: y + 4 },

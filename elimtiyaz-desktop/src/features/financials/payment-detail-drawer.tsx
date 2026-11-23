@@ -33,6 +33,7 @@ import { Button } from "../../shared/ui/button";
 import { Card, CardContent } from "../../shared/ui/card";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { generatePaymentReceiptPdf, downloadPdf } from "../../infrastructure/receipt-pdf";
+import { resolvePaymentAllocations } from "../../domain/calc/payment/payment-coverage";
 import { PaymentBreakdownCard } from "./payment-breakdown-card";
 
 export function PaymentDetailDrawer({
@@ -63,6 +64,20 @@ export function PaymentDetailDrawer({
   );
   const parents = useObservable(() => repos.parents.observe(), []);
   const students = useObservable(() => repos.students.observe(), []);
+  // T-579: the family context — feeds the coverage card's SITUATION DE LA
+  // FAMILLE block and the receipt PDF's every-detail coverage input.
+  // (Derived from the raw `payment` BEFORE `entity` so the hook order stays
+  // stable: the observables key off the family id, not the gated entity.)
+  const familyId = open && paymentId && payment ? payment.parentId : "";
+  const familyInstallments = useObservable(
+    () => repos.installments.observeByParent(familyId),
+    [familyId],
+  );
+  const familyPayments = useObservable(
+    () => repos.payments.observeByParent(familyId),
+    [familyId],
+  );
+  const academicYears = useObservable(() => repos.academicYears.observeAll(), []);
 
   const entity: Payment | null = open && paymentId && payment ? payment : null;
   const parent = entity ? parents.find((p) => p.id === entity.parentId) : null;
@@ -143,7 +158,22 @@ export function PaymentDetailDrawer({
     if (!entity) return;
     setDownloading(true);
     try {
-      const pdfBytes = await generatePaymentReceiptPdf(entity, parent ?? undefined);
+      // T-579: the every-detail receipt — resolve the payment's allocations
+      // (canonical chain) + the family context. Failure degrades to the
+      // pre-T-579 receipt layout (non-fatal).
+      let coverage;
+      try {
+        const allocations = await resolvePaymentAllocations(repos, entity);
+        coverage = {
+          allocations,
+          installments: familyInstallments.length > 0 ? familyInstallments : undefined,
+          familyPayments: familyPayments.length > 0 ? familyPayments : undefined,
+          academicYears: academicYears.length > 0 ? academicYears : undefined,
+        };
+      } catch {
+        coverage = undefined;
+      }
+      const pdfBytes = await generatePaymentReceiptPdf(entity, parent ?? undefined, coverage);
       downloadPdf(pdfBytes, `recu-${entity.receiptNumber}.pdf`);
       toast.showSuccess("Reçu téléchargé", `${entity.receiptNumber}.pdf`);
     } catch (e) {
@@ -288,8 +318,17 @@ export function PaymentDetailDrawer({
           )}
 
           {/* T-579: the canonical coverage card — what this payment covers
-              (the payment_allocations precedence chain of T-330). */}
-          {entity && <PaymentBreakdownCard payment={entity} />}
+              (the payment_allocations precedence chain of T-330) + the
+              family situation totals (paid-to-date / Prix justifié /
+              reste dû / année scolaire) when the family context is loaded. */}
+          {entity && (
+            <PaymentBreakdownCard
+              payment={entity}
+              installments={familyInstallments.length > 0 ? familyInstallments : undefined}
+              familyPayments={familyPayments.length > 0 ? familyPayments : undefined}
+              academicYears={academicYears.length > 0 ? academicYears : undefined}
+            />
+          )}
 
           {entity?.notes && (
             <div className="rounded-lg border border-border p-3 text-xs">

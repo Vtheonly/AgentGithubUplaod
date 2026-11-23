@@ -299,6 +299,9 @@ const obsOf = <T,>(value: T) => ({ get: () => value, subscribe: () => () => {} }
   vi.spyOn(reposMod, "useRepositories").mockReturnValue({
     payments: {
       observeById: () => obsOf(opts.payment),
+      // T-579: the drawer observes the family payment history for the
+      // coverage card's family-situation block.
+      observeByParent: () => obsOf(opts.payment ? [opts.payment] : []),
       refund: async () => ({ ok: true, value: opts.payment }) as never,
     },
     // T-444/UI-324: the new-UI drawer resolves the payer + beneficiary
@@ -307,6 +310,12 @@ const obsOf = <T,>(value: T) => ({ get: () => value, subscribe: () => () => {} }
     // student cards render; the refund path under test is unaffected).
     parents: { observe: () => obsOf([]), observeById: () => obsOf(null) },
     students: { observe: () => obsOf([]), observeById: () => obsOf(null) },
+    // T-579 (Session 52): the drawer also observes the family context
+    // (installments / payment history / academic years) for the coverage
+    // card's SITUATION DE LA FAMILLE block + the every-detail receipt
+    // download — empty observables keep this suite's refund subject intact.
+    installments: { observeByParent: () => obsOf([]) },
+    academicYears: { observeAll: () => obsOf([]) },
   } as never);
   vi.spyOn(toastMod, "useToast").mockReturnValue(toastStub as never);
 
