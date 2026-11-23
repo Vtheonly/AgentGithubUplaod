@@ -54,6 +54,7 @@ import {
   type NonWaveCategoryStats,
 } from "../../../../domain/calc/payment/tranche-waves";
 import { TRANSPORT_DESTINATION_LABELS_FR } from "../../../../domain/model/parent";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 const WAVE_TITLES: Record<number, { title: string; subtitle: string }> = {
   1: {
@@ -403,14 +404,13 @@ export function WaveVelocityCard({
                       data-testid={`wave-categories-${w.wave}`}
                     >
                       {w.perCategory.map((c) => (
-                        <span
-                          key={c.category}
-                          className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
-                          title={`${PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category} — facturé ${formatDzdPlain(
+                        <TooltipHint content={`${PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category} — facturé ${formatDzdPlain(
                             c.dueTotal,
                           )}, encaissé ${formatDzdPlain(c.paidTotal)}, reste dû ${formatDzdPlain(
                             c.remainingTotal,
-                          )}`}
+                          )}`}><span
+                          key={c.category}
+                          className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-surface-panel/70 border border-border/50 text-muted-foreground"
                         >
                           {PAYMENT_CATEGORY_LABELS_FR[c.category] ?? c.category}{" "}
                           <span className="text-foreground font-semibold">
@@ -424,7 +424,7 @@ export function WaveVelocityCard({
                               · {formatDzd(c.remainingTotal, { compact: true })}
                             </span>
                           )}
-                        </span>
+                        </span></TooltipHint>
                       ))}
                     </div>
                   )}

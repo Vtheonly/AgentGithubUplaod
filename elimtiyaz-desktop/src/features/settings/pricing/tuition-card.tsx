@@ -36,6 +36,7 @@ import { tuitionTranchesForGrade } from "../../../domain/model/pricing";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { MoneyInput } from "../../../shared/ui/money-input";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 type TuitionDraft = { annual: number; t1: number; t2: number; t3: number };
 
@@ -143,10 +144,9 @@ export function TuitionCard() {
                     <td className="p-3 font-semibold text-foreground whitespace-nowrap">
                       {GRADE_LEVEL_LABELS_FR[g]}
                       {isDirty && (
-                        <span
+                        <TooltipHint content="Non enregistré"><span
                           className="ml-1.5 inline-block size-1.5 rounded-full bg-status-warning align-middle"
-                          title="Non enregistré"
-                        />
+                        /></TooltipHint>
                       )}
                     </td>
                     <td className="p-3">
@@ -179,19 +179,17 @@ export function TuitionCard() {
                     </td>
                     <td className="p-3 text-center">
                       {isBalanced ? (
-                        <span
+                        <TooltipHint content={`Somme des tranches : ${formatDzdPlain(sum)} DZD`}><span
                           className="inline-flex items-center gap-1 text-status-success font-semibold"
-                          title={`Somme des tranches : ${formatDzdPlain(sum)} DZD`}
                         >
                           <CheckCircle2 className="size-3.5" /> OK
-                        </span>
+                        </span></TooltipHint>
                       ) : (
-                        <span
+                        <TooltipHint content={`Somme des tranches : ${formatDzdPlain(sum)} DZD ≠ annuel ${formatDzdPlain(draft.annual)} DZD (écart : ${formatDzdPlain(Math.abs(sum - draft.annual))})`}><span
                           className="inline-flex items-center gap-1 text-status-danger font-semibold"
-                          title={`Somme des tranches : ${formatDzdPlain(sum)} DZD ≠ annuel ${formatDzdPlain(draft.annual)} DZD (écart : ${formatDzdPlain(Math.abs(sum - draft.annual))})`}
                         >
                           <AlertCircle className="size-3.5" /> Écart
-                        </span>
+                        </span></TooltipHint>
                       )}
                     </td>
                     {canEdit && (

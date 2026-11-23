@@ -43,6 +43,7 @@ import {
 } from "../../core/theme/theme-types";
 import { ThemeEditorModal } from "./theme-editor-modal";
 import { DangerZoneCard } from "./danger-zone-card";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 const TIMEZONES = [
   { value: "Africa/Algiers", label: "Alger (Africa/Algiers)" },
@@ -181,31 +182,26 @@ export function GeneralTab() {
                     className="flex items-center gap-1.5 rounded-lg p-2 border border-border/50"
                     style={{ backgroundColor: pal.colors.surfacePanel }}
                   >
-                    <span
+                    <TooltipHint content="Primaire"><span
                       className="h-4 w-4 rounded-full border border-black/20"
                       style={{ backgroundColor: pal.colors.primary }}
-                      title="Primaire"
-                    />
-                    <span
+                    /></TooltipHint>
+                    <TooltipHint content="Fond"><span
                       className="h-4 w-4 rounded-full border border-black/20"
                       style={{ backgroundColor: pal.colors.surfaceBackground }}
-                      title="Fond"
-                    />
-                    <span
+                    /></TooltipHint>
+                    <TooltipHint content="Accent Or"><span
                       className="h-4 w-4 rounded-full border border-black/20"
                       style={{ backgroundColor: pal.colors.brandGold }}
-                      title="Accent Or"
-                    />
-                    <span
+                    /></TooltipHint>
+                    <TooltipHint content="Succès"><span
                       className="h-4 w-4 rounded-full border border-black/20"
                       style={{ backgroundColor: pal.colors.statusSuccess }}
-                      title="Succès"
-                    />
-                    <span
+                    /></TooltipHint>
+                    <TooltipHint content="Danger"><span
                       className="h-4 w-4 rounded-full border border-black/20"
                       style={{ backgroundColor: pal.colors.statusDanger }}
-                      title="Danger"
-                    />
+                    /></TooltipHint>
                   </div>
                 </div>
               );

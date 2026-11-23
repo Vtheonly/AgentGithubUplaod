@@ -44,6 +44,7 @@ import type { WorkflowNode } from "../../domain/model/workflow";
 import type { DryRunResult } from "../../domain/calc/workflow/dry-run";
 import { formatDzdPlain } from "../../core/format/currency";
 import type { ConditionContext } from "../../domain/calc/workflow/condition-evaluator";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -260,10 +261,8 @@ export function TestStudioDrawer({
           </p>
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map((preset) => (
-              <button
-                key={preset.id}
+              <TooltipHint key={preset.id} content={preset.hint}><button
                 type="button"
-                title={preset.hint}
                 onClick={() => applyPreset(preset)}
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs transition-colors",
@@ -273,7 +272,7 @@ export function TestStudioDrawer({
                 )}
               >
                 {preset.label}
-              </button>
+              </button></TooltipHint>
             ))}
           </div>
         </section>

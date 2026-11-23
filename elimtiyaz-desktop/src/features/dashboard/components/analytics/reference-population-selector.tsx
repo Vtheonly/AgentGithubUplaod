@@ -28,6 +28,7 @@
  */
 import { cn } from "../../../../shared/ui/cn";
 import { InfoTip } from "./info-tip";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 export type ReferencePopulationMode = "whole-dataset" | "top10";
 
@@ -76,10 +77,8 @@ export function ReferencePopulationSelector({
       data-mode={mode}
     >
       {options.map((opt) => (
-        <button
-          key={opt.value}
+        <TooltipHint key={opt.value} content={opt.title}><button
           type="button"
-          title={opt.title}
           aria-pressed={mode === opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
@@ -92,7 +91,7 @@ export function ReferencePopulationSelector({
           data-testid={`reference-mode-${opt.value}`}
         >
           {opt.label}
-        </button>
+        </button></TooltipHint>
       ))}
       <InfoTip tip={tipKey} className={compact ? "ml-0.5" : "ml-1"} />
     </div>

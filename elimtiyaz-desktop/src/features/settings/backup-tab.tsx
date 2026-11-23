@@ -97,6 +97,7 @@ import { StatusChip } from "../../shared/ui/status-chip";
 import { EmptyState } from "../../shared/layout/state-views";
 import { ConfirmModal, UnifiedModal } from "../../shared/ui/unified-modal";
 import { cn } from "../../shared/ui/cn";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /** Format a byte count as a human-readable string (KB / MB / GB). */
 function formatBytes(bytes: number): string {
@@ -799,9 +800,9 @@ export function BackupTab() {
                     )}
                     <span className="text-muted-foreground">{entry.durationMs} ms</span>
                     {entry.error && (
-                      <span className="ml-auto truncate text-status-danger" title={entry.error}>
+                      <TooltipHint content={entry.error}><span className="ml-auto truncate text-status-danger">
                         {entry.error}
-                      </span>
+                      </span></TooltipHint>
                     )}
                   </li>
                 ))}
@@ -1032,11 +1033,10 @@ export function BackupTab() {
                                 as every data-inspector trigger in the app. The
                                 handler, the data-testid, and the disabled
                                 gating are unchanged — a UI-only change. */}
-                            <button
+                            <TooltipHint content="Inspecter le contenu (déchiffrer sans restaurer)"><button
                               type="button"
                               onClick={() => void handleInspect(archive)}
                               disabled={inspecting}
-                              title="Inspecter le contenu (déchiffrer sans restaurer)"
                               aria-label="Inspecter le contenu (déchiffrer sans restaurer)"
                               data-testid={`inspect-${archive.id}`}
                               className={INSPECT_TRIGGER_CLASS}
@@ -1045,7 +1045,7 @@ export function BackupTab() {
                               {/* T-502 (UI-333): no truncate — the shared
                                   class sizes the button to its label. */}
                               <span>Inspecter</span>
-                            </button>
+                            </button></TooltipHint>
                             <Button
                               size="sm"
                               variant="ghost"

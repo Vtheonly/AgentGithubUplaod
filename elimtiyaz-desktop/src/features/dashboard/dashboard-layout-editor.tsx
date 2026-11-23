@@ -29,6 +29,7 @@ import {
   writeDashboardLayoutCache,
 } from "./dashboard-layout-storage";
 import { cn } from "../../shared/ui/cn";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 export interface DashboardLayoutItem {
   id: string;
@@ -347,37 +348,34 @@ const LayoutCell = memo(function LayoutCell({
     >
       {editing && (
         <>
-          <button
+          <TooltipHint content={`Déplacer ${item.label}`}><button
             type="button"
             aria-label={`Déplacer ${item.label}`}
-            title={`Déplacer ${item.label}`}
             onPointerDown={(event) => onDragStart(item, event)}
             className="absolute left-2 top-2 z-50 inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-grabbing"
           >
             <GripVertical className="h-4 w-4" />
-          </button>
-          <button
+          </button></TooltipHint>
+          <TooltipHint content={`Redimensionner ${item.label}`}><button
             type="button"
             aria-label={`Redimensionner ${item.label}`}
-            title={`Redimensionner ${item.label}`}
             onPointerDown={(event) => onResizeStart(item, event)}
             className="absolute bottom-2 right-2 z-50 inline-flex h-8 w-8 cursor-nwse-resize touch-none items-center justify-center rounded-md border border-primary/40 bg-surface-panel/95 text-primary shadow-sm active:cursor-nwse-resize"
           >
             <Maximize2 className="h-3.5 w-3.5" />
-          </button>
+          </button></TooltipHint>
           <div className="absolute right-2 top-2 z-40 flex items-center gap-1.5">
             <div className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-mono text-primary">
               {rect.w}/12 × {rect.h}
             </div>
-            <button
+            <TooltipHint content={`Masquer ${item.label}`}><button
               type="button"
               aria-label={`Masquer ${item.label}`}
-              title={`Masquer ${item.label}`}
               onClick={() => onHide(item.id)}
               className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border/70 bg-surface-panel/95 text-muted-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
             >
               <EyeOff className="h-3 w-3" />
-            </button>
+            </button></TooltipHint>
           </div>
         </>
       )}
@@ -780,28 +778,25 @@ export function DashboardLayoutEditor({
               : `${hiddenItems.length} indicateurs masqués`}
           </span>
           {hiddenItems.map((item) => (
-            <button
-              key={item.id}
+            <TooltipHint key={item.id} content={`Afficher ${item.label}`}><button
               type="button"
               aria-label={`Afficher ${item.label}`}
-              title={`Afficher ${item.label}`}
               onClick={() => showItemAndPersist(item.id)}
               className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
             >
               <Eye className="h-3 w-3" />
               {item.label}
-            </button>
+            </button></TooltipHint>
           ))}
-          <button
+          <TooltipHint content="Réafficher tous les indicateurs masqués"><button
             type="button"
             aria-label="Tout afficher"
-            title="Réafficher tous les indicateurs masqués"
             onClick={showAllAndPersist}
             className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 font-medium text-primary transition-colors hover:bg-primary/10"
           >
             <Eye className="h-3 w-3" />
             Tout afficher
-          </button>
+          </button></TooltipHint>
           {/* T-504 (UI-337) restored (T-536): the honest save-outcome hint
               must live in the VIEW bar too — a restore that persists
               locally while the server is down shows its failure here,
@@ -883,17 +878,15 @@ export function DashboardLayoutEditor({
           </span>
           <div className="mt-2 flex flex-wrap gap-2">
             {hiddenItems.map((item) => (
-              <button
-                key={item.id}
+              <TooltipHint key={item.id} content={`Afficher ${item.label}`}><button
                 type="button"
                 aria-label={`Afficher ${item.label}`}
-                title={`Afficher ${item.label}`}
                 onClick={() => showItem(item.id)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-surface-elevated/40 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
               >
                 <Eye className="h-3 w-3" />
                 {item.label}
-              </button>
+              </button></TooltipHint>
             ))}
           </div>
         </div>

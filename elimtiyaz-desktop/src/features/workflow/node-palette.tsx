@@ -28,6 +28,7 @@ import {
   type WorkflowNodeType,
   type WorkflowNodeSubtype,
 } from "../../domain/model/workflow";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 const ICON_FOR_TYPE: Record<WorkflowNodeType, LucideIcon> = {
   trigger: Webhook,
@@ -90,7 +91,7 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
                   const description = NODE_SUBTYPE_DESCRIPTIONS_FR[subtype] ?? "";
                   return (
                     <li key={subtype}>
-                      <button
+                      <TooltipHint content={`${label} — ${description}`}><button
                         type="button"
                         disabled={disabled}
                         onClick={() => onAddNode(subtype, type)}
@@ -100,11 +101,10 @@ export function NodePalette({ onAddNode, disabled }: NodePaletteProps) {
                           "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent",
                           "text-muted-foreground",
                         )}
-                        title={`${label} — ${description}`}
                       >
                         <span className={cn("h-1.5 w-1.5 rounded-full bg-current shrink-0", ICON_TONE_FOR_TYPE[type])} />
                         <span className="truncate">{label}</span>
-                      </button>
+                      </button></TooltipHint>
                     </li>
                   );
                 })}

@@ -43,6 +43,7 @@ import type {
   TimetableScheduleEntry,
 } from "../../../domain/model/timetable";
 import { TIMETABLE_DAY_LABELS_FR } from "../../../domain/model/timetable";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 export type TimetableViewMode = "class" | "teacher" | "room";
 
@@ -274,8 +275,7 @@ export function TimetableGrid({
                           {cell.map((entry) => {
                             const colors = subjectColor(entry.subjectId);
                             return (
-                              <button
-                                key={`${entry.id}-${entry.lessonGroup}`}
+                              <TooltipHint key={`${entry.id}-${entry.lessonGroup}`} content={`${label(entry)} — ${subLabel(entry)}${entry.isLocked ? " (épinglé)" : ""}`}><button
                                 type="button"
                                 onClick={() => onEntryClick?.(entry)}
                                 className={cn(
@@ -289,7 +289,6 @@ export function TimetableGrid({
                                   color: colors.foreground,
                                   borderColor: colors.border,
                                 }}
-                                title={`${label(entry)} — ${subLabel(entry)}${entry.isLocked ? " (épinglé)" : ""}`}
                               >
                                 <span className="truncate text-[11px] font-semibold text-inherit">
                                   {label(entry)}
@@ -298,7 +297,7 @@ export function TimetableGrid({
                                 <span className="truncate text-[10px] font-medium text-inherit opacity-80">
                                   {subLabel(entry)}
                                 </span>
-                              </button>
+                              </button></TooltipHint>
                             );
                           })}
                         </div>

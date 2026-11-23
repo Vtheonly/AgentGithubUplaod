@@ -10,6 +10,7 @@ import { usePersonNavigation } from "../navigation/person-navigation-context";
 import { StudentActionsMenu } from "./student-actions-menu";
 import { ParentActionsMenu } from "./parent-actions-menu";
 import { cn } from "./cn";
+import { TooltipHint } from "./tooltip";
 
 export interface PersonLinkProps {
   type: "student" | "parent";
@@ -49,15 +50,14 @@ export function PersonLink({
 
   return (
     <div className={cn("inline-flex items-center gap-1.5 max-w-full group", className)}>
-      <button
+      <TooltipHint content={`Inspecter ${name} (${type === "student" ? "Élève" : "Parent"})`}><button
         type="button"
         onClick={handleClick}
         className="text-left font-medium text-foreground hover:text-primary hover:underline transition-colors truncate"
-        title={`Inspecter ${name} (${type === "student" ? "Élève" : "Parent"})`}
       >
         <span className="truncate block font-semibold text-sm">{name}</span>
         {sub && <span className="block text-[10px] text-muted-foreground font-mono truncate">{sub}</span>}
-      </button>
+      </button></TooltipHint>
 
       {showMenu && (
         <span className="opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">

@@ -26,6 +26,7 @@ import {
 } from "../../domain/model/expense";
 import { formatDateTime } from "../../core/format/date";
 import { Permission } from "../../core/rbac/permissions";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /** The 0018 bucket limits (client-side first; the server enforces too). */
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -178,11 +179,10 @@ export function ExpenseAttachmentsGallery({
                 key={a.id}
                 className="rounded-md border border-border overflow-hidden bg-background"
               >
-                <button
+                <TooltipHint content={`${a.fileName} — ${EXPENSE_ATTACHMENT_SOURCE_LABELS_FR[a.source]}`}><button
                   type="button"
                   className="block w-full"
                   onClick={() => setExpanded(expanded === a.id ? null : a.id)}
-                  title={`${a.fileName} — ${EXPENSE_ATTACHMENT_SOURCE_LABELS_FR[a.source]}`}
                 >
                   {isImage && url ? (
                     <img
@@ -195,11 +195,11 @@ export function ExpenseAttachmentsGallery({
                       PDF — cliquez pour ouvrir
                     </div>
                   )}
-                </button>
+                </button></TooltipHint>
                 <div className="p-1.5 space-y-1">
-                  <p className="text-[11px] font-medium truncate" title={a.fileName}>
+                  <TooltipHint content={a.fileName}><p className="text-[11px] font-medium truncate">
                     {a.fileName}
-                  </p>
+                  </p></TooltipHint>
                   <p className="text-[10px] text-muted-foreground">
                     {EXPENSE_ATTACHMENT_SOURCE_LABELS_FR[a.source]} ·{" "}
                     {(a.sizeBytes / 1024).toFixed(0)} Ko

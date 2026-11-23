@@ -46,6 +46,7 @@ import { MarkdownView } from "../../shared/ui/markdown-view";
 import { ModalShell } from "../../shared/ui/unified-modal/modal-shell";
 import { ArtifactRenderer } from "./artifact-renderer";
 import { parseToolArtifact } from "../../core/ai/artifacts";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 const STARTER_SUGGESTIONS = [
   "Analyse la tendance des revenus sur 12 mois",
@@ -338,14 +339,14 @@ export function AICopilotDrawer() {
                 </p>
               )}
             </div>
-            <button
+            <TooltipHint content="Ignorer la question"><button
               type="button"
+              aria-label="Ignorer la question"
               className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent/10"
               onClick={dismissClarification}
-              title="Ignorer la question"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
+            </button></TooltipHint>
           </div>
           <form
             onSubmit={(e) => {

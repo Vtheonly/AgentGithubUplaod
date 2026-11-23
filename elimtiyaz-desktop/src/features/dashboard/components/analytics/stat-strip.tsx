@@ -15,6 +15,7 @@ import { derivePaymentStats, type PaymentStats } from "./analytics-derivations";
 import type { Payment } from "../../../../domain/model/payment";
 // T-447 (UI-325): the bilingual explainability tooltip (glossary: src/i18n/stats-tips.ts).
 import { InfoTip } from "./info-tip";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 export interface StatStripProps {
   slice: readonly Payment[];
@@ -53,12 +54,11 @@ function StatTile({
           {icon}
         </div>
       </div>
-      <div
+      <TooltipHint content={value}><div
         className="font-mono text-base font-bold text-foreground tabular-nums truncate"
-        title={value}
       >
         {value}
-      </div>
+      </div></TooltipHint>
       {sub && (
         <div className="text-[10px] text-muted-foreground truncate">{sub}</div>
       )}

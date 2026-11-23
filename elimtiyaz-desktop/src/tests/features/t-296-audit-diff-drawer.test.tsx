@@ -402,8 +402,9 @@ describe("T-306 — realtime live refresh of the audit list", () => {
     auditStub.query.mockClear();
     render(<AuditLogTab />);
     await screen.findByText("payment.collect");
-    // Toggle the live pill OFF.
-    screen.getByTitle(/Flux temps réel actif/).click();
+    // Toggle the live pill OFF (E6.5: the native title= died — the pill is
+    // found by its visible accessible name).
+    screen.getByRole("button", { name: /En direct/ }).click();
     await vi.waitFor(() => {
       expect(screen.getByText("En pause")).toBeTruthy();
     });

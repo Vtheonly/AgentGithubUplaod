@@ -255,8 +255,10 @@ describe("T-346 — SubjectConfigurationsPanel (the context matrix)", () => {
     render(<SubjectConfigurationsPanel />);
 
     // Unconfigured cells render the "+" affordance for managers.
+    // E6.5: the native title= died — the icon-only affordance is found by its
+    // aria-label (the accessible name the title used to provide).
     const btns = await waitFor(() => {
-      const found = document.querySelectorAll("button[title^='Configurer']");
+      const found = document.querySelectorAll("button[aria-label^='Configurer']");
       expect(found.length).toBeGreaterThan(0);
       return found;
     });

@@ -97,6 +97,7 @@ interface InspectorContextValue {
 }
 
 import { createContext, useContext } from "react";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 const DataInspectorContext = createContext<InspectorContextValue | null>(null);
 
@@ -169,17 +170,16 @@ function ContributorRow({
         <div className="font-mono text-xs font-semibold" style={{ color }}>
           {formatDzdPlain(contributor.amount)}
         </div>
-        <div
-          className="text-[10px] font-mono"
-          style={{ color }}
-          title={
+        <TooltipHint content={
             mode === "top10"
               ? `${share.toFixed(1)}% des 10 premiers seuls (répartition interne)`
               : `${share.toFixed(1)}% de l'ensemble du dataset (non normalisé)`
-          }
+          }><div
+          className="text-[10px] font-mono"
+          style={{ color }}
         >
           {share.toFixed(1)}%
-        </div>
+        </div></TooltipHint>
       </div>
     </div>
   );
@@ -660,15 +660,13 @@ export function DataInspectorProvider({
                 data-testid="inspector-stacked-bar"
               >
                 {topContributors.map((c, rank) => (
-                  <div
-                    key={c.key}
-                    title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
+                  <TooltipHint key={c.key} content={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}><div
                     className="h-full"
                     style={{
                       backgroundColor: contributorColor(rank),
                       width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%`,
                     }}
-                  />
+                  /></TooltipHint>
                 ))}
               </div>
               <div className="mt-2 space-y-1.5">
@@ -763,11 +761,10 @@ export function DataInspectorProvider({
                       >
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5">
-                            <span
+                            <TooltipHint content={row.contributorName}><span
                               className="h-2 w-2 shrink-0 rounded-full"
                               style={{ backgroundColor: color }}
-                              title={row.contributorName}
-                            />
+                            /></TooltipHint>
                             {/* T-467 (DASH-411): the family is CLICKABLE — the
                                 parent's detail drawer (the owner's mandate). */}
                             <PersonLink
@@ -894,15 +891,13 @@ export function DataInspectorProvider({
               data-testid="inspector-compact-bar"
             >
               {topContributors.map((c, rank) => (
-                <div
-                  key={c.key}
+                <TooltipHint key={c.key} content={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}><div
                   className="h-full"
                   style={{
                     backgroundColor: contributorColor(rank),
                     width: `${Math.max(0, Math.min(100, referenceSharePct(c, referenceMode)))}%`,
                   }}
-                  title={`${c.name} — ${formatDzdPlain(c.amount)} (${referenceSharePct(c, referenceMode).toFixed(1)}% de ${referenceMode === "top10" ? "des 10 premiers" : "l'ensemble"})`}
-                />
+                /></TooltipHint>
               ))}
             </div>
             <div className="space-y-2">
@@ -1014,7 +1009,7 @@ export function InspectTrigger({
   const { inspectData } = useDataInspector();
   const tooltip = title ?? label;
   return (
-    <button
+    <TooltipHint content={tooltip}><button
       type="button"
       onClick={(event) => {
         event.stopPropagation();
@@ -1024,7 +1019,6 @@ export function InspectTrigger({
       // h-7/px-2.5 compact form was the "too small, cramped" complaint);
       // the non-compact variant only bumps the typography to 13px.
       className={`${INSPECT_TRIGGER_CLASS} ${compact ? "" : "text-[13px]"}`}
-      title={tooltip}
       aria-label={tooltip}
       disabled={disabled}
     >
@@ -1033,7 +1027,7 @@ export function InspectTrigger({
           the surrounding flex-wrap strips absorb the button's true width
           (the old max-w-56 + truncate pair silently cut long labels). */}
       <span>{label}</span>
-    </button>
+    </button></TooltipHint>
   );
 }
 

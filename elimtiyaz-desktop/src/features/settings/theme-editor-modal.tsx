@@ -15,6 +15,7 @@ import {
   type CustomThemePalette,
   type ThemeColors,
 } from "../../core/theme/theme-types";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 interface Props {
   open: boolean;
@@ -363,12 +364,11 @@ function ColorPickerRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 p-1.5 rounded-md border border-border/50 bg-card">
-      <span
+      <TooltipHint content={label}><span
         className="text-xs font-medium text-foreground truncate"
-        title={label}
       >
         {label}
-      </span>
+      </span></TooltipHint>
       <div className="flex items-center gap-2 shrink-0">
         <input
           type="color"

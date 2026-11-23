@@ -63,6 +63,7 @@ import {
 import { useToast } from "../../app/providers/toast-provider";
 import { exportAuditLog } from "../../infrastructure/excel/reports";
 import { cn } from "../../shared/ui/cn";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 export function AuditLogTab() {
   const repos = useRepositories();
@@ -179,14 +180,13 @@ export function AuditLogTab() {
             <CardTitle className="text-base flex items-center gap-2">
               <ScrollText className="h-4 w-4 text-primary" />{" "}
               {t("settings.audit")}
-              <button
-                type="button"
-                onClick={() => setLive((v) => !v)}
-                title={
+              <TooltipHint content={
                   live
                     ? "Flux temps réel actif — la liste se rafraîchit à chaque événement"
                     : "Flux temps réel en pause — cliquer pour réactiver"
-                }
+                }><button
+                type="button"
+                onClick={() => setLive((v) => !v)}
                 className={cn(
                   "ml-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors",
                   live
@@ -196,7 +196,7 @@ export function AuditLogTab() {
               >
                 <Radio className="h-3 w-3" />
                 {live ? "En direct" : "En pause"}
-              </button>
+              </button></TooltipHint>
             </CardTitle>
             <CardDescription>
               Traçabilité universelle — append-only, aucun contournement

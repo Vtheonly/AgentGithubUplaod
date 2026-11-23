@@ -32,6 +32,7 @@ import { Button } from "../button";
 import { cn } from "../cn";
 import { ModalShell } from "../unified-modal/modal-shell";
 import type { EntityDetailDrawerProps } from "./types";
+import { TooltipHint } from "../tooltip";
 
 export function EntityDetailDrawer<T>(props: EntityDetailDrawerProps<T>): ReactNode {
   const {
@@ -130,12 +131,11 @@ export function EntityDetailDrawer<T>(props: EntityDetailDrawerProps<T>): ReactN
               <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground truncate">
                 {m.label}
               </div>
-              <div
+              <TooltipHint content={typeof m.value === "string" ? m.value : undefined}><div
                 className="mt-1 text-xs sm:text-sm font-semibold text-foreground truncate"
-                title={typeof m.value === "string" ? m.value : undefined}
               >
                 {m.value}
-              </div>
+              </div></TooltipHint>
             </div>
           ))}
         </div>

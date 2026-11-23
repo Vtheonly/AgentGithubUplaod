@@ -30,6 +30,7 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { Role, ROLE_LABELS_FR, STAFF_ROLES } from "../../core/rbac/roles";
 import { Permission, PERMISSION_LABELS_FR, DEFAULT_ROLE_PERMISSIONS } from "../../core/rbac/permissions";
 import { useRepositories } from "../../app/providers/repository-provider";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 const STORAGE_KEY = "el-imtiyaz:rbac-overrides";
 
@@ -310,7 +311,7 @@ export function RbacMatrixEditor() {
                         const granted = matrix[role].has(perm);
                         return (
                           <td key={role} className="p-3 text-center">
-                            <button
+                            <TooltipHint content={granted ? "Accordée — cliquer pour retirer" : "Non accordée — cliquer pour accorder"}><button
                               type="button"
                               disabled={!canEdit}
                               onClick={() => toggle(role, perm)}
@@ -319,10 +320,9 @@ export function RbacMatrixEditor() {
                                   ? "bg-status-success/15 border-status-success/40 text-status-success"
                                   : "bg-transparent border-border text-muted-foreground hover:border-primary/50"
                               } ${canEdit ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}
-                              title={granted ? "Accordée — cliquer pour retirer" : "Non accordée — cliquer pour accorder"}
                             >
                               {granted && <Check className="h-4 w-4" />}
-                            </button>
+                            </button></TooltipHint>
                           </td>
                         );
                       })}

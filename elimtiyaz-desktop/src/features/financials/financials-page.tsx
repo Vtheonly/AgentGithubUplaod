@@ -99,6 +99,7 @@ import { ParentActionsMenu } from "../../shared/ui/parent-actions-menu";
 // E2.5 / S-U5: the no-phone WhatsApp share builder.
 import { buildWhatsAppShareUrl } from "../../shared/utils/contact-actions";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 type FinanceTab =
   | "payments"
@@ -383,10 +384,9 @@ export function FinancialsPage() {
 
       <div className="px-6 pb-3">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <button
+          <TooltipHint content="Voir le journal des paiements"><button
             type="button"
             onClick={() => setTab("payments")}
-            title="Voir le journal des paiements"
             className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <KpiCard
@@ -396,11 +396,10 @@ export function FinancialsPage() {
               tone="success"
               hint="Total registre toutes dates — distinct du Payé à ce jour"
             />
-          </button>
-          <button
+          </button></TooltipHint>
+          <TooltipHint content="Voir le journal des paiements"><button
             type="button"
             onClick={() => setTab("payments")}
-            title="Voir le journal des paiements"
             className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <KpiCard
@@ -409,11 +408,10 @@ export function FinancialsPage() {
               icon={<TrendingUp className="h-5 w-5" />}
               tone="info"
             />
-          </button>
-          <button
+          </button></TooltipHint>
+          <TooltipHint content={`Encours des tranches — dont ${formatDzd(pastDueDebt)} échues (en retard).`}><button
             type="button"
             onClick={() => setTab("debt")}
-            title={`Encours des tranches — dont ${formatDzd(pastDueDebt)} échues (en retard).`}
             className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <KpiCard
@@ -427,11 +425,10 @@ export function FinancialsPage() {
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="danger"
             />
-          </button>
-          <button
+          </button></TooltipHint>
+          <TooltipHint content="Voir les dépenses en attente"><button
             type="button"
             onClick={() => setTab("expenses")}
-            title="Voir les dépenses en attente"
             className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5"
           >
             <KpiCard
@@ -440,7 +437,7 @@ export function FinancialsPage() {
               icon={<Receipt className="h-5 w-5" />}
               tone="warning"
             />
-          </button>
+          </button></TooltipHint>
         </div>
       </div>
 
@@ -745,16 +742,15 @@ function PaymentsTab({
       accessor: "receiptNumber",
       cell: (p) => (
         <div className="flex flex-col max-w-[170px]">
-          <span
+          <TooltipHint content={p.receiptNumber}><span
             className="font-mono text-xs font-medium text-foreground truncate"
-            title={p.receiptNumber}
           >
             {p.receiptNumber}
-          </span>
+          </span></TooltipHint>
           {p.collectedBy && (
-            <span className="text-[10px] text-muted-foreground truncate" title={p.collectedBy}>
+            <TooltipHint content={p.collectedBy}><span className="text-[10px] text-muted-foreground truncate">
               Par : {p.collectedBy}
-            </span>
+            </span></TooltipHint>
           )}
         </div>
       ),
@@ -776,14 +772,14 @@ function PaymentsTab({
         <div className="flex flex-col min-w-0">
           <span className="text-xs font-medium text-foreground">{PAYMENT_METHOD_LABELS_FR[p.method]}</span>
           {p.checkNumber && (
-            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.checkNumber}>
+            <TooltipHint content={p.checkNumber}><span className="font-mono text-[10px] text-muted-foreground truncate">
               N° {p.checkNumber}
-            </span>
+            </span></TooltipHint>
           )}
           {p.transferReference && (
-            <span className="font-mono text-[10px] text-muted-foreground truncate" title={p.transferReference}>
+            <TooltipHint content={p.transferReference}><span className="font-mono text-[10px] text-muted-foreground truncate">
               Réf : {p.transferReference}
-            </span>
+            </span></TooltipHint>
           )}
         </div>
       ),
@@ -878,9 +874,9 @@ function ExpensesTab({
         return e.responsibleProfileId ? (
           <span>{person ? `${person.firstName} ${person.lastName}` : "Membre du personnel"}</span>
         ) : (
-          <span className="text-status-warning" title="Aucun responsable renseigné — à compléter">
+          <TooltipHint content="Aucun responsable renseigné — à compléter"><span className="text-status-warning">
             À renseigner
-          </span>
+          </span></TooltipHint>
         );
       },
     },

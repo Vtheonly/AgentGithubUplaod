@@ -62,6 +62,7 @@ import {
 // the same data path, the same workflow actions.
 import { ExpenseDetailDrawer } from "../../financials/expense-detail-drawer";
 import { ExpenseSubmitModal } from "../../financials/expense-submit-modal";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 const EXPENSE_STATUS_TONE: Record<
   string,
@@ -221,14 +222,13 @@ export function ExpenseReviewSection() {
                       <tr key={e.id} className="hover:bg-accent/5 transition-colors">
                         <td className="py-2.5 px-3 font-mono">{e.requestCode}</td>
                         <td className="py-2.5 px-3 font-semibold">
-                          <button
+                          <TooltipHint content="Ouvrir le détail complet (description, justificatifs, décisions)"><button
                             type="button"
                             className="hover:underline text-left"
                             onClick={() => setDrawerExpenseId(e.id)}
-                            title="Ouvrir le détail complet (description, justificatifs, décisions)"
                           >
                             {e.title}
-                          </button>
+                          </button></TooltipHint>
                           <div className="text-[10px] text-muted-foreground font-normal">
                             Soumise le {formatDateTime(e.submittedAt)}
                           </div>
@@ -244,12 +244,11 @@ export function ExpenseReviewSection() {
                           {e.responsibleProfileId ? (
                             personName(e.responsibleProfileId)
                           ) : (
-                            <span
+                            <TooltipHint content="Aucun responsable renseigné — à compléter"><span
                               className="inline-flex items-center gap-1 text-status-warning font-medium"
-                              title="Aucun responsable renseigné — à compléter"
                             >
                               <AlertTriangle className="h-3 w-3" /> À renseigner
-                            </span>
+                            </span></TooltipHint>
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold">

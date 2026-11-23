@@ -31,6 +31,7 @@ import {
 } from "../../domain/model/academic";
 import { LEVEL_LABELS_FR } from "../../domain/model/student";
 import { useCurrentAcademicYear } from "./hooks/use-current-academic-year";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 const ConfigSchema = z.object({
   coefficient: z.number().min(0.5).max(20),
@@ -276,39 +277,40 @@ export function SubjectConfigurationsPanel() {
                       levelLabel: l.label,
                       existing: cfg,
                     };
+                    // E6.5: the cell affordance keeps an aria-label — the
+                    // unconfigured cell is icon-only (Plus) and its accessible
+                    // name came from the native title before the TooltipHint.
+                    const cellHint = cfg
+                      ? `Coefficient ${cfg.coefficient} — recette D1:${cfg.gradingRecipe.devoir1} D2:${cfg.gradingRecipe.devoir2} Ex:${cfg.gradingRecipe.examen} CC:${cfg.gradingRecipe.cc} — cliquer pour modifier`
+                      : `Configurer ${s.name} en ${l.label}`;
                     return (
                       <td key={l.id} className="py-1.5 px-2 text-center">
                         {canManage ? (
-                          <button
+                          <TooltipHint content={cellHint}><button
                             type="button"
                             onClick={() => setEditing(target)}
+                            aria-label={cellHint}
                             className={
                               cfg
                                 ? "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono font-bold text-primary hover:bg-primary/10"
                                 : "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-muted-foreground/60 hover:bg-accent/10 hover:text-muted-foreground"
-                            }
-                            title={
-                              cfg
-                                ? `Coefficient ${cfg.coefficient} — recette D1:${cfg.gradingRecipe.devoir1} D2:${cfg.gradingRecipe.devoir2} Ex:${cfg.gradingRecipe.examen} CC:${cfg.gradingRecipe.cc} — cliquer pour modifier`
-                                : `Configurer ${s.name} en ${l.label}`
                             }
                           >
                             {cfg ? (
                               <>
                                 {cfg.coefficient}
                                 {cfg.gradingRecipe.cc > 0 && (
-                                  <span
+                                  <TooltipHint content="Contrôle continu actif dans la recette"><span
                                     className="text-[9px] font-normal text-status-info"
-                                    title="Contrôle continu actif dans la recette"
                                   >
                                     +CC
-                                  </span>
+                                  </span></TooltipHint>
                                 )}
                               </>
                             ) : (
                               <Plus className="size-3" />
                             )}
-                          </button>
+                          </button></TooltipHint>
                         ) : cfg ? (
                           <span className="font-mono font-bold">
                             {cfg.coefficient}

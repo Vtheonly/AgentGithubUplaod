@@ -18,6 +18,7 @@ import {
 } from "../../shared/ui/card";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import type { ServicePerformanceRow } from "../../domain/calc/payment/financial-query-engine";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 interface Props {
   services: ServicePerformanceRow[];
@@ -62,11 +63,9 @@ export function CrossServiceMatrix({ services, onFilterService }: Props) {
                     : "bg-status-danger";
 
               return (
-                <tr
-                  key={s.category}
+                <TooltipHint key={s.category} content={`Filtrer les dossiers pour ${s.label}`}><tr
                   className="hover:bg-accent/5 transition-colors cursor-pointer"
                   onClick={() => onFilterService?.(s.category)}
-                  title={`Filtrer les dossiers pour ${s.label}`}
                 >
                   <td className="py-2.5 px-2 font-medium text-foreground">
                     {s.label}
@@ -108,7 +107,7 @@ export function CrossServiceMatrix({ services, onFilterService }: Props) {
                       <span className="text-muted-foreground">0</span>
                     )}
                   </td>
-                </tr>
+                </tr></TooltipHint>
               );
             })}
           </tbody>

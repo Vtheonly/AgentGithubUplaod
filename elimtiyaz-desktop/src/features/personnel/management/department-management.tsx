@@ -28,6 +28,7 @@ import {
   DEPARTMENT_COLOR_OPTIONS,
   type Department, type DepartmentColor,
 } from "../../../domain/model/workforce";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 const COLOR_SWATCHES: Record<DepartmentColor, string> = {
   "brand-blue": "bg-brand-blue",
@@ -271,16 +272,14 @@ export function DepartmentManagement() {
           <FormField label="Couleur">
             <div className="flex flex-wrap gap-2">
               {DEPARTMENT_COLOR_OPTIONS.map((c) => (
-                <button
-                  key={c}
+                <TooltipHint key={c} content={COLOR_LABELS_FR[c]}><button
                   type="button"
                   onClick={() => update("color", c)}
-                  title={COLOR_LABELS_FR[c]}
                   className={`h-8 w-8 rounded-full border-2 transition ${COLOR_SWATCHES[c]} ${
                     form.color === c ? "border-foreground ring-2 ring-ring" : "border-transparent"
                   }`}
                   aria-label={COLOR_LABELS_FR[c]}
-                />
+                /></TooltipHint>
               ))}
             </div>
           </FormField>

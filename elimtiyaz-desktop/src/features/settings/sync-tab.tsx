@@ -36,6 +36,7 @@ import { useToast } from "../../app/providers/toast-provider";
 import { formatDateTime } from "../../core/format/date";
 import { GitMerge } from "lucide-react";
 import { ConflictResolverModal } from "./conflict-resolver-modal";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 export function SyncTab() {
   const status = useSyncStatus();
@@ -325,7 +326,7 @@ export function SyncTab() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {entries.map((e) => (
-                    <tr key={e.id} title={e.lastError ? `Erreur : ${e.lastError}` : undefined}>
+                    <TooltipHint key={e.id} content={e.lastError ? `Erreur : ${e.lastError}` : undefined}><tr>
                       <td className="p-2">
                         <StatusChip
                           label={statusLabel(e.status)}
@@ -334,15 +335,15 @@ export function SyncTab() {
                       </td>
                       <td className="p-2 font-mono">{e.entity}</td>
                       <td className="p-2 font-mono">{e.operation}</td>
-                      <td className="p-2 truncate max-w-[160px]" title={e.sourceFile ?? ""}>
+                      <TooltipHint content={e.sourceFile ?? ""}><td className="p-2 truncate max-w-[160px]">
                         {e.sourceFile ?? "—"}
-                      </td>
+                      </td></TooltipHint>
                       <td className="p-2">
                         {e.isMock ? <Badge variant="secondary">mock</Badge> : <Badge variant="outline">réel</Badge>}
                       </td>
                       <td className="p-2 text-right font-mono">{e.attempts}</td>
                       <td className="p-2 text-muted-foreground">{formatDateTime(e.queuedAt)}</td>
-                    </tr>
+                    </tr></TooltipHint>
                   ))}
                 </tbody>
               </table>

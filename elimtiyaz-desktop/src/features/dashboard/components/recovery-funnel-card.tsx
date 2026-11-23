@@ -77,6 +77,7 @@ import type { Student } from "../../../domain/model/student";
 import { useRepositories } from "../../../app/providers/repository-provider";
 import { useObservable } from "../../../shared/hooks/use-observable";
 import { openWhatsApp } from "../../../shared/utils/whatsapp";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 export interface FunnelStage {
   name: string;
@@ -695,9 +696,9 @@ export function RecoveryFunnelCard({
                         </td>
                         <td className="max-w-[180px] px-3 py-2.5 text-xs text-muted-foreground">
                           {household.studentNames.length > 0 ? (
-                            <div className="truncate" title={household.studentNames.join(" · ")}>
+                            <TooltipHint content={household.studentNames.join(" · ")}><div className="truncate">
                               {household.studentNames.join(" · ")}
-                            </div>
+                            </div></TooltipHint>
                           ) : (
                             "—"
                           )}

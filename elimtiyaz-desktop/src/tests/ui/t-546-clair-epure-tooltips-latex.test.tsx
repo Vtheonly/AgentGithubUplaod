@@ -11,8 +11,8 @@
  *      dead (BUG-075).
  *
  *   2. THE SHARED TOOLTIP CONTRACT (UI-353):
- *      - TooltipContent no longer carries overflow-hidden, sits at z-[70]
- *        (above the z-50 modal layer) and passes collisionPadding.
+ *      - TooltipContent no longer carries overflow-hidden, sits at the named
+ *        z-tooltip layer (above the z-50 modal layer) and passes collisionPadding.
  *
  *   3. LATEX RENDERING (UI-354):
  *      - <Latex> renders real KaTeX markup (fractions, sub/superscripts),
@@ -302,7 +302,8 @@ describe("T-546 (UI-353) — the shared TooltipContent contract", () => {
     fireEvent.focus(screen.getByText("trigger"));
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip.className).not.toContain("overflow-hidden");
-    expect(tooltip.className).toContain("z-[70]");
+    // E6.1: the named z-scale owns the layer (z-tooltip = 70, above the z-50 modal).
+    expect(tooltip.className).toContain("z-tooltip");
   });
 });
 

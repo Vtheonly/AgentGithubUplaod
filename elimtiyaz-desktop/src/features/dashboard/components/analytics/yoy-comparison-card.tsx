@@ -35,6 +35,7 @@ import { deriveYearOverYear } from "./analytics-derivations";
 import { deriveMockPrevYearRevenue } from "./yoy-mock";
 // T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
 import { CardHeaderActions } from "./card-header-actions";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 export function YoYComparisonCard({
   currentYear,
@@ -106,7 +107,11 @@ export function YoYComparisonCard({
             </span>
           )}
         {mockOfferable && (
-          <button
+          <TooltipHint content={
+              mockActive
+                ? "Revenir à l'état réel (aucune donnée N−1)"
+                : "Aperçu avec un N−1 SIMULÉ — clairement identifié, n'écrit aucune donnée"
+            }><button
             type="button"
             data-testid={mockActive ? "yoy-mock-off" : "yoy-mock-on"}
             onClick={() => setMockEnabled((v) => !v)}
@@ -116,15 +121,10 @@ export function YoYComparisonCard({
                 ? "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-status-warning/50 bg-status-warning/10 text-status-warning hover:bg-status-warning/20 transition-colors"
                 : "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:bg-accent/10 hover:text-foreground transition-colors"
             }
-            title={
-              mockActive
-                ? "Revenir à l'état réel (aucune donnée N−1)"
-                : "Aperçu avec un N−1 SIMULÉ — clairement identifié, n'écrit aucune donnée"
-            }
           >
             <FlaskConical className="h-3.5 w-3.5" />
             {mockActive ? "Quitter la démo N−1" : "Démo N−1 (simulé)"}
-          </button>
+          </button></TooltipHint>
         )}
         {mockOfferable && <InfoTip tip="yoy.mock" />}
         {/* T-503 (UI-334): the inspection controls live ON the chart. */}

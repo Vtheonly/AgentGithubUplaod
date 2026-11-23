@@ -41,6 +41,7 @@ import {
   freshSignedMediaUrl,
   mockVaultHas,
 } from "../../../infrastructure/storage/media-vault";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 /**
  * SYNC-110/T-372 — the CANONICAL kind set (the `student_documents` CHECK
@@ -263,9 +264,9 @@ export function DocumentsTab({ studentId }: { studentId: string }) {
               >
                 <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" title={d.fileName}>
+                  <TooltipHint content={d.fileName}><p className="text-sm font-medium truncate">
                     {d.fileName}
-                  </p>
+                  </p></TooltipHint>
                   <p className="text-[11px] text-muted-foreground">
                     {formatDate(d.uploadedAt)} · {d.uploadedBy}
                     {d.note ? ` · ${d.note}` : ""}

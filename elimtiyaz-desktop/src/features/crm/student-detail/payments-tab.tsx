@@ -40,6 +40,7 @@ import {
 import { parentDisplayName } from "../../../domain/model/parent";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
 import { PaymentBreakdownCard } from "../../financials/payment-breakdown-card";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 export function PaymentsTab({
   studentId,
@@ -132,13 +133,12 @@ export function PaymentsTab({
             <p className="text-xl font-mono font-bold text-status-success mt-1">{formatDzdPlain(individualPaid)}</p>
             <p className="text-[10px] text-muted-foreground mt-1">Encaissé à ce jour (payé)</p>
             {individualFutureRecorded > 0 && (
-              <p
+              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><p
                 className="text-[10px] text-primary mt-1"
-                title="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."
                 data-testid="individual-future-recorded-note"
               >
                 + {formatDzdPlain(individualFutureRecorded)} enregistrés à échéance future (non encaissés à ce jour)
-              </p>
+              </p></TooltipHint>
             )}
           </CardContent>
         </Card>

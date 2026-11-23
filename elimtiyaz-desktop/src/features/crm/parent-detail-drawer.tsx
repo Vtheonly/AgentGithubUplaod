@@ -124,6 +124,7 @@ import {
 } from "../../infrastructure/receipt-pdf";
 import { StudentActionsMenu } from "../../shared/ui/student-actions-menu";
 import { usePersonNavigation } from "../../shared/navigation/person-navigation-context";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 export function ParentDetailDrawer({
   parentId,
@@ -1046,20 +1047,18 @@ export function FinancesTab({
             </span>
           </div>
           <div className="h-3 w-full rounded-full bg-muted overflow-hidden flex" aria-hidden="true">
-            <div
+            <TooltipHint content="Encaissé confirmé"><div
               className="h-full bg-status-success transition-all duration-700"
               style={{
                 width: `${Math.min(100, Math.round((recon.clearedPaid / recon.netDue) * 100))}%`,
               }}
-              title="Encaissé confirmé"
-            />
-            <div
+            /></TooltipHint>
+            <TooltipHint content="Reste à payer"><div
               className="h-full bg-status-danger/80 transition-all duration-700"
               style={{
                 width: `${Math.max(0, 100 - Math.min(100, Math.round((recon.clearedPaid / recon.netDue) * 100)))}%`,
               }}
-              title="Reste à payer"
-            />
+            /></TooltipHint>
           </div>
           <div className="flex flex-wrap justify-between gap-2 text-[10px] text-muted-foreground font-mono">
             <span className="flex items-center gap-1 text-status-success">
@@ -1080,14 +1079,13 @@ export function FinancesTab({
                 surfaced as its own labelled line so the arithmetic stays
                 auditable (§15.95a — surface, never rewrite the date). */}
             {recon.futureRecordedPaid > 0 && (
-              <span
+              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><span
                 className="flex items-center gap-1 text-primary"
-                title="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."
                 data-testid="future-recorded-line"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                 Enregistré à échéance future : {formatDzdPlain(recon.futureRecordedPaid)} DZD
-              </span>
+              </span></TooltipHint>
             )}
             <span className="flex items-center gap-1 text-status-danger">
               <span className="h-1.5 w-1.5 rounded-full bg-status-danger" />
@@ -1234,12 +1232,11 @@ export function FinancesTab({
                           )}
                         >
                           <div className="flex items-center justify-between font-semibold">
-                            <span
+                            <TooltipHint content={t.dueDate ? formatDate(t.dueDate) : undefined}><span
                               className="truncate"
-                              title={t.dueDate ? formatDate(t.dueDate) : undefined}
                             >
                               {t.label}
-                            </span>
+                            </span></TooltipHint>
                             {t.status === "paid" ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-status-success shrink-0" />
                             ) : t.amountPaid > 0 || t.amountPending > 0 ? (
@@ -1783,18 +1780,17 @@ function ProvenanceChip({ provenance }: { provenance: AdjustmentProvenance }) {
     undocumented: "Non documenté",
   };
   return (
-    <span
-      className={`text-[9px] font-medium border rounded px-1.5 py-0.5 ${styles[provenance]}`}
-      title={
+    <TooltipHint content={
         provenance === "documented"
           ? "Contenu réel — décision d'opérateur, motif conservé"
           : provenance === "reversal_pair"
             ? "Paire annulée détectée — effet net nul sur le solde"
             : "Entrée héritée sans motif — à auditer"
-      }
+      }><span
+      className={`text-[9px] font-medium border rounded px-1.5 py-0.5 ${styles[provenance]}`}
     >
       {labels[provenance]}
-    </span>
+    </span></TooltipHint>
   );
 }
 

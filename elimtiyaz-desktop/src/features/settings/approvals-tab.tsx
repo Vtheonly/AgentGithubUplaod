@@ -67,6 +67,7 @@ import type { PendingApprovalWithDetails } from "../../infrastructure/supabase/r
 import { parentDisplayName, type Parent } from "../../domain/model/parent";
 import { studentDisplayName, GRADE_LEVELS, GRADE_LEVEL_LABELS_FR, type Student } from "../../domain/model/student";
 import type { AcademicClass } from "../../domain/model/academic";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 interface ApprovalDecision {
   requestId: string;
@@ -859,18 +860,17 @@ function DecisionModal({
                       const bound = !!p.authUserId;
                       return (
                         <li key={p.id}>
-                          <button
+                          <TooltipHint content={
+                              bound
+                                ? "Dossier déjà lié à un compte web — déliez-le via l'éditeur RBAC avant l'approbation (0047)"
+                                : undefined
+                            }><button
                             type="button"
                             onClick={() =>
                               !bound &&
                               onChange({ ...decision, targetParentId: p.id })
                             }
                             disabled={bound}
-                            title={
-                              bound
-                                ? "Dossier déjà lié à un compte web — déliez-le via l'éditeur RBAC avant l'approbation (0047)"
-                                : undefined
-                            }
                             className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent/5 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <div className="flex-1 min-w-0">
@@ -892,7 +892,7 @@ function DecisionModal({
                                 Compte lié
                               </Badge>
                             )}
-                          </button>
+                          </button></TooltipHint>
                         </li>
                       );
                     })}

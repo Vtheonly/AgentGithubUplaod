@@ -89,6 +89,7 @@ import { EntityDetailDrawer, type EntityDrawerTab, type EntityDrawerMetaItem } f
 import { UnifiedPaymentModal } from "./unified-payment-modal";
 import { FamilyYearHistoryPanel } from "./debt-aging-year-history";
 import { cn } from "../../shared/ui/cn";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /* ── Presentation mapping (INV-16c — colors are presentation ONLY) ────── */
 
@@ -130,9 +131,9 @@ function AmountBandChip({
         : `jaune ≥ ${thresholds.amountYellowDzd.toLocaleString("fr-DZ")} DZD (seuil configuré)`
       : "dimension montant désactivée (seuil à 0)";
   return (
-    <span title={edges}>
+    <TooltipHint content={edges}><span>
       <StatusChip label={label} tone={tone[level]} />
-    </span>
+    </span></TooltipHint>
   );
 }
 
@@ -140,19 +141,18 @@ function DebtStatusChip({ level, explanation }: { level: DebtAgingStatusLevel; e
   const label = DEBT_AGING_STATUS_LABELS_FR[level];
   if (level === "orange") {
     return (
-      <span
-        title={explanation}
+      <TooltipHint content={explanation}><span
         className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
         {label}
-      </span>
+      </span></TooltipHint>
     );
   }
   return (
-    <span title={explanation}>
+    <TooltipHint content={explanation}><span>
       <StatusChip label={label} tone={STATUS_TONE[level]} />
-    </span>
+    </span></TooltipHint>
   );
 }
 
@@ -359,9 +359,8 @@ export function DebtAgingTab() {
       header: "Explication",
       accessor: "computedAt",
       cell: (r) => (
-        <p
+        <TooltipHint content={r.status.explanationFr}><p
           className="text-xs text-muted-foreground max-w-[26rem] line-clamp-2"
-          title={r.status.explanationFr}
         >
           {r.status.explanationFr}
           {/* T-469 (DEBT-103): the CONFIGURED per-level message — extends
@@ -374,7 +373,7 @@ export function DebtAgingTab() {
               </span>
             </>
           ) : null}
-        </p>
+        </p></TooltipHint>
       ),
     },
   ];
@@ -403,10 +402,9 @@ export function DebtAgingTab() {
     <div className="space-y-4">
       {/* ── KPI strip: the status distribution (clickable filters) ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <button
+        <TooltipHint content="Toutes les familles endettées"><button
           type="button"
           onClick={() => setStatusFilter("all")}
-          title="Toutes les familles endettées"
           className={cn(
             "text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer transition-transform hover:-translate-y-0.5",
           )}
@@ -417,40 +415,36 @@ export function DebtAgingTab() {
             icon={<Users className="h-5 w-5" />}
             tone={totalOutstanding > 0 ? "danger" : "default"}
           />
-        </button>
+        </button></TooltipHint>
         {/* T-443 (DEBT-101): the tooltips derive from the ACTIVE thresholds
             (the same values the server applied) — the pre-T-429 texts ("> 180 j",
             "> 90 j et paiements interrompus", "paiements poursuivis (actif)") described
             the RETIRED semantics and are purged. T-507 (UI-338): they now
             derive from the EFFECTIVE thresholds (the live preview included). */}
-        <button
+        <TooltipHint content={`Critique / Contentieux : retard > ${effectiveThresholds.redDays} j (le seuil rouge configuré)`}><button
           type="button"
           onClick={() => setStatusFilter("red")}
-          title={`Critique / Contentieux : retard > ${effectiveThresholds.redDays} j (le seuil rouge configuré)`}
         >
           <KpiCard label="Critique" value={statusCounts.red} icon={<Siren className="h-5 w-5" />} tone="danger" />
-        </button>
-        <button
+        </button></TooltipHint>
+        <TooltipHint content={`Retard soutenu : retard entre ${effectiveThresholds.yellowDays} et ${effectiveThresholds.redDays} j (entre les seuils « À surveiller » et « Critique »)`}><button
           type="button"
           onClick={() => setStatusFilter("orange")}
-          title={`Retard soutenu : retard entre ${effectiveThresholds.yellowDays} et ${effectiveThresholds.redDays} j (entre les seuils « À surveiller » et « Critique »)`}
         >
           <KpiCard label="Retard soutenu" value={statusCounts.orange} icon={<Flame className="h-5 w-5" />} tone="warning" />
-        </button>
-        <button
+        </button></TooltipHint>
+        <TooltipHint content={`À surveiller : retard entre ${effectiveThresholds.gracePeriodDays} et ${effectiveThresholds.yellowDays} j (au-delà du délai de grâce, sous le seuil « À surveiller »)`}><button
           type="button"
           onClick={() => setStatusFilter("yellow")}
-          title={`À surveiller : retard entre ${effectiveThresholds.gracePeriodDays} et ${effectiveThresholds.yellowDays} j (au-delà du délai de grâce, sous le seuil « À surveiller »)`}
         >
           <KpiCard label="À surveiller" value={statusCounts.yellow} icon={<AlertTriangle className="h-5 w-5" />} tone="warning" />
-        </button>
-        <button
+        </button></TooltipHint>
+        <TooltipHint content={`Soldé ou à échoir : encours réglé, ou retard ≤ ${effectiveThresholds.gracePeriodDays} j (le délai de grâce configuré)`}><button
           type="button"
           onClick={() => setStatusFilter("green")}
-          title={`Soldé ou à échoir : encours réglé, ou retard ≤ ${effectiveThresholds.gracePeriodDays} j (le délai de grâce configuré)`}
         >
           <KpiCard label="Actif / Soldé" value={statusCounts.green} icon={<CheckCircle2 className="h-5 w-5" />} tone="success" />
-        </button>
+        </button></TooltipHint>
       </div>
 
       {/* ── T-443 (DEBT-101): the ACTIVE-thresholds legend — the configuration

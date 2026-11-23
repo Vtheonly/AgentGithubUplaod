@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../shared/ui/dropdown-menu";
+import { TooltipHint } from "../shared/ui/tooltip";
 
 const LOCALE_LABELS: Record<AppLocale, { label: string; native: string; flag: string }> = {
   fr: { label: "Français", native: "Français", flag: "FR" },
@@ -50,17 +51,16 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button
+        <TooltipHint content={t("language.label")}><button
           type="button"
           className="flex h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
           aria-label={t("language.switcher")}
-          title={t("language.label")}
         >
           <Globe className="h-4 w-4" />
           <span className="hidden text-xs font-medium sm:inline">
             {LOCALE_LABELS[current]?.flag ?? "FR"}
           </span>
-        </button>
+        </button></TooltipHint>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>{t("language.label")}</DropdownMenuLabel>

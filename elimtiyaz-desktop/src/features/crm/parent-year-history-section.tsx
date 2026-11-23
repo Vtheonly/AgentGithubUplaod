@@ -80,6 +80,7 @@ import type {
 } from "../../domain/model/payment";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { AcademicYear } from "../../domain/model/academic";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /* ── Settlement chip vocabulary (one wording — the §15.3 rule) ───────── */
 
@@ -245,15 +246,14 @@ function YearCard({
                     ? "warning"
                     : "success";
               return (
-                <span
+                <TooltipHint content={`Dimension montant — seuils configurés : jaune ≥ ${(debtThresholds?.amountYellowDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd ?? 0).toLocaleString("fr-DZ")} DZD, rouge > ${(debtThresholds?.amountRedDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd ?? 0).toLocaleString("fr-DZ")} DZD`}><span
                   className="text-[10px] tabular-nums"
-                  title={`Dimension montant — seuils configurés : jaune ≥ ${(debtThresholds?.amountYellowDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountYellowDzd ?? 0).toLocaleString("fr-DZ")} DZD, rouge > ${(debtThresholds?.amountRedDzd ?? DEFAULT_DEBT_AGING_THRESHOLDS.amountRedDzd ?? 0).toLocaleString("fr-DZ")} DZD`}
                 >
                   <StatusChip
                     label={DEBT_AMOUNT_LEVEL_LABELS_FR[band]}
                     tone={bandTone}
                   />
-                </span>
+                </span></TooltipHint>
               );
             })()}
             {record.carriedForwardFromPriorYear > 0 && (
@@ -309,12 +309,11 @@ function YearCard({
                         ` · En attente ${formatDzd(g.amountPending)}`}
                     </p>
                   </div>
-                  <span
+                  <TooltipHint content="Reste à payer sur ce service (INV-4)"><span
                     className="tabular-nums font-medium"
-                    title="Reste à payer sur ce service (INV-4)"
                   >
                     Reste {formatDzd(g.remaining)}
-                  </span>
+                  </span></TooltipHint>
                 </li>
               ))}
             </ul>
@@ -336,12 +335,11 @@ function YearCard({
                   <div className="min-w-0">
                     <p className="truncate font-medium">
                       {chargeWaveChip(c) && (
-                        <span
+                        <TooltipHint content="Tranche (modèle officiel T-425)"><span
                           className="mr-1.5 inline-block rounded bg-primary/10 px-1 py-px text-[10px] font-semibold text-primary"
-                          title="Tranche (modèle officiel T-425)"
                         >
                           {chargeWaveChip(c)}
-                        </span>
+                        </span></TooltipHint>
                       )}
                       {c.label}
                     </p>

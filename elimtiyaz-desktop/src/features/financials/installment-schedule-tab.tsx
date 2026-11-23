@@ -109,6 +109,7 @@ import { UnifiedPaymentModal } from "./unified-payment-modal";
 import { TrancheAmountEditModal } from "./tranche-amount-edit-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 interface Row extends Installment {
   parentName: string;
@@ -358,15 +359,14 @@ export function TrancheWaveHeader({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-foreground truncate">{w.label}</span>
-            <span
+            <TooltipHint content={w.hint}><span
               className={
                 "text-xs font-mono font-bold shrink-0 " +
                 (w.isNextTarget ? "text-primary" : w.pct >= 90 ? "text-status-success" : "text-muted-foreground")
               }
-              title={w.hint}
             >
               {w.pct}%
-            </span>
+            </span></TooltipHint>
           </div>
           <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
             <div
@@ -380,10 +380,9 @@ export function TrancheWaveHeader({
           {/* T-434 (UI-316): the échéance is VISIBLE on the strip card
               (the hint was tooltip-only). T-435 (UI-317): now DERIVED
               from the rows — the due-date range, not a hardcoded hint. */}
-          <p
+          <TooltipHint content={dueRangeLabel ? w.hint : undefined}><p
             className={`text-[10px] font-mono ${dueLineTone}`}
             data-testid={`strip-due-${w.index}`}
-            title={dueRangeLabel ? w.hint : undefined}
           >
             {dueRangeLabel
               ? `Échéance : ${dueRangeLabel}${
@@ -394,7 +393,7 @@ export function TrancheWaveHeader({
                       : ""
                 }`
               : w.hint}
-          </p>
+          </p></TooltipHint>
           <div className="flex justify-between gap-2 text-[11px] font-mono text-muted-foreground">
             <span className="truncate">Encaissé : {formatDzdPlain(w.paid)}</span>
             <span className="truncate">Dû : {formatDzdPlain(w.due)}</span>
@@ -404,12 +403,11 @@ export function TrancheWaveHeader({
               surfaces' different bases reconcile at a glance (the owner's
               77 % vs 75 %: scolarité isolée vs toutes catégories). */}
           {showTuitionBreakdown && w.tuitionPct !== null && (
-            <p
+            <TooltipHint content="Taux scolarité isolée — le même chiffre que la carte « Vélocité de Recouvrement » des Statistiques (elle isole la scolarité, cette bande regroupe toutes les catégories)"><p
               className="text-[10px] text-muted-foreground font-mono"
-              title="Taux scolarité isolée — le même chiffre que la carte « Vélocité de Recouvrement » des Statistiques (elle isole la scolarité, cette bande regroupe toutes les catégories)"
             >
               dont scolarité : {w.tuitionPct}%
-            </p>
+            </p></TooltipHint>
           )}
           {w.pending > 0 && (
             <p className="text-[10px] text-status-warning font-mono">

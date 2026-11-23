@@ -76,6 +76,7 @@ import { StudentActionsMenu } from "../../../../shared/ui/student-actions-menu";
 import { ParentActionsMenu } from "../../../../shared/ui/parent-actions-menu";
 // T-503 (UI-334): the ONE reusable attachment surface for the inspection controls.
 import { CardHeaderActions } from "./card-header-actions";
+import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 interface Props {
   profiles: StudentRiskProfile[];
@@ -1230,14 +1231,13 @@ export function OperationalQueryConsole({
                       >
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-1.5 group">
-                            <button
+                            <TooltipHint content={`Inspecter ${p.studentName}`}><button
                               type="button"
                               onClick={() => openStudent(p.studentId)}
                               className="font-semibold text-foreground hover:text-primary hover:underline text-left truncate"
-                              title={`Inspecter ${p.studentName}`}
                             >
                               {p.studentName}
-                            </button>
+                            </button></TooltipHint>
                             <StudentActionsMenu
                               student={{
                                 id: p.studentId,
@@ -1263,14 +1263,13 @@ export function OperationalQueryConsole({
 
                         <td className="py-2 px-3">
                           <div className="flex items-center gap-1.5 group">
-                            <button
+                            <TooltipHint content={`Inspecter Famille ${p.parentName}`}><button
                               type="button"
                               onClick={() => openParent(p.parentId)}
                               className="text-foreground font-medium hover:text-primary hover:underline truncate max-w-[130px] text-left"
-                              title={`Inspecter Famille ${p.parentName}`}
                             >
                               {p.parentName}
-                            </button>
+                            </button></TooltipHint>
                             <ParentActionsMenu
                               parent={{
                                 id: p.parentId,
@@ -1336,12 +1335,11 @@ export function OperationalQueryConsole({
                                 Triple Risque
                               </Badge>
                             )}
-                            <span
+                            <TooltipHint content={p.primaryRiskReason}><span
                               className="text-[11px] text-muted-foreground truncate block"
-                              title={p.primaryRiskReason}
                             >
                               {p.primaryRiskReason}
-                            </span>
+                            </span></TooltipHint>
                           </div>
                         </td>
 

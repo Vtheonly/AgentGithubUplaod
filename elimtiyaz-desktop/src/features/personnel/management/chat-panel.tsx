@@ -57,6 +57,7 @@ import {
   isChatAttachmentAllowed,
   CHAT_ATTACHMENT_MIME_TYPES,
 } from "../../../infrastructure/storage/media-vault";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 const CHANNEL_TYPES: readonly ChannelType[] = ["direct", "group", "department", "announcement"];
 
@@ -1030,29 +1031,27 @@ function MessageAttachment({ attachment }: { attachment: ChatAttachmentView }) {
     <div className="inline-flex items-center gap-2 rounded-md border border-border/50 bg-background/60 px-2 py-1.5 max-w-[280px]">
       <FileText className="h-4 w-4 shrink-0" />
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium truncate" title={attachment.filename}>
+        <TooltipHint content={attachment.filename}><p className="text-[11px] font-medium truncate">
           {attachment.filename}
-        </p>
+        </p></TooltipHint>
         <p className="text-[10px] opacity-70">{formatSize(attachment.sizeBytes)}</p>
       </div>
-      <button
+      <TooltipHint content="Ouvrir"><button
         type="button"
         aria-label={`Ouvrir ${attachment.filename}`}
-        title="Ouvrir"
         className="rounded p-1 hover:bg-accent/10"
         onClick={() => void openAttachment(false)}
       >
         <ExternalLink className="h-3.5 w-3.5" />
-      </button>
-      <button
+      </button></TooltipHint>
+      <TooltipHint content="Télécharger"><button
         type="button"
         aria-label={`Télécharger ${attachment.filename}`}
-        title="Télécharger"
         className="rounded p-1 hover:bg-accent/10"
         onClick={() => void openAttachment(true)}
       >
         <Download className="h-3.5 w-3.5" />
-      </button>
+      </button></TooltipHint>
     </div>
   );
 }

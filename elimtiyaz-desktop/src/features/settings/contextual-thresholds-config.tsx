@@ -82,6 +82,7 @@ import {
   type DebtAgingThresholds,
 } from "../../domain/calc/ledger/debt-aging";
 import { validateDebtThresholdUpdate } from "./configuration/category-cards";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 /* ============================================================================
  * 1. The parameter metadata — the ONE paramKey↔settingKey table
@@ -208,7 +209,7 @@ export function ThresholdsConfigTrigger({
   if (!config) return null;
   const label = `Configurer les seuils — ${scope.title}`;
   return (
-    <button
+    <TooltipHint content={label}><button
       type="button"
       data-testid="thresholds-config-trigger"
       onClick={(event) => {
@@ -221,7 +222,6 @@ export function ThresholdsConfigTrigger({
           "border-status-warning/60 bg-status-warning/10 text-status-warning hover:border-status-warning hover:text-status-warning",
         className,
       )}
-      title={label}
       aria-label={label}
     >
       <Settings2 className="h-3.5 w-3.5" />
@@ -232,7 +232,7 @@ export function ThresholdsConfigTrigger({
           aria-hidden
         />
       )}
-    </button>
+    </button></TooltipHint>
   );
 }
 

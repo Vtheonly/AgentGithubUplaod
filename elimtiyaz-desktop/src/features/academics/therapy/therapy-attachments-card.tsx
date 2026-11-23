@@ -27,6 +27,7 @@ import {
   type TherapyAttachment,
   type TherapyAttachmentKind,
 } from "../../../domain/model/therapy";
+import { TooltipHint } from "../../../shared/ui/tooltip";
 
 const KIND_OPTIONS: readonly TherapyAttachmentKind[] = [
   "medical_report",
@@ -129,9 +130,9 @@ export function TherapyAttachmentsCard({
               <li key={a.id} className="flex items-center gap-3 rounded-md border border-border p-2">
                 <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate" title={a.fileName}>
+                  <TooltipHint content={a.fileName}><p className="text-xs font-medium truncate">
                     {a.fileName}
-                  </p>
+                  </p></TooltipHint>
                   <p className="text-[10px] text-muted-foreground">
                     {formatDate(a.uploadedAt)} · {a.uploadedBy}
                   </p>
