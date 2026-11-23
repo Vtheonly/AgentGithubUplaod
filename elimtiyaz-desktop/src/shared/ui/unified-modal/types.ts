@@ -27,7 +27,22 @@ export interface ModalAlert {
   description?: string;
 }
 
-export interface UnifiedModalProps {
+/**
+ * E6.6 / BUG-041 (T-576): the unknown-prop passthrough surface. The
+ * DESTRUCTURING inside UnifiedModal consumes the ~34 known keys; the REST
+ * of what a consumer passes (data-testid, aria-*, id, test hooks — every
+ * DOM attribute Radix's Content accepts) forwards verbatim to the Radix
+ * Content node instead of being silently dropped. The props interface
+ * EXTENDS this surface, so any DOM attribute a consumer passes is both
+ * type-valid and forwarded.
+ */
+export type UnifiedModalPassthroughProps = Omit<
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+  | "className" | "children" | "onInteractOutside" | "onEscapeKeyDown"
+  | "onOpenChange" | "open" | "asChild" | "title" | "description"
+>;
+
+export interface UnifiedModalProps extends UnifiedModalPassthroughProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   variant?: ModalVariant;
@@ -62,18 +77,6 @@ export interface UnifiedModalProps {
   headerClassName?: string;
   footerClassName?: string;
   contentClassName?: string;
-  /**
-   * E6.6 / BUG-041 (T-576): unknown props are FORWARDED to the Radix
-   * DialogPrimitive.Content element instead of being silently dropped by
-   * the destructuring. `data-testid`, `aria-*`, `id`, test hooks — every
-   * DOM attribute a consumer passes now reaches the dialog node. Known
-   * props (the 34 above) are consumed as before; only the REST pass through.
-   */
-  contentProps?: Omit<
-    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
-    | "className" | "children" | "onInteractOutside" | "onEscapeKeyDown"
-    | "onOpenChange" | "open"
-  >;
 }
 
 export const DIALOG_SIZE_CLASS: Record<ModalSize, string> = {
