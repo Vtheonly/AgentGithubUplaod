@@ -12,10 +12,17 @@
  * Consumers that need to edit a different record must close and re-open
  * (the census: every existing surface seeds from pre-set state — no
  * consumer relies on `initialValues` arriving asynchronously after open).
+ *
+ * E6.2 (DUP-025 / UI-U2): the render skeleton is ModalShell — the ONE modal
+ * skeleton. The previous hand-rolled Dialog.Portal markup (its own overlay,
+ * its own close button, no height cap → tall forms could push the footer
+ * off-screen) is gone; the shell provides the T-219 max-h-[88vh] flex column
+ * so the form body scrolls and the action row stays pinned. Props are
+ * unchanged — the 24 consumers were never touched.
  */
 import { useEffect, useRef, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ZodType } from "zod";
@@ -27,6 +34,7 @@ import { Switch } from "../switch";
 import { MoneyInput } from "../money-input";
 import { cn } from "../cn";
 import { FormField } from "../form-field";
+import { ModalShell } from "../unified-modal/modal-shell";
 import type { AutoFormModalProps, AutoFormField } from "./types";
 
 export function AutoFormModal<T extends ZodType>(props: AutoFormModalProps<T>): ReactNode {
@@ -64,53 +72,54 @@ export function AutoFormModal<T extends ZodType>(props: AutoFormModalProps<T>): 
   });
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-6 shadow-lg">
-          <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
-          {description && <Dialog.Description className="mt-1 text-sm text-muted-foreground">{description}</Dialog.Description>}
-          <Dialog.Close asChild>
-            <button className="absolute right-4 top-4 text-muted-foreground hover:text-foreground" aria-label="Fermer">
-              <X className="size-4" />
-            </button>
-          </Dialog.Close>
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {fields.map((f) => (
-                <Controller
-                  key={f.name}
-                  control={form.control}
-                  name={f.name}
-                  render={({ field }) => (
-                    <FormField
-                      label={f.label}
-                      htmlFor={f.name}
-                      required={f.required}
-                      error={errors[f.name]?.message}
-                      hint={f.help}
-                      className={cn(f.wide && "col-span-2")}
-                    >
-                      {renderField(f, field)}
-                    </FormField>
-                  )}
-                />
-              ))}
-            </div>
-            {footer}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                {cancelLabel}
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-                {submitLabel}
-              </Button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <ModalShell
+      open={open}
+      onOpenChange={onOpenChange}
+      onInteractOutside={() => {}}
+      onEscapeKeyDown={() => {}}
+      variant="dialog"
+      size="md"
+    >
+      {/* The shell renders the close button; the header/body/footer are the
+          AutoFormModal's own composition on top of it. */}
+      <div className="border-b border-border p-5">
+        <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
+        {description && <Dialog.Description className="mt-1 text-sm text-muted-foreground">{description}</Dialog.Description>}
+      </div>
+      <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-5">
+        <div className="grid grid-cols-2 gap-3">
+          {fields.map((f) => (
+            <Controller
+              key={f.name}
+              control={form.control}
+              name={f.name}
+              render={({ field }) => (
+                <FormField
+                  label={f.label}
+                  htmlFor={f.name}
+                  required={f.required}
+                  error={errors[f.name]?.message}
+                  hint={f.help}
+                  className={cn(f.wide && "col-span-2")}
+                >
+                  {renderField(f, field)}
+                </FormField>
+              )}
+            />
+          ))}
+        </div>
+        {footer}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            {cancelLabel}
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+            {submitLabel}
+          </Button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 

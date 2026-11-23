@@ -27,7 +27,7 @@ export interface ModalShellProps {
   variant: ModalVariant;
   size: ModalSize;
   contentClassName?: string;
-  hideCloseButton: boolean;
+  hideCloseButton?: boolean;
   children: React.ReactNode;
 }
 

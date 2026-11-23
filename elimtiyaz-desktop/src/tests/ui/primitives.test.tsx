@@ -288,6 +288,45 @@ describe("Wizard primitive", () => {
     expect(screen.getByText("Terminer")).toBeInTheDocument();
     expect(screen.queryByText("Suivant")).not.toBeInTheDocument();
   });
+
+  // E6.2 (DUP-025 / UI-U2): both primitives render through ModalShell —
+  // the ONE modal skeleton. The shell's dialog contract: the max-h-[88vh]
+  // flex column cap (T-219 — tall content scrolls inside, the action row
+  // stays pinned), the close button, and the width passthrough.
+  it("E6.2 — the Wizard renders through ModalShell (the 88vh flex-column skeleton; the close button present)", () => {
+    render(
+      <Wizard
+        open onOpenChange={() => {}} title="Assistant"
+        steps={[{ id: "a", label: "A", render: () => <div>Step A</div> }]}
+        onFinish={() => {}}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className).toContain("max-h-[88vh]");
+    expect(dialog.className).toMatch(/flex-col/);
+    expect(dialog.className).toContain("max-w-2xl"); // widthClass passthrough
+    expect(dialog.querySelector("button[aria-label='Fermer']")).not.toBeNull();
+  });
+
+  it("E6.2 — the AutoFormModal renders through ModalShell (the 88vh cap; the body scrolls)", () => {
+    render(
+      <AutoFormModal
+        open onOpenChange={() => {}} title="Fiche"
+        schema={z.object({ name: z.string() })}
+        fields={[{ name: "name", label: "Nom", type: "text" }]}
+        initialValues={{ name: "X" }}
+        onSubmit={vi.fn()}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className).toContain("max-h-[88vh]");
+    expect(dialog.className).toMatch(/flex-col/);
+    // The form body is the scrolling region inside the capped column.
+    const form = dialog.querySelector("form");
+    expect(form).not.toBeNull();
+    expect(form!.className).toContain("overflow-y-auto");
+    expect(dialog.querySelector("button[aria-label='Fermer']")).not.toBeNull();
+  });
 });
 
 describe("RoleDashboardLayout primitive", () => {
