@@ -44,7 +44,7 @@ import { formatDzd } from "../../core/format/currency";
 import { formatDate, formatRelative } from "../../core/format/date";
 import { parentDisplayName, type Parent } from "../../domain/model/parent";
 import { studentDisplayName } from "../../domain/model/student";
-import { PAYMENT_CATEGORY_LABELS_FR } from "../../domain/model/payment";
+import { PAYMENT_CATEGORY_LABELS_FR, buildFamilyCollectContext } from "../../domain/model/payment";
 import type { Student } from "../../domain/model/student";
 import {
   DEBT_AGING_STATUS_LABELS_FR,
@@ -570,29 +570,11 @@ export function DebtAgingTab() {
         <UnifiedPaymentModal
           open={!!collectFor}
           onOpenChange={(o) => !o && setCollectFor(null)}
-          context={{
-            parentId: collectFor.parentId,
+          context={buildFamilyCollectContext(collectFor.parentId, {
             parentName: collectFor.parentName,
-            mode: "consolidated_debt",
             presetAmount: collectFor.amount,
-            lineItems: [
-              {
-                itemId: `debt-aging-${collectFor.parentId}`,
-                // ADR-023 (BUSINESS-106): NULL category = cross-category —
-                // the collection allocates across ALL of the family's
-                // tranches (the old "other" booked parent_credit only).
-                category: null,
-                label: "Solde familial consolidé (toutes catégories)",
-                grossAmount: collectFor.amount,
-                discountAmount: 0,
-                netAmount: collectFor.amount,
-                alreadyPaidAmount: 0,
-                remainingAmount: collectFor.amount,
-              },
-            ],
-            allowPartial: true,
             originRoute: "financials.debt_aging",
-          }}
+          })}
         />
       )}
 

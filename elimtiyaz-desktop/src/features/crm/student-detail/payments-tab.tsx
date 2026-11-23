@@ -36,6 +36,7 @@ import {
   isInstallmentOverdue,
   totalOutstanding,
   type PaymentNavigationContext,
+  buildFamilyCollectContext,
 } from "../../../domain/model/payment";
 import { parentDisplayName } from "../../../domain/model/parent";
 import { UnifiedPaymentModal } from "../../financials/unified-payment-modal";
@@ -89,39 +90,20 @@ export function PaymentsTab({
   const familyOverdue = familyProfile?.overdueAmount ?? 0;
 
   // Build the navigation context for "Encaisser part élève" — scoped to
-  // this student's unpaid installments only.
+  // this student's unpaid installments only. T-578 (BUG-046): the ONE
+  // builder — the modal derives the strip from the REAL installments
+  // stream, student-scoped through context.studentId.
   const parent = parents.find((p) => p.id === student.parentId);
-  const collectContext: PaymentNavigationContext | null = unpaidInstallments.length > 0
-    ? {
-        parentId: student.parentId,
+  const collectContext = unpaidInstallments.length > 0
+    ? buildFamilyCollectContext(student.parentId, {
         parentName: parent ? parentDisplayName(parent) : undefined,
         parentCode: parent?.code,
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
-        mode: "installment_tranche",
         presetAmount: individualOverdue,
-        lineItems: unpaidInstallments
-          .slice()
-          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-          .map((i) => ({
-            itemId: i.id,
-            category: i.category,
-            label: i.label,
-            grossAmount: i.amountDue,
-            discountAmount: 0,
-            netAmount: i.amountDue,
-            alreadyPaidAmount: i.amountPaid,
-            // T-103 — canonical INV-4-family remaining (due − paid − pending).
-            remainingAmount: installmentRemaining(i),
-            dueDate: i.dueDate,
-            // T-498 (DATA-045): derived overdue-ness (canonical predicate) —
-            // the live census holds ZERO status="overdue" rows, so the
-            // previous static gate was always false.
-            isOverdue: isInstallmentOverdue(i),
-          })),
         allowPartial: true,
         originRoute: "crm.student_drawer.payments",
-      }
+      })
     : null;
 
   return (

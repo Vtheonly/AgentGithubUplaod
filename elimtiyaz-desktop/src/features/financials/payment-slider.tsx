@@ -36,6 +36,7 @@ import { Slider } from "../../shared/ui/slider";
 import { MoneyInput } from "../../shared/ui/money-input";
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import { installmentRemaining } from "../../domain/calc/payment/queries";
+import { TooltipHint } from "../../shared/ui/tooltip";
 
 export interface PaymentTrancheSpec {
   /** Stable identifier for the tranche (e.g. "tuition-T1"). */
@@ -77,6 +78,56 @@ export interface PaymentSliderProps {
 
 /** Snap threshold in DZD — if the slider is within this distance of a snap point, snap. */
 const SNAP_THRESHOLD_DZD = 500;
+
+/**
+ * BUG-048 (T-578): the cumulative scale labels collided when two boundaries
+ * sat close together (the last label also overflowed the right edge by half
+ * its width under `-translate-x-1/2`). The guard: a label renders only when
+ * the gap to its nearest included RIGHT neighbor fits both half-widths; the
+ * LAST boundary always renders, right-clamped (`right-0 translate-x-0`).
+ * Widths are estimated at a conservative 320 px container (the worst case —
+ * wider containers only gain room). Pure + unit-tested.
+ */
+export interface BoundaryLabel {
+  readonly index: number;
+  readonly text: string;
+  readonly leftPct: number;
+  readonly clampRight: boolean;
+}
+
+const BOUNDARY_CHAR_PX = 5; // text-[9px] digit estimate
+const BOUNDARY_CONTAINER_PX = 320; // conservative (worst-case) container width
+
+export function visibleBoundaryLabels(
+  boundaries: readonly number[],
+  maxAmount: number,
+  containerPx: number = BOUNDARY_CONTAINER_PX,
+): BoundaryLabel[] {
+  if (boundaries.length === 0 || maxAmount <= 0) return [];
+  const labels = boundaries.map((b, i) => {
+    const text = formatDzdPlain(b);
+    const widthPct = ((text.length * BOUNDARY_CHAR_PX + 4) / containerPx) * 100;
+    const leftPct = (b / maxAmount) * 100;
+    return { index: i, text, leftPct, halfPct: widthPct / 2 };
+  });
+  const out: BoundaryLabel[] = [];
+  let rightNeighborLeftEdge: number | null = null;
+  for (let i = labels.length - 1; i >= 0; i--) {
+    const l = labels[i];
+    if (i === labels.length - 1) {
+      out.unshift({ index: l.index, text: l.text, leftPct: l.leftPct, clampRight: true });
+      // The clamped label occupies [100 − width, 100].
+      rightNeighborLeftEdge = 100 - l.halfPct * 2;
+      continue;
+    }
+    const myRightEdge = l.leftPct + l.halfPct;
+    if (rightNeighborLeftEdge === null || myRightEdge <= rightNeighborLeftEdge - 0.5) {
+      out.unshift({ index: l.index, text: l.text, leftPct: l.leftPct, clampRight: false });
+      rightNeighborLeftEdge = l.leftPct - l.halfPct;
+    }
+  }
+  return out;
+}
 
 /**
  * Compute the cumulative snap points from a list of tranches using
@@ -216,9 +267,11 @@ export function PaymentSlider({
       </div>
 
       {/* Tranche strip — visual segmented track above the slider.
-          Widths are proportional to REMAINING debt (not gross). */}
+          Widths are proportional to REMAINING debt (not gross).
+          BUG-048 (T-578): the strip is taller (h-11) and a segment narrower
+          than 12% drops its due-window sub-label (the collision source). */}
       <div>
-        <div className="relative h-9 w-full overflow-hidden rounded-md border border-border bg-muted">
+        <div className="relative h-11 w-full overflow-hidden rounded-md border border-border bg-muted">
           {tranches.map((t, i) => {
             const leftPct = i === 0 ? 0 : (cumulativeRemainingBoundaries[i - 1] / maxAmount) * 100;
             const widthPct = (installmentRemaining(t) / maxAmount) * 100;
@@ -239,9 +292,14 @@ export function PaymentSlider({
                 <span className="text-[10px] font-medium leading-tight truncate w-full text-center">
                   {t.label}
                 </span>
-                <span className="text-[9px] text-muted-foreground leading-tight truncate w-full text-center">
-                  {t.dueWindowLabel}
-                </span>
+                {/* BUG-048: a segment narrower than 12% cannot fit the
+                    due-window sub-label without colliding — drop it (the
+                    label above + the boundary scale still carry the info). */}
+                {widthPct >= 12 && (
+                  <span className="text-[9px] text-muted-foreground leading-tight truncate w-full text-center">
+                    {t.dueWindowLabel}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -251,16 +309,20 @@ export function PaymentSlider({
             style={{ left: `${sliderPct}%` }}
           />
         </div>
-        {/* Cumulative REMAINING scale labels (bug fix: was gross amounts) */}
+        {/* Cumulative REMAINING scale labels (bug fix: was gross amounts).
+            BUG-048 (T-578): collision-guarded — a label renders only when
+            the gap to its right neighbor fits both half-widths; the LAST
+            boundary is always rendered, right-clamped (never half off the
+            edge). */}
         <div className="relative h-4 mt-0.5 text-[9px] text-muted-foreground">
           <span className="absolute left-0">0</span>
-          {cumulativeRemainingBoundaries.map((b, i) => (
+          {visibleBoundaryLabels(cumulativeRemainingBoundaries, maxAmount).map((l) => (
             <span
-              key={i}
-              className="absolute -translate-x-1/2"
-              style={{ left: `${(b / maxAmount) * 100}%` }}
+              key={l.index}
+              className={l.clampRight ? "absolute right-0 translate-x-0" : "absolute -translate-x-1/2"}
+              style={l.clampRight ? undefined : { left: `${l.leftPct}%` }}
             >
-              {formatDzdPlain(b)}
+              {l.text}
             </span>
           ))}
         </div>
@@ -394,15 +456,14 @@ function SnapButton({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <TooltipHint content={amount !== undefined ? formatDzd(amount) : label}><button
       type="button"
       onClick={onClick}
       disabled={disabled}
       className="rounded-md border border-border bg-background px-2 py-1 text-[10px] hover:border-primary hover:bg-accent/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-      title={amount !== undefined ? formatDzd(amount) : label}
     >
       {label}{amount !== undefined && amount > 0 ? ` · ${formatDzdPlain(amount)}` : ""}
-    </button>
+    </button></TooltipHint>
   );
 }
 

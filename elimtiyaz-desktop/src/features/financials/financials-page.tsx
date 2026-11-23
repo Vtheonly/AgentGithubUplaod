@@ -53,6 +53,7 @@ import {
   AGING_BUCKET_LABELS_FR,
   sumPaidPayments,
   monthlyRevenue,
+  buildFamilyCollectContext,
   type Payment,
 } from "../../domain/model/payment";
 import {
@@ -1273,26 +1274,11 @@ function DebtTab({ onOpenParent }: { onOpenParent?: (id: string) => void }) {
         <UnifiedPaymentModal
           open={!!collectFor}
           onOpenChange={(o) => !o && setCollectFor(null)}
-          context={{
-            parentId: collectFor.parentId,
+          context={buildFamilyCollectContext(collectFor.parentId, {
             parentName: collectFor.parentName,
-            mode: "consolidated_debt",
             presetAmount: collectFor.amount,
-            lineItems: [
-              {
-                itemId: `debt-${collectFor.parentId}`,
-                category: null,
-                label: "Solde familial consolidé (toutes catégories)",
-                grossAmount: collectFor.amount,
-                discountAmount: 0,
-                netAmount: collectFor.amount,
-                alreadyPaidAmount: 0,
-                remainingAmount: collectFor.amount,
-              },
-            ],
-            allowPartial: true,
             originRoute: "financials.debt_dashboard",
-          }}
+          })}
         />
       )}
 

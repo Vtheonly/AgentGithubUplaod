@@ -345,6 +345,13 @@ describe("T-247 — SeeDetailsModal render", () => {
 // ============================================================
 
 describe("T-249 — UnifiedPaymentModal (quick-pay chips + change calculator)", () => {
+  // T-578: the REAL open tranche for par-002 (odd-index parents carry an
+  // unpaid T3) — derived from the seed, never hardcoded.
+  const openForPar002 = seedInstallments.filter(
+    (i) => i.parentId === "par-002" && i.amountPaid < i.amountDue,
+  );
+  const target = openForPar002[0];
+
   async function renderModal() {
     const { RepositoryProvider, mockRepositories } = await import(
       "../../app/providers/repository-provider"
@@ -355,24 +362,17 @@ describe("T-249 — UnifiedPaymentModal (quick-pay chips + change calculator)", 
       "../../features/financials/unified-payment-modal"
     );
 
-    // par-001's seed T2: partial (half paid) → a real open tranche exists.
+    // T-578 (BUG-046): the modal derives the strip from the REAL installments
+    // stream — the old fixture hardcoded a FICTIONAL "half-paid T2" for
+    // par-001 whose real seed row is FULLY SETTLED (the old modal trusted
+    // the fabricated lineItems; the S50 root fix made that impossible).
+    expect(openForPar002.length).toBeGreaterThan(0);
     const context = {
-      parentId: "par-001",
+      parentId: "par-002",
       mode: "installment_tranche" as const,
-      targetItemId: "ins-par-001-stu-001-t2",
-      presetAmount: 32_000,
-      lineItems: [
-        {
-          itemId: "ins-par-001-stu-001-t2",
-          category: "tuition" as const,
-          label: "Tranche 2",
-          grossAmount: 64_000,
-          discountAmount: 0,
-          netAmount: 64_000,
-          alreadyPaidAmount: 32_000,
-          remainingAmount: 32_000,
-        },
-      ],
+      targetItemId: target.id,
+      presetAmount: target.amountDue - target.amountPaid,
+      lineItems: [] as never[],
       allowPartial: true,
       originRoute: "test",
     };
@@ -393,8 +393,9 @@ describe("T-249 — UnifiedPaymentModal (quick-pay chips + change calculator)", 
     await waitFor(() => {
       expect(screen.getByText(/Raccourcis d'encaissement direct/i)).toBeInTheDocument();
     });
-    // The chip shows the open tranche amount derived from the context item.
-    expect(screen.getByText(/Payer Tranche 2/i)).toBeInTheDocument();
+    // The chip shows the open tranche amount derived from the REAL stream
+    // (T-578: the seed's par-002 open row is Tranche 3).
+    expect(screen.getByText(/Payer Tranche 3/i)).toBeInTheDocument();
   });
 
   it("change calculator: Montant remis → Monnaie à rendre (cash only)", async () => {
@@ -403,10 +404,14 @@ describe("T-249 — UnifiedPaymentModal (quick-pay chips + change calculator)", 
       expect(screen.getByText(/Calculateur de monnaie/i)).toBeInTheDocument();
     });
     const input = screen.getByPlaceholderText(/70000/i);
-    fireEvent.change(input, { target: { value: "40000" } });
-    // 40000 handed − 32000 due → 8000 to return.
+    // Hand exactly 10 000 DZD MORE than the targeted tranche's real
+    // remaining (T-578: the amount derives from the seed's real row —
+    // arithmetic re-derived from the target, never hardcoded).
+    const handed = target.amountDue - target.amountPaid + 10_000;
+    fireEvent.change(input, { target: { value: String(handed) } });
+    const expectedChange = new Intl.NumberFormat("fr-FR").format(10_000).replace(/\u202f/g, " ");
     await waitFor(() => {
-      expect(screen.getByText(/8 000 DZD/i)).toBeInTheDocument();
+      expect(screen.getByText(new RegExp(`${expectedChange} DZD`, "i"))).toBeInTheDocument();
     });
   });
 });

@@ -500,11 +500,73 @@ export interface PaymentNavigationContext {
   readonly presetAmount?: number;
   readonly overdueDays?: number;
   readonly dueWindowLabel?: string;
+  /**
+   * Quote items — ONLY meaningful for `single_item` mode (a club/therapy
+   * forfait that has no installment row). T-578 (BUG-046): family-debt
+   * modes (consolidated_debt / installment_tranche) NEVER read this — the
+   * modal derives the tranche strip from the REAL installments stream it
+   * loads itself; a caller-fabricated consolidated lineItem with
+   * `alreadyPaidAmount: 0` erased the family's payment history.
+   */
   readonly lineItems: readonly PaymentLineItem[];
+  /**
+   * T-578: the category scope the caller preselected (e.g. the counter's
+   * preset category). The modal pins its category selector + waterfall
+   * scope to it; absent = cross-category (the whole family balance).
+   */
+  readonly categoryScope?: PaymentCategory | null;
   /** Whether partial payments are permitted for this item. */
   readonly allowPartial?: boolean;
   /** Originating route (for back-navigation / analytics). */
   readonly originRoute?: string;
+}
+
+/** Options for {@link buildFamilyCollectContext}. */
+export interface FamilyCollectContextOptions {
+  /** Focus the collection on ONE installment (a tranche from the schedule). */
+  readonly targetInstallmentId?: string;
+  /** Preselected category scope (absent = cross-category, the whole balance). */
+  readonly category?: PaymentCategory | null;
+  readonly parentName?: string;
+  readonly parentCode?: string;
+  readonly studentId?: string | null;
+  readonly studentName?: string;
+  readonly presetAmount?: number;
+  readonly overdueDays?: number;
+  readonly dueWindowLabel?: string;
+  readonly allowPartial?: boolean;
+  readonly originRoute?: string;
+}
+
+/**
+ * buildFamilyCollectContext — T-578 (BUG-046): the ONE builder for
+ * family-debt collection contexts. It NEVER fabricates lineItems — the
+ * modal derives the tranche strip (and every already-paid figure) from the
+ * REAL installments stream it loads itself, so the DebtMeter always
+ * receives the family's true payment history. Quote-style single items
+ * (club/therapy forfaits) do NOT come through here — they keep their
+ * explicit quote lineItems under `single_item` mode.
+ */
+export function buildFamilyCollectContext(
+  parentId: string,
+  options: FamilyCollectContextOptions = {},
+): PaymentNavigationContext {
+  return {
+    parentId,
+    parentName: options.parentName,
+    parentCode: options.parentCode,
+    studentId: options.studentId ?? null,
+    studentName: options.studentName,
+    mode: options.targetInstallmentId ? "installment_tranche" : "consolidated_debt",
+    targetItemId: options.targetInstallmentId,
+    presetAmount: options.presetAmount,
+    overdueDays: options.overdueDays,
+    dueWindowLabel: options.dueWindowLabel,
+    lineItems: [],
+    categoryScope: options.category,
+    allowPartial: options.allowPartial,
+    originRoute: options.originRoute,
+  };
 }
 
 export interface CollectPaymentInput {

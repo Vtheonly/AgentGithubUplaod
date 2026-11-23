@@ -34,6 +34,7 @@ import {
 import { ROLE_LABELS_FR } from "../../core/rbac/roles";
 import { UnifiedPaymentModal } from "../../features/financials/unified-payment-modal";
 import type { PaymentNavigationContext } from "../../domain/model/payment";
+import { buildFamilyCollectContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
 import { studentDisplayName } from "../../domain/model/student";
 import { installmentRemaining, isInstallmentOverdue } from "../../domain/calc/payment/queries";
@@ -184,6 +185,9 @@ export function AlertDetailModal({
     linkedEntity &&
     (linkedEntity as any).installment;
 
+  // T-578 (BUG-046): the ONE builder — no hand-built lineItems; the modal
+  // derives the strip from the REAL installments stream, focused on the
+  // alerted tranche.
   const installmentCtx: PaymentNavigationContext | null = isInstallmentAlert
     ? (() => {
         const inst = (linkedEntity as any).installment;
@@ -205,13 +209,11 @@ export function AlertDetailModal({
               ),
             )
           : undefined;
-        return {
-          parentId: inst.parentId,
+        return buildFamilyCollectContext(inst.parentId, {
           parentName: parent ? parentDisplayName(parent) : undefined,
           parentCode: parent?.code,
           studentId: inst.studentId ?? null,
-          mode: "installment_tranche" as const,
-          targetItemId: inst.id,
+          targetInstallmentId: inst.id,
           presetAmount: remaining,
           overdueDays,
           dueWindowLabel: new Date(inst.dueDate).toLocaleDateString("fr-FR", {
@@ -219,24 +221,9 @@ export function AlertDetailModal({
             month: "short",
             year: "numeric",
           }),
-          lineItems: [
-            {
-              itemId: inst.id,
-              category: inst.category,
-              label: inst.label,
-              grossAmount: inst.amountDue,
-              discountAmount: 0,
-              netAmount: inst.amountDue,
-              alreadyPaidAmount: inst.amountPaid,
-              remainingAmount: remaining,
-              dueDate: inst.dueDate,
-              isOverdue,
-              daysOverdue: overdueDays,
-            },
-          ],
           allowPartial: true,
           originRoute: "dashboard.alert_detail",
-        };
+        });
       })()
     : null;
 

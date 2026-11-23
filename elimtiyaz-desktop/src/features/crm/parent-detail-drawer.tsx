@@ -75,6 +75,7 @@ import {
   type Payment,
   type PaymentNavigationContext,
   installmentRemaining,
+  buildFamilyCollectContext,
 } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "../financials/unified-payment-modal";
 import { ParentYearHistorySection } from "./parent-year-history-section";
@@ -222,45 +223,25 @@ export function ParentDetailDrawer({
     child: ChildBillingBreakdown,
     tranche: TrancheCoverageNode,
   ): PaymentNavigationContext {
-    const fallbackConsolidated = (
-      preset: number,
-    ): PaymentNavigationContext => ({
-      parentId: entity?.id ?? parentId ?? "",
-      parentName: entity ? parentDisplayName(entity) : undefined,
-      parentCode: entity?.code,
-      studentId: child.student.id,
-      mode: "consolidated_debt",
-      presetAmount: preset,
-      lineItems: [
-        {
-          itemId: tranche.key,
-          category: "tuition",
-          label: `${tranche.label} — ${child.student.firstName} ${child.student.lastName}`,
-          grossAmount: tranche.amountDue,
-          discountAmount: 0,
-          netAmount: tranche.amountDue,
-          alreadyPaidAmount: tranche.amountPaid,
-          remainingAmount: tranche.remaining,
-          dueDate: tranche.dueDate ?? undefined,
-          isOverdue:
-            tranche.status === "unpaid" &&
-            tranche.dueDate != null &&
-            new Date(tranche.dueDate).getTime() < Date.now(),
-        },
-      ],
-      allowPartial: true,
-      originRoute: "crm.parent_drawer",
-    });
-
     const real = tranche.installment;
+    // T-578 (BUG-046): both paths ride the ONE builder — no hand-built
+    // lineItems. When the tranche has NO real installment row (the billing
+    // breakdown's synthetic fallback), the collection is the family's
+    // consolidated debt (the modal derives the strip from the REAL stream);
+    // when it does, the collection targets that installment.
     if (!real || real.parentId !== (entity?.id ?? parentId)) {
-      return fallbackConsolidated(Math.max(0, tranche.remaining));
+      return buildFamilyCollectContext(entity?.id ?? parentId ?? "", {
+        parentName: entity ? parentDisplayName(entity) : undefined,
+        parentCode: entity?.code,
+        studentId: child.student.id,
+        presetAmount: Math.max(0, tranche.remaining),
+        allowPartial: true,
+        originRoute: "crm.parent_drawer",
+      });
     }
     const remaining = installmentRemaining(real);
     // T-498 (DATA-045): derived overdue-ness (canonical predicate — the
-    // synthetic-fallback path above already derives it dynamically; the
-    // real-row path was the only static gate left, and the live census
-    // holds ZERO status="overdue" rows).
+    // live census holds ZERO status="overdue" rows).
     const isOverdue = isInstallmentOverdue(real);
     const overdueDays = isOverdue
       ? Math.max(
@@ -270,34 +251,17 @@ export function ParentDetailDrawer({
           ),
         )
       : undefined;
-    return {
-      parentId: real.parentId,
+    return buildFamilyCollectContext(real.parentId, {
       parentName: entity ? parentDisplayName(entity) : undefined,
       parentCode: entity?.code,
       studentId: real.studentId,
-      mode: "installment_tranche",
-      targetItemId: real.id,
+      targetInstallmentId: real.id,
       presetAmount: remaining,
       overdueDays,
       dueWindowLabel: tranche.dueWindowLabel,
-      lineItems: [
-        {
-          itemId: real.id,
-          category: real.category,
-          label: real.label,
-          grossAmount: real.amountDue,
-          discountAmount: 0,
-          netAmount: real.amountDue,
-          alreadyPaidAmount: real.amountPaid,
-          remainingAmount: remaining,
-          dueDate: real.dueDate,
-          isOverdue,
-          daysOverdue: overdueDays,
-        },
-      ],
       allowPartial: true,
       originRoute: "crm.parent_drawer",
-    } as PaymentNavigationContext;
+    });
   }
 
   async function handleDownloadStatement(p: Parent) {
@@ -698,27 +662,12 @@ export function ParentDetailDrawer({
         const outstandingTotal = financialProfile?.totalOutstanding ?? 0;
         setCollectContext(
           outstandingTotal > 0
-            ? {
-                parentId: entity!.id,
+            ? buildFamilyCollectContext(entity!.id, {
                 parentName: parentDisplayName(entity!),
                 parentCode: entity!.code,
-                mode: "consolidated_debt",
                 presetAmount: outstandingTotal,
-                lineItems: [
-                  {
-                    itemId: `parent-debt-${entity!.id}`,
-                    category: null,
-                    label: "Solde familial consolidé (toutes catégories)",
-                    grossAmount: outstandingTotal,
-                    discountAmount: 0,
-                    netAmount: outstandingTotal,
-                    alreadyPaidAmount: 0,
-                    remainingAmount: outstandingTotal,
-                  },
-                ],
-                allowPartial: true,
                 originRoute: "crm.parent_drawer",
-              }
+              })
             : null,
         );
       },

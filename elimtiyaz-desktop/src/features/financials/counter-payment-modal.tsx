@@ -14,8 +14,8 @@
 import { useMemo } from "react";
 import type {
   PaymentCategory,
-  PaymentNavigationContext,
 } from "../../domain/model/payment";
+import { buildFamilyCollectContext } from "../../domain/model/payment";
 import { UnifiedPaymentModal } from "./unified-payment-modal";
 
 export interface CounterPaymentModalProps {
@@ -40,7 +40,11 @@ export function CounterPaymentModal({
   // Build a context only when at least one preset is provided. When all
   // presets are null, we pass `null` so the modal falls back to inline
   // parent search (counter-payment-from-scratch mode).
-  const context: PaymentNavigationContext | null = useMemo(() => {
+  // T-578 (BUG-046): the fabricated "Paiement comptoir" quote line (a
+  // zero-history consolidation) is dead — the builder emits a family-debt
+  // context the modal derives from the REAL installments stream; the
+  // counter's preset category rides the explicit categoryScope.
+  const context = useMemo(() => {
     const hasPreset =
       !!presetParentId ||
       !!presetStudentId ||
@@ -48,27 +52,14 @@ export function CounterPaymentModal({
       !!presetAmount ||
       !!presetInstallmentId;
     if (!hasPreset) return null;
-    return {
-      parentId: presetParentId ?? "",
+    return buildFamilyCollectContext(presetParentId ?? "", {
       studentId: presetStudentId ?? null,
-      mode: presetInstallmentId ? "installment_tranche" : "consolidated_debt",
-      targetItemId: presetInstallmentId ?? undefined,
+      targetInstallmentId: presetInstallmentId ?? undefined,
+      category: presetCategory ?? null,
       presetAmount: presetAmount ?? undefined,
-      lineItems: presetCategory
-        ? [{
-            itemId: presetInstallmentId ?? "manual",
-            category: presetCategory,
-            label: "Paiement comptoir",
-            grossAmount: presetAmount ?? 0,
-            discountAmount: 0,
-            netAmount: presetAmount ?? 0,
-            alreadyPaidAmount: 0,
-            remainingAmount: presetAmount ?? 0,
-          }]
-        : [],
       allowPartial: true,
       originRoute: "counter_payment",
-    };
+    });
   }, [presetParentId, presetStudentId, presetCategory, presetAmount, presetInstallmentId]);
 
   return (

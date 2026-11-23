@@ -107,7 +107,7 @@ import { UnifiedPaymentModal } from "./unified-payment-modal";
 // thin form over `InstallmentRepository.adjustAmountDue` (the canonical
 // `adjust_installment_amount` RPC client).
 import { TrancheAmountEditModal } from "./tranche-amount-edit-modal";
-import type { PaymentNavigationContext } from "../../domain/model/payment";
+import { buildFamilyCollectContext } from "../../domain/model/payment";
 import { parentDisplayName } from "../../domain/model/parent";
 import { TooltipHint } from "../../shared/ui/tooltip";
 
@@ -718,7 +718,10 @@ export function InstallmentScheduleTab({
   ];
 
   // Build the PaymentNavigationContext when collectFor is set
-  const collectContext: PaymentNavigationContext | null = useMemo(() => {
+  // T-578 (BUG-046): the ONE builder — no hand-built lineItems; the modal
+  // derives the strip (and every already-paid figure) from the REAL
+  // installments stream, focused on the targeted tranche.
+  const collectContext = useMemo(() => {
     if (!collectFor) return null;
     const parent = parents.find((p) => p.id === collectFor.parentId);
     // T-103 — canonical INV-4-family remaining (due − paid − pending).
@@ -735,32 +738,17 @@ export function InstallmentScheduleTab({
     const overdueDays = isOverdue
       ? Math.max(0, Math.floor((Date.now() - new Date(collectFor.dueDate).getTime()) / 86_400_000))
       : undefined;
-    return {
-      parentId: collectFor.parentId,
+    return buildFamilyCollectContext(collectFor.parentId, {
       parentName: parent ? parentDisplayName(parent) : undefined,
       parentCode: parent?.code,
       studentId: collectFor.studentId ?? null,
-      mode: "installment_tranche",
-      targetItemId: collectFor.id,
+      targetInstallmentId: collectFor.id,
       presetAmount: remaining,
       overdueDays,
       dueWindowLabel: new Date(collectFor.dueDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
-      lineItems: [{
-        itemId: collectFor.id,
-        category: collectFor.category,
-        label: collectFor.label,
-        grossAmount: collectFor.amountDue,
-        discountAmount: 0,
-        netAmount: collectFor.amountDue,
-        alreadyPaidAmount: collectFor.amountPaid,
-        remainingAmount: remaining,
-        dueDate: collectFor.dueDate,
-        isOverdue,
-        daysOverdue: overdueDays,
-      }],
       allowPartial: true,
       originRoute: "financials.installment_schedule",
-    } as PaymentNavigationContext;
+    });
   }, [collectFor, parents]);
 
   const dueDateFields: readonly AutoFormField[] = [

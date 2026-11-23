@@ -32,7 +32,7 @@
  * the legacy preset props (`presetParentId`, `presetCategory`, etc.) into
  * a `PaymentNavigationContext` and forwards to `UnifiedPaymentModal`.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, CheckCircle2, Share2, X, Upload, Wallet, FileDown, MessageCircle,
 } from "lucide-react";
@@ -231,17 +231,18 @@ export function UnifiedPaymentModal({
       if (context.presetAmount && context.presetAmount > 0) {
         setAmount(context.presetAmount);
       }
-      // Derive category from the first line item, if available.
-      // ADR-023 (BUSINESS-106): consolidated-debt line items carry
-      // `category: null` = cross-category — the scope IS the whole
-      // balance, so the selector stays pinned to "Multi-services".
-      if (context.lineItems.length > 0) {
+      // T-578: the category scope is explicit, not line-item-derived.
+      // - single_item quotes keep their line-item category;
+      // - a caller-declared categoryScope (the counter preset) pins it;
+      // - consolidated_debt is cross-category by definition (ADR-023);
+      // - installment_tranche without a declared scope derives from the
+      //   FIRST derived tranche once the stream loads (the derived-category
+      //   effect below) — the same figure the old lineItems[0] carried.
+      if (context.mode === "single_item" && context.lineItems.length > 0) {
         setCategory(context.lineItems[0].category);
+      } else if (context.categoryScope !== undefined) {
+        setCategory(context.categoryScope);
       } else if (context.mode === "consolidated_debt") {
-        // No line items (e.g. the Diagnostic console preset through
-        // CounterPaymentModal): the intended scope is still the whole
-        // family balance — cross-category, NOT the old silent "tuition"
-        // default (the FA-02 defect).
         setCategory(null);
       }
     }
@@ -282,23 +283,32 @@ export function UnifiedPaymentModal({
     }
   }, [installments, category, amount, context, open]);
 
-  // === Build the slider tranche specs from context OR installments ===
+  // === Build the slider tranche specs ===
+  // T-578 (BUG-046): family-debt modes ALWAYS derive from the REAL
+  // installments stream the modal loads itself (:171-174) — the old
+  // lineItems-take-precedence branch let callers fabricate a consolidated
+  // item with `alreadyPaidAmount: 0`, erasing the family's payment history
+  // (the DebtMeter showed "Déjà payé 0" and the tranche strip collapsed to
+  // one segment). Only `single_item` quotes (club/therapy forfaits that
+  // have no installment row) keep their explicit lineItems.
   const sliderTranches = useMemo<PaymentTrancheSpec[]>(() => {
-    if (context && context.lineItems.length > 0) {
+    if (mode === "single_item" && context && context.lineItems.length > 0) {
       return context.lineItems.map(lineItemToTrancheSpec);
     }
-    // Fallback: derive from installments, filtered by category.
-    // T-060 (BUSINESS-005): a CONCRETE category means the collection is
-    // exact-category (the server filters `category = p_category`), so the
-    // derived tranche list uses the same exact filter. ADR-023: a NULL
-    // category (cross-category / consolidated) shows EVERY open tranche —
-    // the collection will allocate across all of them.
+    // Derived from the real stream: the targeted installment when given;
+    // else the student's open tranches when the context is student-scoped;
+    // else every open tranche of the family (consolidated).
+    // ADR-023: the strip is NOT category-filtered — the category selector
+    // (and the waterfall preview below) is the operator's scope control.
     const eligible = installments
       .filter((i) => !isInstallmentSettled(i))
-      .filter((i) => (category ? i.category === category : true))
+      .filter((i) => {
+        if (context?.targetItemId) return i.id === context.targetItemId;
+        if (effectiveStudentId) return i.studentId === effectiveStudentId;
+        return true;
+      })
       .slice()
-      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-      .slice(0, 6);
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     return eligible.map((i) => ({
       id: i.id,
       label: i.label,
@@ -310,7 +320,26 @@ export function UnifiedPaymentModal({
       // canonical `due − paid − pending` (the auto-suggest's formula).
       amountPending: i.amountPending,
     }));
-  }, [context, installments, category]);
+  }, [mode, context, installments, effectiveStudentId]);
+
+  // T-578: the derived category for installment_tranche contexts without a
+  // declared scope — set ONCE per opening from the FIRST derived tranche's
+  // real installment (the ref guard: the operator's manual selector choice
+  // after opening is never clobbered).
+  const derivedCategoryAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      derivedCategoryAppliedRef.current = false;
+      return;
+    }
+    if (derivedCategoryAppliedRef.current) return;
+    if (context?.mode !== "installment_tranche") return;
+    if (context.categoryScope !== undefined) return;
+    if (sliderTranches.length === 0) return;
+    derivedCategoryAppliedRef.current = true;
+    const derived = installments.find((i) => i.id === sliderTranches[0].id);
+    setCategory(derived?.category ?? null);
+  }, [open, context, sliderTranches, installments]);
 
   const sliderMode: PaymentSliderMode = useMemo(() => {
     if (mode === "single_item") return "single_item";
