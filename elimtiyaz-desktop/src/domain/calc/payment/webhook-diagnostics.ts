@@ -70,6 +70,8 @@ import type { LedgerEntry } from "../../model/ledger";
 import type { Parent } from "../../model/parent";
 import type { Student, GradeLevel } from "../../model/student";
 import { parentDisplayName } from "../../model/parent";
+// T-586 / BUG-057: the canonical DZD formatter (NaN-safe).
+import { formatDzdPlain } from "../../../core/format/currency";
 import { installmentRemaining } from "./queries";
 import { computeParentSummary } from "../ledger/balance";
 import {
@@ -301,9 +303,10 @@ export function isGenericFinancialDescription(description: string | null | undef
   return GENERIC_DESCRIPTION_PATTERNS.some((p) => p.test(trimmed));
 }
 
-/** Integer DZD formatting for evidence strings (fr-FR grouping). */
+/** Integer DZD formatting for evidence strings (fr-FR grouping, NaN-safe —
+ *  T-586/BUG-057: the canonical formatter, no local toLocaleString twin). */
 function dzd(n: number): string {
-  return `${Math.round(n).toLocaleString("fr-FR")} DZD`;
+  return `${formatDzdPlain(Math.round(n))} DZD`;
 }
 
 function isoDate(iso: string | null | undefined): string {

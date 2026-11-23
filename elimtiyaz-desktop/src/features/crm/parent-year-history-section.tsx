@@ -335,7 +335,7 @@ function YearCard({
                   <div className="min-w-0">
                     <p className="truncate font-medium">
                       {chargeWaveChip(c) && (
-                        <TooltipHint content="Tranche (modèle officiel T-425)"><span
+                        <TooltipHint content="Tranche de l'échéancier officiel"><span
                           className="mr-1.5 inline-block rounded bg-primary/10 px-1 py-px text-[10px] font-semibold text-primary"
                         >
                           {chargeWaveChip(c)}

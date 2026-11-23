@@ -118,12 +118,12 @@ export function FinancialQueryConsole({
       .slice(0, 5)
       .map(
         (f) =>
-          `- ${f.parentName} (Tél: ${f.parentPhone}) : Dette ${f.totalDebt} DA (${f.daysOverdue}j retard) | ${f.anomalySummary}`,
+          `- ${f.parentName} (Tél: ${f.parentPhone}) : Dette ${formatDzdPlain(f.totalDebt)} DZD (${f.daysOverdue}j retard) | ${f.anomalySummary}`,
       )
       .join("\n");
 
     const prompt =
-      `Je consulte la sélection financière « ${activePreset} » (${filteredDiagnoses.length} familles identifiées, dette totale : ${queryTotals.totalDebt.toLocaleString("fr-FR")} DA).\n` +
+      `Je consulte la sélection financière « ${activePreset} » (${filteredDiagnoses.length} familles identifiées, dette totale : ${formatDzdPlain(queryTotals.totalDebt)} DZD).\n` +
       `Voici un échantillon de dossiers :\n${sample}\n\n` +
       `Analyse la nature de ces anomalies financières et propose un plan d'action d'apurement et de relance ciblé pour le service comptabilité.`;
 
@@ -134,11 +134,11 @@ export function FinancialQueryConsole({
   const handleAskAIParent = (f: FamilyFinancialDiagnosis) => {
     const prompt =
       `Audit financier pour la famille de ${f.parentName} (${f.studentCount} enfant(s), Tél: ${f.parentPhone}) :\n` +
-      `- Total facturé : ${f.totalDue.toLocaleString("fr-FR")} DA\n` +
-      `- Total réglé : ${f.totalPaid.toLocaleString("fr-FR")} DA\n` +
-      `- Solde débiteur actuel : ${f.totalDebt.toLocaleString("fr-FR")} DA (${f.daysOverdue} jours de retard)\n` +
-      `- Crédit parent disponible non absorbé : ${f.unallocatedCredit.toLocaleString("fr-FR")} DA\n` +
-      `- Chèques en cours non compensés : ${f.pendingChecksAmount.toLocaleString("fr-FR")} DA\n` +
+      `- Total facturé : ${formatDzdPlain(f.totalDue)} DZD\n` +
+      `- Total réglé : ${formatDzdPlain(f.totalPaid)} DZD\n` +
+      `- Solde débiteur actuel : ${formatDzdPlain(f.totalDebt)} DZD (${f.daysOverdue} jours de retard)\n` +
+      `- Crédit parent disponible non absorbé : ${formatDzdPlain(f.unallocatedCredit)} DZD\n` +
+      `- Chèques en cours non compensés : ${formatDzdPlain(f.pendingChecksAmount)} DZD\n` +
       `- Diagnostic détecté : ${f.anomalySummary}\n\n` +
       `Propose la meilleure stratégie de régularisation pour cette famille (compensation de crédit, proposition de plan de paiement, ou rappel officiel).`;
 

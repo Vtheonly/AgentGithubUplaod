@@ -115,7 +115,7 @@ export function PaymentsTab({
             <p className="text-xl font-mono font-bold text-status-success mt-1">{formatDzdPlain(individualPaid)}</p>
             <p className="text-[10px] text-muted-foreground mt-1">Encaissé à ce jour (payé)</p>
             {individualFutureRecorded > 0 && (
-              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><p
+              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche. Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><p
                 className="text-[10px] text-primary mt-1"
                 data-testid="individual-future-recorded-note"
               >

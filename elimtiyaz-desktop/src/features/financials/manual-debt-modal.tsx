@@ -142,7 +142,7 @@ export function ManualDebtModal({
     () => [
       // "" = the INV-14 window resolver stamps the year from the date (the
       // documented fallback — an explicit honest option, never a guess).
-      { label: "— Déduire de la date (règle INV-14) —", value: "" },
+      { label: "— Déduire de la date d'échéance —", value: "" },
       ...academicYears.map((y) => ({
         label: `${y.code}${y.isCurrent ? " (en cours)" : ""}`,
         value: y.code,

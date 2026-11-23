@@ -44,6 +44,8 @@ import { installmentRemaining, isInstallmentSettled } from "./queries";
 // facts — moved verbatim).
 import { CROSS_SERVICE_ROW_CATEGORIES } from "../../model/labels";
 import { computeParentSummary, displayParentCredit } from "../ledger/balance";
+// T-586 / BUG-057: the canonical DZD formatter — NaN-safe, ONE suffix.
+import { formatDzdPlain } from "../../../core/format/currency";
 // T-412 (ADR-024): the canonical payroll forecast — the treasury impact is a
 // CONSUMER of its totals, never a second derivation.
 import type { PayrollForecast } from "../payroll/payroll-forecast";
@@ -313,21 +315,21 @@ export function evaluateFamilyFinancialDiagnoses(params: {
     if (tuitionAllPaid && auxiliaryDebt > 5000) {
       anomalies.push("service_leakage");
       anomalyNotes.push(
-        `Scolarité réglée, mais ${auxiliaryDebt.toLocaleString("fr-FR")} DA dus sur services annexes`,
+        `Scolarité réglée, mais ${formatDzdPlain(auxiliaryDebt)} dus sur services annexes`,
       );
     }
 
     if (unallocatedCredit > 0 && totalDebt > 0) {
       anomalies.push("unabsorbed_credit");
       anomalyNotes.push(
-        `Crédit de ${unallocatedCredit.toLocaleString("fr-FR")} DA disponible face à ${totalDebt.toLocaleString("fr-FR")} DA de dette`,
+        `Crédit de ${formatDzdPlain(unallocatedCredit)} disponible face à ${formatDzdPlain(totalDebt)} de dette`,
       );
     }
 
     if (pendingChecksAmount > 0) {
       anomalies.push("pending_check_risk");
       anomalyNotes.push(
-        `${pendingChecksAmount.toLocaleString("fr-FR")} DA en chèques non compensés depuis > 15j`,
+        `${formatDzdPlain(pendingChecksAmount)} en chèques non compensés depuis > 15j`,
       );
     }
 

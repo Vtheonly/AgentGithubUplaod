@@ -231,7 +231,7 @@ describe("T-442 — ParentYearHistorySection: the per-year debt-origin breakdown
 
     // The wave chips render with the T-425 title. The therapy row is a
     // NON-WAVE row (trancheNumber explicitly undefined) — no chip.
-    const chips = screen.getAllByTitle("Tranche (modèle officiel T-425)");
+    const chips = screen.getAllByTitle("Tranche de l'échéancier officiel");
     expect(chips.length).toBe(4); // FI + T1 + T2 + transport T1
     expect(chips.map((c) => c.textContent).sort()).toEqual(["FI", "T1", "T1", "T2"]);
     cleanup();

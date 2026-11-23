@@ -221,7 +221,7 @@ export function TrancheAmountEditModal({
             </div>
           )}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Reste (INV-4)</span>
+            <span className="text-muted-foreground">Reste dû</span>
             <span className="font-mono font-semibold text-status-danger">{formatDzd(current.remaining)}</span>
           </div>
           <div className="flex items-center justify-between gap-2">

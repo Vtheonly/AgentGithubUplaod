@@ -1002,11 +1002,11 @@ export function OperationalQueryConsole({
       .slice(0, 5)
       .map(
         (p) =>
-          `- ${p.studentName} (${p.className}) : GPA ${p.gpa ?? "N/A"}/20, ${p.unexcusedAbsences} abs., Dette: ${p.debtAmount} DA`,
+          `- ${p.studentName} (${p.className}) : GPA ${p.gpa ?? "N/A"}/20, ${p.unexcusedAbsences} abs., Dette : ${formatDzdPlain(p.debtAmount)} DZD`,
       )
       .join("\n");
     const prompt =
-      `Analyse de la cohorte sous le filtre « ${activePreset ?? effectiveSelectedCategory} » (${filteredProfiles.length} élèves identifiés, dette cumulée: ${queryStats.totalDebt.toLocaleString("fr-FR")} DA) :\n${topSample}\n\n` +
+      `Analyse de la cohorte sous le filtre « ${activePreset ?? effectiveSelectedCategory} » (${filteredProfiles.length} élèves identifiés, dette cumulée : ${formatDzdPlain(queryStats.totalDebt)} DZD) :\n${topSample}\n\n` +
       `Donne un diagnostic synthétique et 3 actions prioritaires.`;
     openCopilot(true);
     void askAgent(prompt);
@@ -1017,7 +1017,7 @@ export function OperationalQueryConsole({
       `Diagnostic personnalisé pour l'élève ${profile.studentName} (${profile.className}) :\n` +
       `- Moyenne : ${profile.gpa ?? "N/A"}/20\n` +
       `- Assiduité : ${(profile.attendanceRate * 100).toFixed(0)}% (${profile.unexcusedAbsences} absences)\n` +
-      `- Créance : ${profile.debtAmount.toLocaleString("fr-FR")} DA (${profile.daysOverdue} j retard)\n` +
+      `- Créance : ${formatDzdPlain(profile.debtAmount)} DZD (${profile.daysOverdue} j retard)\n` +
       `Propose une recommandation concrète pour la direction.`;
     openCopilot(true);
     void askAgent(prompt);

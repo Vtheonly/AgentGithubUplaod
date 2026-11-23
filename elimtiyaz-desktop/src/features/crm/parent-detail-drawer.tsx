@@ -1049,7 +1049,7 @@ export function FinancesTab({
                 surfaced as its own labelled line so the arithmetic stays
                 auditable (§15.95a — surface, never rewrite the date). */}
             {recon.futureRecordedPaid > 0 && (
-              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche (T-502). Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><span
+              <TooltipHint content="Paiements importés du classeur et datés à la période officielle de leur tranche. Ils ne sont pas comptés comme encaissés à ce jour ; ils entreront dans l'encaissé au fil de leurs échéances."><span
                 className="flex items-center gap-1 text-primary"
                 data-testid="future-recorded-line"
               >

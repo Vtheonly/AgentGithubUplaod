@@ -140,7 +140,8 @@ describe("T-510 UI — TrancheAmountEditModal (the per-tranche amount editor)", 
     expect(details).toHaveTextContent("10");
     expect(details).toHaveTextContent("4");
     expect(details).toHaveTextContent("3");
-    expect(details).toHaveTextContent("Reste (INV-4)");
+    // T-586: the label was de-jargonized ("Reste (INV-4)" → "Reste dû").
+    expect(details).toHaveTextContent("Reste dû");
     // The INV-4 remaining: 10_000 − 4_000 − 3_000 = 3_000.
     expect(details.textContent?.replace(/\s/g, "")).toContain("3000");
     expect(details).toHaveTextContent("Échéance");

@@ -24,6 +24,8 @@ import { Badge } from "../../shared/ui/badge";
 import { Separator } from "../../shared/ui/separator";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { formatRelative, formatDateTime } from "../../core/format/date";
+// T-586 / BUG-057: the canonical DZD formatters — NaN-safe, ONE suffix.
+import { formatDzd } from "../../core/format/currency";
 import {
   ALERT_PRIORITY_LABELS_FR,
   ALERT_PRIORITY_TONE,
@@ -136,7 +138,7 @@ export function AlertDetailModal({
         return {
           kind: "installment" as const,
           label: found.installment.label,
-          subtitle: `${found.installment.amountDue.toLocaleString("fr-FR")} DZD`,
+          subtitle: formatDzd(found.installment.amountDue),
           route: `/financials?installmentId=${found.installment.id}`,
           installment: found.installment,
           parent: found.parent,
@@ -292,7 +294,7 @@ export function AlertDetailModal({
                   <Wallet className="h-3.5 w-3.5 mr-1" />
                   Encaisser{" "}
                   {installmentCtx.presetAmount
-                    ? `${installmentCtx.presetAmount.toLocaleString("fr-FR")} DZD`
+                    ? formatDzd(installmentCtx.presetAmount)
                     : ""}
                 </Button>
               )}

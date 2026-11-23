@@ -21,6 +21,9 @@
  * "Signaux détectés" — audit FA-11 / DATA-027).
  */
 import type { Expense } from "../../model/expense";
+// T-586 / BUG-057: the canonical DZD formatter — NaN-safe, ONE suffix (no raw
+// toLocaleString / " DA" variants in user-visible anomaly copy).
+import { formatDzdPlain } from "../../../core/format/currency";
 
 /** Duplicate window (hours). */
 const DUPLICATE_WINDOW_MS = 48 * 3600 * 1000;
@@ -58,7 +61,7 @@ export function deriveExpenseAnomalySignals(
       type: "duplicate",
       description:
         `Une dépense du même bénéficiaire et d'un montant quasi identique ` +
-        `(${duplicate.amount.toLocaleString("fr-FR")} DA — « ${duplicate.title} ») ` +
+        `(${formatDzdPlain(duplicate.amount)} — « ${duplicate.title} ») ` +
         `existe à moins de 48 h d'intervalle.`,
       severity: "high",
     });
@@ -83,9 +86,9 @@ export function deriveExpenseAnomalySignals(
       signals.push({
         type: "budget_overrun",
         description:
-          `Montant ${expense.amount.toLocaleString("fr-FR")} DA ≥ ${BUDGET_OVERRUN_FACTOR}× ` +
+          `Montant ${formatDzdPlain(expense.amount)} ≥ ${BUDGET_OVERRUN_FACTOR}× ` +
           `la moyenne de la catégorie « ${expense.category} » ` +
-          `(${Math.round(mean).toLocaleString("fr-FR")} DA sur ${categoryOthers.length} dépenses).`,
+          `(${formatDzdPlain(Math.round(mean))} sur ${categoryOthers.length} dépenses).`,
         severity: "medium",
       });
     }

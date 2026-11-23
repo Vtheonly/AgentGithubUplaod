@@ -468,7 +468,7 @@ export function UnifiedPaymentModal({
       setAlert({
         tone: "warning",
         title: "Justificatif requis",
-        description: "Chèque et virement nécessitent un justificatif (plan §18.03).",
+        description: "Chèque et virement nécessitent un justificatif.",
       });
       return;
     }
@@ -537,7 +537,7 @@ export function UnifiedPaymentModal({
       if (result.value.status === "paid") {
         toast.showSuccess(
           "Paiement encaissé",
-          `${formatDzdPlain(result.value.amount)} DZD encaissés. Reçu ${result.value.receiptNumber}. Allocation waterfall appliquée.`,
+          `${formatDzdPlain(result.value.amount)} DZD encaissés. Reçu ${result.value.receiptNumber}. Répartition automatique sur les échéances appliquée.`,
         );
       } else {
         toast.showWarning(
@@ -1113,7 +1113,7 @@ export function UnifiedPaymentModal({
                       required
                       error={
                         !proofFileName
-                          ? "Obligatoire pour chèque et virement (plan §18.03)"
+                          ? "Obligatoire pour chèque et virement"
                           : proofVaultPath
                             ? undefined
                             : "Téléversement en cours…"
