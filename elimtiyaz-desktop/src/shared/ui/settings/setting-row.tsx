@@ -4,7 +4,6 @@
  * existing import sites keep their paths; the implementation lives in
  * the shared module.
  */
-<<<<<<<< Updated upstream:elimtiyaz-desktop/src/shared/ui/settings/setting-row.tsx
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { Button } from "../../ui/button";
@@ -238,6 +237,3 @@ function SettingRowValidationHints({ setting }: { setting: SystemSetting }) {
     </>
   );
 }
-========
-export { SettingRow, type SettingRowProps } from "../../../shared/ui/settings/setting-row";
->>>>>>>> Stashed changes:elimtiyaz-desktop/src/features/settings/configuration/setting-row.tsx

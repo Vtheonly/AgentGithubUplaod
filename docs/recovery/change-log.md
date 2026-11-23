@@ -5135,3 +5135,13 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 - **E6.6** `612727a5`+`7f693c79` — BUG-041 (UnifiedModalProps extends the Radix passthrough — data-testid/id/aria type-valid AND forwarded) + DUP-034 (the bare confirm() → ConfirmModal) + ARCH-018 (the dead useModal/ModalHost/ModalProvider stack deleted). t-e66 10/10.
 - **t-471** `3ca4cc15` — the S47 gap closed: 11 direct tests on generateFamilyStatementPdf (geometry + traceable content). The S47 verification re-run at HEAD: inspector 18/18, real-excel 8/8 (the 6 real findings reproduced). The owner's PDF regenerated from the real workbook (download/historique-client-ouaged.pdf; harness at /home/z/my-project/scripts/gen-family-statement.ts).
 - **Census:** 32 cards solved since G0 (S28–45) + S46 + S47 = **34 pre-session; 38 after this session's 4 E-cards; 85 open**.
+
+## Session 49 (2026-11-23) — 6 tasks, the census moved to 44/79
+
+- **E6.4** `1f566856` — both hand-rolled overlays render through ModalShell (portal/scrim/Escape/focus-trap gained; the T-235 pins stay green). t-e64 5/5 + RED control.
+- **T-582** `9e354434` — BUG-052 closed: trailing currency tokens + the dot-as-thousands rule ("1D500" → error, "1.500" → 1500). t-582 13/13 + RED control + imports 28/28.
+- **T-580** `cb97f7ed` — BUG-049 closed: the inspector's exportPdf routes every string through sanitizePdfText/dzdPdf (U+202F crash reproduced then closed); the revenue period label IS the filter. t-580 7/7 + RED control + t-368 21/21.
+- **T-572** `e3a0690d` — BUG-044 closed: paired-error persisted turns + logger.warn + the honest "Non configuré" badge/unconfigured hint (loadConfig never returns null — the signal is no key for any provider). copilot-drawer 10/10 + RED + AI 87/87.
+- **T-581** `943df9b0` — BUG-050 (the snapshot reads the editor's rbac-overrides key — full round-trip proven; t-415's fixture corrected) + BUG-051 (SCHEDULE_HOUR dead — the daemon reads the DB schedule, the tab's keys, fail-open) + BUG-015's backup facet (tenant injected: SchedulerActor.tenantId + runBackup's optional param + the seed-data fallback). t-581 13/13 + RED + backup 114/114.
+- **E6.11** `eb823776` + repair — DUP-030: the shared settings family (barrels) + useSettingsSection (the T-560-gated ceremony) + useEditModal; configuration-tab migrated. t-e611 8/8 + T-560 5/5 through the hook + settings 29/29 + rbac-matrix 5/5. The stash incident's conflict markers repaired (tsc 0 + 37/37 re-run).
+- **Census:** **44 solved since G0; 79 open.** The full-battery re-census is S50's first act.

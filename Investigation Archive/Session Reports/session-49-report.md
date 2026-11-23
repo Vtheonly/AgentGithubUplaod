@@ -1,0 +1,17 @@
+# Session 49 Report (2026-11-23)
+
+## Tasks delivered (6, one commit each, all pushed)
+1. **E6.4** `1f566856` — the copilot drawer + teacher fullscreen overlay ported onto ModalShell (ARCH-021/DUP-024): portal + scrim + Escape + focus trap gained; the fake role="dialog" dies; the T-235 zero-navigation doctrine preserved (the route option REJECTED because teacher-workspace.test.tsx pins zero navigation). t-e64 5/5 + RED control (4/5 fail) + 158/158 neighborhoods.
+2. **T-582** `9e354434` — BUG-052: the import number parser hardened (trailing DA/DZD tokens only — "1D500" is an honest error now, never 1500; the dot-as-thousands rule: "1.500" → 1500). t-582 13/13 + RED (9/13) + import neighborhood 28/28.
+3. **T-580** `cb97f7ed` — BUG-049: the inspector's lineage PDF routes through sanitizePdfText/dzdPdf (the U+202F crash REPRODUCED then closed); generateRevenueReportPdf's period label IS the filter now. t-580 7/7 + RED (3/7) + t-368 family 21/21.
+4. **T-572** `e3a0690d` — BUG-044: paired-error turns (the failed send persists a visible assistant error reply), logger.warn evidence, the honest "Non configuré" badge + unconfigured empty state (discovery: loadConfig() never returns null — the real signal is no key for any provider). copilot-drawer 10/10 + RED (3/10) + AI neighborhoods 87/87.
+5. **T-581** `943df9b0` — BUG-050/051/015: the RBAC key mismatch fixed (the snapshot reads the key the EDITOR writes — overrides now really enter archives, full round-trip proven); SCHEDULE_HOUR dead (the daemon reads the DB-configured schedule each re-arm, the tab's exact keys, fail-open); the tenant literal → injected context (SchedulerActor.tenantId ← session, runBackup's optional param, seed-data TENANT_ID fallback). t-581 13/13 + RED (10/13) + backup neighborhood 114/114 (two stale pins corrected: t-415's rbac fixture had mirrored the wrong key; t-487's call-order pin follows the new signature).
+6. **E6.11** `eb823776` + the conflict-marker repair — DUP-030/SET-U1+U2+U6: SettingsCard/SettingRow → shared (barrels); NEW useSettingsSection (the T-560-gated load ceremony) + useEditModal (validation + isSaving + toasts + close-on-success); configuration-tab migrated onto both. t-e611 8/8 + T-560 behavioral gate 5/5 THROUGH the hook + settings dir 29/29 + rbac-matrix 5/5 + tsc 0. **Incident (repaired):** the E6.11 RED-control stash round failed on the git-mv tree state and left merge markers in the two shared files; the repair commit resolves them to the shared side (tsc 0 + 37/37 re-run after repair). The full-battery closeout census did NOT complete within the session's window — the focused evidence stands (tsc 0 after every task + ~350 green tests across every touched neighborhood).
+
+## Census (the owner's counting question)
+38 solved at S48 close + 6 this session = **44 task cards solved since G0 (Sessions 28–49); 79 open** (123 registered plan cards).
+
+## Discoveries persisted
+- loadConfig() NEVER returns null (defaults with null keys) — the unconfigured signal is "no key for ANY provider" (T-572; also affects T-585's timeout lane).
+- The Excel twin exportRevenueReport shares the label-without-filter shape (documented in the T-581-adjacent T-580 registry entry — outside T-580's named scope).
+- The git-mv + stash interaction hazard: stash rounds on moved-file trees can half-apply and write conflict markers — the repair pattern (resolve to upstream, re-run tsc + suites) is on record.

@@ -4,7 +4,6 @@
  * existing import sites keep their paths; the implementation lives in
  * the shared module.
  */
-<<<<<<<< Updated upstream:elimtiyaz-desktop/src/shared/ui/settings/settings-card.tsx
 import type { LucideIcon } from "lucide-react";
 import { Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../ui/card";
@@ -72,6 +71,3 @@ export function SettingsCard({
     </Card>
   );
 }
-========
-export { SettingsCard, type SettingsCardProps } from "../../../shared/ui/settings/settings-card";
->>>>>>>> Stashed changes:elimtiyaz-desktop/src/features/settings/configuration/settings-card.tsx
