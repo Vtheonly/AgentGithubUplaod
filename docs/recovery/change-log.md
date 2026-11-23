@@ -5145,3 +5145,9 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 - **T-581** `943df9b0` — BUG-050 (the snapshot reads the editor's rbac-overrides key — full round-trip proven; t-415's fixture corrected) + BUG-051 (SCHEDULE_HOUR dead — the daemon reads the DB schedule, the tab's keys, fail-open) + BUG-015's backup facet (tenant injected: SchedulerActor.tenantId + runBackup's optional param + the seed-data fallback). t-581 13/13 + RED + backup 114/114.
 - **E6.11** `eb823776` + repair — DUP-030: the shared settings family (barrels) + useSettingsSection (the T-560-gated ceremony) + useEditModal; configuration-tab migrated. t-e611 8/8 + T-560 5/5 through the hook + settings 29/29 + rbac-matrix 5/5. The stash incident's conflict markers repaired (tsc 0 + 37/37 re-run).
 - **Census:** **44 solved since G0; 79 open.** The full-battery re-census is S50's first act.
+
+## Session 50 (2026-11-23) — the ≥10-task mandate, window-limited: E6.5 + T-578 RESOLVED-TESTED + T-579 increment 1
+- **E6.5 `e181fb45`** — the LAST E-card: 89 native title= sites/40 files → the shared Radix Tooltip via TooltipHint; the permanent census gate (t-e65 6/6); the honest 89/40 scope correction vs C-10's 194/102; the pre-existing t-546 z-pin repaired.
+- **T-578 `5ce214fb`** — BUG-046/048 closed at the root: the modal derives from the REAL installments stream; buildFamilyCollectContext; 8 entry points; the collision-guarded boundary labels. t-578 14/14.
+- **T-579 `10618e55`** — increment 1: BUG-053's transfer block + the coverage card in the drawer. t-579 3/3. The PDF half is the next session's head.
+- **Window record:** the full-battery re-census (the S49 handoff's first act) ran twice — the first run caught the 2 real deviations (the t-546 pre-existing pin + the E6.5 test-query updates) and was then superseded by mid-run tree edits; the final run is recorded in the Session-50 closeout header of next-task.md.
