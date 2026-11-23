@@ -419,11 +419,15 @@ const realToml = readFileSync(join(repoDir, "supabase", "config.toml"), "utf8");
 const realTree = censusFunctionsTree(join(repoDir, "supabase", "functions")) ?? [];
 
 describe("T-575 F — the ARCH-046 EF 1:1 census (the real repo surfaces)", () => {
-  it("the REAL config.toml ↔ functions/ tree censuses 1:1 (15 entries = 15 dirs, _shared excluded)", () => {
+  it("the REAL config.toml ↔ functions/ tree censuses 1:1 (16 entries = 16 dirs, _shared excluded — T-584 grew the fleet to 16)", () => {
     const tomlNames = parseFunctionsTomlEntries(realToml);
-    expect(tomlNames.length).toBe(15);
+    // T-584 (the scheduled automation runner) added workflow-scheduled-runner
+    // WITH its config entry — the 1:1 invariant holds at 16 (15 was the
+    // pre-T-584 count).
+    expect(tomlNames.length).toBe(16);
     expect(tomlNames).toContain("bind-activation-code");
-    expect(realTree.length).toBe(15);
+    expect(tomlNames).toContain("workflow-scheduled-runner");
+    expect(realTree.length).toBe(16);
     expect(realTree).not.toContain("_shared");
     const verdict = evaluateFunctionsCensus(tomlNames, realTree);
     expect(verdict.ok).toBe(true);
