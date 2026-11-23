@@ -338,7 +338,10 @@ describe("T-442 — the Debt Aging drawer's « Par année » tab (the per-year d
       expect(screen.getByText(/Famille A/i)).toBeTruthy();
     });
     // The row's outstanding: 20,000 + 20,000 + 80,000 + 90,000 = 210,000.
-    expect(screen.getByText(/210[\s\u00A0\u202F]?000/)).toBeTruthy();
+    // T-586 (BUG-057): the section header now ALSO renders the full-precision
+    // total (compact was KPI-only) — the value appears on multiple surfaces,
+    // so the pin asserts presence, not uniqueness.
+    expect(screen.getAllByText(/210[\s\u00A0\u202F]?000/).length).toBeGreaterThanOrEqual(1);
 
     // The per-year enumeration sums to the same prior-years aggregate
     // (40,000 + 80,000 = 120,000 — the current year is not "prior").

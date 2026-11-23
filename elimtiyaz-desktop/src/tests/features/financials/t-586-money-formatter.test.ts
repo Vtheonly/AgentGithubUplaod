@@ -245,3 +245,21 @@ describe("T-586 incr.2 — the Prix / Prix justifié / Couverture standardizatio
     expect(src).not.toContain("(historique)");
   });
 });
+
+describe("T-586 incr.2 — compact stays KPI-only (the A1.4 illusion fix)", () => {
+  it("C1: the debt-aging row sub-label and section header use the FULL-precision formatter", () => {
+    const src = read("features/financials/debt-aging-tab.tsx");
+    // The two non-KPI compact sites are de-compacted...
+    expect(src).not.toContain("subsequentYearPaymentTotal, { compact: true }");
+    expect(src).not.toContain("totalOutstanding, { compact: true }");
+    // ...while the file keeps no compact call at all (it had none on KPIs).
+    expect(src).not.toContain("{ compact: true }");
+  });
+
+  it("C2: the KPI surfaces keep compact (the financials-page tiles, the radar boxes)", () => {
+    const page = read("features/financials/financials-page.tsx");
+    expect(page).toContain("formatDzd(totalToday, { compact: true })");
+    const radar = read("features/financials/cash-flow-radar.tsx");
+    expect(radar).toContain("formatDzd(treasury.netOperatingCashFlow, { compact: true })");
+  });
+});

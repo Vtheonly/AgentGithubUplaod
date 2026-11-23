@@ -326,7 +326,9 @@ export function DebtAgingTab() {
               <CheckCircle2 className="h-3.5 w-3.5" /> Oui
             </p>
             <p className="text-xs text-muted-foreground">
-              {r.subsequentYearPaymentCount} paiement(s) · {formatDzd(r.subsequentYearPaymentTotal, { compact: true })}
+              {/* T-586 (BUG-057): a row sub-label is NOT a KPI tile — the
+                  full-precision formatter (compact stays KPI-only). */}
+              {r.subsequentYearPaymentCount} paiement(s) · {formatDzd(r.subsequentYearPaymentTotal)}
             </p>
           </div>
         ) : (
@@ -480,7 +482,9 @@ export function DebtAgingTab() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Hourglass className="h-4 w-4 text-primary" />
               <span className="font-medium">
-                Suivi des dettes multi-années — {filtered.length} famille(s) · {formatDzd(totalOutstanding, { compact: true })} d'encours
+                {/* T-586 (BUG-057): a section header is NOT a KPI tile — the
+                    full-precision formatter (compact stays KPI-only). */}
+                Suivi des dettes multi-années — {filtered.length} famille(s) · {formatDzd(totalOutstanding)} d'encours
               </span>
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
