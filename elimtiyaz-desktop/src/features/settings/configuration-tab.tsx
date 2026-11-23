@@ -8,7 +8,7 @@
  *
  * Layout: stacked cards, each card = one category.
  */
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { Role } from "../../core/rbac/roles";
@@ -16,6 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../shared/ui/card";
 import { Button } from "../../shared/ui/button";
 import { StatusChip } from "../../shared/ui/status-chip";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+// E6.11 (DUP-030 / SET-U2): the load/save/toast ceremony lives in the ONE
+// shared hook (the T-560 load-generation-ref gate + the consecutive-error
+// dedupe are the hook's own contract now — the tab can no longer re-grow
+// the hand-rolled ceremony).
+import { useSettingsSection } from "../../shared/hooks/use-settings-section";
+import { useEditModal } from "../../shared/hooks/use-edit-modal";
 import {
   getLocalConfigService,
   getSystemConfigService,
@@ -41,10 +47,29 @@ export function ConfigurationTab() {
   const { session } = useAuth();
   const { showSuccess, showError } = useToast();
 
-  const [settings, setSettings] = useState<SystemSetting[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [secretEdit, setSecretEdit] = useState<SecretEditState | null>(null);
-  const [isSavingSecret, setIsSavingSecret] = useState(false);
+
+  // E6.11 (DUP-030 / SET-U6): the secret editor's save ceremony lives in
+  // the ONE hook (isSaving + the result toasts + close-on-success + the
+  // reload). The draft state stays the modal's own (SecretEditState).
+  const secretModal = useEditModal<SecretEditState>({
+    onSubmit: (draft) =>
+      systemConfigService.updateSecret(
+        categoryForKey(settings, draft.settingKey),
+        draft.settingKey,
+        draft.envVarName,
+        draft.value,
+        draft.label,
+      ),
+    closeOnSuccess: () => {
+      setSecretEdit(null);
+      void loadSettings();
+    },
+    successMessage: "Secret mis à jour — les Edge Functions prendront effet dans ~60 secondes.",
+    validationError: (draft) =>
+      draft.value.trim() === "" ? "La valeur ne peut pas être vide" : null,
+  });
+  const isSavingSecret = secretModal.isSaving;
 
   // Local config state (Supabase connection)
   const [localConfig, setLocalConfig] = useState<LocalConfig>({});
@@ -67,49 +92,27 @@ export function ConfigurationTab() {
     []
   );
 
+  // E6.11 (DUP-030 / SET-U2): the ONE ceremony — load-on-mount + explicit
+  // refresh only (the T-560 gate), the consecutive-error-toast dedupe, and
+  // the save wrapper. The load callback is read through the hook's ref so
+  // the service's memo identity can never re-fire it.
+  const { rows: settings, isLoading, refresh: loadSettings } = useSettingsSection<SystemSetting[]>({
+    load: async () => {
+      if (!isSupabaseConfigured()) {
+        return { ok: true as const, value: [] as SystemSetting[] };
+      }
+      return systemConfigService.listAll();
+    },
+    initial: [],
+    loadErrorMessage: (userMessage) => `Erreur chargement paramètres: ${userMessage}`,
+  });
+
   useEffect(() => {
     localConfigService.read().then((result) => {
       if (result.ok) setLocalConfig(result.value);
       setIsLoadingLocal(false);
     });
   }, [localConfigService]);
-
-  const loadSettings = useCallback(async () => {
-    if (!isSupabaseConfigured()) return;
-    setIsLoading(true);
-    const result = await systemConfigService.listAll();
-    if (result.ok) {
-      setSettings(result.value);
-      lastLoadErrorRef.current = null;
-    } else {
-      // T-560: the identical-consecutive-error-toast dedupe — the SAME
-      // failure twice in a row renders ONE toast, not N (the loop's visible
-      // symptom); a DIFFERENT message still toasts (honest failures).
-      const message = `Erreur chargement paramètres: ${result.error.userMessage}`;
-      if (lastLoadErrorRef.current !== message) {
-        lastLoadErrorRef.current = message;
-        showError(message);
-      }
-    }
-    setIsLoading(false);
-  }, [systemConfigService, showError]);
-
-  // T-560 (EGRESS-LOOP / the S10 loop family): the load-generation-ref gate —
-  // the load fires ON MOUNT and on EXPLICIT refresh only (the Refresh button
-  // and the card callbacks call `loadSettings` directly). The callback is
-  // read through a ref so no identity churn (toast context, service
-  // re-creation, parent re-render) can ever re-fire the network load — the
-  // S10 shape (a failing listAll + its own error toast re-arming the effect)
-  // stays dead even if a dep churns again later.
-  const loadSettingsRef = useRef(loadSettings);
-  loadSettingsRef.current = loadSettings;
-  const lastLoadErrorRef = useRef<string | null>(null);
-  const loadGenerationRef = useRef(0);
-
-  useEffect(() => {
-    loadGenerationRef.current += 1;
-    void loadSettingsRef.current();
-  }, []);
 
   // RBAC check — only SuperAdmin can configure system settings.
   if (!session || session.role !== Role.SuperAdmin) {
@@ -259,29 +262,7 @@ export function ConfigurationTab() {
           state={secretEdit}
           isSaving={isSavingSecret}
           onChange={setSecretEdit}
-          onSave={async () => {
-            if (!secretEdit.value.trim()) {
-              showError("La valeur ne peut pas être vide");
-              return;
-            }
-            setIsSavingSecret(true);
-            const category = categoryForKey(settings, secretEdit.settingKey);
-            const result = await systemConfigService.updateSecret(
-              category,
-              secretEdit.settingKey,
-              secretEdit.envVarName,
-              secretEdit.value,
-              secretEdit.label
-            );
-            setIsSavingSecret(false);
-            if (result.ok) {
-              showSuccess("Secret mis à jour", "Les Edge Functions prendront effet dans ~60 secondes.");
-              setSecretEdit(null);
-              loadSettings();
-            } else {
-              showError(result.error.userMessage);
-            }
-          }}
+          onSave={() => void secretModal.submit(secretEdit)}
           onCancel={() => setSecretEdit(null)}
         />
       )}
