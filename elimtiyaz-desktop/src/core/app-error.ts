@@ -43,6 +43,21 @@ export const Errors = {
   server(message = "Server error"): AppError {
     return { code: "ERR_SERVER", message, userMessage: "Erreur interne du serveur." };
   },
+  /**
+   * T-619 / BUG-055: the backend service itself is restricted (the 402
+   * quota-dead Supabase project). Distinct from ERR_SERVER on purpose —
+   * the fix is a TARGET switch (Settings → Configuration), not a retry,
+   * and the login screen must say so instead of "Erreur interne du
+   * serveur".
+   */
+  backendRestricted(message = "Backend service restricted"): AppError {
+    return {
+      code: "ERR_BACKEND_RESTRICTED",
+      message,
+      userMessage:
+        "Le service Supabase est suspendu (quota dépassé) — le projet configuré est hors service. Changez le projet cible dans Réglages → Configuration.",
+    };
+  },
   offline(message = "Offline"): AppError {
     return { code: "ERR_OFFLINE", message, userMessage: "Hors ligne." };
   },

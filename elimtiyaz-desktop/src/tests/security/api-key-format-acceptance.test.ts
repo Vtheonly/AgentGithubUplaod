@@ -19,6 +19,12 @@
  * Live evidence (2026-09-01, hkvkefubghbbotgnteir): auth/health 200, REST
  * query processed and password-grant 200 with BOTH key formats — recorded in
  * docs/operations/credentials.md.
+ *
+ * T-619 (2026-11-24): the local-config fixtures were re-pointed at the LIVE
+ * project (gvuvibcsfjhwcjikgxql) — the original hkvkefubghbbotgnteir target
+ * is now in DEAD_SUPABASE_PROJECT_REFS (quota-dead since 2026-09-17), and
+ * the resolver's quarantine would (correctly) drop it. This suite's subject
+ * is the KEY FORMAT dual acceptance, not the project target.
  */
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
@@ -42,7 +48,7 @@ describe("T-107 / MIG-KEYS-201 — desktop accepts both public key formats", () 
     localStorage.setItem(
       "el-imtiyaz.local-config",
       JSON.stringify({
-        supabase_url: "https://hkvkefubghbbotgnteir.supabase.co",
+        supabase_url: "https://gvuvibcsfjhwcjikgxql.supabase.co",
         supabase_anon_key: PUB_KEY,
         supabase_use_supabase: true,
       })
@@ -59,7 +65,7 @@ describe("T-107 / MIG-KEYS-201 — desktop accepts both public key formats", () 
     localStorage.setItem(
       "el-imtiyaz.local-config",
       JSON.stringify({
-        supabase_url: "https://hkvkefubghbbotgnteir.supabase.co",
+        supabase_url: "https://gvuvibcsfjhwcjikgxql.supabase.co",
         supabase_anon_key: `${LEGACY_KEY_PREFIX}.legacy-value-for-test`,
         supabase_use_supabase: true,
       })

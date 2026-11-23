@@ -31,6 +31,7 @@ import {
   FACTORY_DEFAULT_PROJECT_REF,
   FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY,
   FACTORY_DEFAULT_SUPABASE_URL,
+  isKnownDeadSupabaseProject,
   validateBackendProfile,
   type BackendKind,
   type BackendProfileSnapshot,
@@ -178,25 +179,35 @@ export function resolveEffectiveSupabaseTarget(input: {
   profileApplied: boolean;
 } {
   const { profile, localConfig, env, flags } = input;
-  // The profile GOVERNS when it declares a supabase target (any build mode —
-  // the packaged re-point path). Non-supabase kinds are declared-but-unbuilt
-  // renderer-side (Stage B/T-599, relay/T-601): they contribute NO target and
-  // the honest fallback is mock (useSupabase=false).
+  // T-619 / BUG-055: the known-dead project quarantine — a local-config
+  // target pointing at a 402 quota-dead project is DROPPED (the dev-mode
+  // twin of the profile validator's rejection); the env/factory chain
+  // governs. A profile target pointing at a dead project also loses
+  // governance here (belt-and-braces: the bridge validation already
+  // rejects it before this runs).
+  const localUrl = isKnownDeadSupabaseProject(localConfig.url) ? undefined : localConfig.url;
+  const localAnonKey = localUrl ? localConfig.anonKey : undefined;
+  // The profile GOVERNS when it declares a LIVE supabase target (any build
+  // mode — the packaged re-point path). Non-supabase kinds are declared-but-
+  // unbuilt renderer-side (Stage B/T-599, relay/T-601): they contribute NO
+  // target and the honest fallback is mock (useSupabase=false).
   const profileTarget =
-    profile?.backendKind === "supabase" && profile.supabase ? profile.supabase : undefined;
+    profile?.backendKind === "supabase" && profile.supabase && !isKnownDeadSupabaseProject(profile.supabase.url)
+      ? profile.supabase
+      : undefined;
   const profileGoverned = profileTarget !== undefined;
 
   const url = profileTarget
     ? profileTarget.url
     : flags.isProductionDesktopBuild
       ? FACTORY_DEFAULT_SUPABASE_URL
-      : (localConfig.url ?? env.url ?? (flags.isVitestRun ? undefined : FACTORY_DEFAULT_SUPABASE_URL));
+      : (localUrl ?? env.url ?? (flags.isVitestRun ? undefined : FACTORY_DEFAULT_SUPABASE_URL));
 
   const anonKey = profileTarget
     ? profileTarget.anonKey
     : flags.isProductionDesktopBuild
       ? FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY
-      : (localConfig.anonKey ?? env.publicKey);
+      : (localAnonKey ?? env.publicKey);
 
   const useSupabase = profileTarget
     ? (profileTarget.useSupabase ?? true)
@@ -207,8 +218,11 @@ export function resolveEffectiveSupabaseTarget(input: {
       ? false
       : flags.isProductionDesktopBuild
         ? true
-        : (localConfig.useSupabase ??
-          (env.useSupabase !== undefined ? env.useSupabase !== "false" : !flags.isVitestRun));
+        : // T-619: a QUARANTINED local-config forfeits its useSupabase vote
+          // too — the whole stale entry is suspect; the env/default chain
+          // decides (outside vitest that means the live factory default).
+          ((localUrl || !localConfig.url ? localConfig.useSupabase : undefined) ??
+            (env.useSupabase !== undefined ? env.useSupabase !== "false" : !flags.isVitestRun));
 
   return {
     url,
@@ -400,6 +414,22 @@ export function supabaseErrorToAppError(error: {
   const msg = error.message ?? "Unknown Supabase error";
   const code = error.code ?? "";
 
+  // T-619 / BUG-055: the 402 quota-restricted response (a dead project)
+  // previously fell through to Errors.server — the login screen said
+  // "Erreur interne du serveur" while the real problem was the TARGET
+  // (the owner's dead vebfehrpzajhstyhinnw). Distinct, actionable code.
+  if (
+    code === "402" ||
+    msg.includes("exceed_egress_quota") ||
+    msg.includes("Service for this project is restricted")
+  ) {
+    return Errors.backendRestricted(msg);
+  }
+  // Wrong credentials are NOT a server error — the previous fall-through
+  // lied ("Erreur interne du serveur") on every bad login.
+  if (code === "invalid_credentials" || msg.includes("Invalid login credentials")) {
+    return { ...Errors.unauthorized(msg), userMessage: "E-mail ou mot de passe incorrect." };
+  }
   if (code === "23505" || msg.includes("duplicate key")) {
     return Errors.conflict(msg);
   }

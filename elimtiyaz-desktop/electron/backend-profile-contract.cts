@@ -107,6 +107,34 @@ export type BackendProfileWriteResult =
   | { ok: true; snapshot: BackendProfileSnapshot }
   | { ok: false; error: string };
 
+// ============================================================================
+// T-619 / BUG-055 — the known-dead project quarantine
+// ============================================================================
+
+/**
+ * Supabase projects VERIFIED dead (permanently quota-restricted — probed
+ * 2026-11-24: every endpoint returns 402 "Service for this project is
+ * restricted … exceed_egress_quota"). A backend profile OR a local-config
+ * target pointing at one of these is REJECTED so the live factory default
+ * governs — otherwise a stale profile bricks the app at the login screen
+ * with an opaque "Erreur interne du serveur" (the owner-reported BUG-055:
+ * "refuses to login at all … error in the server").
+ *
+ * This list only ever grows when a project is VERIFIED dead — never as a
+ * speculative blocklist. hkvkefubghbbotgnteir died before 2026-09-17;
+ * vebfehrpzajhstyhinnw went 402-dead at the 2026-11-22 T-614 cutover.
+ */
+export const DEAD_SUPABASE_PROJECT_REFS: readonly string[] = [
+  "hkvkefubghbbotgnteir",
+  "vebfehrpzajhstyhinnw",
+];
+
+/** True when the URL points at a known-dead (quota-restricted) project. */
+export function isKnownDeadSupabaseProject(url: string | undefined | null): boolean {
+  const ref = deriveProjectRef(url);
+  return ref !== null && DEAD_SUPABASE_PROJECT_REFS.includes(ref);
+}
+
 export type BackendProfileValidation =
   | { ok: true; profile: BackendProfileV1 }
   | { ok: false; reason: string };
@@ -188,6 +216,14 @@ function validateTarget(
   }
   if (backendKind === "supabase" && !url.includes(".supabase.co")) {
     return { ok: false, reason: "supabase-kind profile url must be https://<ref>.supabase.co" };
+  }
+  // T-619 / BUG-055: a profile pinning a KNOWN-DEAD project is invalid —
+  // the live factory default governs instead of bricking login.
+  if (backendKind === "supabase" && isKnownDeadSupabaseProject(url)) {
+    return {
+      ok: false,
+      reason: `supabase target points at the known-dead project '${deriveProjectRef(url)}' (quota-restricted) — delete the profile or re-point it at the current project`,
+    };
   }
   const anonKey = typeof record.anonKey === "string" ? record.anonKey.trim() : "";
   if (!anonKey) {
