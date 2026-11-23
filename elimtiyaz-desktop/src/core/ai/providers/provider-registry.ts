@@ -87,7 +87,12 @@ export async function queryLiveProviderModels(
   const url = endpoint.modelsUrl;
   const headers = safeAuthHeader(endpoint, apiKey);
 
-  const response = await fetch(url, { headers });
+  // T-585 (BUG-056): the model-list query is a quick GET — a hard 60 s cap
+  // (a hung provider endpoint never freezes the settings tab's discovery).
+  const response = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(60_000),
+  });
   if (!response.ok) {
     throw new Error(`Échec de récupération des modèles (HTTP ${response.status})`);
   }

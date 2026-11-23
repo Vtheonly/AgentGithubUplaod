@@ -33,6 +33,7 @@ import { Permission } from "../../core/rbac/permissions";
 import { Role } from "../../core/rbac/roles";
 import { maskPII, unmaskPII } from "../../domain/pii-mask";
 import { defaultLLMAdapter } from "../../infrastructure/ai/llm-adapter";
+import { loadConfig } from "../../infrastructure/ai/ai-config-storage";
 import type { AIRequest, NarrativeRequest } from "../../domain/model/ai";
 import type { Assessment, AttendanceRecord } from "../../domain/model/academic";
 import { calculateAttendanceRate } from "../../domain/model/academic";
@@ -191,10 +192,16 @@ export function NarrativeGeneratorModal({
         studentNames: [request.studentName],
       });
 
+      // T-585 (BUG-056): the DEAD hardcoded model id is GONE —
+      // "llama-3.3-70b-versatile" 404s on the live Groq catalog (every
+      // llama-*/qwen-* id was removed for the owner's key — AGENTS.md
+      // §11.1 #11); the request rides the CONFIGURED provider + model
+      // (the live-verified defaults when nothing is configured).
+      const cfg = await loadConfig();
       const aiRequest: AIRequest = {
         id: `ai-req-${Date.now()}`,
-        provider: "groq",
-        model: "llama-3.3-70b-versatile",
+        provider: cfg.defaultProvider,
+        model: cfg.defaultModel,
         systemPrompt,
         userPrompt: rawUserPrompt,
         maskedContent: masked,

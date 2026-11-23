@@ -82,7 +82,49 @@ function unpackEncrypted(packed: Uint8Array): { iv: Uint8Array; ciphertext: Uint
   };
 }
 
-function getOrCreatePassphrase(): string {
+/**
+ * T-585 (BUG-056): the passphrase's home is the OS KEYCHAIN (Electron
+ * safeStorage via the `window.elImtiyaz.safeStorage` IPC bridge), with a
+ * transparent one-way migration off the legacy localStorage slot:
+ *
+ *   1. Keychain read hits → use it (and remove a lingering legacy copy).
+ *   2. Keychain read misses → migrate the LEGACY localStorage passphrase
+ *      when present, else generate a fresh one; write it to the keychain.
+ *   3. Any keychain failure (browser / dev server / tests / OS keychain
+ *      unavailable) → the pre-T-585 localStorage behavior (the config
+ *      keeps working; obfuscated-but-functional beats broken).
+ *
+ * The function is exported for the t-585 suite's round-trip pins.
+ */
+export async function getOrCreatePassphrase(): Promise<string> {
+  const bridge = (globalThis as { window?: Window }).window?.elImtiyaz?.safeStorage;
+  if (bridge) {
+    try {
+      const read = await bridge.readPassphrase();
+      if (read.ok) {
+        if (read.value !== null) {
+          // A stale legacy copy must not linger beside the ciphertext.
+          if (localStorage.getItem(AI_PASSPHRASE_STORAGE_KEY) !== null) {
+            localStorage.removeItem(AI_PASSPHRASE_STORAGE_KEY);
+          }
+          return read.value;
+        }
+        // No keychain entry yet: migrate the legacy value or generate.
+        const legacy = localStorage.getItem(AI_PASSPHRASE_STORAGE_KEY);
+        const pass =
+          legacy ??
+          bytesToBase64(crypto.getRandomValues(new Uint8Array(32)));
+        const write = await bridge.writePassphrase(pass);
+        if (write.ok) {
+          localStorage.removeItem(AI_PASSPHRASE_STORAGE_KEY);
+          return pass;
+        }
+        // Keychain write failed → fall through to the localStorage path.
+      }
+    } catch {
+      // Any bridge surprise → the localStorage path (fail-safe).
+    }
+  }
   let pass = localStorage.getItem(AI_PASSPHRASE_STORAGE_KEY);
   if (!pass) {
     const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -93,7 +135,7 @@ function getOrCreatePassphrase(): string {
 }
 
 async function deriveAIKey(): Promise<CryptoKey> {
-  const passphrase = getOrCreatePassphrase();
+  const passphrase = await getOrCreatePassphrase();
   return generateKey(passphrase, AI_SALT_BYTES);
 }
 

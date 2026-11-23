@@ -135,6 +135,15 @@ export async function executeOpenAIStream(
   // was already delivered to the caller's callbacks).
   for (;;) {
     attempt++;
+    // T-585 (BUG-056): every connection attempt carries a HARD 120 s cap
+    // (AbortSignal.any composes the caller's stop-streaming signal with
+    // the per-attempt timeout — Chromium 116+/Node 20+, both satisfied by
+    // the Electron 33 runtime). A hung provider never blocks the copilot
+    // forever; a legitimately long generation still has its two minutes.
+    const timeoutSignal = AbortSignal.timeout(120_000);
+    const attemptSignal = signal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : timeoutSignal;
     response = await fetch(url, {
       method: "POST",
       headers: {
@@ -142,7 +151,7 @@ export async function executeOpenAIStream(
         ...headers,
       },
       body: JSON.stringify({ ...body, stream: true }),
-      signal,
+      signal: attemptSignal,
     });
 
     if (response.ok || attempt >= STREAM_RETRY.maxAttempts) break;

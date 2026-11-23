@@ -1,7 +1,7 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } from "electron";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { registerBackendProfileIpc } from "./backend-profile.cjs";
 import { buildAppMenuTemplate, buildContextMenuTemplate } from "./menu-builders.cjs";
 
@@ -270,6 +270,61 @@ function buildMenu(): Menu {
 ipcMain.handle("window:minimize", () => {
   mainWindow?.minimize();
 });
+
+// ============================================================================
+// T-585 (BUG-056, the non-UX half): the AI passphrase's OS-KEYCHAIN home.
+// Pre-T-585 the AES-256 key that encrypts the AI provider keys lived in
+// localStorage NEXT TO the ciphertext (obfuscation, not protection). The
+// passphrase now lives in the OS keychain through Electron's safeStorage
+// (DPAPI on Windows / Keychain on macOS / libsecret on Linux), persisted
+// as a safeStorage-encrypted `ai-passphrase.bin` inside userData. The
+// renderer migrates transparently (read → generate/migrate → write) with
+// the browser/dev fallback staying localStorage (no keychain there).
+// ============================================================================
+const AI_PASSPHRASE_FILE = "ai-passphrase.bin";
+
+ipcMain.handle("safeStorage:is-available", (): boolean => {
+  try {
+    return safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle(
+  "safeStorage:read-passphrase",
+  (): { ok: true; value: string | null } | { ok: false; error: string } => {
+    try {
+      const file = path.join(app.getPath("userData"), AI_PASSPHRASE_FILE);
+      if (!existsSync(file)) return { ok: true, value: null };
+      if (!safeStorage.isEncryptionAvailable()) {
+        return { ok: false, error: "safeStorage unavailable on this machine" };
+      }
+      // readFileSync: the passphrase file is a handful of bytes; the
+      // sync read keeps the IPC handler total.
+      const buf = readFileSync(file);
+      return { ok: true, value: safeStorage.decryptString(buf) };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  },
+);
+
+ipcMain.handle(
+  "safeStorage:write-passphrase",
+  (_event, pass: string): { ok: true } | { ok: false; error: string } => {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) {
+        return { ok: false, error: "safeStorage unavailable on this machine" };
+      }
+      const buf = safeStorage.encryptString(pass);
+      writeFileSync(path.join(app.getPath("userData"), AI_PASSPHRASE_FILE), buf);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  },
+);
 
 ipcMain.handle("window:toggle-maximize", () => {
   if (!mainWindow) return false;

@@ -36,6 +36,7 @@ import { FormField } from "../../shared/ui/form-field";
 import { AuditActions } from "../../core/audit-actions";
 import { maskPII, unmaskPII } from "../../domain/pii-mask";
 import { defaultLLMAdapter } from "../../infrastructure/ai/llm-adapter";
+import { loadConfig } from "../../infrastructure/ai/ai-config-storage";
 import {
   ANOMALY_SIGNAL_LABELS_FR,
   ANOMALY_SEVERITY_LABELS_FR,
@@ -131,10 +132,16 @@ export function AnomalyExplainerModal({
         parentNames: exp.payee ? [exp.payee] : [],
       });
 
+      // T-585 (BUG-056): the DEAD hardcoded model id is GONE —
+      // "llama-3.3-70b-versatile" 404s on the live Groq catalog (every
+      // llama-*/qwen-* id was removed for the owner's key — AGENTS.md
+      // §11.1 #11); the request now rides the CONFIGURED provider + model
+      // (the live-verified defaults when nothing is configured).
+      const cfg = await loadConfig();
       const aiRequest: AIRequest = {
         id: `ai-req-${Date.now()}`,
-        provider: "groq",
-        model: "llama-3.3-70b-versatile",
+        provider: cfg.defaultProvider,
+        model: cfg.defaultModel,
         systemPrompt:
           "Tu es un assistant financier. Analyse une dépense et fournis une synthèse " +
           "courte + une recommandation. L'IA est un signal d'aide à la décision, " +

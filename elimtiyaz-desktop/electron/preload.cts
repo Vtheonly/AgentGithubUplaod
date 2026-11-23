@@ -180,6 +180,24 @@ const api = {
   // T-573 (ADD-9): the backend profile switcher (the packaged app re-points
   // WITHOUT a rebuild — see electron/backend-profile-contract.cts).
   backendProfile: backendProfileApi,
+  // T-585 (BUG-056): the OS-keychain home for the AI config's AES
+  // passphrase — safeStorage (DPAPI/Keychain/libsecret) via the main
+  // process; null-shaped results keep the renderer's localStorage
+  // fallback honest in the browser/dev/tests.
+  safeStorage: {
+    isAvailable: (): Promise<boolean> =>
+      ipcRenderer.invoke("safeStorage:is-available") as Promise<boolean>,
+    readPassphrase: (): Promise<
+      { ok: true; value: string | null } | { ok: false; error: string }
+    > =>
+      ipcRenderer.invoke("safeStorage:read-passphrase") as Promise<
+        { ok: true; value: string | null } | { ok: false; error: string }
+      >,
+    writePassphrase: (pass: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke("safeStorage:write-passphrase", pass) as Promise<
+        { ok: true } | { ok: false; error: string }
+      >,
+  },
   shell: {
     openExternal: (url: string): Promise<ExternalOpenResult> =>
       ipcRenderer.invoke("shell:open-external", url) as Promise<ExternalOpenResult>,

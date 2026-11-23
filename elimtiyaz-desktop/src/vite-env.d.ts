@@ -76,6 +76,22 @@ interface ElImtiyazDesktopApi {
     clear: () => Promise<BackendProfileWriteResultMirror>;
   };
   /**
+   * T-585 (BUG-056): the OS-keychain home for the AI config passphrase.
+   * Backed by Electron's safeStorage via the `safeStorage:*` IPC handlers
+   * (`ai-passphrase.bin` inside userData, DPAPI/Keychain/libsecret-
+   * encrypted). Undefined in the browser/tests — ai-config-storage then
+   * keeps its localStorage fallback.
+   */
+  safeStorage?: {
+    isAvailable: () => Promise<boolean>;
+    readPassphrase: () => Promise<
+      { ok: true; value: string | null } | { ok: false; error: string }
+    >;
+    writePassphrase: (
+      pass: string,
+    ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  };
+  /**
    * T-502 (UI-332): the app-level zoom entry point — the window's OWN zoom
    * level (the SAME state the Electron Affichage menu roles drive), exposed
    * through the preload's webFrame bridge with factor clamps 0.5–2.0.
