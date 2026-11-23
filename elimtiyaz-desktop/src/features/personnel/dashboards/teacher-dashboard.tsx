@@ -22,6 +22,7 @@
  * (no personnel row) sees ZERO classes — never the full catalog.
  */
 import { useMemo, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   GraduationCap,
   Users,
@@ -43,6 +44,7 @@ import {
 import { Button } from "../../../shared/ui/button";
 import { StatusChip } from "../../../shared/ui/status-chip";
 import { UnifiedModal } from "../../../shared/ui/unified-modal";
+import { ModalShell } from "../../../shared/ui/unified-modal/modal-shell";
 import { RollCallScreen } from "../../academics/roll-call-screen";
 import { GradeEntryScreen } from "../../academics/grade-entry-screen";
 import { type DashboardKpi, type DashboardTask } from "./role-dashboard-layout";
@@ -328,37 +330,55 @@ export function TeacherDashboard() {
       )}
 
       {(overlay?.kind === "roll-call" || overlay?.kind === "grades") && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-surface-background"
-          role="dialog"
-          aria-modal="true"
-          aria-label={
-            overlay.kind === "roll-call" ? "Appel" : "Saisie des notes"
-          }
+        // E6.4 (ARCH-021): the fullscreen workspace is a REAL Radix dialog
+        // through ModalShell — the platform provides the portal, the focus
+        // trap, Escape-to-close, and the dialog semantics the previous
+        // hand-rolled div only CLAIMED (role="dialog" aria-modal="true"
+        // with no trap, no Escape, no portal). The workspace identity
+        // (the header bar + the full-viewport surface) passes through
+        // contentClassName; the T-235 self-containment is untouched: the
+        // screens stay EMBEDDED (onExit → overlay state, zero navigation).
+        <ModalShell
+          open
+          onOpenChange={(nextOpen: boolean) => {
+            if (!nextOpen) setOverlay(null);
+          }}
+          onInteractOutside={() => {}}
+          onEscapeKeyDown={() => {}}
+          variant="dialog"
+          size="full"
+          contentClassName="inset-0 h-full max-h-none w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-surface-background"
+          hideCloseButton
+          contentProps={{
+            "aria-label": overlay.kind === "roll-call" ? "Appel" : "Saisie des notes",
+            "aria-describedby": undefined,
+          }}
         >
-          <div className="flex items-center justify-between border-b border-border bg-surface-panel px-4 py-2 shrink-0">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Mon espace · {overlay.kind === "roll-call" ? "Appel" : "Notes"}
-            </span>
-            <Button variant="ghost" size="sm" onClick={() => setOverlay(null)}>
-              <X className="h-4 w-4" /> Fermer
-            </Button>
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b border-border bg-surface-panel px-4 py-2 shrink-0">
+              <DialogPrimitive.Title className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Mon espace · {overlay.kind === "roll-call" ? "Appel" : "Notes"}
+              </DialogPrimitive.Title>
+              <Button variant="ghost" size="sm" onClick={() => setOverlay(null)}>
+                <X className="h-4 w-4" /> Fermer
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {overlay.kind === "roll-call" ? (
+                <RollCallScreen
+                  classId={overlay.classId}
+                  onExit={() => setOverlay(null)}
+                />
+              ) : (
+                <GradeEntryScreen
+                  classId={overlay.classId}
+                  subjectId={overlay.subjectId}
+                  onExit={() => setOverlay(null)}
+                />
+              )}
+            </div>
           </div>
-          <div className="flex-1 overflow-hidden">
-            {overlay.kind === "roll-call" ? (
-              <RollCallScreen
-                classId={overlay.classId}
-                onExit={() => setOverlay(null)}
-              />
-            ) : (
-              <GradeEntryScreen
-                classId={overlay.classId}
-                subjectId={overlay.subjectId}
-                onExit={() => setOverlay(null)}
-              />
-            )}
-          </div>
-        </div>
+        </ModalShell>
       )}
     </>
   );

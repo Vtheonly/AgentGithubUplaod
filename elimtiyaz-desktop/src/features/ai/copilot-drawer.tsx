@@ -13,8 +13,17 @@
  *   - T-268: the clarification question card (the model's question made
  *     actionable) + the stop-generation button + the persisted-conversation
  *     hint in the header.
+ *
+ * E6.4 (ARCH-021 / DUP-024): the render skeleton is ModalShell's DRAWER
+ * preset — the ONE modal skeleton (the E6.3 precedent). The previous
+ * hand-rolled `fixed inset-y-0 right-0` div had no portal, no scrim, no
+ * Escape, and no focus trap; the shell provides all four. The drawer's
+ * visual identity (bg-surface-panel, max-w-xl, the bot header) passes
+ * through contentClassName; the streaming/tool/proposal/clarification
+ * markup is kept VERBATIM.
  */
 import { useState, useRef, useEffect, useMemo } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Bot,
   Send,
@@ -34,6 +43,7 @@ import { Input } from "../../shared/ui/input";
 import { Badge } from "../../shared/ui/badge";
 import { Card } from "../../shared/ui/card";
 import { MarkdownView } from "../../shared/ui/markdown-view";
+import { ModalShell } from "../../shared/ui/unified-modal/modal-shell";
 import { ArtifactRenderer } from "./artifact-renderer";
 import { parseToolArtifact } from "../../core/ai/artifacts";
 
@@ -88,8 +98,6 @@ export function AICopilotDrawer() {
     }
   }, [messages, streamingDelta, activeToolName, pendingClarification]);
 
-  if (!isOpen) return null;
-
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
     const txt = input;
@@ -98,7 +106,24 @@ export function AICopilotDrawer() {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-border bg-surface-panel shadow-2xl">
+    <ModalShell
+      open={isOpen}
+      onOpenChange={(nextOpen: boolean) => {
+        // Escape / scrim click / the X button all land here — the shell
+        // makes the old "Fermer (Échap)" tooltip claim actually true.
+        if (!nextOpen) setIsOpen(false);
+      }}
+      onInteractOutside={() => {}}
+      onEscapeKeyDown={() => {}}
+      variant="drawer"
+      size="lg"
+      // E6.4: the drawer's visual identity (the E6.3 responsive-scale
+      // precedent — contentClassName overrides the fixed DrawerSize tiers):
+      // full-width capped at max-w-xl on the surface-panel background. The
+      // shell's own close button is hidden; the header keeps its styled X.
+      contentClassName="w-full max-w-xl bg-surface-panel"
+      hideCloseButton
+    >
       {/* Header */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-2">
@@ -107,7 +132,9 @@ export function AICopilotDrawer() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">Copilot Éducatif</span>
+              <DialogPrimitive.Title className="text-sm font-semibold">
+                Copilot Éducatif
+              </DialogPrimitive.Title>
               <Badge
                 variant="outline"
                 className="border-primary/30 font-mono text-[10px] text-primary"
@@ -115,9 +142,9 @@ export function AICopilotDrawer() {
                 {config?.defaultModel || "Groq"}
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <DialogPrimitive.Description className="text-[11px] text-muted-foreground">
               Raisonnement &amp; Analyse Système
-            </p>
+            </DialogPrimitive.Description>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -349,6 +376,6 @@ export function AICopilotDrawer() {
           )}
         </form>
       </div>
-    </div>
+    </ModalShell>
   );
 }
