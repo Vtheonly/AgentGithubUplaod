@@ -79,6 +79,14 @@ export function AICopilotDrawer() {
   const [clarificationAnswer, setClarificationAnswer] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // T-572 / BUG-044 — the HONEST unconfigured signal: loadConfig() never
+  // returns null (it returns the defaults with every API key null), so
+  // "unconfigured" = NO usable key for ANY provider. The old badge showed
+  // the default Groq model id — claiming a provider that was never set up.
+  const hasAnyKey = Boolean(
+    config && (config.groqApiKey || config.openRouterApiKey || config.customApiKey),
+  );
+
   // T-272 — parse every tool message ONCE per render pass; a tool
   // output carrying a validated `artifact` renders as a visual card
   // below the tool indicator (charts, diagrams, document downloads).
@@ -135,12 +143,24 @@ export function AICopilotDrawer() {
               <DialogPrimitive.Title className="text-sm font-semibold">
                 Copilot Éducatif
               </DialogPrimitive.Title>
-              <Badge
-                variant="outline"
-                className="border-primary/30 font-mono text-[10px] text-primary"
-              >
-                {config?.defaultModel || "Groq"}
-              </Badge>
+              {/* T-572 / BUG-044 — the HONEST header badge: unconfigured
+                  shows "Non configuré" in warning tone (the old badge
+                  claimed the default Groq model while no key existed). */}
+              {hasAnyKey ? (
+                <Badge
+                  variant="outline"
+                  className="border-primary/30 font-mono text-[10px] text-primary"
+                >
+                  {config?.defaultModel || "Groq"}
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="border-status-warning/40 font-mono text-[10px] text-status-warning"
+                >
+                  Non configuré
+                </Badge>
+              )}
             </div>
             <DialogPrimitive.Description className="text-[11px] text-muted-foreground">
               Raisonnement &amp; Analyse Système
@@ -181,6 +201,18 @@ export function AICopilotDrawer() {
               Posez-moi des questions sur les élèves, vérifiez les impayés, ou demandez une
               analyse globale.
             </p>
+            {/* T-572 / BUG-044 — the unconfigured empty state: the drawer
+                says WHY sends will fail (no API key) instead of acting
+                ready and failing silently per message. */}
+            {!hasAnyKey && (
+              <p
+                data-testid="copilot-unconfigured-hint"
+                className="max-w-xs rounded-md border border-status-warning/40 bg-status-warning/10 px-3 py-2 text-[11px] text-status-warning"
+              >
+                Aucune clé API n&apos;est configurée — chaque envoi échouera.
+                Rendez-vous dans Paramètres → IA pour connecter l&apos;assistant.
+              </p>
+            )}
             <div className="w-full space-y-1.5 pt-2">
               {STARTER_SUGGESTIONS.map((suggestion) => (
                 <button

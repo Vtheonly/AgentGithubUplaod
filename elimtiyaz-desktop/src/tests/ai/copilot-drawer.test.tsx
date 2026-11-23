@@ -201,8 +201,74 @@ describe("T-261 — copilot drawer render + RBAC gating", () => {
   });
 });
 
-describe("T-261 — askAgent error path (missing API key)", () => {
+describe("T-572 / BUG-044 — the honest unconfigured state", () => {
   beforeEach(() => {
+    repositories = buildHarnessRepositories(Role.SuperAdmin);
+    localStorage.clear();
+    adjustCalls.length = 0;
+  });
+
+  it("the header badge says 'Non configuré' when no API key exists (the old badge claimed 'Groq')", async () => {
+    // No key stored → loadConfig returns null → the warning badge.
+    let ready: () => void;
+    const gate = new Promise<void>((resolve) => (ready = resolve));
+    render(
+      <CopilotHarness>
+        <CopilotDriver onReady={() => ready()} />
+      </CopilotHarness>,
+    );
+    await gate;
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("toggle"));
+    });
+
+    // The honest badge replaces the fake provider claim.
+    expect(screen.getByText("Non configuré")).toBeTruthy();
+    expect(screen.queryByText("Groq")).toBeNull();
+
+    // The empty state explains WHY sends will fail (BUG-044's silent
+    // failure variant: the old drawer acted ready, then failed per
+    // message with no inline explanation).
+    expect(screen.getByTestId("copilot-unconfigured-hint")).toBeTruthy();
+    expect(
+      screen.getByText(/Aucune clé API n'est configurée/),
+    ).toBeTruthy();
+  });
+
+  it("a failed send leaves console evidence (logger.warn — the old path was console-clean)", async () => {
+    const { logger } = await import("../../core/logger");
+    const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
+
+    let ready: () => void;
+    const gate = new Promise<void>((resolve) => (ready = resolve));
+    render(
+      <CopilotHarness>
+        <CopilotDriver onReady={() => ready()} />
+      </CopilotHarness>,
+    );
+    await gate;
+    await waitFor(() => {
+      expect(screen.getByTestId("canuse").textContent).toBe("true");
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("toggle"));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ask"));
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Échec de la requête/)).toBeTruthy();
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Copilot send failed",
+      expect.objectContaining({ message: expect.stringContaining("Clé API manquante") }),
+    );
+    warnSpy.mockRestore();
+  });
+});
+
+describe("T-261 — askAgent error path (missing API key)", () => {  beforeEach(() => {
     repositories = buildHarnessRepositories(Role.SuperAdmin);
     localStorage.clear();
     adjustCalls.length = 0;
@@ -242,6 +308,28 @@ describe("T-261 — askAgent error path (missing API key)", () => {
       expect(screen.getByPlaceholderText("Posez une question à l'assistant…")).not.toBeDisabled();
     });
     expect(screen.getByText("Question de test")).toBeTruthy();
+    // T-572 / BUG-044 — the failed turn is PAIRED with a persisted
+    // assistant error message (the old defect: the unanswered user turn
+    // persisted alone; after reload it was an orphan). The thread now
+    // carries the failure inline, next to the question that caused it.
+    await waitFor(() => {
+      expect(screen.getByText(/Échec de la requête/)).toBeTruthy();
+    });
+    // The paired error survives persistence (the conversation localStorage
+    // carries BOTH the user turn and its error reply).
+    await waitFor(() => {
+      const persisted = localStorage.getItem("el-imtiyaz:ai-copilot-conversation");
+      expect(persisted).toBeTruthy();
+      const stored = JSON.parse(persisted!) as {
+        messages: Array<{ role: string; content: string | null }>;
+      };
+      const userTurn = stored.messages.find((m) => m.role === "user");
+      const errorReply = stored.messages.find(
+        (m) => m.role === "assistant" && /Échec de la requête/.test(m.content ?? ""),
+      );
+      expect(userTurn?.content).toBe("Question de test");
+      expect(errorReply).toBeTruthy();
+    });
   });
 });
 

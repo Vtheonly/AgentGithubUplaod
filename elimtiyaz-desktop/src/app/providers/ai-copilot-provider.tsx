@@ -580,7 +580,21 @@ export function AICopilotProvider({ children }: { children: React.ReactNode }) {
           setStreamingDelta("");
           toast.showInfo("Génération interrompue", "La réponse partielle a été conservée.");
         } else {
-          toast.showError("Erreur IA", err instanceof Error ? err.message : String(err));
+          // T-572 / BUG-044 — the failed turn is PAIRED with a persisted
+          // assistant error message. The old path persisted the
+          // unanswered user turn alone (two failed sends = two orphan
+          // user messages after reload) and left the console completely
+          // clean — a fully silent failure variant.
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          logger.warn("Copilot send failed", { message: errorMessage });
+          const errorMsg: AIChatMessage = {
+            id: `ast-error-${Date.now()}`,
+            role: "assistant",
+            content: `⚠️ **Échec de la requête** — ${errorMessage}`,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages(nextConversation.concat(errorMsg));
+          toast.showError("Erreur IA", errorMessage);
         }
       } finally {
         abortRef.current = null;
