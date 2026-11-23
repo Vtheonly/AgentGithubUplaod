@@ -7096,6 +7096,24 @@ The corpus location `financial-tests/equivalence/scenarios/` is a CROSS-REPO CON
 
 **Evidence:** /tmp/t433-live-load.log (the driver run) + the live-verify ALL CHECKS PASS output (copied to download/t-616-live-verification.txt) + the sign-in/RLS 200s + §15.111 (AGENTS.md).
 
+## T-617 — The owner-directed re-issue of the permanent admin accounts (the lost-password recovery): admin4/5/6@elimtiyaz.dz through the CANONICAL path + the §15.111(a) frozen set grown to SEVEN — the Session-51 owner lane
+
+**Problem IDs:** the owner's directive of 2026-11-23: "I forgot the passwords… give me new accounts and save the login username and the password" · AGENTS.md §15.111(a)/(b) · the lost T-616 credentials artifact.
+
+**Status:** RESOLVED-VERIFIED (Session 51, 2026-11-23 — all three accounts live-verified with the contrast evidence of §15.111(e); the frozen four identical before/after).
+
+**Why the earlier passwords could not be recovered:** Supabase stores only a hash, and the T-616 credentials artifact lived in the agent sandbox's `download/`, which is recycled between sessions. The remedy that respects §15.111(a) is a NEW set through the canonical path — never a re-password of the frozen accounts.
+
+**What was executed (against gvuvibcsfjhwcjikgxql with the owner-supplied secret key, environment-only):**
+1. **Three new permanent admin accounts** — `admin4@elimtiyaz.dz` / `admin5@elimtiyaz.dz` / `admin6@elimtiyaz.dz`, each through the CANONICAL path (§15.111b: the admin API with `app_metadata.created_by_admin` + tenant → the `handle_new_auth_user` trigger's pending profile + approval request → the `admin_create_user_account` RPC — atomic activate + super_admin assignment, reviewer-of-record the owner's own admin@ profile `55b66d7a-…`): profiles `db6e7522-…` / `0da66e23-…` / `393648f7-…`, all `status='active'` + live super_admin role_assignments. NO hand-written RBAC rows.
+2. **The verification — each account, from the passwords AS SAVED in the sheet:** password-grant sign-in 200 · `current_user_roles()` = `["super_admin"]` for the caller · `parents` returns 3 rows to the account vs 0 to the public key alone · all 7 live `role_assignments` of the tenant visible. The first run's `calendar_events` check returned `200 (0 rows)` — the same as the anon control — and was DISCARDED as proof (§15.111e).
+3. **The frozen four untouched:** auth ids, profile ids, status, role and `last_sign_in_at` identical before and after; the approval-request pending count unchanged (2) — the three new requests were auto-resolved by the RPC. The anon RLS control stays `[]`.
+4. **The credentials sheet** delivered to the owner OUTSIDE the repo (`download/elimtiyaz-admin-accounts-2026-11-23.md`, mode 0600, never committed — §15.14-14). The operator tool is the agent's `scripts/admin_accounts.py` (AGENTS.md §15.111d).
+
+**Left (owner decisions — never agent work):** (1) store the sheet in a password manager — the sandbox `download/` is not durable; (2) `admin1/2/3@elimtiyaz.dz` are now super_admin accounts whose passwords nobody holds — re-password or retire ONLY on the owner's explicit directive (§15.111a): UNKNOWN-032; (3) the public-repo plaintext exposure in `docs/operations/credentials.md`: UNKNOWN-033.
+
+**Evidence:** the live probe before/after (5 → 8 auth users, 4 → 7 live role assignments, pending requests 2 → 2) + the per-account contrast verification, re-runnable at any time with `admin_accounts.py verify --credentials <sheet>`.
+
 ## E6.7 — The shared Collapsible primitive + the hand-rolled expandable migrations (ROADMAP Phase 5 / 5.8, UI-U7a)
 
 **Problem IDs:** UI-U7a (the 2-of-N aria-expanded gap) · the grade-levels clickable-div header anti-pattern.

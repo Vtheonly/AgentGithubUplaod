@@ -209,3 +209,21 @@ The wizard's step 2 (step2-students.tsx) offers primaire / CEM / lycée — the 
 **The owner should decide:** (a) extend `AcademicLevel` with `"prescolaire"` (2 years) — a domain evolution rippling through every `Record<AcademicLevel, …>` map, `LEVEL_YEARS`, `gradeLevelFromLevelYear`, class-level filters, and the per-level pricing surfaces (the tsc-exhaustive pattern would surface each site), then add the wizard option; or (b) prescolaire enrollment happens OUTSIDE this wizard (a dedicated maternelle flow or admin entry) and step 2's copy should SAY so explicitly; or (c) prescolaire students are represented as primaire year-0 legacy rows deliberately (then the fallback deserves a first-class label, not "best-effort").
 
 Until decided: the wizard stays at three levels; the BUG-027 copy fixes (the −5 % early-payment rate, the dynamic transport-destination count, the derived RBAC header counts) are delivered WITHOUT the level taxonomy change — a copy fix must not silently evolve the domain model. The other BUG-027 sub-item ("Messager interne" label + silent no-op) is GONE at HEAD — no such label exists in the tree (stale finding, closed by verification).
+
+## UNKNOWN-032 — OPEN (2026-11-23, Session 51 — T-617): admin1/2/3@elimtiyaz.dz are super_admin accounts whose passwords nobody holds — re-password them, or retire them?
+
+The owner lost the T-616 passwords; T-617 issued the replacement set `admin4/5/6@elimtiyaz.dz`. The three earlier accounts still exist on gvuvibcsfjhwcjikgxql as ACTIVE super_admin (profiles `664b5981-…` / `8552e09e-…` / `7c1d340d-…`, none banned, only admin1 ever signed in). Their passwords were random 100+-bit values that existed only in the recycled sandbox, so the practical risk of misuse is low — but they are standing keys to the whole tenant that no one can use or audit. §15.111(a) forbids any agent from touching them without the owner's explicit directive.
+
+**The owner should decide:** (a) re-password them to new known values (an agent CAN do this on a one-line directive — the admin API's user-update path; the RBAC rows stay untouched); or (b) retire them (revoke the role assignments + ban the auth users — an auditable, reversible operation); or (c) leave them exactly as they are.
+
+Until decided: all three stay frozen and untouched (§15.111a); `admin@elimtiyaz.dz` (the T-614 apply account of record) is under the same protection, and whether the owner still holds ITS password is not known to the agent — it was never tested, deliberately (a failed attempt could trip the profile's lockout counter on a frozen account).
+
+## UNKNOWN-033 — OPEN (2026-11-23, Session 51 — T-617, discovered during the credentials work): `docs/operations/credentials.md` commits a PLAINTEXT admin password — and the repository is publicly readable
+
+The credentials sheet's own header says "this file lives in the (private) hub repository", but the repository was cloned anonymously in a fresh sandbox (no credential helper, no token — `git ls-remote`/`git clone` over plain HTTPS succeed), and the sheet's §1 table carries the owner-pinned `admin@elimtiyaz.dz` password in clear text (plus public client identifiers). The exposed password is the OLD project's owner-pinned value (a 2026-09-10 directive that was never rotated).
+
+**Why it matters now:** if that same value was reused for `admin@elimtiyaz.dz` on the NEW project (a super_admin account of record), the live system's top credential is public. The agent did NOT test it — see UNKNOWN-032's last paragraph for why.
+
+**The owner should decide:** (a) remove the plaintext value from the sheet (replace it with a pointer to wherever the owner keeps it) and rewrite the header to match the repository's real visibility; (b) make the repository private; (c) both. If the value was reused on the new project, change that password regardless of (a)/(b).
+
+Until decided: no agent writes any password into any repository file (already the rule — §15.14-14, §15.111a); T-617's sheet follows it.

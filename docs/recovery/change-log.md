@@ -1,4 +1,14 @@
 
+## 2026-11-23 — T-617 (the Session-51 owner lane) — THE ADMIN ACCOUNTS RE-ISSUED: three NEW permanent super_admin accounts (admin4/5/6@elimtiyaz.dz) through the CANONICAL path after the owner lost the T-616 passwords; the §15.111(a) frozen set grown to SEVEN; the credentials sheet delivered outside the repo
+
+**THE MANDATE:** the owner (2026-11-23): "I forgot the passwords… give me new accounts and save the login username and the password." The earlier passwords are unrecoverable (Supabase stores only a hash; the T-616 sheet lived in the sandbox's recycled `download/`), and §15.111(a) forbids re-passwording the frozen accounts — so the remedy is a NEW set through §15.111(b).
+
+**THE NEW SET:** `admin4@elimtiyaz.dz` / `admin5@elimtiyaz.dz` / `admin6@elimtiyaz.dz` (profiles `db6e7522-…` / `0da66e23-…` / `393648f7-…`) — the admin API's `created_by_admin` app_metadata → the `handle_new_auth_user` trigger → the `admin_create_user_account` RPC; all active, all super_admin; reviewer-of-record the owner's own admin@ profile. **FROZEN per §15.111(a) — the permanent set is now SEVEN.** The frozen four are identical before/after (5 → 8 auth users, 4 → 7 live role assignments, pending approvals 2 → 2).
+
+**THE VERIFICATION LESSON (§15.111e):** a `200 + []` read is not an RLS proof — the first run's `calendar_events` check returned the same `200 (0 rows)` as the anon control. Replaced by three checks that cannot pass by accident: the role resolver names `super_admin` for the caller; a table WITH data returns 3 rows to the account and 0 to the public key alone; the account sees all 7 live role assignments of the tenant.
+
+**THE ARTIFACT:** `download/elimtiyaz-admin-accounts-2026-11-23.md` (mode 0600, never committed). **Owner decisions queued:** UNKNOWN-032 (the orphaned admin1..3) · UNKNOWN-033 (the plaintext admin password committed in the publicly readable repo's `docs/operations/credentials.md`).
+
 ## 2026-11-22 — Session 47 (the owner's major financial investigation)
 - c5dfdf4c: the financial forensics (the 1 350 000 was the S46 demo synthetic — the REAL defects are OUAGED ARIS ×2 645 000 (×10 typo), BENADOUDA 400 000 addend, TASLGHOUA 394 000 dettes, HABRI 791 000 embedded family sum, BERDAI −92 000 créance, HEROUA/KHALEF contradicting twin rows) + the financial fault inspector (8 contextual rules, 4-way verdicts, evidence chains, wired into the import engine, 6 findings/0 false positives on the real workbook) + the traceable family-statement PDF + the FOOTER-overlap root cause of the 'still misaligned' complaint (contact × 'Généré le' ~15pt on every page, since the original generator). 143 tests GREEN, tsc 0, geometry+overlap audits clean.
 
