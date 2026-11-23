@@ -20,10 +20,21 @@
  */
 import type { Repositories } from "../../app/providers/repository-provider";
 import { logger } from "../../core/logger";
+// T-581 (BUG-015): the tenant literal becomes INJECTED context — the
+// canonical single-tenant identity of record is imported ONCE (seed-data),
+// and the acting session's tenant rides the scheduler actor.
+import { TENANT_ID } from "../mock/seed-data";
+// T-581 (BUG-051): the daemon reads the DB-CONFIGURED schedule (the same
+// system_settings keys the Settings → Sauvegarde tab displays), never a
+// hardcoded hour.
+import { isSupabaseConfigured, getSupabaseClient } from "../supabase/backend-access";
+import { getSystemConfigService } from "../system-config";
 
 export interface SchedulerActor {
   readonly id: string;
   readonly name: string;
+  /** T-581 (BUG-015): the acting session's tenant (injected context). */
+  readonly tenantId?: string;
 }
 
 export interface BackupRunLogEntry {
@@ -70,24 +81,74 @@ export function setSchedulerEnabled(enabled: boolean): void {
 }
 
 /** T-301: the next scheduled run moment (the toggle card's "prochaine exécution
- * à ~02:00" display; dev mode ticks every 5 minutes instead). */
+ * à ~02:00" display; dev mode ticks every 5 minutes instead). T-581: the
+ * DEFAULT schedule (the daemon itself re-reads the DB config at every
+ * re-arm — the async readBackupScheduleConfig is the authoritative one). */
 export function nextScheduledRunAt(now: Date = new Date()): Date {
   const isDev = readDevFlag();
-  return new Date(now.getTime() + (isDev ? DEV_TICK_MS : msUntilNextScheduledRun(now)));
+  return new Date(
+    now.getTime() +
+      (isDev ? DEV_TICK_MS : msUntilNextScheduledRun(now, DEFAULT_BACKUP_SCHEDULE)),
+  );
 }
 
 /** Dev tick: 5 minutes (so iteration is observable without waiting a day). */
 const DEV_TICK_MS = 5 * 60 * 1000;
 
-/** Hour of the daily scheduled backup (vault §13.01 — ~02:00 AM). */
-const SCHEDULE_HOUR = 2;
+/**
+ * T-581 (BUG-051) — the DB-configured schedule shape. The keys are the
+ * EXACT ones the Settings → Sauvegarde tab reads (`backup.schedule_time`
+ * "HH:MM" + `backup.schedule_hours`, category "backup"); the defaults are
+ * the vault §13.01 values (daily at ~02:00). The hardcoded SCHEDULE_HOUR
+ * constant is DEAD — the daemon re-reads the config at every re-arm, so a
+ * schedule change actually takes effect.
+ */
+export interface BackupScheduleConfig {
+  /** Daily scheduled moment, "HH:MM" (default "02:00"). */
+  readonly scheduleTime: string;
+  /** Re-run interval in hours when the moment has passed (default 24). */
+  readonly scheduleHours: number;
+}
 
-/** Milliseconds until the next 02:00 AM local time. */
-function msUntilNextScheduledRun(now: Date = new Date()): number {
+export const DEFAULT_BACKUP_SCHEDULE: BackupScheduleConfig = {
+  scheduleTime: "02:00",
+  scheduleHours: 24,
+};
+
+/** T-581 (BUG-051): read the DB-configured schedule (fail-open to the vault defaults). */
+export async function readBackupScheduleConfig(): Promise<BackupScheduleConfig> {
+  try {
+    if (!isSupabaseConfigured()) return DEFAULT_BACKUP_SCHEDULE;
+    const service = getSystemConfigService(getSupabaseClient());
+    const result = await service.listByCategory("backup");
+    if (!result.ok) return DEFAULT_BACKUP_SCHEDULE;
+    let scheduleTime = DEFAULT_BACKUP_SCHEDULE.scheduleTime;
+    let scheduleHours = DEFAULT_BACKUP_SCHEDULE.scheduleHours;
+    for (const s of result.value) {
+      if (s.key === "backup.schedule_hours" && typeof s.value === "number") {
+        scheduleHours = s.value;
+      } else if (s.key === "backup.schedule_time" && typeof s.value === "string") {
+        scheduleTime = s.value;
+      }
+    }
+    return { scheduleTime, scheduleHours };
+  } catch {
+    return DEFAULT_BACKUP_SCHEDULE;
+  }
+}
+
+/**
+ * Milliseconds until the next scheduled run. T-581 (BUG-051): the
+ * computation follows the config — the scheduled moment (HH:MM), advanced
+ * by scheduleHours while it is in the past (the SAME semantics the
+ * Settings tab's display uses, so the daemon and the UI never disagree).
+ */
+function msUntilNextScheduledRun(now: Date, cfg: BackupScheduleConfig): number {
+  const [h, m] = cfg.scheduleTime.split(":").map((x) => parseInt(x, 10));
   const next = new Date(now);
-  next.setHours(SCHEDULE_HOUR, 0, 0, 0);
-  if (next.getTime() <= now.getTime()) {
-    next.setDate(next.getDate() + 1);
+  next.setHours(Number.isNaN(h) ? 2 : h, Number.isNaN(m) ? 0 : m, 0, 0);
+  while (next.getTime() <= now.getTime()) {
+    next.setHours(next.getHours() + Math.max(1, cfg.scheduleHours));
   }
   return Math.max(60_000, next.getTime() - now.getTime());
 }
@@ -171,7 +232,11 @@ export function startBackupScheduler(
   const isDev = readDevFlag();
   logger.info("backup.scheduler.start", {
     mode: isDev ? "dev" : "prod",
-    scheduledHour: SCHEDULE_HOUR,
+    // T-581 (BUG-051): the DB-configured schedule is the authority (the
+    // hardcoded hour is dead); the log line carries the default and the
+    // config-read marker.
+    defaultSchedule: DEFAULT_BACKUP_SCHEDULE,
+    readsDbSchedule: true,
     // T-301: the persisted preference rides the log line (a disabled
     // scheduler starts in DORMANT mode — the timer keeps cycling so a
     // runtime re-enable resumes instantly, but NO backup ever runs while
@@ -194,6 +259,10 @@ export function startBackupScheduler(
     const actor = getActor();
     const actorId = actor?.id ?? "system";
     const actorName = actor?.name ?? "Système (scheduler)";
+    // T-581 (BUG-015): the tenant context is INJECTED (the acting
+    // session's tenant, falling back to the canonical single-tenant
+    // identity of record — never a scattered literal).
+    const tenantId = actor?.tenantId ?? TENANT_ID;
     const startedAt = Date.now();
 
     // VAULT §13.06 — disk-space alert BEFORE the run (80% threshold).
@@ -215,7 +284,7 @@ export function startBackupScheduler(
         entityId: "vault",
         actorId,
         actorName,
-        tenantId: "tenant-el-imtiyaz-oran-001",
+        tenantId,
         diff: { before: null, after: capacity },
         note: `Alerte espace coffre : ${capacity.usedPercent}% utilisé (seuil 80%)`,
       }).then(() => undefined, () => undefined);
@@ -223,7 +292,7 @@ export function startBackupScheduler(
     }
 
     try {
-      const result = await repos.backups.runBackup(actorId, actorName);
+      const result = await repos.backups.runBackup(actorId, actorName, tenantId);
       if (result.ok) {
         logger.info("backup.scheduler.tick.success", {
           archiveId: result.value.id,
@@ -264,9 +333,12 @@ export function startBackupScheduler(
     }
   }
 
-  function armNext() {
+  async function armNext() {
     if (stopped) return;
-    const delay = isDev ? DEV_TICK_MS : msUntilNextScheduledRun();
+    // T-581 (BUG-051): the re-arm READS the DB schedule every cycle — a
+    // schedule change takes effect at the next re-arm without a restart.
+    const cfg = isDev ? DEFAULT_BACKUP_SCHEDULE : await readBackupScheduleConfig();
+    const delay = isDev ? DEV_TICK_MS : msUntilNextScheduledRun(new Date(), cfg);
     timer = setTimeout(async () => {
       await runTick("scheduled");
       armNext();
@@ -274,6 +346,8 @@ export function startBackupScheduler(
     logger.info("backup.scheduler.armed", {
       nextRunInMs: delay,
       nextRunAt: new Date(Date.now() + delay).toISOString(),
+      // T-581: the ACTUAL schedule this arm used (DB config or default).
+      schedule: cfg,
     });
   }
 
@@ -295,9 +369,11 @@ export async function runManualBackup(
   const actor = getActor();
   const actorId = actor?.id ?? "system";
   const actorName = actor?.name ?? "Session courante";
+  // T-581 (BUG-015): the tenant context rides the manual path too.
+  const tenantId = actor?.tenantId ?? TENANT_ID;
   const startedAt = Date.now();
   try {
-    const result = await repos.backups.runBackup(actorId, actorName);
+    const result = await repos.backups.runBackup(actorId, actorName, tenantId);
     const entry: BackupRunLogEntry = result.ok
       ? {
           at: new Date().toISOString(),

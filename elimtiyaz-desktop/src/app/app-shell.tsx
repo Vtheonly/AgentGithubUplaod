@@ -34,7 +34,9 @@ export function AppShell() {
     if (!session) return;
     const stop = startBackupScheduler(repos, () => {
       if (!session) return null;
-      return { id: session.userId, name: session.displayName };
+      // T-581 (BUG-015): the scheduler actor carries the session tenant
+      // (injected context — the backup family never hardcodes it).
+      return { id: session.userId, name: session.displayName, tenantId: session.tenantId ?? undefined };
     });
     return stop;
   }, [repos, session]);

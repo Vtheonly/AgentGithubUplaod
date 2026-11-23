@@ -124,8 +124,8 @@ export class MockBackupRepository implements BackupRepository {
     return new SubjectBehavior(this.archives$.get().find((a) => a.id === id) ?? null);
   }
 
-  async runBackup(actorId: string, actorName: string): Promise<Result<BackupArchive>> {
-    const result = await runBackupService(this.repositoriesRef, actorId, actorName);
+  async runBackup(actorId: string, actorName: string, tenantId?: string): Promise<Result<BackupArchive>> {
+    const result = await runBackupService(this.repositoriesRef, actorId, actorName, tenantId);
     if (result.ok) {
       this.archives$.update((curr) => [result.value, ...curr.filter((a) => a.id !== result.value.id)]);
     }

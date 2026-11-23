@@ -49,6 +49,10 @@ import {
   updateArchiveStatus,
 } from "./indexed-db-vault";
 import { store as mockStore } from "../mock/repositories/mock-store";
+// T-581 (BUG-015): the canonical single-tenant identity of record — ONE
+// import instead of scattered literals (the acting session's tenant is
+// injected per call; this is only the fallback).
+import { TENANT_ID } from "../mock/seed-data";
 
 /** localStorage key for the backup passphrase (mock-only; production uses a secrets manager). */
 export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
@@ -165,18 +169,23 @@ export async function deriveBackupKey(): Promise<CryptoKey> {
  * the system configuration state (workflow schemas, RBAC matrix,
  * pricing/academic configuration). AI provider config is out of scope.
  */
-function snapshotState(repos: Repositories): Record<string, unknown> {
+function snapshotState(repos: Repositories, tenantId: string): Record<string, unknown> {
   // RBAC matrix overrides persist in localStorage (Settings → RBAC).
+  // T-581 (BUG-050): the key the EDITOR writes is
+  // "el-imtiyaz:rbac-overrides" (rbac-matrix-editor.tsx) — the old reader
+  // used "el-imtiyaz:rbac-matrix-overrides", so the overrides NEVER made
+  // it into a snapshot (a silent integrity gap: restoring such a backup
+  // silently dropped every RBAC customization).
   let rbacMatrixOverrides: unknown = null;
   try {
-    const raw = localStorage.getItem("el-imtiyaz:rbac-matrix-overrides");
+    const raw = localStorage.getItem("el-imtiyaz:rbac-overrides");
     if (raw) rbacMatrixOverrides = JSON.parse(raw);
   } catch {
     /* ignore */
   }
   return {
     snapshotAt: new Date().toISOString(),
-    tenantId: "tenant-el-imtiyaz-oran-001",
+    tenantId,
     // Operational data (mock-layer "PostgreSQL dump").
     parents: repos.parents.observe().get(),
     students: repos.students.observe().get(),
@@ -234,19 +243,20 @@ async function gzipDecompress(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(buf);
 }
 
-/** Build a BackupArchive metadata object. */
+/** Build a BackupArchive metadata object. T-581 (BUG-015): injected tenant. */
 function buildArchiveMetadata(
   id: string,
   ciphertextBytes: number,
   checksum: string,
   createdBy: string,
   metadata: BackupArchive["metadata"],
+  tenantId: string,
 ): BackupArchive {
   const now = new Date();
   const expires = new Date(now.getTime() + BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000);
   return {
     id,
-    tenantId: "tenant-el-imtiyaz-oran-001",
+    tenantId,
     createdAt: now.toISOString(),
     sizeBytes: ciphertextBytes,
     checksum,
@@ -327,6 +337,8 @@ export async function runBackup(
   repos: Repositories,
   actorId: string,
   actorName: string,
+  /** T-581 (BUG-015): the acting session's tenant (injected context). */
+  tenantId: string = TENANT_ID,
 ): Promise<Result<BackupArchive>> {
   return tryResult(async () => {
     logger.info("backup.run.start", { actorId, actorName });
@@ -337,7 +349,7 @@ export async function runBackup(
     await warmSnapshotSources(repos);
 
     // 1. Serialize
-    const snapshot = snapshotState(repos);
+    const snapshot = snapshotState(repos, tenantId);
     const jsonBytes = encodeUtf8(JSON.stringify(snapshot));
 
     // 2. Compress
@@ -365,6 +377,7 @@ export async function runBackup(
         installmentCount: (snapshot.installments as unknown[] | undefined)?.length ?? 0,
         workflowCount: (snapshot.workflows as unknown[] | undefined)?.length ?? 0,
       },
+      tenantId,
     );
     await storeArchive({ id: archiveId, metadata, ciphertext, iv });
 

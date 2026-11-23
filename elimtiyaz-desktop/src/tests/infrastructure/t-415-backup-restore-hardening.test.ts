@@ -547,8 +547,11 @@ describe("T-415 — archive metadata fidelity", () => {
   });
 
   it("rbacMatrixOverrides ride inside the snapshot (vault §13.01)", async () => {
+    // T-581 (BUG-050): the EDITOR's key is "el-imtiyaz:rbac-overrides"
+    // (rbac-matrix-editor.tsx) — the old fixture wrote the reader's
+    // mismatched key and so pinned the very defect it guarded against.
     localStorage.setItem(
-      "el-imtiyaz:rbac-matrix-overrides",
+      "el-imtiyaz:rbac-overrides",
       JSON.stringify({ "role-x": ["perm-1"] }),
     );
     const archiveId = await backup();

@@ -202,7 +202,9 @@ describe("T-487 / BKUP-508 — the public refresh() seams exist on every Supabas
     expect(src).toContain("async function warmSnapshotSources");
     const runBackupBody = src.slice(src.indexOf("export async function runBackup"));
     const warmCall = runBackupBody.indexOf("await warmSnapshotSources(repos);");
-    const snapshotCall = runBackupBody.indexOf("const snapshot = snapshotState(repos);");
+    // T-581: snapshotState gained the injected tenant param — the call-order
+    // pin follows the current shape (warm BEFORE snapshot, intent unchanged).
+    const snapshotCall = runBackupBody.indexOf("const snapshot = snapshotState(repos, tenantId);");
     expect(warmCall).toBeGreaterThan(-1);
     expect(snapshotCall).toBeGreaterThan(warmCall); // warm BEFORE snapshot
   });

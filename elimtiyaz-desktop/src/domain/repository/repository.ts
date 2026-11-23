@@ -1413,7 +1413,8 @@ export interface BackupRepository {
   observe(): Observable<BackupArchive[]>;
   observeById(id: string): Observable<BackupArchive | null>;
   /** Run a new backup: serialize → gzip → AES-256-GCM → store → audit log. */
-  runBackup(actorId: string, actorName: string): Promise<Result<BackupArchive>>;
+  /** T-581 (BUG-015): tenantId = the acting session's tenant (optional — defaults to the canonical single-tenant identity). */
+  runBackup(actorId: string, actorName: string, tenantId?: string): Promise<Result<BackupArchive>>;
   /** Restore an archive by id: fetch → decrypt → verify checksum → audit log. */
   restore(archiveId: string, actorId: string, actorName: string): Promise<Result<BackupRestoreResult>>;
   /**
