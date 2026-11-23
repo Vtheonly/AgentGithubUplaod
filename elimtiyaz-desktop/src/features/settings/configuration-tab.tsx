@@ -34,6 +34,7 @@ import {
 import type { SecretEditState, ConnectionTestResult } from "./configuration/types";
 import { categoryForKey } from "./configuration/types";
 import { ExportDialog, type ExportDialogOrigin } from "./export-dialog";
+import { ConfirmModal } from "../../shared/ui/unified-modal";
 import { Archive, FileSpreadsheet, FolderOpen } from "lucide-react";
 
 export function ConfigurationTab() {
@@ -54,6 +55,11 @@ export function ConfigurationTab() {
   // opening the shared destination+format dialog (preselected per button).
   const [exportOpen, setExportOpen] = useState(false);
   const [exportOrigin, setExportOrigin] = useState<ExportDialogOrigin>("backend-archive");
+  // E6.6 / DUP-034 (T-576): the reset confirmation — the former bare
+  // `confirm()` (a blocking native dialog with no design-system styling,
+  // invisible to the app's modal contract) replaced by the canonical
+  // ConfirmModal preset.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const localConfigService = useMemo(() => getLocalConfigService(), []);
   const systemConfigService = useMemo(
@@ -169,9 +175,9 @@ export function ConfigurationTab() {
           if (!result.ok) showError(result.error.userMessage);
         }}
         onReset={async () => {
-          if (!confirm("Réinitialiser la configuration? L'application redémarrera en mode mock.")) return;
-          const result = await localConfigService.resetAndRestart();
-          if (!result.ok) showError(result.error.userMessage);
+          // E6.6 / DUP-034 (T-576): the ConfirmModal opens instead of the
+          // bare confirm(); the destructive reset runs on its onConfirm.
+          setResetConfirmOpen(true);
         }}
       />
 
@@ -286,6 +292,21 @@ export function ConfigurationTab() {
         onOpenChange={setExportOpen}
         origin={exportOrigin}
         defaultFormat={exportOrigin === "backend-excel" ? "excel-zip" : "entire-archive"}
+      />
+
+      {/* E6.6 / DUP-034 (T-576): the reset confirmation — the canonical
+          ConfirmModal replaces the bare blocking confirm(). */}
+      <ConfirmModal
+        open={resetConfirmOpen}
+        onOpenChange={setResetConfirmOpen}
+        title="Réinitialiser la configuration"
+        description="L'application redémarrera en mode mock."
+        confirmLabel="Réinitialiser"
+        destructive
+        onConfirm={async () => {
+          const result = await localConfigService.resetAndRestart();
+          if (!result.ok) showError(result.error.userMessage);
+        }}
       />
     </div>
   );

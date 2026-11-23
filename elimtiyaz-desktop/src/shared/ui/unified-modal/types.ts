@@ -6,6 +6,7 @@
  */
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import type * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export type ModalVariant = "dialog" | "drawer" | "command-palette";
 /**
@@ -61,6 +62,18 @@ export interface UnifiedModalProps {
   headerClassName?: string;
   footerClassName?: string;
   contentClassName?: string;
+  /**
+   * E6.6 / BUG-041 (T-576): unknown props are FORWARDED to the Radix
+   * DialogPrimitive.Content element instead of being silently dropped by
+   * the destructuring. `data-testid`, `aria-*`, `id`, test hooks — every
+   * DOM attribute a consumer passes now reaches the dialog node. Known
+   * props (the 34 above) are consumed as before; only the REST pass through.
+   */
+  contentProps?: Omit<
+    React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+    | "className" | "children" | "onInteractOutside" | "onEscapeKeyDown"
+    | "onOpenChange" | "open"
+  >;
 }
 
 export const DIALOG_SIZE_CLASS: Record<ModalSize, string> = {

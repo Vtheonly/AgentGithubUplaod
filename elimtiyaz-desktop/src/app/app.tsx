@@ -6,9 +6,11 @@
  *   2. AuthProvider              — current session
  *   3. SyncProvider              — offline-first sync queue (Iter 14)
  *   4. ToastProvider             — popups / dialogs
- *   5. ModalProvider             — modal manager
- *   6. TooltipProvider           — radix tooltip context
- *   7. UserPreferencesProvider   — theme/locale/timezone/currency (Iter 15)
+ *   5. TooltipProvider           — radix tooltip context
+ *   6. UserPreferencesProvider   — theme/locale/timezone/currency (Iter 15)
+ *   (E6.6/ARCH-018: the former "5. ModalProvider — modal manager" line is
+ *   REMOVED — the dead stack never had a real consumer; modals render
+ *   through UnifiedModal/ModalShell.)
  *
  * The Router lives inside so that components can useNavigate.
  *
@@ -35,14 +37,12 @@ import { AuthProvider, useAuth } from "./providers/auth-provider";
 import { SyncProvider } from "./providers/sync-provider";
 import { ToastProvider } from "./providers/toast-provider";
 import { AICopilotProvider } from "./providers/ai-copilot-provider";
-import { ModalProvider } from "./providers/modal-provider";
 import { UserPreferencesProvider } from "./providers/user-preferences-provider";
 import { ToastViewport } from "../shared/layout/toast-viewport";
 import { TestDataAutofill } from "../shared/devtools/test-data/use-test-data-autofill";
 // T-502 (UI-332): the application-wide keyboard zoom (Ctrl+= / Ctrl++ /
 // Ctrl+- / Ctrl+0) — mounted at the App root so every view has it.
 import { useKeyboardZoom } from "../shared/hooks/use-keyboard-zoom";
-import { ModalHost } from "../shared/layout/modal-host";
 import { SplashGate } from "./splash-gate";
 import { AppShell } from "./app-shell";
 import { LoginScreen } from "../features/auth/login-screen";
@@ -125,18 +125,20 @@ export function App() {
           <SyncProvider>
             <ToastProvider>
               <AICopilotProvider>
-                <ModalProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <SplashGate>
-                      <AppRoutes />
-                    </SplashGate>
-                    <ToastViewport />
-                    {/* T-399 (OPS-321): Ctrl+O test-data autofill — live on
-                        every screen, inside ToastProvider + i18n. */}
-                    <TestDataAutofill />
-                    <ModalHost />
-                  </TooltipProvider>
-                </ModalProvider>
+                {/* E6.6 (ARCH-018): the dead useModal/ModalHost/ModalProvider
+                    stack REMOVED — zero real consumers ever called
+                    useModal().open(); every modal renders through
+                    UnifiedModal/ModalShell now. The provider + host nodes
+                    (and their z-[90] wrapper) are gone. */}
+                <TooltipProvider delayDuration={300}>
+                  <SplashGate>
+                    <AppRoutes />
+                  </SplashGate>
+                  <ToastViewport />
+                  {/* T-399 (OPS-321): Ctrl+O test-data autofill — live on
+                      every screen, inside ToastProvider + i18n. */}
+                  <TestDataAutofill />
+                </TooltipProvider>
               </AICopilotProvider>
             </ToastProvider>
           </SyncProvider>

@@ -28,6 +28,12 @@ export interface ModalShellProps {
   size: ModalSize;
   contentClassName?: string;
   hideCloseButton?: boolean;
+  /**
+   * E6.6 / BUG-041 (T-576): forwarded verbatim to the Radix Content node —
+   * `data-testid` and any other DOM attribute a consumer passes reaches
+   * the dialog instead of being silently dropped.
+   */
+  contentProps?: Record<string, unknown>;
   children: React.ReactNode;
 }
 
@@ -95,6 +101,7 @@ export function ModalShell({
   size,
   contentClassName,
   hideCloseButton,
+  contentProps,
   children,
 }: ModalShellProps) {
   return (
@@ -105,6 +112,9 @@ export function ModalShell({
           onInteractOutside={onInteractOutside}
           onEscapeKeyDown={onEscapeKeyDown}
           className={contentClass(variant, size, contentClassName)}
+          // E6.6 / BUG-041: the unknown-prop passthrough — data-testid, aria-*,
+          // id, test hooks all reach the dialog node.
+          {...(contentProps as React.ComponentProps<typeof DialogPrimitive.Content>)}
         >
           {children}
           {!hideCloseButton && (

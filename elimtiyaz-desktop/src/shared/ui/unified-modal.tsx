@@ -68,7 +68,14 @@ export function UnifiedModal(props: UnifiedModalProps) {
     headerClassName,
     footerClassName,
     contentClassName,
+    // E6.6 / BUG-041 (T-576): the REST of the props (data-testid, aria-*,
+    // id — everything not one of the known keys) is forwarded verbatim
+    // to the Radix Content node instead of being dropped by the
+    // destructuring. UnifiedModalProps carries the Radix Content props
+    // surface, so any DOM attribute a consumer passes now survives.
+    ...restProps
   } = props;
+  const contentProps = restProps;
 
   const isDrawer = variant === "drawer";
   const isCommandPalette = variant === "command-palette";
@@ -162,6 +169,7 @@ export function UnifiedModal(props: UnifiedModalProps) {
       size={size}
       contentClassName={contentClassName}
       hideCloseButton={hideCloseButton}
+      contentProps={contentProps}
     >
       {headerNode}
       {bodyNode}
