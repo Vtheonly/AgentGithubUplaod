@@ -27,6 +27,9 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import "@testing-library/jest-dom/vitest";
 import "../../../i18n/i18n";
 import { FinancesTab } from "../../../features/crm/parent-detail-drawer";
@@ -324,8 +327,19 @@ describe("T-517 / BUSINESS-111 — the Family Account modal's financial consiste
     const legend = screen.getByTestId("future-recorded-line");
     expect(norm(legend.textContent ?? "")).toContain("Enregistré à échéance future : 869 000 DZD");
     // The tooltip explains the import anchor semantics (never silently
-    // counted, never silently hidden — §15.95a).
-    expect(legend.getAttribute("title")).toContain("T-502");
+    // counted, never silently hidden — §15.95a). T-620: the native title=
+    // attribute was migrated to the shared Radix TooltipHint (E6.5) and
+    // this suite's FAKE TIMERS keep Radix's delayed surface from mounting
+    // in jsdom — the explanation is pinned at the source seam (the same
+    // de-jargonized copy t-586's S4 guards).
+    const drawerSrc = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../../features/crm/parent-detail-drawer.tsx"),
+      "utf8",
+    );
+    expect(drawerSrc).toContain(
+      "Paiements importés du classeur et datés à la période officielle de leur tranche",
+    );
+    expect(drawerSrc).toContain("pas comptés comme encaissés à ce jour");
 
     const reconRow = screen.getByTestId("future-recorded-recon-row");
     expect(norm(reconRow.textContent ?? "")).toContain("Encaissements enregistrés à échéance future");

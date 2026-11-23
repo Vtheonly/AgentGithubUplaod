@@ -24,7 +24,7 @@
  *   npx vitest run src/tests/features/crm/t-442-year-breakdown-ui.test.tsx
  */
 import { describe, it, expect } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import "../../../i18n/i18n";
 import { ParentYearHistorySection } from "../../../features/crm/parent-year-history-section";
@@ -224,16 +224,30 @@ describe("T-442 — ParentYearHistorySection: the per-year debt-origin breakdown
     cleanup();
   });
 
-  it("the charge rows carry their wave chips (FI for the fee, T1/T2 for the tranches — the non-wave service row carries NONE)", () => {
+  it("the charge rows carry their wave chips (FI for the fee, T1/T2 for the tranches — the non-wave service row carries NONE)", async () => {
     render(<ParentYearHistorySection {...t442Props()} />);
     const card2024 = screen.getByText("2024-2025").closest("button");
     fireEvent.click(card2024!);
 
-    // The wave chips render with the T-425 title. The therapy row is a
-    // NON-WAVE row (trancheNumber explicitly undefined) — no chip.
-    const chips = screen.getAllByTitle("Tranche de l'échéancier officiel");
-    expect(chips.length).toBe(4); // FI + T1 + T2 + transport T1
-    expect(chips.map((c) => c.textContent).sort()).toEqual(["FI", "T1", "T1", "T2"]);
+    // The wave chips render with the T-425 semantics (T-620: the native
+    // title= attribute was migrated to the shared Radix TooltipHint in
+    // E6.5 — the chips are identified by their chip styling, and the
+    // tooltip text is asserted through the tooltip surface). The therapy
+    // row is a NON-WAVE row (trancheNumber explicitly undefined) — no chip.
+    const chipEls = Array.from(document.querySelectorAll<HTMLElement>("span")).filter(
+      (el) => el.className.includes("bg-primary/10") && el.className.includes("text-[10px]"),
+    );
+    expect(chipEls.length).toBe(4); // FI + T1 + T2 + transport T1
+    expect(chipEls.map((c) => c.textContent).sort()).toEqual(["FI", "T1", "T1", "T2"]);
+    // The tooltip affordance is live on the first chip.
+    fireEvent.focus(chipEls[0]);
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("tooltip").some((t) =>
+          t.textContent?.includes("Tranche de l'échéancier officiel"),
+        ),
+      ).toBe(true);
+    });
     cleanup();
   });
 

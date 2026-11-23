@@ -178,7 +178,10 @@ describe("T-475 A/B/C — the canonical inspection-button design", () => {
       .find((b) => (b.textContent ?? "").startsWith("Inspecter · Revenus 2026"));
     expect(compatBtn).toBeTruthy();
     expect(compatBtn?.textContent).toContain("Inspecter · Revenus 2026-2027");
-    expect(compatBtn?.getAttribute("title")).toBe("Inspecter : Revenus 2026-2027");
+    // T-620: the native title= attribute was migrated to the shared Radix
+    // TooltipHint (E6.5) — the tooltip text now travels on the button's
+    // aria-label (the a11y carrier) AND the tooltip surface.
+    expect(compatBtn?.getAttribute("aria-label")).toBe("Inspecter : Revenus 2026-2027");
   });
 
   it("the behavior is preserved: the click still opens the inspector (the modal surface renders)", () => {

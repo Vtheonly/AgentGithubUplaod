@@ -352,8 +352,10 @@ describe("T-171 — sync-provider action surface", () => {
     // The honest toast: no-op drain + failed entries must NOT say
     // "Aucune entrée à synchroniser" alone.
     expect(src).toMatch(/else if \(status\.failedCount > 0\)/);
-    // Row-level error tooltip (the diagnosis affordance).
-    expect(src).toContain("title={e.lastError ?");
+    // Row-level error tooltip (the diagnosis affordance). T-620: the native
+    // title= attribute was migrated to the shared Radix TooltipHint (E6.5)
+    // — the pin follows the affordance, wherever it renders.
+    expect(src).toMatch(/content=\{e\.lastError \?/);
   });
 
   it("SyncIndicator offers a retry action for terminal failures (source-scan)", async () => {

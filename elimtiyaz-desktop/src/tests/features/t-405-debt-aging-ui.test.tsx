@@ -365,17 +365,22 @@ describe("T-405 — DebtAgingTab (the Suivi des Dettes view)", () => {
       expect(screen.getByText(/à surveiller ≤ 21 j/i)).toBeTruthy();
       expect(screen.getByText(/critique > 90 j/i)).toBeTruthy();
       expect(screen.getByText(/payeur actif ≤ 30 j/i)).toBeTruthy();
-      // The KPI tooltips derive from the SAME observed values.
-      expect(
-        screen
-          .getAllByRole("button")
-          .find((b) => b.getAttribute("title")?.includes("retard > 90 j")),
-      ).toBeTruthy();
-      expect(
-        screen
-          .getAllByRole("button")
-          .find((b) => b.getAttribute("title")?.includes("entre 21 et 90 j")),
-      ).toBeTruthy();
+      // The KPI tooltips derive from the SAME observed values (T-620: the
+      // native title= attributes were migrated to the shared Radix
+      // TooltipHint in E6.5 — the assertion now focuses the KPI button and
+      // reads the tooltip SURFACE instead of the retired title attribute).
+      fireEvent.focus(screen.getByText("Critique"));
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole("tooltip").some((t) => t.textContent?.includes("retard > 90 j")),
+        ).toBe(true);
+      });
+      fireEvent.focus(screen.getByText("Retard soutenu"));
+      await waitFor(() => {
+        expect(
+          screen.getAllByRole("tooltip").some((t) => t.textContent?.includes("entre 21 et 90 j")),
+        ).toBe(true);
+      });
     } finally {
       thresholdsValue = DEFAULTS;
     }
