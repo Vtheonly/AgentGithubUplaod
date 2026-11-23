@@ -156,14 +156,17 @@ export function TrancheAmountEditModal({
       });
       if (res.ok) {
         const r = res.value;
+        // T-586: the 5-clause toast compressed to the operator's two
+        // decisions (what changed + the new remaining) and the conditional
+        // over-cover warning (shortened). The family total is on the
+        // family surfaces — not re-shouted here; the payments-never-moved
+        // guarantee rides the warning clause only when it matters.
         toast.showSuccess(
           "Montant de la tranche modifié",
-          `${installment.label}${parentName ? ` — ${parentName}` : ""} : ${formatDzdPlain(r.previousAmountDue)} → ${formatDzdPlain(amount)} DZD (${r.delta > 0 ? "+" : ""}${formatDzdPlain(r.delta)}). ` +
-            `Reste à payer : ${formatDzdPlain(installmentRemaining(r.installment))} DZD. ` +
-            `Total dû famille : ${formatDzdPlain(r.installmentsDueAfter)} DZD. ` +
+          `${installment.label} : ${formatDzdPlain(r.previousAmountDue)} → ${formatDzdPlain(amount)} DZD. Reste à payer : ${formatDzdPlain(installmentRemaining(r.installment))} DZD.` +
             (r.overcovered
-              ? `ATTENTION : tranche surcouverte de ${formatDzdPlain(r.excess)} DZD — les paiements existants ne sont JAMAIS déplacés ni réécrits.`
-              : "Les paiements et l'historique restent intacts."),
+              ? ` Surcouverture de ${formatDzdPlain(r.excess)} DZD — aucun paiement existant n'est modifié.`
+              : ""),
         );
         setAmount(0);
         setReason("");

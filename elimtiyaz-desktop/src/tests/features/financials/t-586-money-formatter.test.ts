@@ -146,3 +146,102 @@ describe("T-586 / BUG-057 — the domain-calc operator strings render canonicall
     expect(overrun!.description).not.toContain(" DA");
   });
 });
+
+/* ================================================================== */
+/*  T-586 INCREMENT 2 — the stats-tips glossary sweep, the 5 worst     */
+/*  text rewrites, the Prix/Payé/Couverture standardization, the       */
+/*  percentage clamps (Session 53).                                    */
+/* ================================================================== */
+
+describe("T-586 incr.2 — the stats-tips glossary sweep (96 entries × 3 locales)", () => {
+  const statsTips = read("i18n/stats-tips.ts");
+
+  it("I1: NO domain jargon in the VISIBLE dictionary strings (INV-x / ADR-xxx / PARITY-xxx / T-xxx / §xx)", () => {
+    // Strip code comments, then scan the remaining string literals — the
+    // operator-visible glossary text.
+    const noBlock = statsTips.replace(/\/\*[\s\S]*?\*\//g, "");
+    const noLine = noBlock.replace(/\/\/[^\n]*/g, "");
+    const strings = noLine.match(/"(?:[^"\\]|\\.)*"/g) ?? [];
+    const jargon = strings.filter((s) =>
+      /INV-\d|ADR-\d|PARITY-\d|T-\d{3}|§\d/.test(s),
+    );
+    expect(
+      jargon,
+      `visible glossary strings still carrying jargon: ${jargon.slice(0, 3).join(" | ")}`,
+    ).toEqual([]);
+  });
+
+  it("I2: the refs are PRESERVED in code comments (69 trailing ref comments — discoverable, not deleted)", () => {
+    const refs = statsTips.match(/\/\/[^\n]*/g) ?? [];
+    const withRefs = refs.filter((c) => /INV-\d|ADR-\d|PARITY-\d|T-\d{3}/.test(c));
+    // 57 (pass 1) + 12 (pass 2) = 69 moved refs.
+    expect(withRefs.length).toBeGreaterThanOrEqual(69);
+  });
+});
+
+describe("T-586 incr.2 — the 5 worst text blocks rewritten", () => {
+  it("W1: the refund paragraph is plain French (no LIFO / contrepassation / ledger)", () => {
+    const src = read("features/financials/payment-detail-drawer.tsx");
+    expect(src).not.toContain("(LIFO)");
+    expect(src).not.toContain("contrepassation sera");
+    // The restored informative body is still there (T-444's guarantee).
+    // (JSX wraps the sentence across lines — assert the stable fragments.)
+    expect(src).toContain("remboursé : les tranches concernées seront rouvertes");
+    expect(src).toContain("journalisée avec votre");
+  });
+
+  it("W2: the tranche-edit toast is two clauses + the conditional warning (no family-total clause, no ALL-CAPS)", () => {
+    const src = read("features/financials/tranche-amount-edit-modal.tsx");
+    expect(src).not.toContain("Total dû famille");
+    expect(src).not.toContain("JAMAIS déplacés");
+    expect(src).toContain("Reste à payer :");
+    expect(src).toContain("aucun paiement existant n'est modifié");
+  });
+
+  it("W3: the anomaly prompt no longer asks the model to repeat the disclaimer (the banner carries it ONCE)", () => {
+    // Strip comments first — the T-586 fix note ITSELF names the removed
+    // instruction; the pin guards the ACTIVE code, not the archaeology.
+    const src = read("features/financials/anomaly-explainer-modal.tsx")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/[^\n]*/g, "");
+    expect(src).not.toContain("Termine par la mention");
+    // The empty-signals wall is compressed (no threshold jargon stack).
+    expect(src).not.toContain("48&nbsp;h");
+    expect(src).not.toContain("≥ 3× la moyenne");
+  });
+
+  it("W4: the cash-flow radar has no double parenthetical and no ' DA' variant", () => {
+    const src = read("features/financials/cash-flow-radar.tsx");
+    expect(src).not.toContain("(échues ≤ 30 j");
+    expect(src).not.toContain(" DA`");
+    expect(src).not.toContain("} DA");
+    expect(src).toContain("Rentrées prévues sous 30 jours");
+  });
+
+  it("W5: the radar velocity meters clamp the BAR widths (the honest raw number stays)", () => {
+    const src = read("features/financials/cash-flow-radar.tsx");
+    expect(src).toContain("const clampPct");
+    // All three bars route through the clamp.
+    expect(src.match(/clampPct\(treasury\.t[123]CollectionRate\)/g)).toHaveLength(3);
+    // No raw width remains.
+    expect(src).not.toMatch(/width: `\$\{treasury\.t\dCollectionRate\}%`\}/);
+  });
+});
+
+describe("T-586 incr.2 — the Prix / Prix justifié / Couverture standardization", () => {
+  it("P1: the breakdown card uses the three standard labels — no variants", () => {
+    const src = read("features/financials/payment-breakdown-card.tsx");
+    // (JSX text nodes sit on their own lines — the variant NOT-asserts do
+    // the discriminating work; the positive asserts pin the new labels.)
+    expect(src).toContain("Couverture");
+    expect(src).toContain("<span>Prix</span>");
+    expect(src).toContain("Prix justifié");
+    expect(src).toContain("Payé à ce jour");
+    // The retired variants.
+    expect(src).not.toContain("Détail de la couverture");
+    expect(src).not.toContain("Total attendu");
+    expect(src).not.toContain("Total payé");
+    expect(src).not.toContain("(net)");
+    expect(src).not.toContain("(historique)");
+  });
+});

@@ -108,7 +108,7 @@ const FR = {
     categories: {
       title: "Slicers Pôle / Catégorie",
       measures: "Les catégories de facturation (scolarité, transport, cantine, uniforme, livres, psychologie, orthophonie, activités…).",
-      calc: "Le filtrage s'applique au champ payments.category ; « Multi-services » (ADR-023) est un chip distinct pour les encaissements globaux.",
+      calc: "Le filtrage s'applique au champ payments.category ; « Multi-services » est un chip distinct pour les encaissements globaux.", // (ADR-023 — the multi-services chip rule)
       status: "Ensemble vide = toutes catégories ; le chip actif filtre, le chip inactif exclut.",
     },
     badge: {
@@ -178,7 +178,7 @@ const FR = {
     collectedPct: {
       title: "Taux de recouvrement",
       measures: "Le pourcentage du montant facturé déjà encaissé (fonds compensés) sur la vague.",
-      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — convention PARITY-001, jamais plafonné (une vague sur-couverte peut dépasser 100 %).",
+      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — jamais plafonné (une vague sur-couverte peut dépasser 100 %).", // (PARITY-001 — the percentage convention)
       formula: "\\%_{\\text{recouvré}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
       vars: "$d_i$ = amountDue de la ligne $i$ · $p_i$ = amountPaid compensé · $W$ = lignes de la vague, TOUTES catégories (le pool canonique) · jamais plafonné : une vague sur-couverte dépasse 100 %.",
       status: "Le code couleur suit le statut de la vague, pas le pourcentage.",
@@ -186,9 +186,9 @@ const FR = {
     dossiers: {
       title: "Dossiers (X/Y)",
       measures: "Les engagements soldés sur le total d'engagements de la vague, toutes catégories.",
-      calc: "Comptage du prédicat canonique isInstallmentSettled (INV-4) : statut « payé » OU reste dû nul (les fonds en instance couvrent aussi).",
+      calc: "Comptage du prédicat canonique isInstallmentSettled : statut « payé » OU reste dû nul (les fonds en instance couvrent aussi).", // (INV-4 — the settled predicate)
       formula: "X=\\left|\\left\\{i\\in W:\\\ s_i=\\text{payé}\\ \\lor\\ R_i=0\\right\\}\\right|",
-      vars: "$s_i$ = statut de la ligne · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû INV-4 de la ligne.",
+      vars: "$s_i$ = statut de la ligne · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû de la ligne.", // (INV-4 — the zero-floored per-row remainder)
     },
     due: {
       title: "Facturé",
@@ -215,9 +215,9 @@ const FR = {
     remaining: {
       title: "Reste dû",
       measures: "Le solde encore à recouvrer sur la vague.",
-      calc: "Σ INV-4 par ligne : max(0, amountDue − amountPaid − amountPending).",
+      calc: "Σ du reste dû par ligne : max(0, amountDue − amountPaid − amountPending).", // (INV-4 — the zero-floored per-row remainder)
       formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "INV-4 — le reste dû par ligne est plancher à zéro : un surpaiement local ne compense JAMAIS le déficit d'une autre ligne.",
+      vars: "Le reste dû par ligne est plancher à zéro : un surpaiement local ne compense JAMAIS le déficit d'une autre ligne.", // (INV-4 — the zero-floored per-row remainder)
       status: "Rouge quand > 0 ; une vague à reste dû nul est « Clôturée ».",
     },
     families: {
@@ -246,7 +246,7 @@ const FR = {
     phase: {
       title: "Statut de la vague",
       measures: "Le verdict de la vague : Clôturée, En retard, ou En cours.",
-      calc: "Clôturée = reste dû nul (INV-4) · En retard = au moins une ligne non soldée à échéance dépassée · En cours = le reste.",
+      calc: "Clôturée = reste dû nul · En retard = au moins une ligne non soldée à échéance dépassée · En cours = le reste.", // (INV-4 — the zero-floored per-row remainder)
       status: "Vert (clôturée) · Rouge (en retard) · Bleu (en cours). Un verdict sans sa cause visible serait indiscernable d'un bug (UI-316).",
     },
     breakdown: {
@@ -277,7 +277,7 @@ const FR = {
     notDue: {
       title: "Non échue",
       measures: "L'encours dont l'échéance n'est pas encore passée (tranches futures — pas une mauvaise dette).",
-      calc: "Reste dû INV-4 des lignes à échéance ≥ aujourd'hui.",
+      calc: "Reste dû des lignes à échéance ≥ aujourd'hui.", // (INV-4 — the zero-floored per-row remainder)
       status: "Ce montant explique pourquoi le « Total Dette » brut alarme à tort : il contient l'année entière.",
     },
     current: {
@@ -314,7 +314,7 @@ const FR = {
     count: {
       title: "Remises (nombre)",
       measures: "Le nombre d'ajustements de remise négociés et les familles concernées.",
-      calc: "Comptage des écritures type « ajustement » à montant négatif (contrat d'identification T-389 : metadata.field = REMISE).",
+      calc: "Comptage des écritures type « ajustement » à montant négatif (identifiés par metadata.field = REMISE).", // (T-389 — the adjustment-identification contract)
     },
     total: {
       title: "Σ Remises",
@@ -341,13 +341,13 @@ const FR = {
     card: {
       title: "Concentration du risque familial",
       measures: "La part de l'encours total portée par le Top 10 des familles (règle 80/20).",
-      calc: "Encours par famille = Σ INV-4 sur ses lignes non soldées ; concentration = round(top 10 ÷ total × 100).",
+      calc: "Encours par famille = Σ du reste dû sur ses lignes non soldées ; concentration = round(top 10 ÷ total × 100).", // (INV-4 — the zero-floored per-row remainder)
       status: "Une concentration élevée = le non-recouvrement de quelques familles suffirait à creuser le trou.",
     },
     top: {
       title: "Top 10 des familles débitrices",
       measures: "Les familles classées par encours décroissant, avec leurs enfants actifs et leur pire retard.",
-      calc: "Encours INV-4 par famille ; « pire retard » = max des jours de retard de leurs lignes.",
+      calc: "Encours par famille ; « pire retard » = max des jours de retard de leurs lignes.", // (INV-4 — the zero-floored per-row remainder)
     },
     pct: {
       title: "Concentration (%)",
@@ -453,7 +453,7 @@ const FR = {
     financial: {
       title: "Dette ouverte",
       measures: "Les élèves dont la famille a un encours ouvert.",
-      calc: "Comptage des profils avec encours familial > 0 (INV-4, toutes années).",
+      calc: "Comptage des profils avec encours familial > 0 (toutes années).", // (INV-4 — the zero-floored per-row remainder)
     },
   },
   methodMix: {
@@ -514,13 +514,13 @@ const FR = {
       measures: "La répartition de l'encours non recouvré par ancienneté (0–30, 31–60, 61–90, 91–180, > 180 jours).",
       calc: "Buckets du référentiel (debtByAagingForRange) : chaque tranche non soldée alimente le bucket de ses jours de retard ; la barre empilée = 100 % de l'encours.",
       formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{et}\\quad \\sum_{b} V_b = V_{\\text{OUTSTetING}}",
-      vars: "$\\ell_i$ = jours de retard de la ligne $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû INV-4 · les 5 bandes : $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.",
+      vars: "$\\ell_i$ = jours de retard de la ligne $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = reste dû · les 5 bandes : $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.", // (INV-4 — the zero-floored per-row remainder)
       status: "Plus la bande est à droite, plus le recouvrement devient improbable — > 180 j = dette quasi-perdue.",
     },
     b0_30: {
       title: "0–30 jours",
       measures: "L'encours en retard de moins d'un mois.",
-      calc: "Reste dû INV-4 des lignes à 1–30 jours de retard — la couche la plus récupérable.",
+      calc: "Reste dû des lignes à 1–30 jours de retard — la couche la plus récupérable.", // (INV-4 — the zero-floored per-row remainder)
     },
     b31_60: {
       title: "31–60 jours",
@@ -547,7 +547,7 @@ const FR = {
     card: {
       title: "Entonnoir de dérive des créances",
       measures: "L'escalade des foyers débiteurs : encours > 0 → en retard → au-delà du seuil jaune → critique.",
-      calc: "Dérivé du triage canonique (deriveDebtTriage) sur les tranches de l'année : chaque famille est classée selon sa pire échéance (INV-4) contre les seuils CONFIGURÉS (Configuration des Créances — jamais des bornes codées en dur).",
+      calc: "Dérivé du triage canonique (deriveDebtTriage) sur les tranches de l'année : chaque famille est classée selon sa pire échéance contre les seuils CONFIGURÉS (Configuration des Créances — jamais des bornes codées en dur).", // (INV-4 — the zero-floored per-row remainder)
       formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
       vars: "$\\operatorname{triage}(f)$ = le pire niveau de la famille $f$ (encours $>$ 0 $\\to$ en retard $\\to$ seuil jaune $\\to$ critique, bornes CONFIGURÉES) · les étages sont emboîtés : $F_{k+1}\\subseteq F_k$.",
       status: "Les libellés des étapes portent les seuils configurés (ex. « Retard 15-60 j ») : changer la configuration change l'entonnoir — la carte suit la même source que le Suivi des Dettes.",
@@ -571,9 +571,9 @@ const FR = {
     debt: {
       title: "Encours total annuel",
       measures: "Ce que les familles doivent encore sur l'année scolaire sélectionnée.",
-      calc: "Σ INV-4 (max(0, dû − payé − en attente)) sur les tranches non soldées de la fenêtre de facturation de l'année.",
+      calc: "Σ du reste dû (max(0, dû − payé − en attente)) sur les tranches non soldées de la fenêtre de facturation de l'année.", // (INV-4 — the zero-floored per-row remainder)
       formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "$A$ = tranches non soldées de la fenêtre de facturation de l'année sélectionnée (1er sept → 1er sept suivant) · INV-4 : plancher zéro par ligne.",
+      vars: "$A$ = tranches non soldées de la fenêtre de facturation de l'année sélectionnée (1er sept → 1er sept suivant) · plancher zéro par ligne.", // (INV-4 — the zero-floored per-row remainder)
       status: "Le sous-texte énumère l'échéant (en retard) ou les urgents (au-delà du seuil rouge) ; les familles concernées sont comptées.",
     },
     attendance: {
@@ -588,15 +588,15 @@ const FR = {
     card: {
       title: "Rythme opérationnel hebdomadaire",
       measures: "Le volume d'encaissements par jour de la semaine scolaire algérienne (Dimanche → Jeudi), empilé par méthode.",
-      calc: "Σ des paiements (statut ≠ remboursé) groupés par jour de collectedAt et par méthode — le flux canonique, jamais de données synthétiques. Le jour est résolu dans le fuseau de l'école (Africa/Algiers), jamais en UTC brut (T-502).",
-      status: "La semaine scolaire exclut Vendredi/Samedi ; un jour vide = aucun encaissement ce jour-là (état vide honnête). Les paiements importés du classeur Excel sont attribués à la période enregistrée de leur tranche (l'ETAT ne consigne pas de dates exactes par paiement — T-502) : les encaissements au guichet, eux, portent leur horodatage réel.",
+      calc: "Σ des paiements (statut ≠ remboursé) groupés par jour de collectedAt et par méthode — le flux canonique, jamais de données synthétiques. Le jour est résolu dans le fuseau de l'école (Africa/Algiers), jamais en UTC brut.", // (T-502 — the timezone/attribution rule)
+      status: "La semaine scolaire exclut Vendredi/Samedi ; un jour vide = aucun encaissement ce jour-là (état vide honnête). Les paiements importés du classeur Excel sont attribués à la période enregistrée de leur tranche (l'ETAT ne consigne pas de dates exactes par paiement) : les encaissements au guichet, eux, portent leur horodatage réel.", // (T-502 — the timezone/attribution rule)
     },
   },
   debtMeter: {
     card: {
       title: "Jauge de dette (modal de paiement)",
       measures: "La répartition du montant annuel dû : déjà payé (vert), en cours de paiement (bleu), reste dû (gris) — plus le crédit parent éventuel.",
-      calc: "Largeurs = parts du total dû (payé + en cours + reste = 100%) ; le crédit non alloué provient de la dérivation ADR-010 (jamais du solde brut).",
+      calc: "Largeurs = parts du total dû (payé + en cours + reste = 100%) ; le crédit non alloué provient de la dérivation canonique des allocations (jamais du solde brut).", // (ADR-010 — the canonical allocation derivation)
       status: "Les badges : « Dette entièrement soldée » (reste ≤ 0,5 DZD), « Excédent » (surpaiement → crédit parent), « Tranche cible » (l'échéance visée par le versement).",
     },
   },
@@ -625,7 +625,7 @@ const FR = {
     card: {
       title: "Coûts du Personnel — Réalisé vs Projeté",
       measures: "La trajectoire des coûts salariaux (réalisé vs projection) et le besoin de financement mensuel.",
-      calc: "La projection canonique (computePayrollForecast, ADR-024) — la MÊME que les pages Personnel et Finances : salaires actifs + charges, au fil des mois.",
+      calc: "La projection canonique (computePayrollForecast) — la MÊME que les pages Personnel et Finances : salaires actifs + charges, au fil des mois.", // (ADR-024 — the canonical payroll-forecast derivation)
       status: "Besoin de financement = l'écart entre la projection et l'encaissement attendu du mois.",
     },
     realized: {
@@ -640,7 +640,7 @@ const FR = {
       measures: "Le trou de trésorerie projeté du mois (coûts projetés vs recettes attendues).",
       calc: "Projection du mois − encaissements attendus (la même convention que Finances).",
       formula: "B_m=C^{proj}_m-\\hat{E}_m",
-      vars: "$C^{proj}_m$ = coûts salariaux projetés du mois (computePayrollForecast, ADR-024) · $\\hat{E}_m$ = encaissements attendus du mois · $B_m>0$ = besoin de financement.",
+      vars: "$C^{proj}_m$ = coûts salariaux projetés du mois (computePayrollForecast) · $\\hat{E}_m$ = encaissements attendus du mois · $B_m>0$ = besoin de financement.", // (ADR-024 — the canonical payroll-forecast derivation)
     },
   },
   console: {
@@ -680,7 +680,7 @@ const FR = {
     card: {
       title: "Inspection directe / provenance des données",
       measures: "Le lien vers l'inspecteur de données : la traçabilité de chaque chiffre jusqu'aux lignes sources.",
-      calc: "Chaque déclencheur porte le domaine, la métrique et la valeur source ; l'inspecteur résout la lignée (T-389) — lignes, définition, écarts.",
+      calc: "Chaque déclencheur porte le domaine, la métrique et la valeur source ; l'inspecteur résout la lignée — lignes, définition, écarts.", // (T-389 — the data-lineage inspector)
       status: "« Écart » dans l'inspecteur = un écart de données réel, jamais définitionnel (les deux côtés partagent la dérivation).",
     },
   },
@@ -762,7 +762,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     categories: {
       title: "Category slicers",
       measures: "The billing categories (tuition, transport, canteen, uniform, books, psychology, speech therapy, clubs…).",
-      calc: "Filtering applies to payments.category; “Multi-service” (ADR-023) is its own chip for whole-balance collections.",
+      calc: "Filtering applies to payments.category; “Multi-service” is its own chip for whole-balance collections.", // (ADR-023 — the multi-services chip rule)
       status: "An empty set = all categories; the active chip filters, the inactive chip excludes.",
     },
     badge: {
@@ -832,7 +832,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     collectedPct: {
       title: "Collection rate",
       measures: "The percentage of the billed amount already collected (cleared funds) on the wave.",
-      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — the PARITY-001 convention, never capped (an over-covered wave can exceed 100%).",
+      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — never capped (an over-covered wave can exceed 100%).", // (PARITY-001 — the percentage convention)
       formula: "\\%_{\\text{collected}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
       vars: "$d_i$ = row $i$'s amountDue · $p_i$ = cleared amountPaid · $W$ = the wave's rows, ALL categories (the canonical pool) · never capped: an over-covered wave exceeds 100%.",
       status: "The color follows the wave's status, not the percentage.",
@@ -840,9 +840,9 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     dossiers: {
       title: "Files (X/Y)",
       measures: "The settled commitments over the wave's total commitments, all categories.",
-      calc: "Counting by the canonical isInstallmentSettled predicate (INV-4): status “paid” OR zero remaining (pending funds also cover).",
+      calc: "Counting by the canonical isInstallmentSettled predicate: status “paid” OR zero remaining (pending funds also cover).", // (INV-4 — the settled predicate)
       formula: "X=\\left|\\left\\{i\\in W:\\ s_i=\\text{paid}\\ \\lor\\ R_i=0\\right\\}\\right|",
-      vars: "$s_i$ = the row's status · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = the row's INV-4 remaining.",
+      vars: "$s_i$ = the row's status · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = the row's remaining.", // (INV-4 — the zero-floored per-row remainder)
     },
     due: {
       title: "Billed",
@@ -869,9 +869,9 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     remaining: {
       title: "Still owed",
       measures: "The balance still to collect on the wave.",
-      calc: "Σ INV-4 per row: max(0, amountDue − amountPaid − amountPending).",
+      calc: "Σ of the remaining per row: max(0, amountDue − amountPaid − amountPending).", // (INV-4 — the zero-floored per-row remainder)
       formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "INV-4 — the per-row remaining is floored at zero: a local overpayment never subsidizes another row's deficit.",
+      vars: "The per-row remaining is floored at zero: a local overpayment never subsidizes another row's deficit.", // (INV-4 — the zero-floored per-row remainder)
       status: "Red when > 0; a wave with zero remaining is “Closed”.",
     },
     families: {
@@ -900,7 +900,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     phase: {
       title: "Wave status",
       measures: "The wave's verdict: Closed, Late, or In progress.",
-      calc: "Closed = zero remaining (INV-4) · Late = at least one unsettled row past due · In progress = the rest.",
+      calc: "Closed = zero remaining · Late = at least one unsettled row past due · In progress = the rest.", // (INV-4 — the zero-floored per-row remainder)
       status: "Green (closed) · Red (late) · Blue (in progress). A verdict without its visible cause is indistinguishable from a bug (UI-316).",
     },
     breakdown: {
@@ -931,7 +931,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     notDue: {
       title: "Not due yet",
       measures: "The outstanding balance whose due date has not passed (future tranches — not bad debt).",
-      calc: "INV-4 remaining of the rows with due date ≥ today.",
+      calc: "The remaining of the rows with due date ≥ today.", // (INV-4 — the zero-floored per-row remainder)
       status: "This amount explains why the raw “Total Debt” alarms wrongly: it contains the whole year.",
     },
     current: {
@@ -968,7 +968,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     count: {
       title: "Discounts (count)",
       measures: "The number of negotiated discount adjustments and the families concerned.",
-      calc: "Counting the “adjustment” entries with a negative amount (the T-389 identification contract: metadata.field = REMISE).",
+      calc: "Counting the “adjustment” entries with a negative amount (identified by metadata.field = REMISE).", // (T-389 — the adjustment-identification contract)
     },
     total: {
       title: "Σ Discounts",
@@ -995,7 +995,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Family risk concentration",
       measures: "The share of the total outstanding carried by the top 10 families (the 80/20 rule).",
-      calc: "Per-family outstanding = Σ INV-4 over its unsettled rows; concentration = round(top 10 ÷ total × 100).",
+      calc: "Per-family outstanding = Σ of the remaining over its unsettled rows; concentration = round(top 10 ÷ total × 100).", // (INV-4 — the zero-floored per-row remainder)
       status: "A high concentration = a few families failing to pay would be enough to open the hole.",
     },
     referenceMode: {
@@ -1007,7 +1007,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     top: {
       title: "Top 10 debtor families",
       measures: "The families ranked by descending outstanding, with their active children and worst delay.",
-      calc: "INV-4 outstanding per family; “worst delay” = the max days overdue of their rows.",
+      calc: "Outstanding per family; “worst delay” = the max days overdue of their rows.", // (INV-4 — the zero-floored per-row remainder)
     },
     pct: {
       title: "Concentration (%)",
@@ -1107,7 +1107,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     financial: {
       title: "Open debt",
       measures: "The students whose family carries an open balance.",
-      calc: "Counting the profiles with a family outstanding > 0 (INV-4, all years).",
+      calc: "Counting the profiles with a family outstanding > 0 (all years).", // (INV-4 — the zero-floored per-row remainder)
     },
   },
   methodMix: {
@@ -1168,13 +1168,13 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       measures: "The uncollected outstanding split by age (0–30, 31–60, 61–90, 91–180, > 180 days).",
       calc: "The repository's buckets (debtByAgingForRange): every unsettled row feeds the bucket of its days overdue; the stacked bar = 100% of the outstanding.",
       formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{and}\\quad \\sum_{b} V_b = V_{\\text{OUTSTandING}}",
-      vars: "$\\ell_i$ = row $i$'s days late · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = INV-4 remaining · the 5 bands: $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.",
+      vars: "$\\ell_i$ = row $i$'s days late · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = remaining · the 5 bands: $[1{,}30]$, $[31{,}60]$, $[61{,}90]$, $[91{,}180]$, $>180$.", // (INV-4 — the zero-floored per-row remainder)
       status: "The further right the band, the less likely the recovery — > 180 days = quasi-lost debt.",
     },
     b0_30: {
       title: "0–30 days",
       measures: "The outstanding less than one month overdue.",
-      calc: "INV-4 remaining of the rows 1–30 days overdue — the most recoverable layer.",
+      calc: "The remaining of rows 1–30 days overdue — the most recoverable layer.", // (INV-4 — the zero-floored per-row remainder)
     },
     b31_60: {
       title: "31–60 days",
@@ -1201,7 +1201,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Debt drift funnel",
       measures: "The debtor families' escalation: outstanding > 0 → past due → beyond yellow → critical.",
-      calc: "Derived from the canonical triage (deriveDebtTriage) over the year's tranches: each family is classified by its worst due date (INV-4) against the CONFIGURED thresholds (the Créances configuration — never hardcoded edges).",
+      calc: "Derived from the canonical triage (deriveDebtTriage) over the year's tranches: each family is classified by its worst due date against the CONFIGURED thresholds (the Créances configuration — never hardcoded edges).", // (INV-4 — the zero-floored per-row remainder)
       formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
       vars: "$\\operatorname{triage}(f)$ = family $f$'s worst level (outstanding $>$ 0 $\\to$ late $\\to$ yellow threshold $\\to$ critical, CONFIGURED bounds) · the tiers nest: $F_{k+1}\\subseteq F_k$.",
       status: "The stage labels carry the configured edges (e.g. « Retard 15-60 j »): changing the configuration changes the funnel — the card follows the same source as the debt-aging surface.",
@@ -1225,9 +1225,9 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     debt: {
       title: "Annual outstanding",
       measures: "What families still owe over the selected academic year.",
-      calc: "Σ INV-4 (max(0, due − paid − pending)) over the year's billing-window unsettled tranches.",
+      calc: "Σ of the remaining (max(0, due − paid − pending)) over the year's billing-window unsettled tranches.", // (INV-4 — the zero-floored per-row remainder)
       formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "$A$ = the selected year's unsettled tranches in its billing window (Sept 1 → next Sept 1) · INV-4: zero floor per row.",
+      vars: "$A$ = the selected year's unsettled tranches in its billing window (Sept 1 → next Sept 1) · zero floor per row.", // (INV-4 — the zero-floored per-row remainder)
       status: "The sub-line enumerates the overdue or the urgent (beyond the red threshold) amounts; the affected families are counted.",
     },
     attendance: {
@@ -1242,15 +1242,15 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Weekly operating rhythm",
       measures: "The collections volume per Algerian school-week day (Sunday → Thursday), stacked by method.",
-      calc: "Σ of payments (status ≠ refunded) grouped by collectedAt's weekday and method — the canonical stream, never synthetic data. The weekday resolves in the school's timezone (Africa/Algiers), never raw UTC (T-502).",
-      status: "The school week excludes Friday/Saturday; an empty day = no collection that day (an honest empty state). Payments imported from the Excel workbook are attributed to their tranche's recorded period (the ETAT sheet records no per-payment exact dates — T-502); counter collections carry their real timestamps.",
+      calc: "Σ of payments (status ≠ refunded) grouped by collectedAt's weekday and method — the canonical stream, never synthetic data. The weekday resolves in the school's timezone (Africa/Algiers), never raw UTC.", // (T-502 — the timezone/attribution rule)
+      status: "The school week excludes Friday/Saturday; an empty day = no collection that day (an honest empty state). Payments imported from the Excel workbook are attributed to their tranche's recorded period (the ETAT sheet records no per-payment exact dates); counter collections carry their real timestamps.", // (T-502 — the timezone/attribution rule)
     },
   },
   debtMeter: {
     card: {
       title: "Debt meter (payment modal)",
       measures: "The annual amount due's split: already paid (green), paying now (blue), remaining (gray) — plus any banked parent credit.",
-      calc: "Widths = shares of the total due (paid + paying + remaining = 100%); the unallocated credit comes from the ADR-010 derivation (never the raw balance).",
+      calc: "Widths = shares of the total due (paid + paying + remaining = 100%); the unallocated credit comes from the canonical allocation derivation (never the raw balance).", // (ADR-010 — the canonical allocation derivation)
       status: "The badges: “Debt fully settled” (remaining ≤ 0.5 DZD), “Surplus” (overpayment → parent credit), “Target tranche” (the installment this payment settles).",
     },
   },
@@ -1279,7 +1279,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Personnel Costs — Actual vs Projected",
       measures: "The salary-cost trajectory (actual vs projection) and the monthly funding requirement.",
-      calc: "The canonical forecast (computePayrollForecast, ADR-024) — the SAME one the Personnel and Finance pages read: active salaries + charges, month by month.",
+      calc: "The canonical forecast (computePayrollForecast) — the SAME one the Personnel and Finance pages read: active salaries + charges, month by month.", // (ADR-024 — the canonical payroll-forecast derivation)
       status: "Funding requirement = the gap between the projection and the month's expected collections.",
     },
     realized: {
@@ -1294,7 +1294,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
       measures: "The month's projected treasury hole (projected costs vs expected receipts).",
       calc: "The month's projection − the expected collections (the same convention as Finance).",
       formula: "B_m=C^{proj}_m-\\hat{E}_m",
-      vars: "$C^{proj}_m$ = the month's projected payroll costs (computePayrollForecast, ADR-024) · $\\hat{E}_m$ = expected collections · $B_m>0$ = funding need.",
+      vars: "$C^{proj}_m$ = the month's projected payroll costs (computePayrollForecast) · $\\hat{E}_m$ = expected collections · $B_m>0$ = funding need.", // (ADR-024 — the canonical payroll-forecast derivation)
     },
   },
   console: {
@@ -1334,7 +1334,7 @@ export const STAT_TIPS_EN: StatsTipDictionary = {
     card: {
       title: "Direct inspection / data provenance",
       measures: "The link to the data inspector: every number's traceability down to the source rows.",
-      calc: "Every trigger carries the domain, the metric and the source value; the inspector resolves the lineage (T-389) — rows, definition, gaps.",
+      calc: "Every trigger carries the domain, the metric and the source value; the inspector resolves the lineage — rows, definition, gaps.", // (T-389 — the data-lineage inspector)
       status: "A “Gap” in the inspector = a real data drift, never a definitional one (both sides share the derivation).",
     },
   },
@@ -1393,7 +1393,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     categories: {
       title: "مرشِّحات الفئة",
       measures: "فئات الفوترة (دراسة، نقل، مطعم، زيّ، كتب، نفسية، تخاطب، أنشطة…).",
-      calc: "يُطبَّق الترشيح على payments.category؛ «متعدد الخدمات» (ADR-023) رقاقة مستقلة للتحصيل الشامل.",
+      calc: "يُطبَّق الترشيح على payments.category؛ «متعدد الخدمات» رقاقة مستقلة للتحصيل الشامل.", // (ADR-023 — the multi-services chip rule)
       status: "مجموعة فارغة = كل الفئات؛ الرقاقة النشطة ترشِّح والخاملة تستثني.",
     },
     badge: {
@@ -1463,7 +1463,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     collectedPct: {
       title: "نسبة التحصيل",
       measures: "النسبة المئوية للمبلغ المُفوتر المحصَّلة (أموال مقاصة) على الموجة.",
-      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — اصطلاح PARITY-001، بلا سقف (موجة مغطاة زيادة قد تتجاوز 100%).",
+      calc: "round(Σ amountPaid ÷ Σ amountDue × 100) — بلا سقف (موجة مغطاة زيادة قد تتجاوز 100%).", // (PARITY-001 — the percentage convention)
       formula: "\\%_{\\text{مُحصَّل}}=\\operatorname{round}\\!\\left(\\frac{\\sum_{i\\in W}\\operatorname{round}(p_i)}{\\sum_{i\\in W}\\operatorname{round}(d_i)}\\times 100\\right)",
       vars: "$d_i$ = amountDue للسطر $i$ · $p_i$ = amountPaid المصفّى · $W$ = أسطر الموجة بكل الفئات (التجميع المعياري) · بلا سقف أبداً.",
       status: "اللون يتبع حالة الموجة لا النسبة.",
@@ -1471,9 +1471,9 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     dossiers: {
       title: "الملفات (X/Y)",
       measures: "الالتزامات المسدَّدة من إجمالي التزامات الموجة، كل الفئات.",
-      calc: "العدّ بمقياس isInstallmentSettled المعياري (INV-4): حالة «مدفوع» أو متبقٍ صفري (الأموال المعلّقة تغطي أيضًا).",
+      calc: "العدّ بمقياس isInstallmentSettled المعياري: حالة «مدفوع» أو متبقٍ صفري (الأموال المعلّقة تغطي أيضًا).", // (INV-4 — the settled predicate)
       formula: "X=\\left|\\left\\{i\\in W:\\ s_i=\\text{مدفوع}\\ \\lor\\ R_i=0\\right\\}\\right|",
-      vars: "$s_i$ = حالة السطر · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي INV-4 للسطر.",
+      vars: "$s_i$ = حالة السطر · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي للسطر.", // (INV-4 — the zero-floored per-row remainder)
     },
     due: {
       title: "المُفوتر",
@@ -1500,9 +1500,9 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     remaining: {
       title: "المتبقي",
       measures: "الرصيد الواجب تحصيله بعد على الموجة.",
-      calc: "Σ INV-4 لكل سطر: max(0, amountDue − amountPaid − amountPending).",
+      calc: "Σ الباقي لكل سطر: max(0, amountDue − amountPaid − amountPending).", // (INV-4 — the zero-floored per-row remainder)
       formula: "R=\\sum_{i\\in W}\\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "INV-4 — الباقي لكل سطر له أرضية صفر: الدفع الزائد موضعياً لا يعوّض عجز سطر آخر أبداً.",
+      vars: "الباقي لكل سطر له أرضية صفر: الدفع الزائد موضعياً لا يعوّض عجز سطر آخر أبداً.", // (INV-4 — the zero-floored per-row remainder)
       status: "أحمر إذا > 0؛ الموجة ذات متبقٍ صفري «مُقفلة».",
     },
     families: {
@@ -1531,7 +1531,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     phase: {
       title: "حالة الموجة",
       measures: "حكم الموجة: مُقفلة، متأخرة، أو جارية.",
-      calc: "مُقفلة = متبقٍ صفري (INV-4) · متأخرة = سطر غير مسدَّد مجتاز الاستحقاق واحد على الأقل · جارية = الباقي.",
+      calc: "مُقفلة = متبقٍ صفري · متأخرة = سطر غير مسدَّد مجتاز الاستحقاق واحد على الأقل · جارية = الباقي.", // (INV-4 — the zero-floored per-row remainder)
       status: "أخضر (مُقفلة) · أحمر (متأخرة) · أزرق (جارية). حكم بلا سببه المرئي لا يُميَّز عن الخلل (UI-316).",
     },
     breakdown: {
@@ -1562,7 +1562,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     notDue: {
       title: "غير مستحقة بعد",
       measures: "الرصيد الذي لم يحلّ استحقاقه بعد (دفعات مستقبلية — ليست ديونًا سيئة).",
-      calc: "متبقٍ INV-4 للسطور باستحقاق ≥ اليوم.",
+      calc: "متبقٍ للسطور باستحقاق ≥ اليوم.", // (INV-4 — the zero-floored per-row remainder)
       status: "هذا المبلغ يفسّر لماذا ينذِر «إجمالي الدين» الخام زورًا: يحتوي السنة كلها.",
     },
     current: {
@@ -1599,7 +1599,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     count: {
       title: "التخفيضات (العدد)",
       measures: "عدد تسويات التخفيض المتفاوض عليها والعائلات المعنية.",
-      calc: "عدّ قيود «تسوية» بمبلغ سالب (عقد التعرّف T-389: metadata.field = REMISE).",
+      calc: "عدّ قيود «تسوية» بمبلغ سالب (مُعرَّفة بـ metadata.field = REMISE).", // (T-389 — the adjustment-identification contract)
     },
     total: {
       title: "Σ التخفيضات",
@@ -1626,7 +1626,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "تركّز المخاطر العائلية",
       measures: "نسبة الرصيد الإجمالي التي يحملها أفضل 10 عائلات (قاعدة 80/20).",
-      calc: "الرصيد لكل عائلة = Σ INV-4 على سطورها غير المسدَّدة؛ التركّز = round(أفضل 10 ÷ الإجمالي × 100).",
+      calc: "الرصيد لكل عائلة = Σ الباقي على سطورها غير المسدَّدة؛ التركّز = round(أفضل 10 ÷ الإجمالي × 100).", // (INV-4 — the zero-floored per-row remainder)
       status: "تركّز مرتفع = يكفي إخفاق بعض العائلات في السداد لفتح الثغرة.",
     },
     referenceMode: {
@@ -1638,7 +1638,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     top: {
       title: "أفضل 10 عائلات مدينة",
       measures: "العائلات مرتبة تنازليًا بالرصيد، مع أبنائها النشطين وأسوأ تأخير.",
-      calc: "رصيد INV-4 لكل عائلة؛ «أسوأ تأخير» = أقصى أيام تأخير سطورها.",
+      calc: "رصيد لكل عائلة؛ «أسوأ تأخير» = أقصى أيام تأخير سطورها.", // (INV-4 — the zero-floored per-row remainder)
     },
     pct: {
       title: "التركّز (%)",
@@ -1738,7 +1738,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     financial: {
       title: "دين مفتوح",
       measures: "التلاميذ الذين لعائلاتهم رصيد مفتوح.",
-      calc: "عدّ الملفات برصيد عائلي > 0 (INV-4، كل السنوات).",
+      calc: "عدّ الملفات برصيد عائلي > 0 (كل السنوات).", // (INV-4 — the zero-floored per-row remainder)
     },
   },
   methodMix: {
@@ -1799,13 +1799,13 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       measures: "توزيع الرصيد غير المحصَّل حسب العمر (0–30، 31–60، 61–90، 91–180، > 180 يومًا).",
       calc: "دلاء المستودع (debtByAgingForRange): كل سطر غير مسدَّد يغذّي دلو أيام تأخيره؛ الشريط المركَّب = 100% من الرصيد.",
       formula: "V_{[a,b]}=\\sum_{i:\\ a\\le\\ell_i\\le b} R_i \\quad\\text{و}\\quad \\sum_{b} V_b = V_{\\text{OUTSTوING}}",
-      vars: "$\\ell_i$ = أيام تأخر السطر $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي INV-4 · النطاقات: $[1{,}30]$، $[31{,}60]$، $[61{,}90]$، $[91{,}180]$، $>180$.",
+      vars: "$\\ell_i$ = أيام تأخر السطر $i$ · $R_i=\\max(0,\\ d_i-p_i-\\pi_i)$ = الباقي · النطاقات: $[1{,}30]$، $[31{,}60]$، $[61{,}90]$، $[91{,}180]$، $>180$.", // (INV-4 — the zero-floored per-row remainder)
       status: "كلما اتجه الشريط يمينًا قلّ احتمال التحصيل — > 180 يومًا = دين شبه مفقود.",
     },
     b0_30: {
       title: "0–30 يومًا",
       measures: "الرصيد المتأخر أقل من شهر.",
-      calc: "متبقٍ INV-4 للسطور بتأخير 1–30 يومًا — الطبقة الأكثر قابلية للاسترداد.",
+      calc: "متبقٍ للسطور بتأخير 1–30 يومًا — الطبقة الأكثر قابلية للاسترداد.", // (INV-4 — the zero-floored per-row remainder)
     },
     b31_60: {
       title: "31–60 يومًا",
@@ -1832,7 +1832,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "قُمع انزلاق الذمم",
       measures: "تصاعد الأسر المدينة: رصيد > 0 → متأخر → ما وراء العتبة الصفراء → حرج.",
-      calc: "مُشتق من الفرز القانوني (deriveDebtTriage) على دفعات السنة: تُصنَّف كل أسرة حسب أسوأ تاريخ استحقاق (INV-4) مقابل العتبات المُهيَّأة (إعداد الذمم — أبدًا لا حدود مُرمَّزة).",
+      calc: "مُشتق من الفرز القانوني (deriveDebtTriage) على دفعات السنة: تُصنَّف كل أسرة حسب أسوأ تاريخ استحقاق مقابل العتبات المُهيَّأة (إعداد الذمم — أبدًا لا حدود مُرمَّزة).", // (INV-4 — the zero-floored per-row remainder)
       formula: "F_k=\\left|\\left\\{f:\\ \\operatorname{triage}(f)\\ge k\\right\\}\\right|",
       vars: "$\\operatorname{triage}(f)$ = أسوأ مستوى للعائلة $f$ (مستحق $>$ 0 $\\to$ متأخر $\\to$ عتبة صفراء $\\to$ حرج) · الطبقات متداخلة: $F_{k+1}\\subseteq F_k$.",
       status: "تحمل تسميات المراحل العتبات المُهيَّأة (مثل « Retard 15-60 j »): تغيير الإعداد يغيّر القُمع — تتبع البطاقة نفس مصدر متابعة الديون.",
@@ -1856,9 +1856,9 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     debt: {
       title: "الرصيد السنوي المستحق",
       measures: "ما تدين به الأسر بعد على السنة الدراسية المختارة.",
-      calc: "Σ INV-4 (max(0, المستحق − المدفوع − المعلّق)) على الدفعات غير المسدَّدة في نطاق فوترة السنة.",
+      calc: "Σ الباقي (max(0, المستحق − المدفوع − المعلّق)) على الدفعات غير المسدَّدة في نطاق فوترة السنة.", // (INV-4 — the zero-floored per-row remainder)
       formula: "E=\\sum_{i\\in A} \\max\\!\\left(0,\\ d_i-p_i-\\pi_i\\right)",
-      vars: "$A$ = الدفعات غير المسدَّدة ضمن نطاق فوترة السنة المختارة (1 سبتمبر → 1 سبتمبر التالي) · INV-4: أرضية صفر لكل سطر.",
+      vars: "$A$ = الدفعات غير المسدَّدة ضمن نطاق فوترة السنة المختارة (1 سبتمبر → 1 سبتمبر التالي) · أرضية صفر لكل سطر.", // (INV-4 — the zero-floored per-row remainder)
       status: "السطر الفرعي يُعدّد المتأخر أو العاجل (ما وراء العتبة الحمراء)؛ وتُعَدّ الأسر المعنية.",
     },
     attendance: {
@@ -1873,15 +1873,15 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "الإيقاع الأسبوعي التشغيلي",
       measures: "حجم التحصيلات لكل يوم من الأسبوع المدرسي الجزائري (الأحد → الخميس)، مكدّسًا حسب الطريقة.",
-      calc: "Σ المدفوعات (الحالة ≠ مُسترد) مجمّعة حسب يوم collectedAt والطريقة — التدفق القانوني، أبدًا لا بيانات مُصطنعة. يُحلّ اليوم في منطقة المدرسة الزمنية (Africa/Algiers)، وليس UTC الخام (T-502).",
-      status: "الأسبوع المدرسي يستثني الجمعة/السبت؛ اليوم الفارغ = لا تحصيل ذلك اليوم (حالة فراغ صادقة). المدفوعات المستوردة من مصنف Excel تُنسب إلى الفترة المسجلة لترانشها (ورقة ETAT لا تسجّل تواريخ دقيقة لكل دفعة — T-502)؛ تحصيلات الشبّاك تحمل طوابعها الزمنية الحقيقية.",
+      calc: "Σ المدفوعات (الحالة ≠ مُسترد) مجمّعة حسب يوم collectedAt والطريقة — التدفق القانوني، أبدًا لا بيانات مُصطنعة. يُحلّ اليوم في منطقة المدرسة الزمنية (Africa/Algiers)، وليس UTC الخام.", // (T-502 — the timezone/attribution rule)
+      status: "الأسبوع المدرسي يستثني الجمعة/السبت؛ اليوم الفارغ = لا تحصيل ذلك اليوم (حالة فراغ صادقة). المدفوعات المستوردة من مصنف Excel تُنسب إلى الفترة المسجلة لترانشها (ورقة ETAT لا تسجّل تواريخ دقيقة لكل دفعة)؛ تحصيلات الشبّاك تحمل طوابعها الزمنية الحقيقية.", // (T-502 — the timezone/attribution rule)
     },
   },
   debtMeter: {
     card: {
       title: "مقياس الدين (نافذة الدفع)",
       measures: "توزيع المبلغ السنوي المستحق: مدفوع (أخضر)، قيد الدفع الآن (أزرق)، المتبقي (رمادي) — مع رصيد الوالد المصرفي إن وُجد.",
-      calc: "العروض = حصص من الإجمالي المستحق (المدفوع + قيد الدفع + المتبقي = 100%)؛ الرصيد غير المخصص من اشتقاق ADR-010 (أبدًا ليس الرصيد الخام).",
+      calc: "العروض = حصص من الإجمالي المستحق (المدفوع + قيد الدفع + المتبقي = 100%)؛ الرصيد غير المخصص من الاشتقاق المعياري للتخصيص (أبدًا ليس الرصيد الخام).", // (ADR-010 — the canonical allocation derivation)
       status: "الشارات: «الدين مسدَّد بالكامل» (المتبقي ≤ 0.5 دج)، «فائض» (الدفع الزائد → رصيد الوالد)، «الدفعة المستهدفة» (القسط الذي يسدّده هذا الدفع).",
     },
   },
@@ -1910,7 +1910,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "تكاليف الموظفين — المحقَّق مقابل المتوقع",
       measures: "مسار التكاليف salary (المحقَّق مقابل التوقع) والحاجة التمويلية الشهرية.",
-      calc: "التوقع المعياري (computePayrollForecast، ADR-024) — نفسه الذي تقرؤه صفحتا الموظفين والمالية.",
+      calc: "التوقع المعياري (computePayrollForecast) — نفسه الذي تقرؤه صفحتا الموظفين والمالية.", // (ADR-024 — the canonical payroll-forecast derivation)
       status: "الحاجة التمويلية = الفارق بين التوقع والتحصيل المتوقع للشهر.",
     },
     realized: {
@@ -1925,7 +1925,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
       measures: "ثقب الخزينة المتوقع للشهر (تكاليف متوقعة مقابل إيرادات منتظرة).",
       calc: "توقع الشهر − التحصيلات المنتظرة (نفس اصطلاح المالية).",
       formula: "B_m=C^{متوقع}_m-\\hat{E}_m",
-      vars: "$C^{proj}_m$ = تكاليف الرواتب المتوقعة للشهر (computePayrollForecast، ADR-024) · $\\hat{E}_m$ = التحصيلات المتوقعة · $B_m>0$ = حاجة تمويل.",
+      vars: "$C^{proj}_m$ = تكاليف الرواتب المتوقعة للشهر (computePayrollForecast) · $\\hat{E}_m$ = التحصيلات المتوقعة · $B_m>0$ = حاجة تمويل.", // (ADR-024 — the canonical payroll-forecast derivation)
     },
   },
   console: {
@@ -1965,7 +1965,7 @@ export const STAT_TIPS_AR: StatsTipDictionary = {
     card: {
       title: "الفحص المباشر / مصدر البيانات",
       measures: "الرابط إلى مفتّش البيانات: تتبع كل رقم حتى السطور المصدر.",
-      calc: "كل مُطلِق يحمل المجال والمقياس والقيمة المصدر؛ المفتّش يحل السلالة (T-389) — سطور، تعريف، فوارق.",
+      calc: "كل مُطلِق يحمل المجال والمقياس والقيمة المصدر؛ المفتّش يحل السلالة — سطور، تعريف، فوارق.", // (T-389 — the data-lineage inspector)
       status: "«الفارق» في المفتّش = انزياح بيانات حقيقي، لا تعريفي أبدًا (الطرفان يتشاركان الاشتقاق).",
     },
   },

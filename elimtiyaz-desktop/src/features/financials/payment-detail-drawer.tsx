@@ -427,14 +427,15 @@ export function PaymentDetailDrawer({
         title="Rembourser ce paiement"
         description={
           <div className="space-y-2">
-            {/* T-444/UI-324 restored: the informative refund body (1cead9d
-                shortened it to a bare placeholder — the operator lost the
-                LIFO/ledger explanation AND the mandatory-reason rule). */}
+            {/* T-444/UI-324 restored the informative refund body; T-586
+                de-jargonized it (LIFO / contrepassation / ledger → plain
+                French, ≤ 2 sentences — the accounting detail lives in this
+                comment, not in the operator's face). */}
             <p>
               Le paiement {entity?.receiptNumber} ({entity ? formatDzd(entity.amount) : ""}) sera
-              remboursé. L'allocation sera inversée (LIFO), une écriture de contrepassation sera
-              enregistrée au ledger et les tranches concernées seront rouvertes. Cette action est
-              journalisée avec votre identité et le motif saisi.
+              remboursé : les tranches concernées seront rouvertes et le remboursement sera
+              enregistré dans l'historique financier. Cette action est journalisée avec votre
+              identité et le motif saisi.
             </p>
             <label className="block space-y-1">
               <span className="text-xs font-medium">Motif du remboursement (obligatoire, 3 caractères minimum) :</span>

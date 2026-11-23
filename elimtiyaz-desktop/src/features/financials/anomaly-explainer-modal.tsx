@@ -67,8 +67,11 @@ function buildUserPrompt(expense: Expense, signals: AnomalySignal[]): string {
     (signals.length > 0
       ? `expliquant pourquoi elle est potentiellement anormale, `
       : `(contexte, bénéficiaire, montant vs catégorie), `) +
-    `et une recommandation actionnable pour l'approbateur. ` +
-    `Termine par la mention: "L'IA fournit un signal, l'humain décide toujours."`
+    `et une recommandation actionnable pour l'approbateur.`
+    // T-586: the "Termine par la mention: 'L'IA fournit un signal…'"
+    // instruction is REMOVED — the modal's alert banner already carries
+    // that disclaimer once; asking the model to repeat it duplicated the
+    // sentence in every generated summary.
   );
 }
 
@@ -221,10 +224,11 @@ export function AnomalyExplainerModal({
             </p>
             {signals.length === 0 && (
               <li className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
-                Aucun signal automatique détecté sur cette dépense (doublon à
-                48&nbsp;h, bénéficiaire sans historique, montant ≥ 3× la moyenne
-                de la catégorie). L'analyse IA ci-dessous reste disponible comme
-                aide à la décision.
+                {/* T-586: the wall compressed — the three detection rules
+                    named in one short parenthetical, no stacked clauses. */}
+                Aucun signal automatique détecté (doublon, nouveau bénéficiaire,
+                écart de montant). L'analyse IA ci-dessous reste disponible
+                comme aide à la décision.
               </li>
             )}
             <ul className="space-y-2">

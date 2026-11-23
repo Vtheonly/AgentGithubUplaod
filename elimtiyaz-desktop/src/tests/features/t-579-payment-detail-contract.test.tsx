@@ -80,6 +80,8 @@ describe("T-579 / BUG-053 — the drawer's transfer block + coverage card", () =
   it("S3: the canonical PaymentBreakdownCard mounts in the drawer", async () => {
     PAYMENT = makePayment({});
     render(<PaymentDetailDrawer paymentId="pay-1" open onOpenChange={() => {}} />);
-    await waitFor(() => { expect(screen.getByText("Détail de la couverture")).toBeTruthy(); });
+    // T-586: the standardized label — "Couverture" (the card's coverage block
+    // was "Détail de la couverture" before the three-label standardization).
+    await waitFor(() => { expect(screen.getByText("Couverture")).toBeTruthy(); });
   });
 });

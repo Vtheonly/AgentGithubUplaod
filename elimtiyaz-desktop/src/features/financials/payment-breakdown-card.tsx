@@ -120,7 +120,9 @@ export function PaymentBreakdownCard({
         {hasBreakdown && (
           <div className="rounded-md border border-border p-3 space-y-1.5 bg-muted/30">
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-              Détail de la couverture
+              {/* T-586: the standardized label — Couverture (one of the three:
+                  Prix / Prix justifié / Couverture). */}
+              Couverture
             </p>
             {allocations.length > 0 ? (
               allocations.map((a) => (
@@ -146,15 +148,16 @@ export function PaymentBreakdownCard({
                 <span className="font-mono">{formatDzdPlain(paidTotal)}</span>
               </div>
             )}
-            {/* Total expected vs paid */}
+            {/* Total expected vs paid — T-586: the standardized labels
+                (Prix = the expected total for the covered scope). */}
             {expectedTotal > 0 && (
               <>
                 <div className="border-t border-border mt-1.5 pt-1.5 flex items-center justify-between text-xs font-medium">
-                  <span>Total attendu</span>
+                  <span>Prix</span>
                   <span className="font-mono">{formatDzdPlain(expectedTotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs font-medium">
-                  <span>Total payé</span>
+                  <span>Payé</span>
                   <span className="font-mono text-status-success">{formatDzdPlain(paidTotal)}</span>
                 </div>
               </>
@@ -171,13 +174,19 @@ export function PaymentBreakdownCard({
             </p>
             {situation.totals.paidToDate !== null && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Payé à ce jour (historique)</span>
+                {/* T-586: the standardized label — no parenthetical (the
+                    “since the family's first payment” nuance is the
+                    tooltip/comment's job, not the label's). */}
+                <span className="text-muted-foreground">Payé à ce jour</span>
                 <span className="font-mono">{formatDzdPlain(situation.totals.paidToDate)}</span>
               </div>
             )}
             {situation.totals.totalJustified > 0 && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Prix justifié (net)</span>
+                {/* T-586: the standardized label — Prix justifié (net of
+                    discounts/adjustments; the net detail lives here, not in
+                    the visible label). */}
+                <span className="text-muted-foreground">Prix justifié</span>
                 <span className="font-mono">{formatDzdPlain(situation.totals.totalJustified)}</span>
               </div>
             )}

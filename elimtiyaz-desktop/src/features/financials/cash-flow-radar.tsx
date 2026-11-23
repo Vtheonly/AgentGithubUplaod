@@ -25,6 +25,9 @@ import {
 import { formatDzd, formatDzdPlain } from "../../core/format/currency";
 import type { TreasuryHealthSnapshot } from "../../domain/calc/payment/financial-query-engine";
 
+/** T-586: a satisfaction meter's BAR width — clamped to 0–100. */
+const clampPct = (v: number): number => Math.max(0, Math.min(100, v));
+
 export function CashFlowRadar({
   treasury,
 }: {
@@ -86,7 +89,11 @@ export function CashFlowRadar({
           </div>
         </div>
 
-        {/* Tranche Velocity Bars */}
+        {/* Tranche Velocity Bars — T-586: the meters are SATISFACTION
+            percentages (share of the tranche already collected): the BAR
+            is clamped to 0–100 (a locally over-covered tranche must not
+            blow out the track) and the NUMBER stays the honest raw rate,
+            floored at 0 (the negative case cannot render either). */}
         <div className="space-y-2 pt-1">
           <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">
             Vélocité d'Apurement des Tranches Scolaires :
@@ -96,52 +103,54 @@ export function CashFlowRadar({
             <div className="flex justify-between items-center">
               <span>Tranche 1 (Septembre)</span>
               <span className="font-mono font-bold text-status-success">
-                {treasury.t1CollectionRate}%
+                {Math.max(0, treasury.t1CollectionRate)}%
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-status-success transition-all"
-                style={{ width: `${treasury.t1CollectionRate}%` }}
+                style={{ width: `${clampPct(treasury.t1CollectionRate)}%` }}
               />
             </div>
 
             <div className="flex justify-between items-center pt-1">
               <span>Tranche 2 (Décembre)</span>
               <span className="font-mono font-bold text-status-warning">
-                {treasury.t2CollectionRate}%
+                {Math.max(0, treasury.t2CollectionRate)}%
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-status-warning transition-all"
-                style={{ width: `${treasury.t2CollectionRate}%` }}
+                style={{ width: `${clampPct(treasury.t2CollectionRate)}%` }}
               />
             </div>
 
             <div className="flex justify-between items-center pt-1">
               <span>Tranche 3 (Mars)</span>
               <span className="font-mono font-bold text-primary">
-                {treasury.t3CollectionRate}%
+                {Math.max(0, treasury.t3CollectionRate)}%
               </span>
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${treasury.t3CollectionRate}%` }}
+                style={{ width: `${clampPct(treasury.t3CollectionRate)}%` }}
               />
             </div>
           </div>
         </div>
 
-        {/* Forecast Callout */}
+        {/* Forecast Callout — T-586: the double parenthetical unwound
+            (échues/à échoir ≤ 30 j → plain French) and the " DA" variant
+            replaced by the canonical formatDzd (BUG-057: ONE " DZD"). */}
         <div className="p-2.5 rounded-md bg-muted/20 border border-border/60 text-xs text-muted-foreground flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 text-primary" />
-            Rentrées prévues à 30 j (échues ≤ 30 j + à échoir ≤ 30 j) :
+            Rentrées prévues sous 30 jours :
           </span>
           <strong className="font-mono text-foreground text-sm">
-            +{formatDzdPlain(treasury.expectedInflow30d)} DA
+            {formatDzd(treasury.expectedInflow30d)}
           </strong>
         </div>
       </CardContent>
