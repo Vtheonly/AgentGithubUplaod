@@ -37,6 +37,10 @@ import {
 } from "lucide-react";
 import ExcelJS from "exceljs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+// T-580 (BUG-049): the PDF export routes through the WinAnsi-safe pair —
+// formatDzdPlain's U+202F grouping and non-WinAnsi name glyphs crash
+// pdf-lib's Helvetica drawText.
+import { sanitizePdfText, dzdPdf } from "../../../../infrastructure/receipt-pdf/shared";
 import { UnifiedModal } from "../../../../shared/ui/unified-modal";
 import { Button } from "../../../../shared/ui/button";
 // T-467 (DASH-411): the reference-population selector + the canonical
@@ -405,7 +409,10 @@ export function DataInspectorProvider({
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     let y = 560;
     const draw = (text: string, size = 9) => {
-      page.drawText(text.slice(0, 130), {
+      // T-580 (BUG-049): EVERY drawn string is WinAnsi-sanitized — the raw
+      // drawText crashed on formatDzdPlain's U+202F and on non-Latin name
+      // glyphs. (The pagination/addPage discards stay T-613's card.)
+      page.drawText(sanitizePdfText(text.slice(0, 130)), {
         x: 30,
         y,
         size,
@@ -423,12 +430,13 @@ export function DataInspectorProvider({
     draw(resolved.definition.slice(0, 120));
     for (const step of resolved.formulaSteps) draw(step.slice(0, 125));
     draw(
-      `Valeur affichée: ${formatDzdPlain(resolved.request.sourceValue)} · Résolue: ${formatDzdPlain(resolved.resolvedValue)} · Écart: ${formatDzdPlain(resolved.difference)}`,
+      // T-580: dzdPdf = the U+202F-safe twin of formatDzdPlain for PDF.
+      `Valeur affichée: ${dzdPdf(resolved.request.sourceValue)} · Résolue: ${dzdPdf(resolved.resolvedValue)} · Écart: ${dzdPdf(resolved.difference)}`,
     );
     draw("");
     for (const row of visibleRecords.slice(0, 80)) {
       draw(
-        `${row.contributorName} · ${row.studentName} · ${row.categoryLabel} · ${formatDzdPlain(row.amount)} · ${Math.round(row.percentage * 10) / 10}% · ${row.sourceTable}:${row.reference}`,
+        `${row.contributorName} · ${row.studentName} · ${row.categoryLabel} · ${dzdPdf(row.amount)} · ${Math.round(row.percentage * 10) / 10}% · ${row.sourceTable}:${row.reference}`,
       );
     }
     const bytes = await pdf.save();

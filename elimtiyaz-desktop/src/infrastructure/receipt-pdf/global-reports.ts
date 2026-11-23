@@ -47,7 +47,18 @@ export async function generateRevenueReportPdf(
   payments: readonly Payment[],
   options: { from: string; to: string },
 ): Promise<Uint8Array> {
-  const paid = payments.filter((p) => p.status === "paid");
+  // T-580: the labeled period IS the filter (the v2.3 report contract —
+  // "complete, detailed tables matching the applied UI filters; the filter
+  // set is printed on the report header"). The old generator printed a
+  // "Période: from → to" label over the WHOLE unfiltered corpus — the
+  // label lied about every number under it. Rows shown = payments
+  // collected INSIDE [from, to], inclusive, date-part compared (the
+  // collectedAt ISO timestamp's calendar day).
+  const inPeriod = (p: Payment) => {
+    const day = p.collectedAt.slice(0, 10);
+    return day >= options.from && day <= options.to;
+  };
+  const paid = payments.filter((p) => p.status === "paid" && inPeriod(p));
   const total = paid.reduce((s, p) => s + p.amount, 0);
 
   const byMethod = new Map<string, { count: number; total: number }>();
