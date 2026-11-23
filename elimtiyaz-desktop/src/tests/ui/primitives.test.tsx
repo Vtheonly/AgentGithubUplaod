@@ -255,6 +255,39 @@ describe("EntityDetailDrawer primitive", () => {
     expect(screen.getByText("Paiements tab content")).toBeInTheDocument();
     expect(screen.getByText("Modifier")).toBeInTheDocument();
   });
+
+  // E6.3 (DUP-024 / UI-U3): the drawer renders through ModalShell's DRAWER
+  // preset — the ONE modal skeleton. The shell's drawer contract: anchored
+  // end-0 top-0, full height, the scrim 60, and the E6.1 animate verbs.
+  it("E6.3 — the EntityDetailDrawer renders through ModalShell's drawer preset (end-anchored, h-full, the shell's slide verbs, scrim 60)", () => {
+    render(
+      <EntityDetailDrawer
+        open onOpenChange={() => {}} entity={parent}
+        title={(p) => `${p!.firstName} ${p!.lastName}`}
+        tabs={() => [
+          { id: "payments", label: "Paiements", content: () => <div>Paiements tab content</div> },
+          { id: "students", label: "Élèves", content: () => <div>Élèves tab content</div> },
+        ]}
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.className).toMatch(/\bend-0\b/);
+    expect(dialog.className).toMatch(/\btop-0\b/);
+    expect(dialog.className).toMatch(/\bh-full\b/);
+    expect(dialog.className).toContain("slide-in-from-right"); // E6.1 verb via the shell
+    expect(dialog.className).toContain("slide-out-to-right");
+    expect(dialog.className).toContain("flex-col"); // the shell's flex column
+    // The responsive scale passes through.
+    expect(dialog.className).toContain("sm:max-w-xl");
+    // The scrim 60 (the drawer overlay opacity, from the shell).
+    const overlay = document.querySelector("[data-radix-overlay]") ?? document.querySelectorAll("[style*='pointer-events']")[0];
+    void overlay; // the overlay is asserted at the source level below.
+    const shellSrc = require("node:fs").readFileSync(
+      require("node:path").resolve(__dirname, "../../shared/ui/unified-modal/modal-shell.tsx"),
+      "utf8",
+    );
+    expect(shellSrc).toContain('variant === "drawer" ? "bg-black/60" : "bg-black/70"');
+  });
 });
 
 describe("Wizard primitive", () => {
