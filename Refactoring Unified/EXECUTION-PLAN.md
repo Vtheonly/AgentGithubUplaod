@@ -10,16 +10,16 @@
 **You are the implementation session. Bootstrap in this exact order:**
 
 1. `git fetch origin && git status` (must be clean; sync `main`).
-2. **Read the `## AUTONOMOUS HANDOFF & NEXT-TASK QUEUE` header at the top of `docs/recovery/next-task.md`** (§0.1 — the v2.3 zero-context-overload protocol): that queue + your chosen batch's T-cards in THIS file + the target code files are the ENTIRE execution context. **Execution sessions do NOT re-read `Investigation Archive/` (README/SESSION_LOG/handoffs) or full `BLUEPRINT.md`** — those are investigation-phase documents; this plan is self-contained (every correction inline at its card since v2.2). Only the FIRST execution session (the G0-lift bootstrap) reads §0 once end-to-end and installs the queue header (§0.1).
+2. **Read the `## AUTONOMOUS HANDOFF & NEXT-TASK QUEUE` header at the top of `docs/recovery/session/next-task.md`** (§0.1 — the v2.3 zero-context-overload protocol; the file was relocated into the `docs/recovery/session/` isolation folder at Session 54, 2026-11-24 — same protocol, same content, `git mv`-preserved history): that queue + your chosen batch's T-cards in THIS file + the target code files are the ENTIRE execution context. **Execution sessions do NOT re-read `Investigation Archive/` (README/SESSION_LOG/handoffs) or full `BLUEPRINT.md`** — those are investigation-phase documents; this plan is self-contained (every correction inline at its card since v2.2). Only the FIRST execution session (the G0-lift bootstrap) reads §0 once end-to-end and installs the queue header (§0.1).
 3. Check Issue #32 for owner answers to the still-open decisions (D-5/D-6/D-8..D-16 + the Phase-4 product decisions). **If any answer exists:** record it as a dated addendum in `OWNER-DECISION-PACKET.md`, adjust the rows it gates, and re-read §5. If none: **the ⏵ defaults govern — except where D-17/D-18/D-19 are LOCKED IN (they are decisions, not defaults).**
 4. Run the GET-only probe set (see `Investigation Archive/01-INFRASTRUCTURE-STATUS.md`) and update that file. **Watch for one thing:** if the Supabase REST probe with the secret key returns **200**, the spend cap has been lifted → verify the OPS-015 precondition FIRST (§1 G2: T-559 + T-560 + T-594 must already be green; if not, do them before anything else touches live traffic), then schedule the one-time live window (§4 E7A-12 / T-598 + the local seed ceremony E7B-10).
 5. Then start executing at §3 (the immediate queue) — whose first act is **Commit 1: the OPS-018 mechanical path update** (the exact, line-numbered spec: `Investigation Archive/OPS-018-COMMIT-1-BLUEPRINT.md`; the S26 full-ladder run proved every live site fails ENOENT until it lands; the S27 re-verification confirmed 33/33 + 4/4 sites at HEAD with zero drift).
 
 ### 0.1 The AUTONOMOUS HANDOFF & NEXT-TASK QUEUE protocol (v2.3 — the multi-task session's lightweight context)
 
-**The problem it solves:** autonomous execution sessions were burning context re-reading the whole archive per session. **The rule from v2.3 onward:** `docs/recovery/next-task.md` carries a **queue header** as its FIRST section; every execution session reads ONLY that header + the T-cards it names in this file + the target code files. The queue is maintained by each session as it completes tasks (one line per task: ID → state → next pointer).
+**The problem it solves:** autonomous execution sessions were burning context re-reading the whole archive per session. **The rule from v2.3 onward:** `docs/recovery/session/next-task.md` carries a **queue header** as its FIRST section; every execution session reads ONLY that header + the T-cards it names in this file + the target code files. The queue is maintained by each session as it completes tasks (one line per task: ID → state → next pointer).
 
-**Installation (the G0-lift bootstrap's first docs-only act — `docs/` stays untouched while G0 holds):** write this block verbatim at the TOP of `docs/recovery/next-task.md` (above all historical session headers — the history below it is never deleted):
+**Installation (the G0-lift bootstrap's first docs-only act — `docs/` stays untouched while G0 holds):** write this block verbatim at the TOP of `docs/recovery/session/next-task.md` (above all historical session headers — the history below it is never deleted):
 
 ```markdown
 ## AUTONOMOUS HANDOFF & NEXT-TASK QUEUE (the v2.3 protocol — maintained by every execution session)
@@ -120,7 +120,7 @@ Eight concrete steps, in order. Steps 1–3 are executable **inside G0** (docume
 
 ### Step 1 — Register the staged tasks (no app code touched)
 
-Register into `docs/recovery/task-registry.md` (the repository's own `## T-NNN` convention, `Status: Not Started`, appended to `docs/recovery/next-task.md`), from the staged drafts + this plan:
+Register into `docs/recovery/task-registry.md` (the repository's own `## T-NNN` convention, `Status: Not Started`, appended to `docs/recovery/session/next-task.md`), from the staged drafts + this plan:
 
 - **T-549** — BUG-038 fix lane (the only red file in the full vitest ladder; baseline deviation).
 - **T-550..T-553** — LF-0 steps 1–4 (ports-as-interfaces; hard-lock removal — **T-551's scope executes INSIDE T-573**, see Step 6; bypass routing; ADR adoption).

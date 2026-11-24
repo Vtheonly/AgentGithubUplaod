@@ -66,7 +66,7 @@ Rules:
 
 - The five mandatory answers (`Task:` · `Left:` · `Change:` · `Verified:` · `Next:`) are required in **every** commit, documentation commits included. The other fields (`Problem:`, `Root Cause:`, `Preserved:`, `Affected:`, `Related:`) are **mandatory** for architectural/financial/security changes and recommended otherwise.
 - `Verified:` must list real commands and their real outcomes. "Tests pass" without naming the suite is not verification. If something could not be verified, say so explicitly in `Verified:` (an honest gap is acceptable; an invented pass is not).
-- `Next:` must reference an existing task ID from `docs/recovery/task-registry.md` (check it is not Blocked). If the registry's recommendation changed because of this commit, also update `docs/recovery/next-task.md`.
+- `Next:` must reference an existing task ID from `docs/recovery/task-registry.md` (check it is not Blocked). If the registry's recommendation changed because of this commit, also update `docs/recovery/session/next-task.md`.
 - `Left:` keeps the next agent from re-deriving your state. If the task is fully complete, write `nothing — task complete` rather than omitting the field.
 
 ### Types
@@ -148,7 +148,7 @@ Documentation only.
 
 Next:
 T-001 — remove hardcoded staff credentials (highest-severity
-dependency-free task, see next-task.md)
+dependency-free task, see docs/recovery/session/next-task.md)
 
 Related:
 ADR-002

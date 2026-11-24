@@ -274,9 +274,9 @@ Record the full matrix in `docs/recovery/t-XXX-live-verification.md`.
 ## 13. How to update task status and find the next task
 
 - The **authoritative todo list** for all remaining work is `docs/recovery/task-registry.md`. There is no other task list. Do not create TODO/DONE/PROGRESS files.
-- To choose your next task safely: follow `docs/recovery/next-task.md`.
+- To choose your next task safely: follow `docs/recovery/session/next-task.md` (relocated to the session folder 2026-11-24, Session 54 — the §0.1 queue protocol and file content are unchanged; history preserved via `git mv`).
 - Status flow: `OPEN → READY → IN_PROGRESS → IMPLEMENTED → TESTED → VERIFIED`. Never skip statuses; never claim a status without evidence (`docs/recovery/definition-of-done.md`).
-- When you start a task: set it `IN_PROGRESS` in the task registry and identify it in `docs/recovery/next-task.md`.
+- When you start a task: set it `IN_PROGRESS` in the task registry and identify it in `docs/recovery/session/next-task.md`.
 - When you finish: update the task registry, the problem registry, and the change log, then commit.
 
 ## 14. How to create commits — the mandatory commit-content rule
@@ -379,7 +379,7 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/recovery/current-state.md` | "What is the state of the project right now?" |
 | `docs/recovery/problem-registry.md` | **The** consolidated problem registry (145 problems) |
 | `docs/recovery/task-registry.md` | **The** authoritative task list / todo list |
-| `docs/recovery/next-task.md` | How to pick the next task safely + current recommendation |
+| `docs/recovery/session/next-task.md` | How to pick the next task safely + current recommendation (the active-session queue; the `docs/recovery/session/` folder is the per-agent session-isolation record — SESSION-STATE.md tracks the active agent's identity, scope, owned files, and task states) |
 | `docs/recovery/definition-of-done.md` | Completion requirements (evidence-based) |
 | `docs/recovery/recovery-rules.md` | Rules of engagement for repairing this codebase |
 | `docs/recovery/unknowns.md` | Open questions that block decisions |

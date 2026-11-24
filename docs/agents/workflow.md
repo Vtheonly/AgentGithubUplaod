@@ -46,7 +46,7 @@ Before writing code:
 
 ## Stage 5 — IMPLEMENT
 
-- Set the task `IN Progress` in `task-registry.md` + `next-task.md` (commit the doc change).
+- Set the task `IN Progress` in `task-registry.md` + `docs/recovery/session/next-task.md` (commit the doc change).
 - Make the smallest coherent change; keep unrelated code untouched.
 - Follow the boundaries: business logic stays server-side; clients consume canonical paths.
 - Never disable tests/type-checking/lint; never weaken RLS; never add a silent fallback.

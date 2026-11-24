@@ -7,7 +7,7 @@
 | Status | Requirement |
 |---|---|
 | `READY` | Problem + expected behaviour fully understood; dependencies VERIFIED; no blocking unknown; plan exists |
-| `IN_PROGRESS` | Recorded in `task-registry.md` and `next-task.md` before the first code change |
+| `IN_PROGRESS` | Recorded in `task-registry.md` and `docs/recovery/session/next-task.md` before the first code change |
 | `IMPLEMENTED` | Code changed, committed (conventional message), scoped to the task only |
 | `TESTED` | The task's **Required tests** written AND passing, including regression coverage for the defect being fixed |
 | `VERIFIED` | **All** verification criteria met, with evidence recorded in `change-log.md` (test output, command, date, commit hash) |
