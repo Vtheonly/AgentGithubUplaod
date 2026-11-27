@@ -1,5 +1,7 @@
 # Unified cleanup plan
 
+**Immediate audit task:** [Trace competing and unfinished implementations by user outcome](NEXT-AUDIT-SESSION.md). Complete this discovery pass before choosing additional retirement cards.
+
 Use the current task card and verify every candidate on the implementation SHA. This publication contains the combined decisions and behavioral gates. The published tool reports remain available under the parent audit directory. The complete local inventories include 1,089 candidates and 5,914 duplication observations across both runs.
 
 | Working index | Purpose |
