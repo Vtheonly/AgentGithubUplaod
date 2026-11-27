@@ -1,0 +1,14 @@
+{
+  "name": "elimtiyaz-similarity-audit",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "scan": "python3 audit.py scan",
+    "review": "python3 audit.py review"
+  },
+  "dependencies": {
+    "fallow": "3.49.0",
+    "jscpd": "4.0.5",
+    "typescript": "5.7.3"
+  }
+}
