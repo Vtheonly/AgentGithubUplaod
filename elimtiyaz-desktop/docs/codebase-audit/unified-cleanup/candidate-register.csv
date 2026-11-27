@@ -1,0 +1,9 @@
+candidate,disposition,check,published_source
+pg,retain,backend equivalence runner imports Client,../UNUSED-CODE.md
+Nested empty Markdown file,verify before retirement,check globs and canonical renderer,../UNUSED-CODE.md
+Department screen,verify active replacement,exercise role-gated department CRUD,../UNUSED-CODE.md
+Autofill barrel,trace re-exports,exercise Ctrl+O and preserve implementation,../UNUSED-CODE.md
+Domain barrels,check all consumers,include financial runners and public aliases,../raw/knip-unused-files.txt
+Operational scripts,owner review,search CI and human runbooks before archival,../raw/knip-unused-files.txt
+Runtime and dev packages,trace each package,verify Vite configuration types and CLI entry points,../raw/knip.json
+Exports and types,review symbol by symbol,check internal and dynamic consumers,../raw/knip.json

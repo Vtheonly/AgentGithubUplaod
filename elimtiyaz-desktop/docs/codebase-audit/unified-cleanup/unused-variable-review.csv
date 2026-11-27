@@ -1,0 +1,2 @@
+rule,published_count,coverage,source
+@typescript-eslint/no-unused-vars,799,214 files,../raw/eslint.json

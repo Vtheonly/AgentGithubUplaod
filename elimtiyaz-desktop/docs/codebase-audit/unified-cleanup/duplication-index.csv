@@ -1,0 +1,10 @@
+family,first investigation,published_source
+Domain and Edge workflows,run parity fixtures on both implementations,../OPERATION-DUPLICATION.md
+Therapy and diagnostics,compare data permissions and billing side effects,../DUPLICATION.md
+Repository contracts and DTOs,verify wire and type compatibility,../semantic-duplication-and-model-analysis.md
+Large repository modules,trace one operation and preserve public imports,../ARCHITECTURE-REFACTORING-PLAN.md
+Desktop and website shared calculations,run identical financial and date fixtures,../raw/jscpd-cross-app-report.json
+Mocks and fixtures,verify offline login persistence and reconnect,../OPERATION-DUPLICATION.md
+Other exact matches,inspect both source spans,../raw/fallow-dupes-exact.json
+Other near matches,compare semantic differences and callers,../raw/fallow-dupes-near.json
+Other semantic matches,verify behavior before extraction,../raw/fallow-dupes-semantic.json
