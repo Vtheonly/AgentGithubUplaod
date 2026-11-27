@@ -1,0 +1,335 @@
+{
+  "generatedAt": "2026-11-27T14:05:53.520Z",
+  "totalExportedTypes": 1074,
+  "exactDuplicateGroups": [
+    {
+      "count": 5,
+      "types": [
+        "electron/backend-profile-contract.cts:106 BackendProfileWriteResult",
+        "electron/backend-profile-contract.cts:138 BackendProfileValidation",
+        "electron/preload.cts:105 ExternalOpenResult",
+        "src/core/result.ts:10 Result",
+        "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:560 SeedReadOutcome"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/reconcile-types.ts:9 ReconciliationSeverity",
+        "src/shared/ui/unified-modal/types.ts:21 AlertTone"
+      ]
+    },
+    {
+      "count": 5,
+      "types": [
+        "src/core/ai/artifacts.ts:140 ToolArtifact",
+        "src/domain/model/calendar.ts:133 CalendarEvent",
+        "src/shared/ui/textarea.tsx:4 TextareaProps",
+        "src/domain/calc/workflow/condition-evaluator.ts:44 ConditionNode",
+        "src/infrastructure/excel/import-config/extensions.ts:61 EntityMatchOutcome"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/core/format/id.ts:93 StudentIdentityInput",
+        "src/domain/model/person.ts:14 PersonNameParts"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/academic.ts:258 PromotionDecision",
+        "src/domain/model/re-enrollment.ts:34 ReEnrollmentFinalDecision"
+      ]
+    },
+    {
+      "count": 3,
+      "types": [
+        "src/domain/model/operations-workforce.ts:45 PurchaseRequestPriority",
+        "src/domain/model/operations.ts:35 AlertPriority",
+        "src/domain/model/workforce.ts:165 TaskPriority"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/parent.ts:10 Gender",
+        "src/shared/devtools/test-data/generators.ts:42 TestGender"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/payment.ts:279 AcademicCycleLegacy",
+        "src/domain/model/student.ts:24 AcademicLevel"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/pricing.ts:117 TuitionPricing",
+        "src/domain/model/pricing.ts:140 TransportPricing"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/therapy.ts:36 PsychologicalFollowUpStatus",
+        "src/domain/model/therapy.ts:221 SpeechTherapyFollowUpStatus"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/timetable.ts:221 TimetableConstraintSeverity",
+        "src/domain/model/timetable.ts:516 TimetableViolationSeverity"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:129 GradeRepository",
+        "src/domain/repository/repository.ts:299 GradeRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/repository.ts:1459 LLMAdapter",
+        "src/infrastructure/ai/llm-adapter.ts:47 LLMAdapter"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/repository.ts:1156 DateRangePreset",
+        "src/features/dashboard/academic-year-selector.tsx:36 DateRangePreset"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/features/dashboard/see-details-modal.tsx:218 DashboardData",
+        "src/features/dashboard/tabs/overview-tab.tsx:33 DashboardData"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/backend/ports.ts:185 PortMediaBucket",
+        "src/infrastructure/storage/media-vault.ts:34 MediaBucket"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/export/zip-reader.ts:16 ReadZipEntry",
+        "src/infrastructure/export/zip-writer.ts:60 ZipEntry"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/calc/ledger/non-tuition-charges.ts:163 RealSchoolServiceQualifier",
+        "src/infrastructure/mock/repositories/financial/charge-ops.ts:28 AdditionalServiceQualifier"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/calc/timetable/constraints.ts:557 CoverageGap",
+        "src/domain/calc/timetable/constraints.ts:631 CoverageExcess"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/excel/import-config/extensions.ts:131 ReconciliationHook",
+        "src/infrastructure/excel/import-config/extensions.ts:142 ImportSourceAdapter"
+      ]
+    }
+  ],
+  "sameMemberNameGroups": [
+    {
+      "count": 5,
+      "types": [
+        "electron/backend-profile-contract.cts:106 BackendProfileWriteResult",
+        "electron/backend-profile-contract.cts:138 BackendProfileValidation",
+        "electron/preload.cts:105 ExternalOpenResult",
+        "src/core/result.ts:10 Result",
+        "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:560 SeedReadOutcome"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/reconcile-types.ts:9 ReconciliationSeverity",
+        "src/shared/ui/unified-modal/types.ts:21 AlertTone"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/core/format/id.ts:93 StudentIdentityInput",
+        "src/domain/model/person.ts:14 PersonNameParts"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/academic.ts:258 PromotionDecision",
+        "src/domain/model/re-enrollment.ts:34 ReEnrollmentFinalDecision"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/ai.ts:164 AnomalySignal",
+        "src/domain/calc/expense/anomaly-signals.ts:37 ExpenseAnomalySignal"
+      ]
+    },
+    {
+      "count": 3,
+      "types": [
+        "src/domain/model/operations-workforce.ts:45 PurchaseRequestPriority",
+        "src/domain/model/operations.ts:35 AlertPriority",
+        "src/domain/model/workforce.ts:165 TaskPriority"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/parent.ts:10 Gender",
+        "src/shared/devtools/test-data/generators.ts:42 TestGender"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/payment.ts:357 DebtSummary",
+        "src/core/ai/analysis/insights.ts:333 DebtorInput"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/model/payment.ts:279 AcademicCycleLegacy",
+        "src/domain/model/student.ts:24 AcademicLevel"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:73 ClassRepository",
+        "src/domain/repository/repository.ts:264 ClassRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:82 SubjectRepository",
+        "src/domain/repository/repository.ts:273 SubjectRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:129 GradeRepository",
+        "src/domain/repository/repository.ts:299 GradeRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:142 AttendanceRepository",
+        "src/domain/repository/repository.ts:316 AttendanceRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/academic-repository.ts:184 HomeworkRepository",
+        "src/domain/repository/repository.ts:376 HomeworkRepository"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/repository.ts:109 CreateAccountInput",
+        "src/infrastructure/backend/ports.ts:114 PortCreateAccountInput"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/repository.ts:1459 LLMAdapter",
+        "src/infrastructure/ai/llm-adapter.ts:47 LLMAdapter"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/repository/repository.ts:1156 DateRangePreset",
+        "src/features/dashboard/academic-year-selector.tsx:36 DateRangePreset"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/features/dashboard/see-details-modal.tsx:218 DashboardData",
+        "src/features/dashboard/tabs/overview-tab.tsx:33 DashboardData"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/backend/ports.ts:192 PortUploadMediaResult",
+        "src/infrastructure/storage/media-vault.ts:73 UploadMediaResult"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/backend/ports.ts:185 PortMediaBucket",
+        "src/infrastructure/storage/media-vault.ts:34 MediaBucket"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/excel/reports.ts:134 DebtRow",
+        "src/infrastructure/receipt-pdf/global-reports.ts:147 GlobalDebtRow"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/infrastructure/export/zip-reader.ts:16 ReadZipEntry",
+        "src/infrastructure/export/zip-writer.ts:60 ZipEntry"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/domain/calc/ledger/non-tuition-charges.ts:163 RealSchoolServiceQualifier",
+        "src/infrastructure/mock/repositories/financial/charge-ops.ts:28 AdditionalServiceQualifier"
+      ]
+    },
+    {
+      "count": 2,
+      "types": [
+        "src/features/personnel/dashboards/role-dashboard-layout.tsx:53 RoleDashboardLayoutProps",
+        "src/features/personnel/dashboards/role-dashboard-template.tsx:47 RoleDashboardTemplateProps"
+      ]
+    },
+    {
+      "count": 3,
+      "types": [
+        "src/shared/ui/auto-form/types.ts:8 AutoFormFieldOption",
+        "src/shared/ui/entity-drawer/types.ts:3 EntityDrawerMetaItem",
+        "src/features/dashboard/components/analytics/data-inspector-lineage.ts:206 LineageIntermediate"
+      ]
+    }
+  ]
+}

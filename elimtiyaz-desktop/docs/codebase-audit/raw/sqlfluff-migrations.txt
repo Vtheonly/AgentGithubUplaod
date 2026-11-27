@@ -1,0 +1,25 @@
+WARNING    Length of file 'supabase/migrations/0001_initial_consolidated_schema.sql' is 1124324 bytes which is over the limit of 20000 bytes. Skipping to avoid parser lock. Users can increase this limit in their config by setting the 'large_file_skip_byte_limit' value, or disable by setting it to zero. 
+WARNING    Length of file 'supabase/migrations/0002_stage_a_dashboard_aggregation.sql' is 22746 bytes which is over the limit of 20000 bytes. Skipping to avoid parser lock. Users can increase this limit in their config by setting the 'large_file_skip_byte_limit' value, or disable by setting it to zero. 
+== [supabase/migrations/0003_read_reconcile_inputs.sql] FAIL
+L:  19 | P:   1 | LT05 | Line is too long (89 > 80). [layout.long_lines]
+L:  20 | P:   1 | LT05 | Line is too long (114 > 80). [layout.long_lines]
+L:  27 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  28 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  29 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  30 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  31 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  96 | P:  11 | CV06 | Semi-colon should be immediately after the statement.
+                       | [convention.terminator]
+L:  98 | P:   1 | LT05 | Line is too long (283 > 80). [layout.long_lines]
+== [supabase/migrations/0004_pull_installments_for_sync.sql] FAIL
+L:  40 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  41 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  42 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  43 | P:   1 | LT02 | Line should not be indented. [layout.indent]
+L:  44 | P:   1 | CP01 | Keywords must be consistently lower case.
+                       | [capitalisation.keywords]
+L:  63 | P:  11 | CV06 | Semi-colon should be immediately after the statement.
+                       | [convention.terminator]
+L:  65 | P:   1 | LT05 | Line is too long (305 > 80). [layout.long_lines]
+WARNING    Length of file 'supabase/migrations/0005_sync_apply_batch.sql' is 20977 bytes which is over the limit of 20000 bytes. Skipping to avoid parser lock. Users can increase this limit in their config by setting the 'large_file_skip_byte_limit' value, or disable by setting it to zero. 
+All Finished!

@@ -1,0 +1,4391 @@
+{
+  "keys": [
+    "_meta",
+    "boundary_call_violations",
+    "boundary_coverage_violations",
+    "boundary_violations",
+    "cascade_hidden",
+    "circular_dependencies",
+    "deprecated_exports_in_use",
+    "dev_dependencies_in_production",
+    "duplicate_exports",
+    "dynamic_segment_name_conflicts",
+    "elapsed_ms",
+    "empty_catalog_groups",
+    "entry_points",
+    "gate_outcomes",
+    "invalid_client_exports",
+    "kind",
+    "misconfigured_dependency_overrides",
+    "misplaced_directives",
+    "mixed_client_server_barrels",
+    "next_steps",
+    "package_cycles",
+    "policy_violations",
+    "private_type_leaks",
+    "re_export_cycles",
+    "route_collisions",
+    "schema_version",
+    "stale_suppressions",
+    "summary",
+    "test_only_dependencies",
+    "total_issues",
+    "type_only_dependencies",
+    "unlisted_binaries",
+    "unlisted_dependencies",
+    "unresolved_catalog_references",
+    "unresolved_imports",
+    "unused_catalog_entries",
+    "unused_class_members",
+    "unused_dependencies",
+    "unused_dependency_overrides",
+    "unused_dev_dependencies",
+    "unused_enum_members",
+    "unused_exports",
+    "unused_files",
+    "unused_optional_dependencies",
+    "unused_types",
+    "version",
+    "workspace_diagnostics"
+  ],
+  "unused_counts": {
+    "unused_files": 85,
+    "unused_exports": 486,
+    "unused_types": 215,
+    "unused_class_members": 43,
+    "duplicate_exports": 47,
+    "circular_dependencies": 9
+  },
+  "unused_files": [
+    {
+      "path": "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+      "finding_id": "dc1:unused-file:895e13d383f63a07",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/backend/backend_runner.ts",
+      "finding_id": "dc1:unused-file:444f382b7d43c853",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/backend_rpc_equivalence.test.ts",
+      "finding_id": "dc1:unused-file:ffa7e812f4160f5a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/comparator.ts",
+      "finding_id": "dc1:unused-file:dbbe86157b49bac9",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/tier4_comparator.ts",
+      "finding_id": "dc1:unused-file:cb263098490d52bc",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/triple_comparator.ts",
+      "finding_id": "dc1:unused-file:ff8b8ea700ede60a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/desktop/desktop_runner.ts",
+      "finding_id": "dc1:unused-file:e1241a0f5098d8e7",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/generators/scenario_generator.ts",
+      "finding_id": "dc1:unused-file:c7a5817af0f69c94",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "financial-tests/equivalence/integration/sync_round_trip.ts",
+      "finding_id": "dc1:unused-file:b39da89427b520a0",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/build-test-fixture.ts",
+      "finding_id": "dc1:unused-file:210c9915276a398a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/check-supabase.mjs",
+      "finding_id": "dc1:unused-file:b6d2449639d7d67b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/check-supabase.ts",
+      "finding_id": "dc1:unused-file:bbcf63ab1f232ab0",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/clean-slate-reset.mjs",
+      "finding_id": "dc1:unused-file:bc2eaa240ddd944f",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/generate_analytics_visuals_corpus.ts",
+      "finding_id": "dc1:unused-file:43265ad54858b12c",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/generate_executive_statistics_corpus.ts",
+      "finding_id": "dc1:unused-file:d451674d95adf3d4",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/apply-i18n.mjs",
+      "finding_id": "dc1:unused-file:8ba419f92b1ac948",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/check-parity.mjs",
+      "finding_id": "dc1:unused-file:6841ed17cb1668cb",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/collect-unique-strings.mjs",
+      "finding_id": "dc1:unused-file:b672c715b680f57e",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/scan-hardcoded-strings.mjs",
+      "finding_id": "dc1:unused-file:93ad32d9f666c6bc",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/translate-strings.mjs",
+      "finding_id": "dc1:unused-file:5f0af51367b347f6",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/i18n/translate-templates.mjs",
+      "finding_id": "dc1:unused-file:bee16138ce936abd",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/realtime-probe.mjs",
+      "finding_id": "dc1:unused-file:2ea0d255d2d474e2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/run-egress-harness.mjs",
+      "finding_id": "dc1:unused-file:b5709deccac048f2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-368-live-export-e2e.ts",
+      "finding_id": "dc1:unused-file:1e39f0d417407ef4",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-368-verify-live-summary.ts",
+      "finding_id": "dc1:unused-file:5bcf3dde31f59a53",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-396-crud-live-e2e.ts",
+      "finding_id": "dc1:unused-file:b2d75a1967a9ef7b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-397-batch-register-live-e2e.ts",
+      "finding_id": "dc1:unused-file:d86b6ca9ddba26fa",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-398-registration-live-e2e.ts",
+      "finding_id": "dc1:unused-file:ed0c5d5a801b03ae",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-399-autofill-data-live-e2e.ts",
+      "finding_id": "dc1:unused-file:3a346cf98a8f2181",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-400-realtime-probe.mjs",
+      "finding_id": "dc1:unused-file:126ea8db41b9c1c2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-408-fake-academic-e2e.ts",
+      "finding_id": "dc1:unused-file:751f2386e575ce8b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-412-live-forecast-verification.ts",
+      "finding_id": "dc1:unused-file:f7078a44956b4738",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-412-payroll-forecast-e2e.ts",
+      "finding_id": "dc1:unused-file:752b181f5e03197e",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-415-live-verification.mjs",
+      "finding_id": "dc1:unused-file:7d56303eb456ad8a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-416-purge-live-verification.mjs",
+      "finding_id": "dc1:unused-file:05efe30cfa35cf63",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-420-final-verification.ts",
+      "finding_id": "dc1:unused-file:d0f26c09ae21307b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-420-live-verification.ts",
+      "finding_id": "dc1:unused-file:864540c28a11493b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-live-forensics.mjs",
+      "finding_id": "dc1:unused-file:f9db93f4cd23cfae",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-live-forensics2.mjs",
+      "finding_id": "dc1:unused-file:3516bdf73cb2dcde",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-live-verification.mts",
+      "finding_id": "dc1:unused-file:e8b6f6294da7c8dd",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-page-size-probe.mjs",
+      "finding_id": "dc1:unused-file:b07a82b1c8a5f915",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-preflight-probe.mjs",
+      "finding_id": "dc1:unused-file:0a1a9ca02a410179",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-421-wire-semantics.mjs",
+      "finding_id": "dc1:unused-file:2b2f8ac4d69af7aa",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-422-e2e-simulation.mjs",
+      "finding_id": "dc1:unused-file:a3773d25ba37f722",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-422-finance-zeros-probe.mjs",
+      "finding_id": "dc1:unused-file:7938b0553ec02aa7",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-422-flakiness-meter.mjs",
+      "finding_id": "dc1:unused-file:747d1491d91e332c",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-423-class-sweep-probe.mjs",
+      "finding_id": "dc1:unused-file:7f2381db22066b5d",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-423-post-fix-verification.mjs",
+      "finding_id": "dc1:unused-file:db9751e49dc72cc3",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-424-consistency-probe.mjs",
+      "finding_id": "dc1:unused-file:53030066d4ec8c45",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-424-tranche-attribution-analysis.ts",
+      "finding_id": "dc1:unused-file:6bf58469a871d899",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-live-reimport.ts",
+      "finding_id": "dc1:unused-file:6c916f344eaef0bf",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-live-verify.mjs",
+      "finding_id": "dc1:unused-file:9c4cfc1663a4b191",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-match-debug.mjs",
+      "finding_id": "dc1:unused-file:d768845231433078",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-no-4th-tranche-probe.mjs",
+      "finding_id": "dc1:unused-file:3b16a589d1d42bda",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-post-migration-verify.mjs",
+      "finding_id": "dc1:unused-file:fde77d37e6fc7cd0",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-purge-safety-check.mjs",
+      "finding_id": "dc1:unused-file:f99706d96fda051a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-425-q-column-diagnostic.mjs",
+      "finding_id": "dc1:unused-file:635517921f9c4131",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-433-live-reimport.ts",
+      "finding_id": "dc1:unused-file:8e0ca5f2eeba296c",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-433-purge-execute.mjs",
+      "finding_id": "dc1:unused-file:ec9023097d26e2cf",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-434-wave-reconciliation-probe.ts",
+      "finding_id": "dc1:unused-file:235e50fa9c94a6ae",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-441-debug-groups.ts",
+      "finding_id": "dc1:unused-file:b6cfa447ba4d1aa2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-441-live-e2e.ts",
+      "finding_id": "dc1:unused-file:358bcd6db2f4dff9",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-441-live-problem-run.ts",
+      "finding_id": "dc1:unused-file:5a4977fbe751003c",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-441-reproduce-17.ts",
+      "finding_id": "dc1:unused-file:9ff8fa4f2ac77706",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-442-live-verify.mjs",
+      "finding_id": "dc1:unused-file:d6df61b79df4dd44",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-447-live-verify.mjs",
+      "finding_id": "dc1:unused-file:cf920ffbbed8f421",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-487-workflow-e2e.ts",
+      "finding_id": "dc1:unused-file:5b0d50752aee37e4",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t-615-excel-datalane-verify.ts",
+      "finding_id": "dc1:unused-file:e3f1c653872f6b15",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t505-file-workflows-live.ts",
+      "finding_id": "dc1:unused-file:9944a238b65cc66e",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t505-sync-backup-repro.ts",
+      "finding_id": "dc1:unused-file:506183d5a29ace69",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t508-recovery-funnel-live.ts",
+      "finding_id": "dc1:unused-file:3275de0325704af2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t511-webhook-diagnostics-live.ts",
+      "finding_id": "dc1:unused-file:cb082728b06345c2",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t528-delta-probe.ts",
+      "finding_id": "dc1:unused-file:cb242f839144be44",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t528-false-positive-probe.ts",
+      "finding_id": "dc1:unused-file:8b4a81f839d2bd11",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t528-false-positive-probe2.ts",
+      "finding_id": "dc1:unused-file:9710fc165f56dc61",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t528-false-positives-live.ts",
+      "finding_id": "dc1:unused-file:f97c0288effb4598",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t529-diagnostics-purpose-live.ts",
+      "finding_id": "dc1:unused-file:c85faf2b84d3a52e",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t529-diagnostics-purpose-probe.ts",
+      "finding_id": "dc1:unused-file:15200832fcf902d6",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/t546-katex-render-check.mts",
+      "finding_id": "dc1:unused-file:7d75b691f7442a07",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/timetable-packaging-smoke.mjs",
+      "finding_id": "dc1:unused-file:b6fb6c6912a3a67d",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/verify_t-310_e2e.js",
+      "finding_id": "dc1:unused-file:4b4516994237784d",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "scripts/verify_t-338_live.ts",
+      "finding_id": "dc1:unused-file:dadfbc622535519b",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "src/features/academics/elimtiyaz-desktop/src/shared/ui/markdown-view.tsx",
+      "finding_id": "dc1:unused-file:13e59215c1bae501",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "src/features/personnel/management/department-management.tsx",
+      "finding_id": "dc1:unused-file:edd2ffef5a52c760",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "path": "src/shared/devtools/test-data/index.ts",
+      "finding_id": "dc1:unused-file:54124451c281664a",
+      "actions": [
+        {
+          "type": "delete-file",
+          "auto_fixable": false,
+          "description": "Delete this file",
+          "note": "File deletion may remove runtime functionality not visible to static analysis"
+        },
+        {
+          "type": "suppress-file",
+          "auto_fixable": false,
+          "description": "Suppress with a file-level comment at the top of the file",
+          "comment": "// fallow-ignore-file unused-file"
+        }
+      ],
+      "effective_severity": "error"
+    }
+  ],
+  "unused_dependencies": [
+    {
+      "package_name": "@radix-ui/react-checkbox",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 37,
+      "finding_id": "dc1:unused-dependency:5cde8dbda3081612",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@radix-ui/react-checkbox\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@radix-ui/react-checkbox",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "package_name": "@radix-ui/react-popover",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 42,
+      "finding_id": "dc1:unused-dependency:919cb9368f35defe",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@radix-ui/react-popover\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@radix-ui/react-popover",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "package_name": "@radix-ui/react-toast",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 51,
+      "finding_id": "dc1:unused-dependency:cf84fedbf5858068",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@radix-ui/react-toast\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@radix-ui/react-toast",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "package_name": "@supabase/ssr",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 53,
+      "finding_id": "dc1:unused-dependency:f5975b21c03424fc",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@supabase/ssr\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@supabase/ssr",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "package_name": "cmdk",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 59,
+      "finding_id": "dc1:unused-dependency:1704428655b00b60",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"cmdk\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "cmdk",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "package_name": "zustand",
+      "location": "dependencies",
+      "path": "package.json",
+      "line": 79,
+      "finding_id": "dc1:unused-dependency:3191cabc7ee6edee",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from dependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"zustand\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "zustand",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "error"
+    }
+  ],
+  "unused_dev_dependencies": [
+    {
+      "package_name": "@typescript-eslint/eslint-plugin",
+      "location": "devDependencies",
+      "path": "package.json",
+      "line": 88,
+      "finding_id": "dc1:unused-dev-dependency:c145338638623bac",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from devDependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@typescript-eslint/eslint-plugin\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@typescript-eslint/eslint-plugin",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "warn"
+    },
+    {
+      "package_name": "@typescript-eslint/parser",
+      "location": "devDependencies",
+      "path": "package.json",
+      "line": 89,
+      "finding_id": "dc1:unused-dev-dependency:dc7eb2a8ed83f3ec",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from devDependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"@typescript-eslint/parser\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "@typescript-eslint/parser",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "warn"
+    },
+    {
+      "package_name": "vite-plugin-electron",
+      "location": "devDependencies",
+      "path": "package.json",
+      "line": 106,
+      "finding_id": "dc1:unused-dev-dependency:f2161f19260a2ad0",
+      "actions": [
+        {
+          "type": "remove-dependency",
+          "auto_fixable": true,
+          "description": "Remove from devDependencies in package.json"
+        },
+        {
+          "type": "add-to-config",
+          "auto_fixable": false,
+          "description": "Add \"vite-plugin-electron\" to ignoreDependencies in fallow config",
+          "config_key": "ignoreDependencies",
+          "value": "vite-plugin-electron",
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreDependencies/items"
+        }
+      ],
+      "effective_severity": "warn"
+    }
+  ],
+  "duplicate_exports": [
+    {
+      "export_name": "AccountBalance",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 178,
+          "col": 17
+        },
+        {
+          "path": "src/domain/model/ledger.ts",
+          "line": 116,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:c70527fabb9b29fa",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/ledger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "AllocationResult",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 407,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/payment/waterfall-allocator.ts",
+          "line": 20,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:9f3389586983cbc6",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/waterfall-allocator.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "AttendanceRepository",
+      "locations": [
+        {
+          "path": "src/domain/repository/academic-repository.ts",
+          "line": 142,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/repository.ts",
+          "line": 316,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/workforce-repository.ts",
+          "line": 129,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:a7a373b8d134bd59",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/repository/academic-repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/workforce-repository.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "AttributionSource",
+      "locations": [
+        {
+          "path": "src/domain/calc/ledger/debt-aging.ts",
+          "line": 333,
+          "col": 12
+        },
+        {
+          "path": "src/domain/calc/ledger/year-history.ts",
+          "line": 149,
+          "col": 12
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:62cd8ffa81d2ec19",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/ledger/debt-aging.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/ledger/year-history.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "BACKUP_PASSPHRASE_KEY",
+      "locations": [
+        {
+          "path": "src/domain/model/backup.ts",
+          "line": 74,
+          "col": 13
+        },
+        {
+          "path": "src/infrastructure/backup/backup-service.ts",
+          "line": 58,
+          "col": 13
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:d12feb471472b504",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/model/backup.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/infrastructure/backup/backup-service.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "ClassRepository",
+      "locations": [
+        {
+          "path": "src/domain/repository/academic-repository.ts",
+          "line": 73,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/repository.ts",
+          "line": 264,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:f6625c7395d55fc7",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/repository/academic-repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/repository.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "DashboardData",
+      "locations": [
+        {
+          "path": "src/features/dashboard/see-details-modal.tsx",
+          "line": 218,
+          "col": 17
+        },
+        {
+          "path": "src/features/dashboard/tabs/overview-tab.tsx",
+          "line": 33,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:96ca933b5e90138d",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/features/dashboard/see-details-modal.tsx",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/dashboard/tabs/overview-tab.tsx",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "DiscountEvaluation",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 642,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/pricing/discount-engine.ts",
+          "line": 29,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:f28fa29f98bcd4fa",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/pricing/discount-engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "EvaluateAllDiscountsParams",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 681,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/pricing/discount-engine.ts",
+          "line": 37,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:aa0b5444e2601935",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/pricing/discount-engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "FACTORY_DEFAULT_SUPABASE_PUBLIC_KEY",
+      "locations": [
+        {
+          "path": "electron/backend-profile-contract.cts",
+          "line": 51,
+          "col": 13
+        },
+        {
+          "path": "scripts/package-target.mjs",
+          "line": 27,
+          "col": 13
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:5721e24e0ba6d17d",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "electron/backend-profile-contract.cts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "scripts/package-target.mjs",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "FACTORY_DEFAULT_SUPABASE_URL",
+      "locations": [
+        {
+          "path": "electron/backend-profile-contract.cts",
+          "line": 45,
+          "col": 13
+        },
+        {
+          "path": "scripts/package-target.mjs",
+          "line": 26,
+          "col": 13
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:52ad72f9bfe10193",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "electron/backend-profile-contract.cts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "scripts/package-target.mjs",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "GradeRepository",
+      "locations": [
+        {
+          "path": "src/domain/repository/academic-repository.ts",
+          "line": 129,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/repository.ts",
+          "line": 299,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:763cd343078b4b1c",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/repository/academic-repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/repository.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "HomeworkRepository",
+      "locations": [
+        {
+          "path": "src/domain/repository/academic-repository.ts",
+          "line": 184,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/repository.ts",
+          "line": 376,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:4f08807606706a0f",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/repository/academic-repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/repository.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "InspectTrigger",
+      "locations": [
+        {
+          "path": "src/features/dashboard/components/analytics/data-inspector-core.tsx",
+          "line": 1006,
+          "col": 16
+        },
+        {
+          "path": "src/features/dashboard/components/analytics/data-inspector.tsx",
+          "line": 38,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:7d5daed42294da7b",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/features/dashboard/components/analytics/data-inspector-core.tsx",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/dashboard/components/analytics/data-inspector.tsx",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "InstallmentAllocation",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 397,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/payment/waterfall-allocator.ts",
+          "line": 10,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:e2caae45e1d2ad52",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/waterfall-allocator.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "LedgerEntry",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 118,
+          "col": 17
+        },
+        {
+          "path": "src/domain/model/ledger.ts",
+          "line": 73,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:b2b9c1879cc27a2a",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/ledger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "LedgerEntryType",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 43,
+          "col": 12
+        },
+        {
+          "path": "src/domain/model/ledger.ts",
+          "line": 51,
+          "col": 12
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:0211fe7c263f412a",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/ledger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "LedgerSourceType",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 51,
+          "col": 12
+        },
+        {
+          "path": "src/domain/model/ledger.ts",
+          "line": 60,
+          "col": 12
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:41024ea26cde3ad1",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/ledger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "LogLevel",
+      "locations": [
+        {
+          "path": "src/core/logger.ts",
+          "line": 12,
+          "col": 12
+        },
+        {
+          "path": "src/infrastructure/excel/import-engine/utils/logger.ts",
+          "line": 14,
+          "col": 12
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:845a679d836d2400",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/core/logger.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/infrastructure/excel/import-engine/utils/logger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "MONTH_LABELS_FR",
+      "locations": [
+        {
+          "path": "src/domain/calc/shared/dates.ts",
+          "line": 17,
+          "col": 13
+        },
+        {
+          "path": "src/features/dashboard/components/analytics/analytics-derivations.ts",
+          "line": 57,
+          "col": 13
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:6d1290c38b44bf2c",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/shared/dates.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/dashboard/components/analytics/analytics-derivations.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "ParentLedgerSummary",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 305,
+          "col": 17
+        },
+        {
+          "path": "src/domain/model/ledger.ts",
+          "line": 155,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:8afd7376efc8807e",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/ledger.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "PaymentPlan",
+      "locations": [
+        {
+          "path": "src/core/ai/analysis/insights.ts",
+          "line": 519,
+          "col": 17
+        },
+        {
+          "path": "src/domain/model/payment.ts",
+          "line": 95,
+          "col": 12
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:e46ba5d14a71b500",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/core/ai/analysis/insights.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/model/payment.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "RevertAllocation",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 519,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/payment/lifo-reversal.ts",
+          "line": 15,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:393ffaeb6c7863bc",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/lifo-reversal.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "RevertAllocationResult",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 528,
+          "col": 17
+        },
+        {
+          "path": "src/domain/calc/payment/lifo-reversal.ts",
+          "line": 25,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:0643b11d6deefd97",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/lifo-reversal.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "SubjectRepository",
+      "locations": [
+        {
+          "path": "src/domain/repository/academic-repository.ts",
+          "line": 82,
+          "col": 17
+        },
+        {
+          "path": "src/domain/repository/repository.ts",
+          "line": 273,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:85cd4c0f3034e10b",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/repository/academic-repository.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/repository/repository.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "SwitchRoute",
+      "locations": [
+        {
+          "path": "src/domain/calc/workflow/dry-run.ts",
+          "line": 166,
+          "col": 17
+        },
+        {
+          "path": "supabase/functions/workflow-execute/engine.ts",
+          "line": 683,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:0b1cb4fcc1c8a5c8",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/workflow/dry-run.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "supabase/functions/workflow-execute/engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "TrancheWave",
+      "locations": [
+        {
+          "path": "src/features/dashboard/components/analytics/executive-statistics.ts",
+          "line": 107,
+          "col": 17
+        },
+        {
+          "path": "src/features/financials/installment-schedule-tab.tsx",
+          "line": 143,
+          "col": 17
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:92cf084097b10744",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/features/dashboard/components/analytics/executive-statistics.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/financials/installment-schedule-tab.tsx",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "allocatePaymentToInstallments",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 424,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/payment/waterfall-allocator.ts",
+          "line": 34,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:9edd781a0b5f814f",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/waterfall-allocator.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "computeAccountBalance",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 195,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/ledger/balance.ts",
+          "line": 39,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:91bfd33c78c82bf4",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/ledger/balance.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "computeParentSummary",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 322,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/ledger/balance.ts",
+          "line": 141,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:ebb30c0e67d150f9",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/ledger/balance.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "daysBetweenFloor",
+      "locations": [
+        {
+          "path": "src/domain/calc/shared/dates.ts",
+          "line": 42,
+          "col": 16
+        },
+        {
+          "path": "src/features/dashboard/components/analytics/executive-statistics.ts",
+          "line": 77,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:e8919252bfcde151",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/shared/dates.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/dashboard/components/analytics/executive-statistics.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "deleteArchive",
+      "locations": [
+        {
+          "path": "src/infrastructure/backup/backup-service.ts",
+          "line": 734,
+          "col": 22
+        },
+        {
+          "path": "src/infrastructure/backup/indexed-db-vault.ts",
+          "line": 190,
+          "col": 22
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:f9eddd5a737ec0c1",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/infrastructure/backup/backup-service.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/infrastructure/backup/indexed-db-vault.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "deriveAccountId",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 164,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/ledger/account-id.ts",
+          "line": 23,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:f55f1d56eebfb436",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/ledger/account-id.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "deriveTrancheWaves",
+      "locations": [
+        {
+          "path": "src/features/dashboard/components/analytics/executive-statistics.ts",
+          "line": 173,
+          "col": 16
+        },
+        {
+          "path": "src/features/financials/installment-schedule-tab.tsx",
+          "line": 236,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:5dfb362e3006ce68",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/features/dashboard/components/analytics/executive-statistics.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/financials/installment-schedule-tab.tsx",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "deterministicActivationCode",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 801,
+          "col": 16
+        },
+        {
+          "path": "src/core/format/id.ts",
+          "line": 71,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:ee619639420d1781",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/core/format/id.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "deterministicParentCode",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 782,
+          "col": 16
+        },
+        {
+          "path": "src/core/format/id.ts",
+          "line": 125,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:a2ef7c209f53c021",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/core/format/id.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "evaluateAllSystemDiscounts",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 711,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/pricing/discount-engine.ts",
+          "line": 80,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:03559672f659708a",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/pricing/discount-engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "installmentRemaining",
+      "locations": [
+        {
+          "path": "src/domain/calc/payment/queries.ts",
+          "line": 37,
+          "col": 16
+        },
+        {
+          "path": "src/features/dashboard/components/analytics/executive-statistics.ts",
+          "line": 92,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:70cd07f02444009d",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/payment/queries.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/features/dashboard/components/analytics/executive-statistics.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "parseSwitchRoutes",
+      "locations": [
+        {
+          "path": "src/domain/calc/workflow/dry-run.ts",
+          "line": 176,
+          "col": 16
+        },
+        {
+          "path": "supabase/functions/workflow-execute/engine.ts",
+          "line": 688,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:3edc77ad1fec43cc",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/workflow/dry-run.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "supabase/functions/workflow-execute/engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "purgeExpired",
+      "locations": [
+        {
+          "path": "src/infrastructure/backup/backup-service.ts",
+          "line": 686,
+          "col": 22
+        },
+        {
+          "path": "src/infrastructure/backup/indexed-db-vault.ts",
+          "line": 258,
+          "col": 22
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:7cca5e7e72d105b6",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/infrastructure/backup/backup-service.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/infrastructure/backup/indexed-db-vault.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "reconcileLedger",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 909,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/reconcile/index.ts",
+          "line": 63,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:99fc03666e59da7a",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/reconcile/index.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "reevaluateInstallmentStatus",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 506,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/payment/lifo-reversal.ts",
+          "line": 43,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:6a517e43a856b693",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/lifo-reversal.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "revertPaymentAllocation",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 535,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/payment/lifo-reversal.ts",
+          "line": 58,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:bc814af7bd8be480",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/payment/lifo-reversal.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "splitNetTuitionByOfficialSchedule",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 602,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/pricing/tuition.ts",
+          "line": 105,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:41b4e5535375617f",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/pricing/tuition.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "stableHash",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 762,
+          "col": 16
+        },
+        {
+          "path": "src/core/format/id.ts",
+          "line": 111,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:31246cb926226a9f",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/core/format/id.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "sumDiscounts",
+      "locations": [
+        {
+          "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+          "line": 752,
+          "col": 16
+        },
+        {
+          "path": "src/domain/calc/pricing/discount-engine.ts",
+          "line": 119,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:e021e7459f6f2732",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "src/domain/calc/pricing/discount-engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    },
+    {
+      "export_name": "topologicalOrder",
+      "locations": [
+        {
+          "path": "src/domain/calc/workflow/dry-run.ts",
+          "line": 497,
+          "col": 16
+        },
+        {
+          "path": "supabase/functions/workflow-execute/engine.ts",
+          "line": 608,
+          "col": 16
+        }
+      ],
+      "finding_id": "dc1:duplicate-export:af0f589cb7aac1d2",
+      "actions": [
+        {
+          "type": "add-to-config",
+          "auto_fixable": true,
+          "description": "Add an ignoreExports rule so these files are excluded from duplicate-export grouping (use when this duplication is an intentional namespace-barrel API).",
+          "config_key": "ignoreExports",
+          "value": [
+            {
+              "file": "src/domain/calc/workflow/dry-run.ts",
+              "exports": [
+                "*"
+              ]
+            },
+            {
+              "file": "supabase/functions/workflow-execute/engine.ts",
+              "exports": [
+                "*"
+              ]
+            }
+          ],
+          "value_schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json#/properties/ignoreExports"
+        },
+        {
+          "type": "remove-duplicate",
+          "auto_fixable": false,
+          "description": "Keep one canonical export location and remove the others",
+          "note": "If every location is the sole `index.*` of its directory, this is likely an intentional namespace-barrel API. Prefer adding these files to `ignoreExports` over removing exports."
+        },
+        {
+          "type": "suppress-line",
+          "auto_fixable": false,
+          "description": "Suppress with an inline comment above the line",
+          "comment": "// fallow-ignore-next-line duplicate-export",
+          "scope": "per-location"
+        }
+      ],
+      "effective_severity": "error"
+    }
+  ]
+}

@@ -1,0 +1,5422 @@
+{
+  "files_analyzed": 1167,
+  "functions_analyzed": 26909,
+  "functions_above_threshold": 939,
+  "severity_counts": {
+    "critical": 272,
+    "high": 268,
+    "moderate": 399
+  },
+  "average_maintainability": 86.6,
+  "worst_300_functions": [
+    {
+      "path": "src/features/dashboard/components/analytics/data-inspector-lineage.ts",
+      "name": "buildResolution",
+      "line": 407,
+      "cyclomatic": 201,
+      "cognitive": 291,
+      "line_count": 527,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/sync/default-push-handler.ts",
+      "name": "defaultPushHandler",
+      "line": 73,
+      "cyclomatic": 187,
+      "cognitive": 140,
+      "line_count": 296,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+      "name": "runCrudIntegrationTests",
+      "line": 153,
+      "cyclomatic": 147,
+      "cognitive": 169,
+      "line_count": 935,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-408-fake-academic-e2e.ts",
+      "name": "main",
+      "line": 104,
+      "cyclomatic": 135,
+      "cognitive": 146,
+      "line_count": 974,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/desktop/desktop_runner.ts",
+      "name": "runOperation",
+      "line": 381,
+      "cyclomatic": 118,
+      "cognitive": 124,
+      "line_count": 1195,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/financials/unified-payment-modal.tsx",
+      "name": "UnifiedPaymentModal",
+      "line": 115,
+      "cyclomatic": 114,
+      "cognitive": 144,
+      "line_count": 1198,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/engine.ts",
+      "name": "executeWorkflowDefinition",
+      "line": 709,
+      "cyclomatic": 105,
+      "cognitive": 187,
+      "line_count": 286,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/engine.ts",
+      "name": "validateWorkflowDefinition",
+      "line": 136,
+      "cyclomatic": 100,
+      "cognitive": 168,
+      "line_count": 185,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/approve-signup-request/index.ts",
+      "name": "<arrow>",
+      "line": 76,
+      "cyclomatic": 97,
+      "cognitive": 112,
+      "line_count": 581,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/ai-proxy/index.ts",
+      "name": "<arrow>",
+      "line": 83,
+      "cyclomatic": 89,
+      "cognitive": 108,
+      "line_count": 398,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/ledger/year-history.ts",
+      "name": "computeParentYearHistory",
+      "line": 566,
+      "cyclomatic": 76,
+      "cognitive": 101,
+      "line_count": 384,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-412-payroll-forecast-e2e.ts",
+      "name": "main",
+      "line": 193,
+      "cyclomatic": 74,
+      "cognitive": 28,
+      "line_count": 228,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/backup-tab.tsx",
+      "name": "BackupTab",
+      "line": 187,
+      "cyclomatic": 74,
+      "cognitive": 93,
+      "line_count": 1190,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/academics/timetable/timetable-tab.tsx",
+      "name": "TimetableTab",
+      "line": 101,
+      "cyclomatic": 73,
+      "cognitive": 93,
+      "line_count": 1134,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/i18n/apply-i18n.mjs",
+      "name": "visit",
+      "line": 225,
+      "cyclomatic": 71,
+      "cognitive": 124,
+      "line_count": 99,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/service-pricing-profile.ts",
+      "name": "servicePricingProfiles",
+      "line": 333,
+      "cyclomatic": 71,
+      "cognitive": 114,
+      "line_count": 339,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/ui/t-e65-title-eradication.test.tsx",
+      "name": "findNativeTitleSites",
+      "line": 160,
+      "cyclomatic": 67,
+      "cognitive": 237,
+      "line_count": 94,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditConfiguredPriceCompliance",
+      "line": 1683,
+      "cyclomatic": 66,
+      "cognitive": 96,
+      "line_count": 312,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/timetable/feasibility.ts",
+      "name": "analyzeTimetableFeasibility",
+      "line": 234,
+      "cyclomatic": 66,
+      "cognitive": 123,
+      "line_count": 352,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t529-diagnostics-purpose-live.ts",
+      "name": "main",
+      "line": 71,
+      "cyclomatic": 61,
+      "cognitive": 48,
+      "line_count": 248,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/approvals-tab.tsx",
+      "name": "DecisionModal",
+      "line": 681,
+      "cyclomatic": 61,
+      "cognitive": 68,
+      "line_count": 802,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "name": "flushPendingBatches",
+      "line": 292,
+      "cyclomatic": 61,
+      "cognitive": 107,
+      "line_count": 292,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/tools/analysis-tools.ts",
+      "name": "executeAnalysisTool",
+      "line": 246,
+      "cyclomatic": 59,
+      "cognitive": 123,
+      "line_count": 416,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/tools/system-tools.ts",
+      "name": "executeCoreTool",
+      "line": 367,
+      "cyclomatic": 59,
+      "cognitive": 78,
+      "line_count": 478,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/relocate-auth.mjs",
+      "name": "cliMain",
+      "line": 873,
+      "cyclomatic": 57,
+      "cognitive": 89,
+      "line_count": 119,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/run-overdue-scan/index.ts",
+      "name": "<arrow>",
+      "line": 97,
+      "cyclomatic": 57,
+      "cognitive": 113,
+      "line_count": 296,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t529-diagnostics-purpose-probe.ts",
+      "name": "main",
+      "line": 62,
+      "cyclomatic": 55,
+      "cognitive": 68,
+      "line_count": 247,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/timetable/constraints.ts",
+      "name": "aggregateViolations",
+      "line": 292,
+      "cyclomatic": 55,
+      "cognitive": 113,
+      "line_count": 226,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/index.ts",
+      "name": "<arrow>",
+      "line": 107,
+      "cyclomatic": 52,
+      "cognitive": 48,
+      "line_count": 348,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/operational-query-console.tsx",
+      "name": "Student360Modal",
+      "line": 222,
+      "cyclomatic": 51,
+      "cognitive": 71,
+      "line_count": 659,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/excel-import-modal.tsx",
+      "name": "ExcelImportModal",
+      "line": 79,
+      "cyclomatic": 50,
+      "cognitive": 61,
+      "line_count": 894,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+      "name": "update",
+      "line": 490,
+      "cyclomatic": 50,
+      "cognitive": 60,
+      "line_count": 58,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/backend/backend_runner.ts",
+      "name": "runScenario",
+      "line": 222,
+      "cyclomatic": 48,
+      "cognitive": 42,
+      "line_count": 218,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/tier4_comparator.ts",
+      "name": "deepDiff",
+      "line": 276,
+      "cyclomatic": 48,
+      "cognitive": 71,
+      "line_count": 94,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/infrastructure/t-397-batch-register-bulk.test.ts",
+      "name": "rpc",
+      "line": 101,
+      "cyclomatic": 48,
+      "cognitive": 21,
+      "line_count": 146,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+      "name": "runOperation",
+      "line": 250,
+      "cyclomatic": 47,
+      "cognitive": 58,
+      "line_count": 364,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/workflow/dry-run.ts",
+      "name": "dryRunWorkflow",
+      "line": 284,
+      "cyclomatic": 47,
+      "cognitive": 104,
+      "line_count": 209,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/tools/workflow-tools.ts",
+      "name": "executeWorkflowTool",
+      "line": 144,
+      "cyclomatic": 46,
+      "cognitive": 83,
+      "line_count": 372,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/receipt-pdf/payment-receipt.ts",
+      "name": "generatePaymentReceiptPdf",
+      "line": 94,
+      "cyclomatic": 46,
+      "cognitive": 72,
+      "line_count": 300,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-timetable-repository.ts",
+      "name": "generateTimetable",
+      "line": 748,
+      "cyclomatic": 46,
+      "cognitive": 57,
+      "line_count": 317,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/sync/sync-service.ts",
+      "name": "drain",
+      "line": 511,
+      "cyclomatic": 45,
+      "cognitive": 78,
+      "line_count": 218,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/create-user-account/index.ts",
+      "name": "<arrow>",
+      "line": 131,
+      "cyclomatic": 45,
+      "cognitive": 44,
+      "line_count": 235,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-487-workflow-e2e.ts",
+      "name": "phase4",
+      "line": 457,
+      "cyclomatic": 44,
+      "cognitive": 20,
+      "line_count": 84,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/validators/field-coercer.ts",
+      "name": "coerce",
+      "line": 30,
+      "cyclomatic": 44,
+      "cognitive": 67,
+      "line_count": 174,
+      "severity": "critical"
+    },
+    {
+      "path": "src/shared/search-index.ts",
+      "name": "search",
+      "line": 91,
+      "cyclomatic": 44,
+      "cognitive": 49,
+      "line_count": 135,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+      "name": "crossCheckInstallmentPayments",
+      "line": 1139,
+      "cyclomatic": 43,
+      "cognitive": 63,
+      "line_count": 96,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/timetable-repository.ts",
+      "name": "generateTimetable",
+      "line": 417,
+      "cyclomatic": 43,
+      "cognitive": 54,
+      "line_count": 250,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/actions.ts",
+      "name": "pushNotification",
+      "line": 171,
+      "cyclomatic": 43,
+      "cognitive": 55,
+      "line_count": 167,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/comparator.ts",
+      "name": "checkCanonicalExpected",
+      "line": 338,
+      "cyclomatic": 42,
+      "cognitive": 74,
+      "line_count": 147,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/parent-detail-drawer.tsx",
+      "name": "ServicePricingCard",
+      "line": 1929,
+      "cyclomatic": 41,
+      "cognitive": 30,
+      "line_count": 256,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/personnel/management/staff-attendance-center.tsx",
+      "name": "StaffAttendanceCenter",
+      "line": 72,
+      "cyclomatic": 41,
+      "cognitive": 55,
+      "line_count": 714,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/academic-repository.ts",
+      "name": "finalizePlacements",
+      "line": 983,
+      "cyclomatic": 41,
+      "cognitive": 69,
+      "line_count": 259,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-399-autofill-data-live-e2e.ts",
+      "name": "main",
+      "line": 66,
+      "cyclomatic": 40,
+      "cognitive": 28,
+      "line_count": 180,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/parent-detail-drawer.tsx",
+      "name": "FinancesTab",
+      "line": 762,
+      "cyclomatic": 40,
+      "cognitive": 51,
+      "line_count": 803,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-pricing-repository.ts",
+      "name": "readDbPricingConfig",
+      "line": 168,
+      "cyclomatic": 40,
+      "cognitive": 44,
+      "line_count": 230,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-personnel-repository.ts",
+      "name": "personnelToPatch",
+      "line": 344,
+      "cyclomatic": 39,
+      "cognitive": 46,
+      "line_count": 62,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-421-live-forensics.mjs",
+      "name": "main",
+      "line": 36,
+      "cyclomatic": 38,
+      "cognitive": 53,
+      "line_count": 153,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/tabs/reports-tab.tsx",
+      "name": "handleExport",
+      "line": 126,
+      "cyclomatic": 38,
+      "cognitive": 38,
+      "line_count": 237,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-config/config-registry.ts",
+      "name": "validateImportConfigDocument",
+      "line": 85,
+      "cyclomatic": 38,
+      "cognitive": 75,
+      "line_count": 76,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "name": "processEtatFamily",
+      "line": 868,
+      "cyclomatic": 38,
+      "cognitive": 67,
+      "line_count": 222,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-415-live-verification.mjs",
+      "name": "phaseA",
+      "line": 118,
+      "cyclomatic": 37,
+      "cognitive": 10,
+      "line_count": 72,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-422-finance-zeros-probe.mjs",
+      "name": "main",
+      "line": 31,
+      "cyclomatic": 37,
+      "cognitive": 44,
+      "line_count": 204,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-487-workflow-e2e.ts",
+      "name": "main",
+      "line": 843,
+      "cyclomatic": 37,
+      "cognitive": 43,
+      "line_count": 39,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/streaming/stream-client.ts",
+      "name": "executeOpenAIStream",
+      "line": 123,
+      "cyclomatic": 37,
+      "cognitive": 59,
+      "line_count": 113,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/pricing/devis.ts",
+      "name": "computeStudentDevisPlan",
+      "line": 278,
+      "cyclomatic": 37,
+      "cognitive": 32,
+      "line_count": 92,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/grade-entry-screen.tsx",
+      "name": "GradeEntryScreen",
+      "line": 71,
+      "cyclomatic": 37,
+      "cognitive": 53,
+      "line_count": 634,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-personnel-repository.ts",
+      "name": "mapPersonnelRow",
+      "line": 243,
+      "cyclomatic": 37,
+      "cognitive": 40,
+      "line_count": 99,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/comparator.ts",
+      "name": "compareAll",
+      "line": 251,
+      "cyclomatic": 36,
+      "cognitive": 44,
+      "line_count": 86,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-398-registration-live-e2e.ts",
+      "name": "main",
+      "line": 49,
+      "cyclomatic": 36,
+      "cognitive": 24,
+      "line_count": 189,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/re-enrollment/re-enrollment-tab.tsx",
+      "name": "ReEnrollmentTab",
+      "line": 47,
+      "cyclomatic": 36,
+      "cognitive": 46,
+      "line_count": 482,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/financials/payment-detail-drawer.tsx",
+      "name": "content",
+      "line": 199,
+      "cyclomatic": 36,
+      "cognitive": 24,
+      "line_count": 179,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/workflow/dag-canvas.tsx",
+      "name": "DagCanvas",
+      "line": 225,
+      "cyclomatic": 36,
+      "cognitive": 71,
+      "line_count": 1169,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/tier4_comparator.ts",
+      "name": "compare",
+      "line": 391,
+      "cyclomatic": 35,
+      "cognitive": 55,
+      "line_count": 89,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/i18n/apply-i18n.mjs",
+      "name": "processFile",
+      "line": 416,
+      "cyclomatic": 35,
+      "cognitive": 54,
+      "line_count": 118,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-421-wire-semantics.mjs",
+      "name": "main",
+      "line": 44,
+      "cyclomatic": 35,
+      "cognitive": 31,
+      "line_count": 180,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/verify_t-338_live.ts",
+      "name": "main",
+      "line": 116,
+      "cyclomatic": 35,
+      "cognitive": 43,
+      "line_count": 320,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payroll/payroll-forecast.ts",
+      "name": "computePayrollForecast",
+      "line": 262,
+      "cyclomatic": 35,
+      "cognitive": 49,
+      "line_count": 242,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/wave-velocity-card.tsx",
+      "name": "<arrow>",
+      "line": 139,
+      "cyclomatic": 35,
+      "cognitive": 39,
+      "line_count": 295,
+      "severity": "critical"
+    },
+    {
+      "path": "src/shared/devtools/test-data/autofill-engine.ts",
+      "name": "runAutofill",
+      "line": 533,
+      "cyclomatic": 35,
+      "cognitive": 44,
+      "line_count": 119,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/bind-activation-code/index.ts",
+      "name": "<arrow>",
+      "line": 63,
+      "cyclomatic": 35,
+      "cognitive": 40,
+      "line_count": 281,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-424-consistency-probe.mjs",
+      "name": "main",
+      "line": 36,
+      "cyclomatic": 34,
+      "cognitive": 37,
+      "line_count": 146,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t505-sync-backup-repro.ts",
+      "name": "main",
+      "line": 71,
+      "cyclomatic": 34,
+      "cognitive": 32,
+      "line_count": 147,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/artifacts.ts",
+      "name": "validateChartArtifact",
+      "line": 182,
+      "cyclomatic": 34,
+      "cognitive": 36,
+      "line_count": 43,
+      "severity": "high"
+    },
+    {
+      "path": "src/core/ai/tools/document-tools.ts",
+      "name": "executeDocumentTool",
+      "line": 123,
+      "cyclomatic": 34,
+      "cognitive": 55,
+      "line_count": 271,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/sync/sync-indicator.tsx",
+      "name": "SyncIndicator",
+      "line": 29,
+      "cyclomatic": 34,
+      "cognitive": 34,
+      "line_count": 213,
+      "severity": "high"
+    },
+    {
+      "path": "supabase/functions/collect-payment/index.ts",
+      "name": "<arrow>",
+      "line": 57,
+      "cyclomatic": 34,
+      "cognitive": 35,
+      "line_count": 149,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditPriceBasis",
+      "line": 1424,
+      "cyclomatic": 33,
+      "cognitive": 41,
+      "line_count": 222,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/reconcile/cross-checks.ts",
+      "name": "crossCheckInstallmentPayments",
+      "line": 210,
+      "cyclomatic": 33,
+      "cognitive": 53,
+      "line_count": 136,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "updateStudent",
+      "line": 1837,
+      "cyclomatic": 33,
+      "cognitive": 33,
+      "line_count": 78,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/run-unified-tests.mjs",
+      "name": "finalize",
+      "line": 389,
+      "cyclomatic": 32,
+      "cognitive": 35,
+      "line_count": 82,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/agent-runtime.ts",
+      "name": "runConversationStep",
+      "line": 172,
+      "cyclomatic": 32,
+      "cognitive": 52,
+      "line_count": 215,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/financials/unified-payment-modal.tsx",
+      "name": "submit",
+      "line": 465,
+      "cyclomatic": 32,
+      "cognitive": 30,
+      "line_count": 132,
+      "severity": "critical"
+    },
+    {
+      "path": "src/shared/devtools/test-data/autofill-engine.ts",
+      "name": "valueForInput",
+      "line": 219,
+      "cyclomatic": 32,
+      "cognitive": 11,
+      "line_count": 72,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-422-e2e-simulation.mjs",
+      "name": "main",
+      "line": 25,
+      "cyclomatic": 31,
+      "cognitive": 37,
+      "line_count": 119,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t508-recovery-funnel-live.ts",
+      "name": "main",
+      "line": 69,
+      "cyclomatic": 31,
+      "cognitive": 39,
+      "line_count": 184,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/artifacts.ts",
+      "name": "validateDiagramArtifact",
+      "line": 227,
+      "cyclomatic": 31,
+      "cognitive": 33,
+      "line_count": 45,
+      "severity": "high"
+    },
+    {
+      "path": "src/core/ai/artifacts.ts",
+      "name": "validateDocumentArtifact",
+      "line": 278,
+      "cyclomatic": 31,
+      "cognitive": 36,
+      "line_count": 44,
+      "severity": "high"
+    },
+    {
+      "path": "src/domain/calc/timetable/solver/greedy-solver.ts",
+      "name": "enumerateCandidates",
+      "line": 534,
+      "cyclomatic": 31,
+      "cognitive": 82,
+      "line_count": 130,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/student-detail/academic-tab.tsx",
+      "name": "AcademicTab",
+      "line": 79,
+      "cyclomatic": 31,
+      "cognitive": 40,
+      "line_count": 392,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+      "name": "insertRowOf",
+      "line": 382,
+      "cyclomatic": 31,
+      "cognitive": 33,
+      "line_count": 40,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "name": "demographics",
+      "line": 583,
+      "cyclomatic": 31,
+      "cognitive": 43,
+      "line_count": 185,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/infrastructure/t-590-dashboard-aggregation.test.ts",
+      "name": "it(\"demographics: the RPC path === the legac...\")",
+      "line": 581,
+      "cyclomatic": 31,
+      "cognitive": 23,
+      "line_count": 50,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-434-wave-reconciliation-probe.ts",
+      "name": "main",
+      "line": 59,
+      "cyclomatic": 30,
+      "cognitive": 36,
+      "line_count": 156,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/verify_t-310_e2e.js",
+      "name": "main",
+      "line": 14,
+      "cyclomatic": 30,
+      "cognitive": 27,
+      "line_count": 80,
+      "severity": "critical"
+    },
+    {
+      "path": "src/app/providers/ai-copilot-provider.tsx",
+      "name": "downloadArtifact",
+      "line": 299,
+      "cyclomatic": 30,
+      "cognitive": 49,
+      "line_count": 226,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/calendar-repository.ts",
+      "name": "getEventsForDate",
+      "line": 190,
+      "cyclomatic": 30,
+      "cognitive": 57,
+      "line_count": 108,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/financial/payment-ops.ts",
+      "name": "collectPayment",
+      "line": 56,
+      "cyclomatic": 30,
+      "cognitive": 30,
+      "line_count": 208,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-task-repository.ts",
+      "name": "updateTaskCore",
+      "line": 299,
+      "cyclomatic": 30,
+      "cognitive": 33,
+      "line_count": 60,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/index.ts",
+      "name": "buildExecutionContext",
+      "line": 509,
+      "cyclomatic": 30,
+      "cognitive": 36,
+      "line_count": 139,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/build-test-fixture.ts",
+      "name": "buildWorkbook",
+      "line": 160,
+      "cyclomatic": 29,
+      "cognitive": 28,
+      "line_count": 59,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/check-supabase.mjs",
+      "name": "main",
+      "line": 88,
+      "cyclomatic": 29,
+      "cognitive": 40,
+      "line_count": 134,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-425-live-verify.mjs",
+      "name": "main",
+      "line": 57,
+      "cyclomatic": 29,
+      "cognitive": 46,
+      "line_count": 104,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-487-workflow-e2e.ts",
+      "name": "phase8",
+      "line": 725,
+      "cyclomatic": 29,
+      "cognitive": 13,
+      "line_count": 51,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t511-webhook-diagnostics-live.ts",
+      "name": "main",
+      "line": 70,
+      "cyclomatic": 29,
+      "cognitive": 26,
+      "line_count": 186,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/timetable/solver/greedy-solver.ts",
+      "name": "solveGreedySteps",
+      "line": 310,
+      "cyclomatic": 29,
+      "cognitive": 37,
+      "line_count": 661,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/tabs/analytics-tab.tsx",
+      "name": "AnalyticsTab",
+      "line": 115,
+      "cyclomatic": 29,
+      "cognitive": 72,
+      "line_count": 716,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/tabs/overview-tab.tsx",
+      "name": "OverviewTab",
+      "line": 58,
+      "cyclomatic": 29,
+      "cognitive": 29,
+      "line_count": 252,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/personnel/management/employee-form-modal.tsx",
+      "name": "handleSubmit",
+      "line": 181,
+      "cyclomatic": 29,
+      "cognitive": 31,
+      "line_count": 73,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/personnel/personnel-page.tsx",
+      "name": "PersonnelPage",
+      "line": 73,
+      "cyclomatic": 29,
+      "cognitive": 30,
+      "line_count": 193,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/backup/backup-file-restore.ts",
+      "name": "inspectBackupFile",
+      "line": 144,
+      "cyclomatic": 29,
+      "cognitive": 30,
+      "line_count": 160,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "name": "buildFinancialEntries",
+      "line": 1487,
+      "cyclomatic": 29,
+      "cognitive": 29,
+      "line_count": 649,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/validators/row-validator.ts",
+      "name": "isSummaryOrNonDataRow",
+      "line": 107,
+      "cyclomatic": 29,
+      "cognitive": 33,
+      "line_count": 83,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/academic-repository.ts",
+      "name": "confirmClass",
+      "line": 1375,
+      "cyclomatic": 29,
+      "cognitive": 32,
+      "line_count": 128,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts",
+      "name": "run",
+      "line": 119,
+      "cyclomatic": 29,
+      "cognitive": 40,
+      "line_count": 265,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "createStudentTracked",
+      "line": 1756,
+      "cyclomatic": 29,
+      "cognitive": 23,
+      "line_count": 80,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/send-push-notification/index.ts",
+      "name": "<arrow>",
+      "line": 166,
+      "cyclomatic": 29,
+      "cognitive": 26,
+      "line_count": 218,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-397-batch-register-live-e2e.ts",
+      "name": "main",
+      "line": 45,
+      "cyclomatic": 28,
+      "cognitive": 20,
+      "line_count": 109,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-441-live-e2e.ts",
+      "name": "main",
+      "line": 163,
+      "cyclomatic": 28,
+      "cognitive": 35,
+      "line_count": 234,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-615-excel-datalane-verify.ts",
+      "name": "verifyWorkbook",
+      "line": 501,
+      "cyclomatic": 28,
+      "cognitive": 33,
+      "line_count": 126,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t528-false-positives-live.ts",
+      "name": "main",
+      "line": 71,
+      "cyclomatic": 28,
+      "cognitive": 29,
+      "line_count": 237,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/academics/subject-config.ts",
+      "name": "resolveSubjectConfiguration",
+      "line": 79,
+      "cyclomatic": 28,
+      "cognitive": 20,
+      "line_count": 65,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/domain/calc/payment/service-pricing-profile.ts",
+      "name": "decodeMetadata",
+      "line": 215,
+      "cyclomatic": 28,
+      "cognitive": 23,
+      "line_count": 36,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/academics/timetable/timetable-tab.tsx",
+      "name": "<arrow>",
+      "line": 802,
+      "cyclomatic": 28,
+      "cognitive": 19,
+      "line_count": 236,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/excel-import-modal.tsx",
+      "name": "commit",
+      "line": 309,
+      "cyclomatic": 28,
+      "cognitive": 35,
+      "line_count": 175,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/operational-query-engine.ts",
+      "name": "<arrow>",
+      "line": 219,
+      "cyclomatic": 28,
+      "cognitive": 28,
+      "line_count": 129,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/approvals-tab.tsx",
+      "name": "submitDecision",
+      "line": 231,
+      "cyclomatic": 28,
+      "cognitive": 38,
+      "line_count": 111,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/student-repository.ts",
+      "name": "batchRegister",
+      "line": 244,
+      "cyclomatic": 28,
+      "cognitive": 34,
+      "line_count": 171,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/registration-billing-wires.ts",
+      "name": "buildRegistrationBillingWires",
+      "line": 104,
+      "cyclomatic": 28,
+      "cognitive": 51,
+      "line_count": 216,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-scheduled-runner/index.ts",
+      "name": "fireOne",
+      "line": 166,
+      "cyclomatic": 28,
+      "cognitive": 28,
+      "line_count": 262,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-423-post-fix-verification.mjs",
+      "name": "main",
+      "line": 32,
+      "cyclomatic": 27,
+      "cognitive": 35,
+      "line_count": 127,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/academics/class-placement.ts",
+      "name": "buildPlacementCandidatesPool",
+      "line": 314,
+      "cyclomatic": 27,
+      "cognitive": 38,
+      "line_count": 141,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/personnel/management/chat-panel.tsx",
+      "name": "ChatPanel",
+      "line": 180,
+      "cyclomatic": 27,
+      "cognitive": 54,
+      "line_count": 761,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/workflow/node-inspector-drawer.tsx",
+      "name": "TypeSpecificFields",
+      "line": 581,
+      "cyclomatic": 27,
+      "cognitive": 6,
+      "line_count": 358,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/import-engine.ts",
+      "name": "importFile",
+      "line": 147,
+      "cyclomatic": 27,
+      "cognitive": 41,
+      "line_count": 194,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "name": "mapDemographicsCensus",
+      "line": 928,
+      "cyclomatic": 27,
+      "cognitive": 26,
+      "line_count": 76,
+      "severity": "critical"
+    },
+    {
+      "path": "src/shared/ui/markdown-view.tsx",
+      "name": "parseMarkdownBlocks",
+      "line": 110,
+      "cyclomatic": 27,
+      "cognitive": 44,
+      "line_count": 115,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/comparator.ts",
+      "name": "deepCompare",
+      "line": 145,
+      "cyclomatic": 26,
+      "cognitive": 40,
+      "line_count": 83,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/timetable/constraints.ts",
+      "name": "entryConstraintViolations",
+      "line": 177,
+      "cyclomatic": 26,
+      "cognitive": 36,
+      "line_count": 110,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/student-detail/info-tab.tsx",
+      "name": "InfoTab",
+      "line": 30,
+      "cyclomatic": 26,
+      "cognitive": 29,
+      "line_count": 257,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/approvals-tab.tsx",
+      "name": "ApprovalRequestCard",
+      "line": 464,
+      "cyclomatic": 26,
+      "cognitive": 24,
+      "line_count": 212,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "batchRegister",
+      "line": 2048,
+      "cyclomatic": 26,
+      "cognitive": 25,
+      "line_count": 245,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-resume-scheduler/index.ts",
+      "name": "resumeOne",
+      "line": 144,
+      "cyclomatic": 26,
+      "cognitive": 19,
+      "line_count": 160,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/i18n/scan-hardcoded-strings.mjs",
+      "name": "visitJsxExpression",
+      "line": 260,
+      "cyclomatic": 25,
+      "cognitive": 33,
+      "line_count": 39,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-420-live-verification.ts",
+      "name": "main",
+      "line": 180,
+      "cyclomatic": 25,
+      "cognitive": 29,
+      "line_count": 178,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t505-file-workflows-live.ts",
+      "name": "main",
+      "line": 74,
+      "cyclomatic": 25,
+      "cognitive": 21,
+      "line_count": 113,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/alert-detail-modal.tsx",
+      "name": "linkedEntity",
+      "line": 80,
+      "cyclomatic": 25,
+      "cognitive": 23,
+      "line_count": 102,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/personnel/dashboards/teacher-dashboard.tsx",
+      "name": "TeacherDashboard",
+      "line": 69,
+      "cyclomatic": 25,
+      "cognitive": 29,
+      "line_count": 317,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/pricing/pricing-year-config-bar.tsx",
+      "name": "PricingYearConfigBar",
+      "line": 42,
+      "cyclomatic": 25,
+      "cognitive": 40,
+      "line_count": 311,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/sync-tab.tsx",
+      "name": "SyncTab",
+      "line": 41,
+      "cyclomatic": 25,
+      "cognitive": 30,
+      "line_count": 353,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/workflow/dag-canvas.tsx",
+      "name": "<arrow>",
+      "line": 969,
+      "cyclomatic": 25,
+      "cognitive": 27,
+      "line_count": 61,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "name": "formatErrorMessage",
+      "line": 157,
+      "cyclomatic": 25,
+      "cognitive": 36,
+      "line_count": 31,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/supabase-client.ts",
+      "name": "resolveEffectiveSupabaseTarget",
+      "line": 169,
+      "cyclomatic": 25,
+      "cognitive": 33,
+      "line_count": 66,
+      "severity": "high"
+    },
+    {
+      "path": "scripts/t-416-purge-live-verification.mjs",
+      "name": "phase3",
+      "line": 578,
+      "cyclomatic": 24,
+      "cognitive": 7,
+      "line_count": 56,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-423-class-sweep-probe.mjs",
+      "name": "main",
+      "line": 24,
+      "cyclomatic": 24,
+      "cognitive": 11,
+      "line_count": 69,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/diff/field-diff.ts",
+      "name": "diffNodes",
+      "line": 142,
+      "cyclomatic": 24,
+      "cognitive": 49,
+      "line_count": 69,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/payment-coverage.ts",
+      "name": "buildPaymentCoverage",
+      "line": 136,
+      "cyclomatic": 24,
+      "cognitive": 26,
+      "line_count": 95,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/students-directory-tab.tsx",
+      "name": "StudentsDirectoryTab",
+      "line": 60,
+      "cyclomatic": 24,
+      "cognitive": 34,
+      "line_count": 270,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/subject-configurations-panel.tsx",
+      "name": "SubjectConfigurationsPanel",
+      "line": 124,
+      "cyclomatic": 24,
+      "cognitive": 29,
+      "line_count": 251,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/crm/batch-registration-modal.tsx",
+      "name": "submit",
+      "line": 228,
+      "cyclomatic": 24,
+      "cognitive": 27,
+      "line_count": 158,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/yoy-comparison-card.tsx",
+      "name": "YoYComparisonCard",
+      "line": 40,
+      "cyclomatic": 24,
+      "cognitive": 30,
+      "line_count": 181,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/financials/tranche-amount-edit-modal.tsx",
+      "name": "TrancheAmountEditModal",
+      "line": 80,
+      "cyclomatic": 24,
+      "cognitive": 27,
+      "line_count": 255,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/audit-log-tab.tsx",
+      "name": "AuditDiffDrawer",
+      "line": 455,
+      "cyclomatic": 24,
+      "cognitive": 20,
+      "line_count": 195,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/validators/row-validator.ts",
+      "name": "lookupValue",
+      "line": 245,
+      "cyclomatic": 24,
+      "cognitive": 41,
+      "line_count": 66,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+      "name": "mapAuditRow",
+      "line": 111,
+      "cyclomatic": 24,
+      "cognitive": 23,
+      "line_count": 46,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "collectDebtors",
+      "line": 5448,
+      "cyclomatic": 24,
+      "cognitive": 37,
+      "line_count": 115,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/delete-user-account/index.ts",
+      "name": "<arrow>",
+      "line": 71,
+      "cyclomatic": 24,
+      "cognitive": 22,
+      "line_count": 206,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-412-live-forecast-verification.ts",
+      "name": "main",
+      "line": 133,
+      "cyclomatic": 23,
+      "cognitive": 25,
+      "line_count": 223,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-487-workflow-e2e.ts",
+      "name": "phase5",
+      "line": 545,
+      "cyclomatic": 23,
+      "cognitive": 15,
+      "line_count": 57,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/agent-runtime.ts",
+      "name": "analyzeIntent",
+      "line": 103,
+      "cyclomatic": 23,
+      "cognitive": 6,
+      "line_count": 47,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/data-inspector-core.tsx",
+      "name": "DataInspectorProvider",
+      "line": 193,
+      "cyclomatic": 23,
+      "cognitive": 38,
+      "line_count": 780,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/personnel/management/payroll-management.tsx",
+      "name": "PayrollManagement",
+      "line": 90,
+      "cyclomatic": 23,
+      "cognitive": 43,
+      "line_count": 563,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/parsers/excel-parser.ts",
+      "name": "findHeaderRow",
+      "line": 92,
+      "cyclomatic": 23,
+      "cognitive": 30,
+      "line_count": 84,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/calendar-repository.ts",
+      "name": "create",
+      "line": 46,
+      "cyclomatic": 23,
+      "cognitive": 29,
+      "line_count": 76,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/re-enrollment-repository.ts",
+      "name": "generateCandidates",
+      "line": 76,
+      "cyclomatic": 23,
+      "cognitive": 24,
+      "line_count": 99,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/student-repository.ts",
+      "name": "<arrow>",
+      "line": 535,
+      "cyclomatic": 23,
+      "cognitive": 29,
+      "line_count": 113,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/receipt-pdf/family-statement.ts",
+      "name": "generateFamilyStatementPdf",
+      "line": 159,
+      "cyclomatic": 23,
+      "cognitive": 45,
+      "line_count": 225,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+      "name": "log",
+      "line": 365,
+      "cyclomatic": 23,
+      "cognitive": 19,
+      "line_count": 89,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "importInstallment",
+      "line": 4350,
+      "cyclomatic": 23,
+      "cognitive": 33,
+      "line_count": 135,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "normalizeDebtAgingThresholds",
+      "line": 4710,
+      "cyclomatic": 23,
+      "cognitive": 12,
+      "line_count": 53,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/supabase-client.ts",
+      "name": "supabaseErrorToAppError",
+      "line": 409,
+      "cyclomatic": 23,
+      "cognitive": 19,
+      "line_count": 47,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/tests/infrastructure/supabase-shift-schedule-repository.test.ts",
+      "name": "run",
+      "line": 117,
+      "cyclomatic": 23,
+      "cognitive": 38,
+      "line_count": 76,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/financial-query-engine.ts",
+      "name": "<arrow>",
+      "line": 249,
+      "cyclomatic": 22,
+      "cognitive": 21,
+      "line_count": 135,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "buildAuditContext",
+      "line": 352,
+      "cyclomatic": 22,
+      "cognitive": 31,
+      "line_count": 101,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditDuplicates",
+      "line": 886,
+      "cyclomatic": 22,
+      "cognitive": 34,
+      "line_count": 171,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditChargeJustification",
+      "line": 1102,
+      "cyclomatic": 22,
+      "cognitive": 50,
+      "line_count": 202,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/identity/scoring.ts",
+      "name": "scorePair",
+      "line": 58,
+      "cyclomatic": 22,
+      "cognitive": 37,
+      "line_count": 183,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/placement/class-placement-studio-modal.tsx",
+      "name": "ClassPlacementStudioModal",
+      "line": 61,
+      "cyclomatic": 22,
+      "cognitive": 30,
+      "line_count": 643,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/dashboard/alert-detail-modal.tsx",
+      "name": "AlertDetailModal",
+      "line": 51,
+      "cyclomatic": 22,
+      "cognitive": 25,
+      "line_count": 393,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/dashboard/components/recovery-funnel-card.tsx",
+      "name": "RecoveryFunnelCard",
+      "line": 328,
+      "cyclomatic": 22,
+      "cognitive": 41,
+      "line_count": 613,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/financials/payment-breakdown-card.tsx",
+      "name": "PaymentBreakdownCard",
+      "line": 61,
+      "cyclomatic": 22,
+      "cognitive": 22,
+      "line_count": 183,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/features/settings/create-account-modal.tsx",
+      "name": "CreateAccountModal",
+      "line": 133,
+      "cyclomatic": 22,
+      "cognitive": 30,
+      "line_count": 359,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/workflow/test-studio-drawer.tsx",
+      "name": "TestStudioDrawer",
+      "line": 104,
+      "cyclomatic": 22,
+      "cognitive": 36,
+      "line_count": 367,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/ai/llm-adapter.ts",
+      "name": "generate",
+      "line": 311,
+      "cyclomatic": 22,
+      "cognitive": 26,
+      "line_count": 122,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/financial-repository.ts",
+      "name": "adjustAmountDue",
+      "line": 602,
+      "cyclomatic": 22,
+      "cognitive": 22,
+      "line_count": 137,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "name": "studentWires",
+      "line": 2135,
+      "cyclomatic": 22,
+      "cognitive": 16,
+      "line_count": 31,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-user-account-repository.ts",
+      "name": "createAccount",
+      "line": 73,
+      "cyclomatic": 22,
+      "cognitive": 18,
+      "line_count": 73,
+      "severity": "critical"
+    },
+    {
+      "path": "src/shared/ui/auto-form/auto-form-modal.tsx",
+      "name": "renderField",
+      "line": 126,
+      "cyclomatic": 22,
+      "cognitive": 12,
+      "line_count": 34,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/infrastructure/supabase-repositories.test.ts",
+      "name": "exec",
+      "line": 168,
+      "cyclomatic": 22,
+      "cognitive": 30,
+      "line_count": 65,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-scheduled-runner/cron.ts",
+      "name": "parseField",
+      "line": 48,
+      "cyclomatic": 22,
+      "cognitive": 36,
+      "line_count": 58,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/triple_comparator.ts",
+      "name": "main",
+      "line": 122,
+      "cyclomatic": 21,
+      "cognitive": 42,
+      "line_count": 116,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/i18n/translate-strings.mjs",
+      "name": "main",
+      "line": 185,
+      "cyclomatic": 21,
+      "cognitive": 41,
+      "line_count": 75,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/ledger/debt-aging.ts",
+      "name": "computeDebtAgingAnalysis",
+      "line": 526,
+      "cyclomatic": 21,
+      "cognitive": 25,
+      "line_count": 114,
+      "severity": "high"
+    },
+    {
+      "path": "src/domain/calc/timetable/class-reports.ts",
+      "name": "checklist",
+      "line": 355,
+      "cyclomatic": 21,
+      "cognitive": 25,
+      "line_count": 98,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/identity/vetoes.ts",
+      "name": "evaluateVetoes",
+      "line": 18,
+      "cyclomatic": 21,
+      "cognitive": 28,
+      "line_count": 58,
+      "severity": "high"
+    },
+    {
+      "path": "src/domain/kahn.ts",
+      "name": "detectCycle",
+      "line": 46,
+      "cyclomatic": 21,
+      "cognitive": 28,
+      "line_count": 76,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/class-detail-page.tsx",
+      "name": "ClassDetailPage",
+      "line": 75,
+      "cyclomatic": 21,
+      "cognitive": 52,
+      "line_count": 800,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/academics/timetable/timetable-tab.tsx",
+      "name": "ConstraintCreateButton",
+      "line": 1392,
+      "cyclomatic": 21,
+      "cognitive": 32,
+      "line_count": 203,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/settings/supabase-diagnostics/diagnostics-runner.ts",
+      "name": "probeAuth",
+      "line": 177,
+      "cyclomatic": 21,
+      "cognitive": 24,
+      "line_count": 125,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/validators/row-validator.ts",
+      "name": "coerceMonthlyArray",
+      "line": 312,
+      "cyclomatic": 21,
+      "cognitive": 24,
+      "line_count": 66,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/workflow-event-bridge.ts",
+      "name": "buildEntityContext",
+      "line": 113,
+      "cyclomatic": 21,
+      "cognitive": 15,
+      "line_count": 49,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/tests/cross-platform/Tier4Boundary.test.ts",
+      "name": "makeEntry",
+      "line": 49,
+      "cyclomatic": 21,
+      "cognitive": 19,
+      "line_count": 21,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/cross-platform/Tier4Invariants.test.ts",
+      "name": "makeEntry",
+      "line": 50,
+      "cyclomatic": 21,
+      "cognitive": 19,
+      "line_count": 21,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/refund-payment/index.ts",
+      "name": "<arrow>",
+      "line": 40,
+      "cyclomatic": 21,
+      "cognitive": 19,
+      "line_count": 113,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/preflight-target.mjs",
+      "name": "runPreflight",
+      "line": 545,
+      "cyclomatic": 20,
+      "cognitive": 23,
+      "line_count": 114,
+      "severity": "moderate"
+    },
+    {
+      "path": "scripts/t-415-live-verification.mjs",
+      "name": "phaseC",
+      "line": 230,
+      "cyclomatic": 20,
+      "cognitive": 8,
+      "line_count": 53,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-416-purge-live-verification.mjs",
+      "name": "phase2",
+      "line": 252,
+      "cyclomatic": 20,
+      "cognitive": 36,
+      "line_count": 322,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-421-live-verification.mts",
+      "name": "main",
+      "line": 59,
+      "cyclomatic": 20,
+      "cognitive": 18,
+      "line_count": 165,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/tools/visualization-tools.ts",
+      "name": "executeVisualizationTool",
+      "line": 99,
+      "cyclomatic": 20,
+      "cognitive": 44,
+      "line_count": 216,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/academics/class-placement.ts",
+      "name": "autoBalancePlacements",
+      "line": 636,
+      "cyclomatic": 20,
+      "cognitive": 49,
+      "line_count": 95,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/diff/field-diff.ts",
+      "name": "deepEqualInner",
+      "line": 70,
+      "cyclomatic": 20,
+      "cognitive": 24,
+      "line_count": 29,
+      "severity": "critical"
+    },
+    {
+      "path": "src/domain/calc/ledger/balance.ts",
+      "name": "computeAccountBalance",
+      "line": 39,
+      "cyclomatic": 20,
+      "cognitive": 18,
+      "line_count": 87,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditPaymentLedgerConsistency",
+      "line": 578,
+      "cyclomatic": 20,
+      "cognitive": 25,
+      "line_count": 210,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/academics/exam-scheduling-modal.tsx",
+      "name": "ExamSchedulingModal",
+      "line": 39,
+      "cyclomatic": 20,
+      "cognitive": 26,
+      "line_count": 179,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/grade-levels-class-view.tsx",
+      "name": "handleSubmitBatch",
+      "line": 458,
+      "cyclomatic": 20,
+      "cognitive": 35,
+      "line_count": 125,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/crm/excel-import-modal.tsx",
+      "name": "<arrow>",
+      "line": 699,
+      "cyclomatic": 20,
+      "cognitive": 17,
+      "line_count": 51,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/personnel/dashboards/worker-dashboard.tsx",
+      "name": "WorkerDashboard",
+      "line": 122,
+      "cyclomatic": 20,
+      "cognitive": 27,
+      "line_count": 377,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/approvals-tab.tsx",
+      "name": "handleApproveStudentNew",
+      "line": 192,
+      "cyclomatic": 20,
+      "cognitive": 11,
+      "line_count": 30,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/ai/llm-adapter.ts",
+      "name": "generate",
+      "line": 220,
+      "cyclomatic": 20,
+      "cognitive": 18,
+      "line_count": 61,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "name": "buildInstallmentRows",
+      "line": 2393,
+      "cyclomatic": 20,
+      "cognitive": 36,
+      "line_count": 301,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/receipt-pdf/account-statement.ts",
+      "name": "generateAccountStatementPdf",
+      "line": 118,
+      "cyclomatic": 20,
+      "cognitive": 29,
+      "line_count": 194,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/receipt-pdf/bulletin.ts",
+      "name": "generateBulletinPdf",
+      "line": 67,
+      "cyclomatic": 20,
+      "cognitive": 25,
+      "line_count": 82,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+      "name": "findPotentialMatches",
+      "line": 136,
+      "cyclomatic": 20,
+      "cognitive": 24,
+      "line_count": 106,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+      "name": "bindActivationCode",
+      "line": 460,
+      "cyclomatic": 20,
+      "cognitive": 16,
+      "line_count": 68,
+      "severity": "critical"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-workflow-repository.ts",
+      "name": "dryRun",
+      "line": 472,
+      "cyclomatic": 20,
+      "cognitive": 14,
+      "line_count": 55,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/domain/ledger/debt-aging.test.ts",
+      "name": "makeEntry",
+      "line": 54,
+      "cyclomatic": 20,
+      "cognitive": 19,
+      "line_count": 24,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/domain/ledger/t-439-payment-status-replay.test.ts",
+      "name": "makeEntry",
+      "line": 94,
+      "cyclomatic": 20,
+      "cognitive": 19,
+      "line_count": 24,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/domain/ledger/t-442-year-breakdown.test.ts",
+      "name": "makeEntry",
+      "line": 112,
+      "cyclomatic": 20,
+      "cognitive": 19,
+      "line_count": 24,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/domain/ledger/year-history.test.ts",
+      "name": "makeEntry",
+      "line": 106,
+      "cyclomatic": 20,
+      "cognitive": 19,
+      "line_count": 24,
+      "severity": "critical"
+    },
+    {
+      "path": "src/tests/domain/reconcile/unified-cross-checks.test.ts",
+      "name": "makeLedgerEntry",
+      "line": 18,
+      "cyclomatic": 20,
+      "cognitive": 19,
+      "line_count": 23,
+      "severity": "critical"
+    },
+    {
+      "path": "electron/backend-profile-contract.cts",
+      "name": "validateTarget",
+      "line": 188,
+      "cyclomatic": 19,
+      "cognitive": 19,
+      "line_count": 56,
+      "severity": "high"
+    },
+    {
+      "path": "financial-tests/equivalence/comparison/comparator.ts",
+      "name": "writeReport",
+      "line": 514,
+      "cyclomatic": 19,
+      "cognitive": 32,
+      "line_count": 115,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/i18n/apply-i18n.mjs",
+      "name": "enclosingComponent",
+      "line": 330,
+      "cyclomatic": 19,
+      "cognitive": 30,
+      "line_count": 21,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-421-live-forensics2.mjs",
+      "name": "main",
+      "line": 24,
+      "cyclomatic": 19,
+      "cognitive": 26,
+      "line_count": 104,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/t-424-tranche-attribution-analysis.ts",
+      "name": "main",
+      "line": 296,
+      "cyclomatic": 19,
+      "cognitive": 24,
+      "line_count": 110,
+      "severity": "critical"
+    },
+    {
+      "path": "src/core/ai/analysis/insights.ts",
+      "name": "detectPaymentAnomalies",
+      "line": 59,
+      "cyclomatic": 19,
+      "cognitive": 24,
+      "line_count": 82,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/domain/calc/payment/tranche-waves.ts",
+      "name": "accumulateWaveRow",
+      "line": 249,
+      "cyclomatic": 19,
+      "cognitive": 25,
+      "line_count": 57,
+      "severity": "high"
+    },
+    {
+      "path": "src/domain/calc/payment/webhook-diagnostics.ts",
+      "name": "auditParentReconciliation",
+      "line": 2179,
+      "cyclomatic": 19,
+      "cognitive": 33,
+      "line_count": 222,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/ai/copilot-drawer.tsx",
+      "name": "AICopilotDrawer",
+      "line": 58,
+      "cyclomatic": 19,
+      "cognitive": 18,
+      "line_count": 357,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/features/personnel/releve-tab.tsx",
+      "name": "ReleveTab",
+      "line": 46,
+      "cyclomatic": 19,
+      "cognitive": 31,
+      "line_count": 234,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/conflict-resolver-modal.tsx",
+      "name": "<arrow>",
+      "line": 143,
+      "cyclomatic": 19,
+      "cognitive": 13,
+      "line_count": 111,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/workflow/node-inspector-drawer.tsx",
+      "name": "NodeInspectorDrawer",
+      "line": 173,
+      "cyclomatic": 19,
+      "cognitive": 28,
+      "line_count": 326,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/financial-repository.ts",
+      "name": "createManualDebt",
+      "line": 475,
+      "cyclomatic": 19,
+      "cognitive": 17,
+      "line_count": 110,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "name": "enterGrade",
+      "line": 935,
+      "cyclomatic": 19,
+      "cognitive": 18,
+      "line_count": 71,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-timetable-repository.ts",
+      "name": "createEntry",
+      "line": 1422,
+      "cyclomatic": 19,
+      "cognitive": 17,
+      "line_count": 100,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-workflow-repository.ts",
+      "name": "execute",
+      "line": 381,
+      "cyclomatic": 19,
+      "cognitive": 13,
+      "line_count": 52,
+      "severity": "high"
+    },
+    {
+      "path": "src/shared/ui/settings/setting-row.tsx",
+      "name": "SettingRowControl",
+      "line": 123,
+      "cyclomatic": 19,
+      "cognitive": 21,
+      "line_count": 100,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/features/t-396-crud-integration.test.tsx",
+      "name": "rpc",
+      "line": 103,
+      "cyclomatic": 19,
+      "cognitive": 29,
+      "line_count": 88,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/infrastructure/t-099-supabase-chat-repository.test.ts",
+      "name": "run",
+      "line": 107,
+      "cyclomatic": 19,
+      "cognitive": 29,
+      "line_count": 36,
+      "severity": "high"
+    },
+    {
+      "path": "supabase/functions/update-server-secret/index.ts",
+      "name": "<arrow>",
+      "line": 63,
+      "cyclomatic": 19,
+      "cognitive": 17,
+      "line_count": 128,
+      "severity": "critical"
+    },
+    {
+      "path": "scripts/preflight-target.mjs",
+      "name": "runManagementQuery",
+      "line": 341,
+      "cyclomatic": 18,
+      "cognitive": 19,
+      "line_count": 46,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/core/ai/analysis/insights.ts",
+      "name": "scoreInterventionRisk",
+      "line": 427,
+      "cyclomatic": 18,
+      "cognitive": 31,
+      "line_count": 80,
+      "severity": "high"
+    },
+    {
+      "path": "src/domain/calc/finance/financial-fault-inspector.ts",
+      "name": "ruleTransportContext",
+      "line": 557,
+      "cyclomatic": 18,
+      "cognitive": 15,
+      "line_count": 49,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/clubs/clubs-tab.tsx",
+      "name": "ClubsTab",
+      "line": 48,
+      "cyclomatic": 18,
+      "cognitive": 28,
+      "line_count": 237,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/exam-scheduling-modal.tsx",
+      "name": "submit",
+      "line": 76,
+      "cyclomatic": 18,
+      "cognitive": 20,
+      "line_count": 56,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/grade-entry-screen.tsx",
+      "name": "save",
+      "line": 334,
+      "cyclomatic": 18,
+      "cognitive": 16,
+      "line_count": 64,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/academics/placement/student-placement-card.tsx",
+      "name": "StudentPlacementCard",
+      "line": 38,
+      "cyclomatic": 18,
+      "cognitive": 24,
+      "line_count": 150,
+      "severity": "moderate"
+    },
+    {
+      "path": "src/features/crm/batch-registration-modal.tsx",
+      "name": "studentInputs",
+      "line": 233,
+      "cyclomatic": 18,
+      "cognitive": 14,
+      "line_count": 36,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/crm/parent-year-history-section.tsx",
+      "name": "YearCard",
+      "line": 144,
+      "cyclomatic": 18,
+      "cognitive": 16,
+      "line_count": 335,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/crm/student-detail/documents-tab.tsx",
+      "name": "<arrow>",
+      "line": 83,
+      "cyclomatic": 18,
+      "cognitive": 15,
+      "line_count": 59,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/crm/student-detail/info-tab.tsx",
+      "name": "serviceLabelFor",
+      "line": 314,
+      "cyclomatic": 18,
+      "cognitive": 1,
+      "line_count": 35,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/dashboard/components/sparkline-kpi-card.tsx",
+      "name": "SparklineKpiCard",
+      "line": 84,
+      "cyclomatic": 18,
+      "cognitive": 29,
+      "line_count": 143,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/financials/financials-page.tsx",
+      "name": "FinancialsPage",
+      "line": 130,
+      "cyclomatic": 18,
+      "cognitive": 47,
+      "line_count": 449,
+      "severity": "critical"
+    },
+    {
+      "path": "src/features/financials/installment-schedule-tab.tsx",
+      "name": "InstallmentScheduleTab",
+      "line": 425,
+      "cyclomatic": 18,
+      "cognitive": 39,
+      "line_count": 543,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/personnel/management/employee-form-modal.tsx",
+      "name": "initialValues",
+      "line": 152,
+      "cyclomatic": 18,
+      "cognitive": 14,
+      "line_count": 28,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/accounts-tab.tsx",
+      "name": "AccountsTab",
+      "line": 45,
+      "cyclomatic": 18,
+      "cognitive": 38,
+      "line_count": 339,
+      "severity": "high"
+    },
+    {
+      "path": "src/features/settings/contextual-thresholds-config.tsx",
+      "name": "<arrow>",
+      "line": 468,
+      "cyclomatic": 18,
+      "cognitive": 12,
+      "line_count": 65,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/calendar-repository.ts",
+      "name": "update",
+      "line": 123,
+      "cyclomatic": 18,
+      "cognitive": 16,
+      "line_count": 38,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "name": "kpisForRange",
+      "line": 138,
+      "cyclomatic": 18,
+      "cognitive": 20,
+      "line_count": 172,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-expense-repository.ts",
+      "name": "update",
+      "line": 507,
+      "cyclomatic": 18,
+      "cognitive": 20,
+      "line_count": 83,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-notification-repository.ts",
+      "name": "update",
+      "line": 259,
+      "cyclomatic": 18,
+      "cognitive": 20,
+      "line_count": 51,
+      "severity": "high"
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-supplier-repository.ts",
+      "name": "updateSupplier",
+      "line": 181,
+      "cyclomatic": 18,
+      "cognitive": 17,
+      "line_count": 26,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/domain/pricing/real-school-corpus.test.ts",
+      "name": "it(\"devis == FI + scolarité + transport(town...\")",
+      "line": 133,
+      "cyclomatic": 18,
+      "cognitive": 28,
+      "line_count": 39,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/domain/pricing/real-school-corpus.test.ts",
+      "name": "it(\"V2 == V2_sticker − remise for fully-sche...\")",
+      "line": 185,
+      "cyclomatic": 18,
+      "cognitive": 24,
+      "line_count": 31,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/infrastructure/supabase-delivery-repository.test.ts",
+      "name": "run",
+      "line": 101,
+      "cyclomatic": 18,
+      "cognitive": 23,
+      "line_count": 57,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/infrastructure/supabase-purchase-request-repository.test.ts",
+      "name": "run",
+      "line": 104,
+      "cyclomatic": 18,
+      "cognitive": 23,
+      "line_count": 56,
+      "severity": "high"
+    },
+    {
+      "path": "src/tests/infrastructure/supabase-task-repository.test.ts",
+      "name": "run",
+      "line": 101,
+      "cyclomatic": 18,
+      "cognitive": 28,
+      "line_count": 63,
+      "severity": "high"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/actions.ts",
+      "name": "executeNodeAction",
+      "line": 72,
+      "cyclomatic": 18,
+      "cognitive": 7,
+      "line_count": 53,
+      "severity": "critical"
+    },
+    {
+      "path": "supabase/functions/workflow-execute/actions.ts",
+      "name": "dispatchTask",
+      "line": 455,
+      "cyclomatic": 18,
+      "cognitive": 20,
+      "line_count": 63,
+      "severity": "critical"
+    },
+    {
+      "path": "financial-tests/equivalence/desktop/analytics_bridge.ts",
+      "name": "deriveRecoveryFunnel",
+      "line": 107,
+      "cyclomatic": 17,
+      "cognitive": 16,
+      "line_count": 29,
+      "severity": "high"
+    },
+    {
+      "path": "scripts/relocate-auth.mjs",
+      "name": "sanitizeExportedUser",
+      "line": 172,
+      "cyclomatic": 17,
+      "cognitive": 21,
+      "line_count": 28,
+      "severity": "moderate"
+    }
+  ],
+  "top_hotspots": [
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+      "score": 44.7,
+      "commits": 80,
+      "weighted_commits": 47.3,
+      "lines_added": 7098,
+      "lines_deleted": 1535,
+      "complexity_density": 0.21,
+      "fan_in": 81,
+      "trend": "cooling",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 582.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-shared-repositories.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-shared-repositories.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/parent-detail-drawer.tsx",
+      "score": 20.0,
+      "commits": 41,
+      "weighted_commits": 26.21,
+      "lines_added": 4622,
+      "lines_deleted": 2438,
+      "complexity_density": 0.17,
+      "fan_in": 5,
+      "trend": "cooling",
+      "median_files_per_commit": 11.5,
+      "median_lines_per_commit": 783.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/parent-detail-drawer.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/parent-detail-drawer.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+      "score": 15.8,
+      "commits": 32,
+      "weighted_commits": 18.45,
+      "lines_added": 2969,
+      "lines_deleted": 400,
+      "complexity_density": 0.19,
+      "fan_in": 15,
+      "trend": "cooling",
+      "median_files_per_commit": 10.0,
+      "median_lines_per_commit": 750.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-academic-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-academic-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/financials-page.tsx",
+      "score": 15.4,
+      "commits": 28,
+      "weighted_commits": 17.98,
+      "lines_added": 1902,
+      "lines_deleted": 563,
+      "complexity_density": 0.19,
+      "fan_in": 2,
+      "trend": "stable",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 869.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/financials-page.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/financials-page.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/tabs/analytics-tab.tsx",
+      "score": 12.9,
+      "commits": 31,
+      "weighted_commits": 20.51,
+      "lines_added": 1763,
+      "lines_deleted": 933,
+      "complexity_density": 0.14,
+      "fan_in": 9,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 740.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/tabs/analytics-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/tabs/analytics-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/financial-repository.ts",
+      "score": 12.6,
+      "commits": 23,
+      "weighted_commits": 13.35,
+      "lines_added": 1025,
+      "lines_deleted": 27,
+      "complexity_density": 0.21,
+      "fan_in": 11,
+      "trend": "cooling",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 1226.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/financial-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/financial-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts",
+      "score": 12.4,
+      "commits": 20,
+      "weighted_commits": 11.96,
+      "lines_added": 2111,
+      "lines_deleted": 1107,
+      "complexity_density": 0.23,
+      "fan_in": 9,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 583.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/unified-payment-modal.tsx",
+      "score": 11.9,
+      "commits": 18,
+      "weighted_commits": 12.04,
+      "lines_added": 1823,
+      "lines_deleted": 511,
+      "complexity_density": 0.22,
+      "fan_in": 13,
+      "trend": "cooling",
+      "median_files_per_commit": 13.0,
+      "median_lines_per_commit": 582.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/unified-payment-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/unified-payment-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/installment-schedule-tab.tsx",
+      "score": 11.4,
+      "commits": 30,
+      "weighted_commits": 19.43,
+      "lines_added": 1608,
+      "lines_deleted": 626,
+      "complexity_density": 0.13,
+      "fan_in": 12,
+      "trend": "cooling",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 459.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/installment-schedule-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/installment-schedule-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/dashboard-layout-editor.tsx",
+      "score": 11.3,
+      "commits": 17,
+      "weighted_commits": 11.44,
+      "lines_added": 1685,
+      "lines_deleted": 789,
+      "complexity_density": 0.22,
+      "fan_in": 8,
+      "trend": "cooling",
+      "median_files_per_commit": 2.0,
+      "median_lines_per_commit": 339.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/dashboard-layout-editor.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/dashboard-layout-editor.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+      "score": 10.5,
+      "commits": 30,
+      "weighted_commits": 16.74,
+      "lines_added": 3863,
+      "lines_deleted": 902,
+      "complexity_density": 0.14,
+      "fan_in": 24,
+      "trend": "stable",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 532.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/excel/import-engine/storage/repository-adapter.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/excel/import-engine/storage/repository-adapter.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/operational-query-console.tsx",
+      "score": 9.8,
+      "commits": 19,
+      "weighted_commits": 13.68,
+      "lines_added": 2296,
+      "lines_deleted": 904,
+      "complexity_density": 0.16,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 464.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/operational-query-console.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/operational-query-console.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/supabase-client.ts",
+      "score": 9.0,
+      "commits": 13,
+      "weighted_commits": 8.74,
+      "lines_added": 622,
+      "lines_deleted": 165,
+      "complexity_density": 0.23,
+      "fan_in": 53,
+      "trend": "cooling",
+      "median_files_per_commit": 2.5,
+      "median_lines_per_commit": 97.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/supabase-client.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/supabase-client.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/academic-repository.ts",
+      "score": 8.7,
+      "commits": 14,
+      "weighted_commits": 7.76,
+      "lines_added": 1606,
+      "lines_deleted": 40,
+      "complexity_density": 0.25,
+      "fan_in": 8,
+      "trend": "stable",
+      "median_files_per_commit": 13.0,
+      "median_lines_per_commit": 1343.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/academic-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/academic-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "electron/main.cts",
+      "score": 8.6,
+      "commits": 9,
+      "weighted_commits": 7.36,
+      "lines_added": 631,
+      "lines_deleted": 127,
+      "complexity_density": 0.26,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 460.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `electron/main.cts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `electron/main.cts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/providers/sync-provider.tsx",
+      "score": 8.3,
+      "commits": 13,
+      "weighted_commits": 7.35,
+      "lines_added": 456,
+      "lines_deleted": 186,
+      "complexity_density": 0.25,
+      "fan_in": 8,
+      "trend": "cooling",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 757.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/providers/sync-provider.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/providers/sync-provider.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/tabs/overview-tab.tsx",
+      "score": 8.2,
+      "commits": 23,
+      "weighted_commits": 14.08,
+      "lines_added": 1257,
+      "lines_deleted": 948,
+      "complexity_density": 0.13,
+      "fan_in": 5,
+      "trend": "accelerating",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 531.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/tabs/overview-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/tabs/overview-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/student-repository.ts",
+      "score": 8.0,
+      "commits": 17,
+      "weighted_commits": 9.84,
+      "lines_added": 894,
+      "lines_deleted": 193,
+      "complexity_density": 0.18,
+      "fan_in": 6,
+      "trend": "cooling",
+      "median_files_per_commit": 15.0,
+      "median_lines_per_commit": 1531.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/student-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/student-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/sync/default-push-handler.ts",
+      "score": 7.6,
+      "commits": 5,
+      "weighted_commits": 3.59,
+      "lines_added": 450,
+      "lines_deleted": 15,
+      "complexity_density": 0.47,
+      "fan_in": 8,
+      "trend": "cooling",
+      "median_files_per_commit": 5.0,
+      "median_lines_per_commit": 446.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/sync/default-push-handler.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/sync/default-push-handler.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/grade-levels-class-view.tsx",
+      "score": 7.6,
+      "commits": 17,
+      "weighted_commits": 11.25,
+      "lines_added": 1107,
+      "lines_deleted": 345,
+      "complexity_density": 0.15,
+      "fan_in": 6,
+      "trend": "cooling",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 965.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/grade-levels-class-view.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/grade-levels-class-view.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/payment-detail-drawer.tsx",
+      "score": 7.2,
+      "commits": 11,
+      "weighted_commits": 7.6,
+      "lines_added": 708,
+      "lines_deleted": 252,
+      "complexity_density": 0.21,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 434.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/payment-detail-drawer.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/payment-detail-drawer.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/app-shell.tsx",
+      "score": 7.1,
+      "commits": 9,
+      "weighted_commits": 6.06,
+      "lines_added": 295,
+      "lines_deleted": 185,
+      "complexity_density": 0.26,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 505.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/app-shell.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/app-shell.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/batch-registration-modal.tsx",
+      "score": 7.0,
+      "commits": 14,
+      "weighted_commits": 7.36,
+      "lines_added": 823,
+      "lines_deleted": 329,
+      "complexity_density": 0.21,
+      "fan_in": 3,
+      "trend": "stable",
+      "median_files_per_commit": 16.0,
+      "median_lines_per_commit": 1197.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/batch-registration-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/batch-registration-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/class-detail-page.tsx",
+      "score": 6.8,
+      "commits": 14,
+      "weighted_commits": 8.91,
+      "lines_added": 1011,
+      "lines_deleted": 137,
+      "complexity_density": 0.17,
+      "fan_in": 5,
+      "trend": "stable",
+      "median_files_per_commit": 11.5,
+      "median_lines_per_commit": 1114.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/class-detail-page.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/class-detail-page.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/dashboard-page.tsx",
+      "score": 6.8,
+      "commits": 20,
+      "weighted_commits": 12.59,
+      "lines_added": 857,
+      "lines_deleted": 514,
+      "complexity_density": 0.12,
+      "fan_in": 5,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 679.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/dashboard-page.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/dashboard-page.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/providers/ai-copilot-provider.tsx",
+      "score": 6.6,
+      "commits": 10,
+      "weighted_commits": 7.38,
+      "lines_added": 745,
+      "lines_deleted": 37,
+      "complexity_density": 0.2,
+      "fan_in": 16,
+      "trend": "cooling",
+      "median_files_per_commit": 11.0,
+      "median_lines_per_commit": 534.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/providers/ai-copilot-provider.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/providers/ai-copilot-provider.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "scripts/build-windows.mjs",
+      "score": 6.5,
+      "commits": 12,
+      "weighted_commits": 8.54,
+      "lines_added": 546,
+      "lines_deleted": 140,
+      "complexity_density": 0.17,
+      "fan_in": 0,
+      "trend": "cooling",
+      "median_files_per_commit": 1.0,
+      "median_lines_per_commit": 89.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `scripts/build-windows.mjs`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `scripts/build-windows.mjs` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/recovery-funnel-card.tsx",
+      "score": 6.5,
+      "commits": 18,
+      "weighted_commits": 13.13,
+      "lines_added": 2205,
+      "lines_deleted": 1265,
+      "complexity_density": 0.11,
+      "fan_in": 5,
+      "trend": "cooling",
+      "median_files_per_commit": 1.0,
+      "median_lines_per_commit": 230.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/recovery-funnel-card.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/recovery-funnel-card.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/excel-import-modal.tsx",
+      "score": 6.3,
+      "commits": 14,
+      "weighted_commits": 7.39,
+      "lines_added": 1130,
+      "lines_deleted": 158,
+      "complexity_density": 0.19,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 388.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/excel-import-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/excel-import-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/management/chat-panel.tsx",
+      "score": 6.2,
+      "commits": 10,
+      "weighted_commits": 6.57,
+      "lines_added": 1148,
+      "lines_deleted": 83,
+      "complexity_density": 0.21,
+      "fan_in": 5,
+      "trend": "accelerating",
+      "median_files_per_commit": 2.0,
+      "median_lines_per_commit": 334.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/management/chat-panel.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/management/chat-panel.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/debt-aging-tab.tsx",
+      "score": 6.2,
+      "commits": 14,
+      "weighted_commits": 10.58,
+      "lines_added": 1035,
+      "lines_deleted": 292,
+      "complexity_density": 0.13,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 796.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/debt-aging-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/debt-aging-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/calc/payment/service-pricing-profile.ts",
+      "score": 6.1,
+      "commits": 6,
+      "weighted_commits": 4.67,
+      "lines_added": 720,
+      "lines_deleted": 44,
+      "complexity_density": 0.29,
+      "fan_in": 3,
+      "trend": "stable",
+      "median_files_per_commit": 5.5,
+      "median_lines_per_commit": 277.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/calc/payment/service-pricing-profile.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/calc/payment/service-pricing-profile.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/backup-repository.ts",
+      "score": 6.1,
+      "commits": 15,
+      "weighted_commits": 9.08,
+      "lines_added": 371,
+      "lines_deleted": 4,
+      "complexity_density": 0.15,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 1192.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/backup-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/backup-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/dashboard-repository.ts",
+      "score": 5.8,
+      "commits": 10,
+      "weighted_commits": 5.87,
+      "lines_added": 494,
+      "lines_deleted": 55,
+      "complexity_density": 0.22,
+      "fan_in": 6,
+      "trend": "cooling",
+      "median_files_per_commit": 10.0,
+      "median_lines_per_commit": 610.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/dashboard-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/dashboard-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/features/t-579-payment-detail-contract.test.tsx",
+      "score": 5.8,
+      "commits": 3,
+      "weighted_commits": 2.98,
+      "lines_added": 88,
+      "lines_deleted": 1,
+      "complexity_density": 0.43,
+      "fan_in": 0,
+      "trend": "accelerating",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 333.0,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/features/t-579-payment-detail-contract.test.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/features/t-579-payment-detail-contract.test.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/data-inspector-lineage.ts",
+      "score": 5.5,
+      "commits": 6,
+      "weighted_commits": 4.21,
+      "lines_added": 955,
+      "lines_deleted": 22,
+      "complexity_density": 0.29,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 13.0,
+      "median_lines_per_commit": 750.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/data-inspector-lineage.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/data-inspector-lineage.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "financial-tests/equivalence/desktop/desktop_runner.ts",
+      "score": 5.4,
+      "commits": 11,
+      "weighted_commits": 6.37,
+      "lines_added": 1746,
+      "lines_deleted": 31,
+      "complexity_density": 0.19,
+      "fan_in": 0,
+      "trend": "stable",
+      "median_files_per_commit": 4.0,
+      "median_lines_per_commit": 727.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `financial-tests/equivalence/desktop/desktop_runner.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `financial-tests/equivalence/desktop/desktop_runner.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/crm-page.tsx",
+      "score": 5.2,
+      "commits": 16,
+      "weighted_commits": 8.91,
+      "lines_added": 1394,
+      "lines_deleted": 636,
+      "complexity_density": 0.13,
+      "fan_in": 3,
+      "trend": "accelerating",
+      "median_files_per_commit": 11.0,
+      "median_lines_per_commit": 1028.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/crm-page.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/crm-page.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/dashboards/worker-dashboard.tsx",
+      "score": 5.2,
+      "commits": 11,
+      "weighted_commits": 7.23,
+      "lines_added": 888,
+      "lines_deleted": 390,
+      "complexity_density": 0.16,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 147.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/dashboards/worker-dashboard.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/dashboards/worker-dashboard.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/student-detail/info-tab.tsx",
+      "score": 5.1,
+      "commits": 9,
+      "weighted_commits": 4.74,
+      "lines_added": 547,
+      "lines_deleted": 172,
+      "complexity_density": 0.24,
+      "fan_in": 2,
+      "trend": "stable",
+      "median_files_per_commit": 16.0,
+      "median_lines_per_commit": 1531.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/student-detail/info-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/student-detail/info-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/executive-statistics.ts",
+      "score": 5.1,
+      "commits": 13,
+      "weighted_commits": 8.67,
+      "lines_added": 1265,
+      "lines_deleted": 110,
+      "complexity_density": 0.13,
+      "fan_in": 39,
+      "trend": "cooling",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 467.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/executive-statistics.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/executive-statistics.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-personnel-repository.ts",
+      "score": 4.8,
+      "commits": 7,
+      "weighted_commits": 4.46,
+      "lines_added": 994,
+      "lines_deleted": 29,
+      "complexity_density": 0.24,
+      "fan_in": 5,
+      "trend": "cooling",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 940.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-personnel-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-personnel-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/dashboards/teacher-dashboard.tsx",
+      "score": 4.8,
+      "commits": 10,
+      "weighted_commits": 6.24,
+      "lines_added": 722,
+      "lines_deleted": 337,
+      "complexity_density": 0.17,
+      "fan_in": 2,
+      "trend": "cooling",
+      "median_files_per_commit": 10.0,
+      "median_lines_per_commit": 946.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/dashboards/teacher-dashboard.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/dashboards/teacher-dashboard.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/alert-detail-modal.tsx",
+      "score": 4.7,
+      "commits": 10,
+      "weighted_commits": 6.98,
+      "lines_added": 666,
+      "lines_deleted": 223,
+      "complexity_density": 0.15,
+      "fan_in": 3,
+      "trend": "stable",
+      "median_files_per_commit": 16.0,
+      "median_lines_per_commit": 476.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/alert-detail-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/alert-detail-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/providers/auth-provider.tsx",
+      "score": 4.6,
+      "commits": 11,
+      "weighted_commits": 6.33,
+      "lines_added": 655,
+      "lines_deleted": 289,
+      "complexity_density": 0.16,
+      "fan_in": 159,
+      "trend": "cooling",
+      "median_files_per_commit": 8.5,
+      "median_lines_per_commit": 687.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/providers/auth-provider.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/providers/auth-provider.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/student-detail/payments-tab.tsx",
+      "score": 4.6,
+      "commits": 11,
+      "weighted_commits": 7.25,
+      "lines_added": 283,
+      "lines_deleted": 74,
+      "complexity_density": 0.14,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 13.5,
+      "median_lines_per_commit": 577.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/student-detail/payments-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/student-detail/payments-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "electron/preload.cts",
+      "score": 4.6,
+      "commits": 10,
+      "weighted_commits": 7.29,
+      "lines_added": 244,
+      "lines_deleted": 22,
+      "complexity_density": 0.14,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 4.5,
+      "median_lines_per_commit": 341.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `electron/preload.cts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `electron/preload.cts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/settings/backup-tab.tsx",
+      "score": 4.5,
+      "commits": 10,
+      "weighted_commits": 6.72,
+      "lines_added": 1429,
+      "lines_deleted": 22,
+      "complexity_density": 0.15,
+      "fan_in": 4,
+      "trend": "stable",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 388.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/settings/backup-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/settings/backup-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/student-detail/academic-tab.tsx",
+      "score": 4.5,
+      "commits": 9,
+      "weighted_commits": 5.61,
+      "lines_added": 779,
+      "lines_deleted": 120,
+      "complexity_density": 0.18,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 15.0,
+      "median_lines_per_commit": 1162.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/student-detail/academic-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/student-detail/academic-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/settings/configuration-tab.tsx",
+      "score": 4.5,
+      "commits": 9,
+      "weighted_commits": 6.64,
+      "lines_added": 429,
+      "lines_deleted": 73,
+      "complexity_density": 0.15,
+      "fan_in": 4,
+      "trend": "stable",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 552.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/settings/configuration-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/settings/configuration-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/management/employee-profile-drawer.tsx",
+      "score": 4.4,
+      "commits": 9,
+      "weighted_commits": 6.09,
+      "lines_added": 1236,
+      "lines_deleted": 654,
+      "complexity_density": 0.16,
+      "fan_in": 1,
+      "trend": "accelerating",
+      "median_files_per_commit": 11.0,
+      "median_lines_per_commit": 464.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/management/employee-profile-drawer.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/management/employee-profile-drawer.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/financial-realtime.ts",
+      "score": 4.3,
+      "commits": 8,
+      "weighted_commits": 5.05,
+      "lines_added": 661,
+      "lines_deleted": 75,
+      "complexity_density": 0.19,
+      "fan_in": 5,
+      "trend": "cooling",
+      "median_files_per_commit": 3.5,
+      "median_lines_per_commit": 304.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/financial-realtime.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/financial-realtime.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/calc/ledger/year-history.ts",
+      "score": 4.2,
+      "commits": 6,
+      "weighted_commits": 4.64,
+      "lines_added": 963,
+      "lines_deleted": 14,
+      "complexity_density": 0.2,
+      "fan_in": 6,
+      "trend": "cooling",
+      "median_files_per_commit": 3.5,
+      "median_lines_per_commit": 442.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/calc/ledger/year-history.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/calc/ledger/year-history.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/analytics-derivations.ts",
+      "score": 4.2,
+      "commits": 8,
+      "weighted_commits": 4.95,
+      "lines_added": 742,
+      "lines_deleted": 193,
+      "complexity_density": 0.19,
+      "fan_in": 19,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 582.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/analytics-derivations.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/analytics-derivations.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/integration/real-excel-import.test.ts",
+      "score": 4.0,
+      "commits": 7,
+      "weighted_commits": 3.52,
+      "lines_added": 796,
+      "lines_deleted": 4,
+      "complexity_density": 0.25,
+      "fan_in": 0,
+      "trend": "cooling",
+      "median_files_per_commit": 12.0,
+      "median_lines_per_commit": 1614.0,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/integration/real-excel-import.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/integration/real-excel-import.test.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/batch-registration/step2-students.tsx",
+      "score": 4.0,
+      "commits": 10,
+      "weighted_commits": 5.19,
+      "lines_added": 399,
+      "lines_deleted": 52,
+      "complexity_density": 0.17,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 18.0,
+      "median_lines_per_commit": 1139.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/batch-registration/step2-students.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/batch-registration/step2-students.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/providers/user-preferences-provider.tsx",
+      "score": 4.0,
+      "commits": 6,
+      "weighted_commits": 3.58,
+      "lines_added": 288,
+      "lines_deleted": 109,
+      "complexity_density": 0.25,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 9.5,
+      "median_lines_per_commit": 1146.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/providers/user-preferences-provider.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/providers/user-preferences-provider.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/timetable/timetable-tab.tsx",
+      "score": 3.9,
+      "commits": 6,
+      "weighted_commits": 4.09,
+      "lines_added": 1917,
+      "lines_deleted": 64,
+      "complexity_density": 0.21,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 818.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/timetable/timetable-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/timetable/timetable-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/grade-entry-screen.tsx",
+      "score": 3.9,
+      "commits": 7,
+      "weighted_commits": 3.73,
+      "lines_added": 808,
+      "lines_deleted": 52,
+      "complexity_density": 0.23,
+      "fan_in": 3,
+      "trend": "stable",
+      "median_files_per_commit": 13.0,
+      "median_lines_per_commit": 441.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/grade-entry-screen.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/grade-entry-screen.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/financial/payment-ops.ts",
+      "score": 3.9,
+      "commits": 15,
+      "weighted_commits": 7.93,
+      "lines_added": 911,
+      "lines_deleted": 48,
+      "complexity_density": 0.11,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 15.5,
+      "median_lines_per_commit": 1494.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/financial/payment-ops.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/financial/payment-ops.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/dashboards/manager-dashboard.tsx",
+      "score": 3.9,
+      "commits": 8,
+      "weighted_commits": 5.13,
+      "lines_added": 897,
+      "lines_deleted": 384,
+      "complexity_density": 0.17,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 164.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/dashboards/manager-dashboard.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/dashboards/manager-dashboard.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/crm/student-detail-drawer.tsx",
+      "score": 3.9,
+      "commits": 7,
+      "weighted_commits": 4.09,
+      "lines_added": 278,
+      "lines_deleted": 145,
+      "complexity_density": 0.21,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 19.0,
+      "median_lines_per_commit": 1531.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/crm/student-detail-drawer.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/crm/student-detail-drawer.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/calc/payment/financial-query-engine.ts",
+      "score": 3.8,
+      "commits": 6,
+      "weighted_commits": 4.44,
+      "lines_added": 672,
+      "lines_deleted": 76,
+      "complexity_density": 0.19,
+      "fan_in": 7,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 640.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/calc/payment/financial-query-engine.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/calc/payment/financial-query-engine.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/academics-page.tsx",
+      "score": 3.8,
+      "commits": 10,
+      "weighted_commits": 6.07,
+      "lines_added": 1135,
+      "lines_deleted": 730,
+      "complexity_density": 0.14,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 1624.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/academics-page.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/academics-page.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/integration/t-105-import-shape.test.ts",
+      "score": 3.8,
+      "commits": 5,
+      "weighted_commits": 2.95,
+      "lines_added": 498,
+      "lines_deleted": 10,
+      "complexity_density": 0.29,
+      "fan_in": 0,
+      "trend": "stable",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 637.0,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/integration/t-105-import-shape.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/integration/t-105-import-shape.test.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/debtors-pareto-card.tsx",
+      "score": 3.8,
+      "commits": 8,
+      "weighted_commits": 5.63,
+      "lines_added": 362,
+      "lines_deleted": 133,
+      "complexity_density": 0.15,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 11.5,
+      "median_lines_per_commit": 2265.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/debtors-pareto-card.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/debtors-pareto-card.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/ui/ai-review-screens.test.tsx",
+      "score": 3.8,
+      "commits": 9,
+      "weighted_commits": 6.02,
+      "lines_added": 566,
+      "lines_deleted": 63,
+      "complexity_density": 0.14,
+      "fan_in": 0,
+      "trend": "cooling",
+      "median_files_per_commit": 12.0,
+      "median_lines_per_commit": 424.0,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/ui/ai-review-screens.test.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/ui/ai-review-screens.test.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/core/ai/tools/system-tools.ts",
+      "score": 3.7,
+      "commits": 9,
+      "weighted_commits": 6.39,
+      "lines_added": 886,
+      "lines_deleted": 42,
+      "complexity_density": 0.13,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 12.5,
+      "median_lines_per_commit": 521.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/core/ai/tools/system-tools.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/core/ai/tools/system-tools.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/mock-store.ts",
+      "score": 3.7,
+      "commits": 10,
+      "weighted_commits": 5.54,
+      "lines_added": 515,
+      "lines_deleted": 7,
+      "complexity_density": 0.15,
+      "fan_in": 81,
+      "trend": "stable",
+      "median_files_per_commit": 8.5,
+      "median_lines_per_commit": 1113.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/mock-store.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/mock-store.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/data-inspector-core.tsx",
+      "score": 3.7,
+      "commits": 10,
+      "weighted_commits": 8.2,
+      "lines_added": 1630,
+      "lines_deleted": 575,
+      "complexity_density": 0.1,
+      "fan_in": 3,
+      "trend": "stable",
+      "median_files_per_commit": 5.0,
+      "median_lines_per_commit": 498.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/data-inspector-core.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/data-inspector-core.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/core/format/id.ts",
+      "score": 3.7,
+      "commits": 7,
+      "weighted_commits": 4.58,
+      "lines_added": 217,
+      "lines_deleted": 30,
+      "complexity_density": 0.18,
+      "fan_in": 13,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 434.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/core/format/id.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/core/format/id.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/ui/primitives.test.tsx",
+      "score": 3.7,
+      "commits": 6,
+      "weighted_commits": 4.32,
+      "lines_added": 397,
+      "lines_deleted": 5,
+      "complexity_density": 0.19,
+      "fan_in": 0,
+      "trend": "stable",
+      "median_files_per_commit": 3.0,
+      "median_lines_per_commit": 207.5,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/ui/primitives.test.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/ui/primitives.test.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+      "score": 3.5,
+      "commits": 4,
+      "weighted_commits": 2.89,
+      "lines_added": 851,
+      "lines_deleted": 18,
+      "complexity_density": 0.27,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 1227.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-calendar-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-calendar-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/sync/sync-service.ts",
+      "score": 3.5,
+      "commits": 8,
+      "weighted_commits": 4.56,
+      "lines_added": 865,
+      "lines_deleted": 51,
+      "complexity_density": 0.17,
+      "fan_in": 14,
+      "trend": "cooling",
+      "median_files_per_commit": 6.5,
+      "median_lines_per_commit": 774.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/sync/sync-service.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/sync/sync-service.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/integration/empty-state-excel-restore.test.ts",
+      "score": 3.5,
+      "commits": 5,
+      "weighted_commits": 3.11,
+      "lines_added": 915,
+      "lines_deleted": 7,
+      "complexity_density": 0.25,
+      "fan_in": 0,
+      "trend": "stable",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 1095.0,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/integration/empty-state-excel-restore.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/integration/empty-state-excel-restore.test.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/workforce/index.ts",
+      "score": 3.5,
+      "commits": 8,
+      "weighted_commits": 4.87,
+      "lines_added": 1579,
+      "lines_deleted": 50,
+      "complexity_density": 0.16,
+      "fan_in": 9,
+      "trend": "accelerating",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 1154.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/workforce/index.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/workforce/index.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/model/student.ts",
+      "score": 3.5,
+      "commits": 17,
+      "weighted_commits": 9.6,
+      "lines_added": 589,
+      "lines_deleted": 45,
+      "complexity_density": 0.08,
+      "fan_in": 172,
+      "trend": "cooling",
+      "median_files_per_commit": 15.0,
+      "median_lines_per_commit": 1093.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/model/student.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/model/student.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/ai/chart-svg.tsx",
+      "score": 3.5,
+      "commits": 4,
+      "weighted_commits": 3.51,
+      "lines_added": 464,
+      "lines_deleted": 33,
+      "complexity_density": 0.22,
+      "fan_in": 1,
+      "trend": "accelerating",
+      "median_files_per_commit": 14.5,
+      "median_lines_per_commit": 624.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/ai/chart-svg.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/ai/chart-svg.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/tabs/reports-tab.tsx",
+      "score": 3.4,
+      "commits": 8,
+      "weighted_commits": 4.18,
+      "lines_added": 707,
+      "lines_deleted": 217,
+      "complexity_density": 0.18,
+      "fan_in": 2,
+      "trend": "accelerating",
+      "median_files_per_commit": 8.0,
+      "median_lines_per_commit": 1009.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/tabs/reports-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/tabs/reports-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/calc/timetable/solver/greedy-solver.ts",
+      "score": 3.4,
+      "commits": 5,
+      "weighted_commits": 3.48,
+      "lines_added": 1119,
+      "lines_deleted": 139,
+      "complexity_density": 0.22,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 967.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/calc/timetable/solver/greedy-solver.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/calc/timetable/solver/greedy-solver.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/shared/ui/auto-form/auto-form-modal.tsx",
+      "score": 3.4,
+      "commits": 4,
+      "weighted_commits": 2.66,
+      "lines_added": 209,
+      "lines_deleted": 50,
+      "complexity_density": 0.28,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 3.0,
+      "median_lines_per_commit": 184.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/shared/ui/auto-form/auto-form-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/shared/ui/auto-form/auto-form-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-notification-repository.ts",
+      "score": 3.4,
+      "commits": 6,
+      "weighted_commits": 3.6,
+      "lines_added": 786,
+      "lines_deleted": 476,
+      "complexity_density": 0.21,
+      "fan_in": 2,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 1693.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-notification-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-notification-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/academics/clubs/clubs-tab.tsx",
+      "score": 3.4,
+      "commits": 5,
+      "weighted_commits": 2.46,
+      "lines_added": 906,
+      "lines_deleted": 568,
+      "complexity_density": 0.31,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 20.5,
+      "median_lines_per_commit": 986.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/academics/clubs/clubs-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/academics/clubs/clubs-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/dashboards/administrator-dashboard.tsx",
+      "score": 3.4,
+      "commits": 7,
+      "weighted_commits": 4.47,
+      "lines_added": 505,
+      "lines_deleted": 319,
+      "complexity_density": 0.17,
+      "fan_in": 1,
+      "trend": "stable",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 665.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/dashboards/administrator-dashboard.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/dashboards/administrator-dashboard.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/personnel/management/staff-attendance-center.tsx",
+      "score": 3.3,
+      "commits": 6,
+      "weighted_commits": 4.13,
+      "lines_added": 814,
+      "lines_deleted": 29,
+      "complexity_density": 0.18,
+      "fan_in": 2,
+      "trend": "cooling",
+      "median_files_per_commit": 5.5,
+      "median_lines_per_commit": 163.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/personnel/management/staff-attendance-center.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/personnel/management/staff-attendance-center.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/parent-repository.ts",
+      "score": 3.3,
+      "commits": 8,
+      "weighted_commits": 4.09,
+      "lines_added": 209,
+      "lines_deleted": 9,
+      "complexity_density": 0.18,
+      "fan_in": 8,
+      "trend": "stable",
+      "median_files_per_commit": 11.0,
+      "median_lines_per_commit": 615.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/parent-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/parent-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "scripts/preflight-target.mjs",
+      "score": 3.3,
+      "commits": 3,
+      "weighted_commits": 2.94,
+      "lines_added": 715,
+      "lines_deleted": 7,
+      "complexity_density": 0.25,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 4.0,
+      "median_lines_per_commit": 82.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `scripts/preflight-target.mjs`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `scripts/preflight-target.mjs` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/yoy-comparison-card.tsx",
+      "score": 3.3,
+      "commits": 7,
+      "weighted_commits": 5.22,
+      "lines_added": 374,
+      "lines_deleted": 154,
+      "complexity_density": 0.14,
+      "fan_in": 2,
+      "trend": "cooling",
+      "median_files_per_commit": 14.0,
+      "median_lines_per_commit": 2265.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/yoy-comparison-card.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/yoy-comparison-card.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/see-details-modal.tsx",
+      "score": 3.3,
+      "commits": 15,
+      "weighted_commits": 9.11,
+      "lines_added": 2905,
+      "lines_deleted": 1947,
+      "complexity_density": 0.08,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 10.5,
+      "median_lines_per_commit": 845.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/see-details-modal.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/see-details-modal.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/excel/import-engine/import-engine.ts",
+      "score": 3.2,
+      "commits": 8,
+      "weighted_commits": 4.72,
+      "lines_added": 737,
+      "lines_deleted": 25,
+      "complexity_density": 0.15,
+      "fan_in": 4,
+      "trend": "cooling",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 1025.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/excel/import-engine/import-engine.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/excel/import-engine/import-engine.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+      "score": 3.2,
+      "commits": 6,
+      "weighted_commits": 3.27,
+      "lines_added": 508,
+      "lines_deleted": 22,
+      "complexity_density": 0.22,
+      "fan_in": 8,
+      "trend": "accelerating",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 780.5,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/tests/infrastructure/t-575-preflight-target.test.ts",
+      "score": 3.2,
+      "commits": 4,
+      "weighted_commits": 3.94,
+      "lines_added": 835,
+      "lines_deleted": 12,
+      "complexity_density": 0.18,
+      "fan_in": 0,
+      "trend": "cooling",
+      "median_files_per_commit": 3.0,
+      "median_lines_per_commit": 60.5,
+      "is_test_path": true,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/tests/infrastructure/t-575-preflight-target.test.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/tests/infrastructure/t-575-preflight-target.test.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/notification-alerts-repository.ts",
+      "score": 3.2,
+      "commits": 6,
+      "weighted_commits": 3.51,
+      "lines_added": 271,
+      "lines_deleted": 6,
+      "complexity_density": 0.2,
+      "fan_in": 3,
+      "trend": "cooling",
+      "median_files_per_commit": 16.0,
+      "median_lines_per_commit": 459.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/notification-alerts-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/notification-alerts-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/system-config.ts",
+      "score": 3.2,
+      "commits": 7,
+      "weighted_commits": 5.06,
+      "lines_added": 604,
+      "lines_deleted": 15,
+      "complexity_density": 0.14,
+      "fan_in": 15,
+      "trend": "stable",
+      "median_files_per_commit": 9.0,
+      "median_lines_per_commit": 582.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/system-config.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/system-config.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/app/app.tsx",
+      "score": 3.2,
+      "commits": 8,
+      "weighted_commits": 5.48,
+      "lines_added": 239,
+      "lines_deleted": 40,
+      "complexity_density": 0.13,
+      "fan_in": 2,
+      "trend": "cooling",
+      "median_files_per_commit": 6.0,
+      "median_lines_per_commit": 357.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/app/app.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/app/app.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/sync/sync-queue-store.ts",
+      "score": 3.2,
+      "commits": 5,
+      "weighted_commits": 2.38,
+      "lines_added": 263,
+      "lines_deleted": 0,
+      "complexity_density": 0.3,
+      "fan_in": 12,
+      "trend": "cooling",
+      "median_files_per_commit": 7.0,
+      "median_lines_per_commit": 757.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/sync/sync-queue-store.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/sync/sync-queue-store.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/dashboard/components/analytics/operational-query-engine.ts",
+      "score": 3.1,
+      "commits": 5,
+      "weighted_commits": 3.82,
+      "lines_added": 507,
+      "lines_deleted": 63,
+      "complexity_density": 0.18,
+      "fan_in": 21,
+      "trend": "cooling",
+      "median_files_per_commit": 11.0,
+      "median_lines_per_commit": 568.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/dashboard/components/analytics/operational-query-engine.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/dashboard/components/analytics/operational-query-engine.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/infrastructure/mock/repositories/personnel-audit-repository.ts",
+      "score": 3.1,
+      "commits": 6,
+      "weighted_commits": 3.26,
+      "lines_added": 432,
+      "lines_deleted": 4,
+      "complexity_density": 0.21,
+      "fan_in": 7,
+      "trend": "accelerating",
+      "median_files_per_commit": 7.5,
+      "median_lines_per_commit": 1117.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/infrastructure/mock/repositories/personnel-audit-repository.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/infrastructure/mock/repositories/personnel-audit-repository.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/domain/calc/academics/promotion.ts",
+      "score": 3.1,
+      "commits": 7,
+      "weighted_commits": 4.64,
+      "lines_added": 331,
+      "lines_deleted": 41,
+      "complexity_density": 0.15,
+      "fan_in": 13,
+      "trend": "cooling",
+      "median_files_per_commit": 14.0,
+      "median_lines_per_commit": 1359.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/domain/calc/academics/promotion.ts`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/domain/calc/academics/promotion.ts` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    },
+    {
+      "path": "src/features/financials/receipts-tab.tsx",
+      "score": 3.1,
+      "commits": 6,
+      "weighted_commits": 4.02,
+      "lines_added": 410,
+      "lines_deleted": 130,
+      "complexity_density": 0.17,
+      "fan_in": 1,
+      "trend": "cooling",
+      "median_files_per_commit": 19.0,
+      "median_lines_per_commit": 404.0,
+      "actions": [
+        {
+          "type": "refactor-file",
+          "auto_fixable": false,
+          "description": "Refactor `src/features/financials/receipts-tab.tsx`, high complexity combined with frequent changes makes this a maintenance risk",
+          "note": "Prioritize extracting complex functions, adding tests, or splitting the module"
+        },
+        {
+          "type": "add-tests",
+          "auto_fixable": false,
+          "description": "Add test coverage for `src/features/financials/receipts-tab.tsx` to reduce change risk",
+          "note": "Frequently changed complex files benefit most from comprehensive test coverage"
+        }
+      ]
+    }
+  ]
+}

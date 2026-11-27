@@ -1,0 +1,40 @@
+- Finding files
+Processed 1050 files (9.4s) (1 warning)
+
+✖ Found 34 circular dependencies!
+
+1) src/domain/calc/payment/queries.ts > src/domain/calc/payment/sums.ts > src/domain/model/payment.ts
+2) src/domain/model/payment.ts > src/domain/calc/payment/revenue.ts
+3) src/domain/calc/payment/sums.ts > src/domain/model/payment.ts
+4) src/domain/model/academic.ts > src/domain/model/student.ts
+5) src/domain/model/payment.ts > src/domain/model/academic.ts > src/domain/model/student.ts
+6) src/domain/model/payment.ts > src/domain/model/academic.ts > src/domain/model/student.ts > src/domain/model/pricing.ts > src/domain/calc/pricing/discount-rules.ts
+7) src/domain/model/pricing.ts > src/domain/calc/pricing/discount-rules.ts
+8) src/domain/model/student.ts > src/domain/model/pricing.ts > src/domain/calc/pricing/discount-rules.ts
+9) src/domain/model/student.ts > src/domain/model/pricing.ts > src/domain/calc/pricing/transport.ts > src/domain/calc/pricing/school-price-matrix.ts
+10) src/domain/model/pricing.ts > src/domain/calc/pricing/transport.ts
+11) src/domain/model/payment.ts > src/domain/model/academic.ts > src/domain/model/student.ts > src/domain/model/pricing.ts > src/domain/calc/pricing/tuition.ts
+12) src/domain/model/pricing.ts > src/domain/calc/pricing/tuition.ts
+13) src/domain/model/student.ts > src/domain/model/pricing.ts > src/domain/calc/pricing/tuition.ts
+14) src/domain/model/student.ts > src/domain/model/pricing.ts
+15) src/domain/model/ledger.ts > src/domain/calc/ledger/balance.ts
+16) src/domain/model/ledger.ts > src/domain/calc/ledger/charges.ts > src/domain/calc/ledger/entries.ts
+17) src/domain/model/ledger.ts > src/domain/calc/ledger/charges.ts
+18) src/domain/model/ledger.ts > src/domain/calc/ledger/overdue.ts
+19) src/domain/repository/academic-repository.ts > src/domain/repository/repository.ts
+20) src/app/providers/repository-provider.tsx > src/infrastructure/mock/mock-composite.ts
+21) src/app/providers/repository-provider.tsx > src/infrastructure/mock/mock-composite.ts > src/infrastructure/mock/mock-repositories.ts > src/infrastructure/mock/repositories/backup-repository.ts
+22) src/app/providers/repository-provider.tsx > src/infrastructure/mock/mock-composite.ts > src/infrastructure/mock/mock-repositories.ts > src/infrastructure/mock/repositories/backup-repository.ts > src/infrastructure/backup/backup-service.ts
+23) src/domain/model/labels.ts > src/domain/calc/ledger/year-history.ts
+24) src/app/providers/repository-provider.tsx > src/infrastructure/supabase/supabase-repositories.ts
+25) src/infrastructure/supabase/repositories/supabase-shared-repositories.ts > src/infrastructure/supabase/delta-cache.ts
+26) src/infrastructure/supabase/repositories/supabase-shared-repositories.ts > src/infrastructure/supabase/repositories/supabase-pricing-repository.ts
+27) src/app/providers/repository-provider.tsx > src/infrastructure/supabase/supabase-repositories.ts > src/infrastructure/supabase/repositories/supabase-backup-repository.ts
+28) src/infrastructure/supabase/supabase-repositories.ts > src/infrastructure/supabase/repositories/supabase-backup-repository.ts
+29) src/shared/ui/unified-modal.tsx > src/shared/ui/unified-modal/confirm-modal.tsx
+30) src/shared/navigation/person-navigation-context.tsx > src/features/crm/parent-detail-drawer.tsx
+31) src/shared/ui/student-actions-menu.tsx > src/shared/navigation/person-navigation-context.tsx > src/features/crm/parent-detail-drawer.tsx
+32) src/shared/navigation/person-navigation-context.tsx > src/features/crm/student-detail-drawer.tsx > src/features/crm/student-detail/info-tab.tsx
+33) src/shared/navigation/person-navigation-context.tsx > src/features/crm/student-detail-drawer.tsx > src/features/crm/student-detail/info-tab.tsx > src/shared/ui/parent-actions-menu.tsx
+34) src/shared/ui/student-actions-menu.tsx > src/shared/navigation/person-navigation-context.tsx > src/features/crm/student-detail-drawer.tsx > src/features/crm/student-detail/info-tab.tsx
+

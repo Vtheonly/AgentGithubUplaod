@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  "entry": [
+    "index.html",
+    "src/main.tsx",
+    "src/tests/**/*.{test,spec}.{ts,tsx}",
+    "electron/main.cts",
+    "electron/preload.cts",
+    "electron/backend-profile.cts",
+    "electron/backend-profile-contract.cts",
+    "electron/menu-builders.cts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "tailwind.config.cjs",
+    "postcss.config.cjs"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "electron/**/*.cts",
+    "scripts/**/*.{ts,mts,mjs,js}"
+  ],
+  "ignore": ["node_modules", "dist", "dist-electron", "release"],
+  "ignoreDependencies": ["electron", "vite-plugin-electron"],
+  "vitest": {
+    "config": ["vitest.config.ts"]
+  },
+  "eslint": {
+    "config": ["eslint.config.js"]
+  }
+}

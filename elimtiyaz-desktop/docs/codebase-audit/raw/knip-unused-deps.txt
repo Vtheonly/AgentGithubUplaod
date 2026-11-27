@@ -1,0 +1,8 @@
+@radix-ui/react-checkbox
+@radix-ui/react-popover
+@radix-ui/react-toast
+@supabase/ssr
+@types/katex
+cmdk
+pg
+zustand

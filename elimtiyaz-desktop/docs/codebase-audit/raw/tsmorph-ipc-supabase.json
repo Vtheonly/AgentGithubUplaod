@@ -1,0 +1,637 @@
+{
+  "generatedAt": "2026-11-27T14:08:55.874Z",
+  "ipc": {
+    "registeredChannels": [
+      "handle:app:get-path",
+      "handle:app:get-version",
+      "handle:app:is-electron",
+      "handle:app:restart",
+      "handle:backend-profile:clear",
+      "handle:backend-profile:get",
+      "handle:backend-profile:write",
+      "handle:config:delete",
+      "handle:config:read",
+      "handle:config:write",
+      "handle:safeStorage:is-available",
+      "handle:safeStorage:read-passphrase",
+      "handle:safeStorage:write-passphrase",
+      "handle:shell:open-external",
+      "handle:vault:pick-backup-file",
+      "handle:vault:pick-directory",
+      "handle:vault:pick-file",
+      "handle:vault:save-file",
+      "handle:window:close",
+      "handle:window:is-fullscreen",
+      "handle:window:is-maximized",
+      "handle:window:minimize",
+      "handle:window:toggle-fullscreen",
+      "handle:window:toggle-maximize",
+      "on:backend-profile:get-sync"
+    ],
+    "invokedChannels": [
+      "app:get-path",
+      "app:get-version",
+      "app:is-electron",
+      "app:restart",
+      "backend-profile:clear",
+      "backend-profile:get",
+      "backend-profile:write",
+      "config:delete",
+      "config:read",
+      "config:write",
+      "safeStorage:is-available",
+      "safeStorage:read-passphrase",
+      "safeStorage:write-passphrase",
+      "shell:open-external",
+      "vault:pick-backup-file",
+      "vault:pick-directory",
+      "vault:pick-file",
+      "vault:save-file",
+      "window:close",
+      "window:is-fullscreen",
+      "window:is-maximized",
+      "window:minimize",
+      "window:toggle-fullscreen",
+      "window:toggle-maximize"
+    ],
+    "registeredButNeverInvoked": [
+      "on:backend-profile:get-sync"
+    ],
+    "invokedButNeverRegistered": []
+  },
+  "supabase": {
+    "distinctTablesReferenced": 73,
+    "tableCounts": {
+      "system_settings": 4,
+      "tenants": 2,
+      "ledger_entries": 8,
+      "parents": 24,
+      "students": 21,
+      "sync_queue": 1,
+      "homework": 4,
+      "calendar_events": 7,
+      "installments": 30,
+      "notifications": 16,
+      "user_profiles": 6,
+      "academic_years": 15,
+      "academic_levels": 4,
+      "classes": 6,
+      "subjects": 5,
+      "class_subjects": 7,
+      "subject_configurations": 2,
+      "assessments": 6,
+      "attendance_records": 10,
+      "account_approval_requests": 1,
+      "activation_codes": 2,
+      "audit_logs": 6,
+      "backup_archives": 5,
+      "payments": 14,
+      "expense_tickets": 7,
+      "chat_channels": 3,
+      "personnel": 15,
+      "chat_messages": 6,
+      "dashboard_layouts": 2,
+      "deliveries": 7,
+      "expense_attachments": 3,
+      "expense_categories": 1,
+      "er_source_observations": 2,
+      "er_match_proposals": 2,
+      "er_identity_edges": 1,
+      "er_aggregation_events": 1,
+      "inventory_items": 7,
+      "inventory_transactions": 2,
+      "leave_requests": 5,
+      "onboarding_states": 5,
+      "roles": 2,
+      "salary_payments": 1,
+      "departments": 5,
+      "pricing_configs": 8,
+      "grade_level_tuition": 4,
+      "transport_destinations": 4,
+      "complementary_services": 3,
+      "additional_services": 3,
+      "discounts": 3,
+      "purchase_requests": 7,
+      "releve_entries": 2,
+      "student_academic_histories": 1,
+      "student_documents": 3,
+      "payment_allocations": 2,
+      "shifts": 4,
+      "schedules": 3,
+      "student_narratives": 2,
+      "suppliers": 6,
+      "tasks": 5,
+      "task_comments": 1,
+      "task_attachments": 1,
+      "timetable_versions": 16,
+      "timetable_entries": 19,
+      "rooms": 6,
+      "timetable_configurations": 5,
+      "timetable_constraints": 5,
+      "role_assignments": 1,
+      "pending_receipts": 5,
+      "pending_dispatches": 5,
+      "workflows": 6,
+      "workflow_runs": 3,
+      "workforce_attendance_events": 2,
+      "staff_absences": 5
+    },
+    "rpcCounts": {
+      "upsert_parent_from_import": 3,
+      "upsert_student_from_import": 3,
+      "upsert_payment_from_import": 1,
+      "upsert_ledger_entry_from_import": 6,
+      "upsert_installment_from_import": 1,
+      "upsert_attendance_from_import": 1,
+      "upsert_assessment_from_import": 1,
+      "mark_sync_queue_processed": 2,
+      "sync_apply_batch": 1,
+      "write_audit_log": 11,
+      "current_tenant_id": 3,
+      "soft_delete_student": 2,
+      "soft_delete_parent": 2,
+      "current_user_profile_id": 3,
+      "current_user_roles": 2,
+      "record_auto_releve_entry": 1,
+      "set_current_academic_year": 1,
+      "notify_parent_user": 3,
+      "execute_batch_promotion": 2,
+      "fn_finalize_class_placements": 1,
+      "fn_get_promotion_cycles": 1,
+      "fn_get_promotion_cycle_classes": 1,
+      "fn_create_promotion_cycle": 1,
+      "fn_confirm_promotion_cycle_class": 1,
+      "fn_reopen_promotion_cycle_class": 1,
+      "fn_complete_promotion_cycle": 1,
+      "fn_cancel_promotion_cycle": 1,
+      "fn_generate_re_enrollment_candidates": 1,
+      "fn_get_re_enrollment_candidates": 1,
+      "fn_set_re_enrollment_decision": 1,
+      "fn_re_enroll_student": 1,
+      "fn_freeze_re_enrollments": 1,
+      "generate_activation_code": 1,
+      "current_user_permissions": 1,
+      "create_direct_channel": 2,
+      "save_dashboard_layout": 1,
+      "fn_er_decide_proposal": 1,
+      "fn_er_merge_parents": 1,
+      "fn_er_unmerge_parents": 1,
+      "fn_er_has_aggregation_state": 1,
+      "respond_leave_clarification": 1,
+      "adjust_personnel_salary": 1,
+      "record_salary_disbursement": 1,
+      "create_pricing_config_for_year": 1,
+      "set_active_pricing_config": 1,
+      "upsert_setting": 1,
+      "purge_student_parent_domain": 1,
+      "collect_and_allocate_payment": 1,
+      "revert_payment_allocation": 1,
+      "mark_payment_cleared": 1,
+      "mark_payment_bounced": 1,
+      "generate_receipt_numbers": 1,
+      "read_reconcile_inputs": 1,
+      "create_manual_debt": 1,
+      "adjust_installment_amount": 1,
+      "read_debt_aging_thresholds": 1,
+      "compute_debt_aging_summary": 1,
+      "read_debt_summary_collection": 1,
+      "fn_timetable_publish": 1
+    },
+    "totalFromCalls": 423,
+    "unboundedSelects": 308,
+    "unboundedSelectSites": [
+      {
+        "file": "src/infrastructure/system-config.ts",
+        "line": 206,
+        "table": "system_settings"
+      },
+      {
+        "file": "src/infrastructure/system-config.ts",
+        "line": 251,
+        "table": "system_settings"
+      },
+      {
+        "file": "src/features/settings/tenant-switcher.tsx",
+        "line": 63,
+        "table": "tenants"
+      },
+      {
+        "file": "src/infrastructure/supabase/financial-realtime.ts",
+        "line": 211,
+        "table": "ledger_entries"
+      },
+      {
+        "file": "src/infrastructure/supabase/financial-realtime.ts",
+        "line": 283,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/financial-realtime.ts",
+        "line": 294,
+        "table": "students"
+      },
+      {
+        "file": "src/tests/integration/t-094-overdue-live.test.ts",
+        "line": 72,
+        "table": "installments"
+      },
+      {
+        "file": "src/tests/integration/t-094-overdue-live.test.ts",
+        "line": 80,
+        "table": "notifications"
+      },
+      {
+        "file": "src/tests/integration/t-094-overdue-live.test.ts",
+        "line": 124,
+        "table": "notifications"
+      },
+      {
+        "file": "src/tests/integration/t-094-overdue-live.test.ts",
+        "line": 133,
+        "table": "notifications"
+      },
+      {
+        "file": "src/tests/integration/t-094-overdue-live.test.ts",
+        "line": 147,
+        "table": "notifications"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 308,
+        "table": "parents"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 387,
+        "table": "students"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 476,
+        "table": "parents"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 522,
+        "table": "students"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 545,
+        "table": "parents"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 573,
+        "table": "students"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 629,
+        "table": "ledger_entries"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 678,
+        "table": "installments"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 702,
+        "table": "installments"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 732,
+        "table": "students"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 755,
+        "table": "ledger_entries"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 781,
+        "table": "installments"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 977,
+        "table": "students"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 1026,
+        "table": "parents"
+      },
+      {
+        "file": "src/features/settings/supabase-diagnostics/crud-test-runner.ts",
+        "line": 1060,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 97,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 120,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 131,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 188,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 233,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 246,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 259,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 294,
+        "table": "academic_levels"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 312,
+        "table": "academic_levels"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 345,
+        "table": "classes"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 364,
+        "table": "students"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 510,
+        "table": "classes"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 551,
+        "table": "subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 563,
+        "table": "class_subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 575,
+        "table": "subject_configurations"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 645,
+        "table": "subject_configurations"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 710,
+        "table": "class_subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 758,
+        "table": "subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 794,
+        "table": "subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 846,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 874,
+        "table": "assessments"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 893,
+        "table": "assessments"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 921,
+        "table": "assessments"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1059,
+        "table": "assessments"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1085,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1106,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1127,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1148,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1174,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1227,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1302,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1352,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1375,
+        "table": "students"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1425,
+        "table": "attendance_records"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1441,
+        "table": "students"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1545,
+        "table": "homework"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1563,
+        "table": "homework"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1596,
+        "table": "subjects"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1601,
+        "table": "academic_years"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1615,
+        "table": "homework"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-academic-repository.ts",
+        "line": 1744,
+        "table": "students"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 100,
+        "table": "account_approval_requests"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 142,
+        "table": "activation_codes"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 150,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 165,
+        "table": "students"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 180,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 194,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-approval-repository.ts",
+        "line": 208,
+        "table": "parents"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+        "line": 248,
+        "table": "audit_logs"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+        "line": 410,
+        "table": "audit_logs"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts",
+        "line": 424,
+        "table": "audit_logs"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-auth-repository.ts",
+        "line": 96,
+        "table": "user_profiles"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-backup-repository.ts",
+        "line": 324,
+        "table": "backup_archives"
+      },
+      {
+        "file": "src/infrastructure/supabase/repositories/supabase-calendar-repository.ts",
+        "line": 479,
+        "table": "calendar_events"
+      }
+    ],
+    "serviceRoleSuspects": [
+      {
+        "file": "src/tests/infrastructure/t-573-backend-profile.test.ts",
+        "line": 556,
+        "text": "sb_secret_AAAA1111<redacted>"
+      },
+      {
+        "file": "src/tests/infrastructure/t-574-relocate-auth.test.ts",
+        "line": 96,
+        "text": "sb_secret_test-ser<redacted>"
+      },
+      {
+        "file": "src/tests/infrastructure/t-574-relocate-auth.test.ts",
+        "line": 97,
+        "text": "sbp_local-test-man<redacted>"
+      },
+      {
+        "file": "src/tests/infrastructure/t-t614-prepare-cutover-profile.test.ts",
+        "line": 71,
+        "text": "sb_secret_deadbeef<redacted>"
+      },
+      {
+        "file": "src/tests/infrastructure/t-t614-prepare-cutover-profile.test.ts",
+        "line": 75,
+        "text": "sb_secret_deadbeef<redacted>"
+      },
+      {
+        "file": "src/tests/infrastructure/t-t614-prepare-cutover-profile.test.ts",
+        "line": 146,
+        "text": "sb_secret_deadbeef<redacted>"
+      }
+    ]
+  }
+}

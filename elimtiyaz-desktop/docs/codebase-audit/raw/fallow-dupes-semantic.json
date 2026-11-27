@@ -1,0 +1,1264 @@
+{
+  "total_families": 1596,
+  "top_150_families": [
+    {
+      "files": [
+        "electron/backend-profile-contract.cts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "electron/backend-profile-contract.cts",
+        "src/infrastructure/supabase/supabase-client.ts"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "electron/preload.cts"
+      ],
+      "largest_group_lines": 12,
+      "instances": 2
+    },
+    {
+      "files": [
+        "electron/preload.cts",
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/timetable.ts",
+        "src/features/dashboard/components/analytics/executive-statistics.ts",
+        "src/infrastructure/receipt-pdf/family-statement.ts"
+      ],
+      "largest_group_lines": 38,
+      "instances": 5
+    },
+    {
+      "files": [
+        "electron/preload.cts",
+        "src/domain/model/timetable.ts",
+        "src/infrastructure/receipt-pdf/family-statement.ts"
+      ],
+      "largest_group_lines": 23,
+      "instances": 3
+    },
+    {
+      "files": [
+        "electron/preload.cts",
+        "src/infrastructure/receipt-pdf/family-statement.ts"
+      ],
+      "largest_group_lines": 25,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts"
+      ],
+      "largest_group_lines": 19,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 4
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/domain/model/ledger.ts"
+      ],
+      "largest_group_lines": 21,
+      "instances": 5
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/domain/model/ledger.ts",
+        "src/domain/model/payment.ts",
+        "src/infrastructure/supabase/types.ts"
+      ],
+      "largest_group_lines": 25,
+      "instances": 7
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/domain/model/ledger.ts",
+        "src/infrastructure/supabase/types.ts"
+      ],
+      "largest_group_lines": 21,
+      "instances": 6
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts"
+      ],
+      "largest_group_lines": 118,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts"
+      ],
+      "largest_group_lines": 43,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/infrastructure/supabase/repositories/supabase-teacher-repository.ts"
+      ],
+      "largest_group_lines": 16,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/android_mirror_runner.ts",
+        "scripts/preflight-target.d.mts"
+      ],
+      "largest_group_lines": 14,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts"
+      ],
+      "largest_group_lines": 15,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/core/audit-actions.ts"
+      ],
+      "largest_group_lines": 47,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/core/audit-actions.ts",
+        "src/domain/calc/pricing/transport.ts"
+      ],
+      "largest_group_lines": 56,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/core/audit-actions.ts",
+        "src/domain/calc/pricing/transport.ts",
+        "src/domain/model/parent.ts",
+        "src/domain/model/workflow.ts"
+      ],
+      "largest_group_lines": 49,
+      "instances": 7
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/core/audit-actions.ts",
+        "src/domain/calc/pricing/transport.ts",
+        "src/features/settings/danger-zone-card.tsx"
+      ],
+      "largest_group_lines": 51,
+      "instances": 4
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/ledger/balance.ts"
+      ],
+      "largest_group_lines": 22,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/ledger/debt-aging.ts"
+      ],
+      "largest_group_lines": 27,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/ledger/overdue.ts"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/billing-breakdown.ts"
+      ],
+      "largest_group_lines": 25,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/billing-breakdown.ts",
+        "src/domain/repository/academic-repository.ts"
+      ],
+      "largest_group_lines": 24,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/domain/calc/payment/webhook-diagnostics.ts",
+        "src/features/dashboard/components/analytics/operational-query-engine.ts",
+        "src/infrastructure/excel/import-engine/storage/repository-adapter.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 6
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/domain/calc/reconcile/cross-checks.ts",
+        "src/infrastructure/receipt-pdf/account-statement.ts"
+      ],
+      "largest_group_lines": 6,
+      "instances": 4
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/lifo-reversal.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/waterfall-allocator.ts"
+      ],
+      "largest_group_lines": 21,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/payment/webhook-diagnostics.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/pricing/discount-engine.ts"
+      ],
+      "largest_group_lines": 19,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/pricing/tuition.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/reconcile/checks.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/reconcile/cross-checks.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/reconcile/index.ts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/calc/timetable/feasibility.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/ledger.ts"
+      ],
+      "largest_group_lines": 40,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/payment.ts"
+      ],
+      "largest_group_lines": 28,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/teacher.ts"
+      ],
+      "largest_group_lines": 23,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/timetable.ts"
+      ],
+      "largest_group_lines": 22,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/model/workforce.ts"
+      ],
+      "largest_group_lines": 15,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/domain/repository/repository.ts",
+        "src/infrastructure/excel/import-engine/types.ts"
+      ],
+      "largest_group_lines": 35,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/features/dashboard/components/analytics/executive-statistics.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/features/dashboard/components/recovery-funnel-card.tsx"
+      ],
+      "largest_group_lines": 31,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+        "src/shared/particle-engine/types.ts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/backend/backend_runner.ts"
+      ],
+      "largest_group_lines": 19,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts"
+      ],
+      "largest_group_lines": 42,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "scripts/preflight-target.mjs",
+        "src/infrastructure/excel/import-engine/import-engine.ts"
+      ],
+      "largest_group_lines": 9,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/backend/backend_runner.ts",
+        "src/infrastructure/excel/import-engine/import-engine.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/comparator.ts",
+        "financial-tests/equivalence/comparison/tier4_comparator.ts"
+      ],
+      "largest_group_lines": 21,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/comparator.ts",
+        "financial-tests/equivalence/comparison/triple_comparator.ts"
+      ],
+      "largest_group_lines": 25,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/comparator.ts",
+        "financial-tests/equivalence/generators/scenario_generator.ts"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/comparator.ts",
+        "src/domain/calc/academics/class-placement.ts",
+        "src/features/academics/hooks/use-class-placement-studio.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/comparator.ts",
+        "src/features/academics/hooks/use-class-placement-studio.ts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/tier4_comparator.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/tier4_comparator.ts",
+        "src/core/ai/tools/workflow-tools.ts"
+      ],
+      "largest_group_lines": 5,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/comparison/tier4_comparator.ts",
+        "src/domain/calc/diff/field-diff.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_executive_statistics_corpus.ts",
+        "scripts/t-442-live-verify.mjs",
+        "scripts/t-447-live-verify.mjs",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/domain/calc/reconcile/cross-checks.ts",
+        "src/features/dashboard/components/analytics/aging-composition-card.tsx",
+        "src/features/dashboard/components/analytics/analytics-derivations.ts",
+        "src/features/dashboard/components/analytics/executive-statistics.ts",
+        "src/features/dashboard/components/analytics/pivot-matrix-card.tsx",
+        "src/features/dashboard/components/analytics/wave-velocity-card.tsx",
+        "src/features/financials/financial-query-console.tsx"
+      ],
+      "largest_group_lines": 5,
+      "instances": 18
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "scripts/generate_executive_statistics_corpus.ts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "scripts/t-447-live-verify.mjs",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/features/dashboard/components/analytics/executive-statistics.ts",
+        "src/features/dashboard/see-details-modal.tsx"
+      ],
+      "largest_group_lines": 5,
+      "instances": 5
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "src/domain/calc/academics/class-placement.ts"
+      ],
+      "largest_group_lines": 12,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "src/features/dashboard/components/weekly-operating-rhythm.tsx"
+      ],
+      "largest_group_lines": 33,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "src/features/financials/installment-schedule-tab.tsx"
+      ],
+      "largest_group_lines": 31,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/analytics_bridge.ts",
+        "src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts"
+      ],
+      "largest_group_lines": 47,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_analytics_visuals_corpus.ts"
+      ],
+      "largest_group_lines": 42,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_executive_statistics_corpus.ts"
+      ],
+      "largest_group_lines": 165,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_executive_statistics_corpus.ts",
+        "scripts/verify_t-338_live.ts"
+      ],
+      "largest_group_lines": 16,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_executive_statistics_corpus.ts",
+        "src/core/ai/tools/analysis-tools.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "scripts/generate_executive_statistics_corpus.ts",
+        "src/features/dashboard/components/analytics/wave-velocity-card.tsx"
+      ],
+      "largest_group_lines": 5,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/core/ai/tools/workflow-tools.ts",
+        "src/infrastructure/supabase/repositories/supabase-delivery-repository.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/features/academics/teachers-tab.tsx"
+      ],
+      "largest_group_lines": 14,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/desktop/desktop_runner.ts",
+        "src/infrastructure/excel/import-engine/import-engine.ts"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/generators/scenario_generator.ts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "financial-tests/equivalence/generators/scenario_generator.ts",
+        "src/infrastructure/mock/fixtures/rng.ts"
+      ],
+      "largest_group_lines": 6,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/build-test-fixture.ts"
+      ],
+      "largest_group_lines": 16,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/build-test-fixture.ts",
+        "scripts/t-420-live-verification.ts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/build-test-fixture.ts",
+        "src/app/providers/repository-provider.tsx"
+      ],
+      "largest_group_lines": 32,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/build-test-fixture.ts",
+        "src/app/providers/repository-provider.tsx",
+        "src/core/theme/theme-types.ts",
+        "src/domain/calc/ledger/year-history.ts",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/infrastructure/excel/import-config/types.ts",
+        "src/infrastructure/excel/import-engine/types.ts",
+        "src/shared/particle-engine/types.ts",
+        "src/shared/ui/unified-modal/types.ts"
+      ],
+      "largest_group_lines": 47,
+      "instances": 11
+    },
+    {
+      "files": [
+        "scripts/build-test-fixture.ts",
+        "src/domain/calc/payment/service-pricing-profile.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/build-windows.mjs",
+        "scripts/check-supabase.mjs",
+        "scripts/clean-slate-reset.mjs"
+      ],
+      "largest_group_lines": 9,
+      "instances": 4
+    },
+    {
+      "files": [
+        "scripts/check-supabase.mjs"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/check-supabase.mjs",
+        "scripts/check-supabase.ts",
+        "scripts/clean-slate-reset.mjs"
+      ],
+      "largest_group_lines": 13,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/check-supabase.mjs",
+        "scripts/clean-slate-reset.mjs"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/check-supabase.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/check-supabase.ts",
+        "scripts/clean-slate-reset.mjs"
+      ],
+      "largest_group_lines": 14,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/clean-slate-reset.mjs"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/generate_analytics_visuals_corpus.ts",
+        "scripts/generate_executive_statistics_corpus.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/apply-i18n.mjs"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/apply-i18n.mjs",
+        "scripts/i18n/collect-unique-strings.mjs"
+      ],
+      "largest_group_lines": 13,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/apply-i18n.mjs",
+        "scripts/i18n/scan-hardcoded-strings.mjs"
+      ],
+      "largest_group_lines": 23,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/check-parity.mjs",
+        "scripts/i18n/translate-strings.mjs"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/scan-hardcoded-strings.mjs"
+      ],
+      "largest_group_lines": 6,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/scan-hardcoded-strings.mjs",
+        "scripts/i18n/translate-strings.mjs"
+      ],
+      "largest_group_lines": 6,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/scan-hardcoded-strings.mjs",
+        "scripts/t-420-live-verification.ts"
+      ],
+      "largest_group_lines": 48,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/i18n/translate-strings.mjs",
+        "scripts/i18n/translate-templates.mjs"
+      ],
+      "largest_group_lines": 21,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/preflight-target.d.mts",
+        "src/app/providers/repository-provider.tsx",
+        "src/core/theme/theme-types.ts",
+        "src/domain/calc/payment/financial-query-engine.ts",
+        "src/infrastructure/excel/import-config/types.ts",
+        "src/infrastructure/excel/import-engine/types.ts",
+        "src/shared/particle-engine/types.ts"
+      ],
+      "largest_group_lines": 30,
+      "instances": 7
+    },
+    {
+      "files": [
+        "scripts/preflight-target.d.mts",
+        "src/shared/ui/unified-modal/types.ts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/realtime-probe.mjs"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/relocate-auth.d.mts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/relocate-auth.mjs"
+      ],
+      "largest_group_lines": 16,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/run-unified-tests.mjs"
+      ],
+      "largest_group_lines": 11,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-368-live-export-e2e.ts"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-368-live-export-e2e.ts",
+        "src/domain/model/academic.ts"
+      ],
+      "largest_group_lines": 12,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-368-live-export-e2e.ts",
+        "src/infrastructure/supabase/repositories/supabase-teacher-repository.ts"
+      ],
+      "largest_group_lines": 12,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-396-crud-live-e2e.ts",
+        "scripts/t-397-batch-register-live-e2e.ts",
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-420-live-verification.ts",
+        "scripts/t-421-live-verification.mts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 5
+    },
+    {
+      "files": [
+        "scripts/t-396-crud-live-e2e.ts",
+        "scripts/t-398-registration-live-e2e.ts"
+      ],
+      "largest_group_lines": 16,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-396-crud-live-e2e.ts",
+        "scripts/t-398-registration-live-e2e.ts",
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-420-live-verification.ts",
+        "scripts/t-421-live-verification.mts"
+      ],
+      "largest_group_lines": 14,
+      "instances": 5
+    },
+    {
+      "files": [
+        "scripts/t-397-batch-register-live-e2e.ts",
+        "scripts/t-398-registration-live-e2e.ts",
+        "scripts/t-399-autofill-data-live-e2e.ts"
+      ],
+      "largest_group_lines": 6,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-397-batch-register-live-e2e.ts",
+        "scripts/t-425-live-reimport.ts",
+        "scripts/t-433-live-reimport.ts",
+        "scripts/t-615-excel-datalane-verify.ts"
+      ],
+      "largest_group_lines": 6,
+      "instances": 4
+    },
+    {
+      "files": [
+        "scripts/t-398-registration-live-e2e.ts"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-398-registration-live-e2e.ts",
+        "scripts/t-399-autofill-data-live-e2e.ts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-398-registration-live-e2e.ts",
+        "scripts/t-399-autofill-data-live-e2e.ts",
+        "scripts/t-408-fake-academic-e2e.ts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-399-autofill-data-live-e2e.ts"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-408-fake-academic-e2e.ts"
+      ],
+      "largest_group_lines": 15,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-408-fake-academic-e2e.ts",
+        "scripts/t-415-live-verification.mjs"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-408-fake-academic-e2e.ts",
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-420-live-verification.ts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-408-fake-academic-e2e.ts",
+        "src/infrastructure/supabase/supabase-repositories.ts"
+      ],
+      "largest_group_lines": 67,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-412-live-forecast-verification.ts",
+        "scripts/t-412-payroll-forecast-e2e.ts"
+      ],
+      "largest_group_lines": 18,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-412-live-forecast-verification.ts",
+        "src/domain/calc/payroll/payroll-forecast.ts"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-412-payroll-forecast-e2e.ts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-415-live-verification.mjs"
+      ],
+      "largest_group_lines": 7,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-415-live-verification.mjs",
+        "scripts/t-416-purge-live-verification.mjs"
+      ],
+      "largest_group_lines": 19,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-415-live-verification.mjs",
+        "scripts/t-416-purge-live-verification.mjs",
+        "scripts/t-487-workflow-e2e.ts"
+      ],
+      "largest_group_lines": 10,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-415-live-verification.mjs",
+        "scripts/t-442-live-verify.mjs"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-415-live-verification.mjs",
+        "scripts/t-442-live-verify.mjs",
+        "scripts/t-447-live-verify.mjs"
+      ],
+      "largest_group_lines": 5,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-416-purge-live-verification.mjs"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-416-purge-live-verification.mjs",
+        "src/core/rbac/permissions.ts"
+      ],
+      "largest_group_lines": 87,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts"
+      ],
+      "largest_group_lines": 9,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-420-live-verification.ts"
+      ],
+      "largest_group_lines": 32,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-420-live-verification.ts",
+        "scripts/t-421-live-verification.mts"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-421-live-verification.mts"
+      ],
+      "largest_group_lines": 20,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-421-live-verification.mts",
+        "scripts/t-424-tranche-attribution-analysis.ts",
+        "scripts/t-425-live-reimport.ts",
+        "scripts/t-433-live-reimport.ts",
+        "scripts/t-487-workflow-e2e.ts"
+      ],
+      "largest_group_lines": 6,
+      "instances": 6
+    },
+    {
+      "files": [
+        "scripts/t-420-final-verification.ts",
+        "scripts/t-424-tranche-attribution-analysis.ts"
+      ],
+      "largest_group_lines": 16,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-420-live-verification.ts"
+      ],
+      "largest_group_lines": 17,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics.mjs"
+      ],
+      "largest_group_lines": 10,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics.mjs",
+        "scripts/t-421-live-forensics2.mjs"
+      ],
+      "largest_group_lines": 11,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics.mjs",
+        "scripts/t-421-live-forensics2.mjs",
+        "scripts/t-421-wire-semantics.mjs"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics.mjs",
+        "scripts/t-422-finance-zeros-probe.mjs"
+      ],
+      "largest_group_lines": 5,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics.mjs",
+        "scripts/t-423-post-fix-verification.mjs"
+      ],
+      "largest_group_lines": 14,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics2.mjs",
+        "scripts/t-421-preflight-probe.mjs",
+        "scripts/t-421-wire-semantics.mjs"
+      ],
+      "largest_group_lines": 11,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-421-live-forensics2.mjs",
+        "scripts/t-421-wire-semantics.mjs"
+      ],
+      "largest_group_lines": 18,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-verification.mts"
+      ],
+      "largest_group_lines": 8,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-live-verification.mts",
+        "scripts/t-425-live-reimport.ts",
+        "scripts/t-433-live-reimport.ts"
+      ],
+      "largest_group_lines": 15,
+      "instances": 3
+    },
+    {
+      "files": [
+        "scripts/t-421-live-verification.mts",
+        "scripts/t-425-live-reimport.ts",
+        "scripts/t-433-live-reimport.ts",
+        "scripts/t-487-workflow-e2e.ts"
+      ],
+      "largest_group_lines": 15,
+      "instances": 4
+    },
+    {
+      "files": [
+        "scripts/t-421-preflight-probe.mjs"
+      ],
+      "largest_group_lines": 14,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-421-wire-semantics.mjs"
+      ],
+      "largest_group_lines": 15,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-422-e2e-simulation.mjs",
+        "scripts/t-422-finance-zeros-probe.mjs"
+      ],
+      "largest_group_lines": 24,
+      "instances": 2
+    },
+    {
+      "files": [
+        "scripts/t-422-e2e-simulation.mjs",
+        "scripts/t-422-finance-zeros-probe.mjs",
+        "scripts/t-423-post-fix-verification.mjs"
+      ],
+      "largest_group_lines": 8,
+      "instances": 3
+    }
+  ]
+}
