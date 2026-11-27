@@ -1,0 +1,172 @@
+
+ RUN  v2.1.9 /home/z/my-project/repos/agentgithubuplaod/elimtiyaz-desktop
+
+ ✓ src/tests/features/dashboard/executive-statistics.test.ts (46 tests) 12ms
+ ✓ src/tests/features/dashboard/t-389-inspector-lineage.test.ts (34 tests) 25ms
+ ✓ src/tests/features/academics/t-474-class-student-multiselect.test.tsx (10 tests) 4994ms
+   ✓ T-474 A. ClassStudentMultiSelect — the eligibility contract > default pool = ACTIVE grade-matching students; inactive never listed 314ms
+   ✓ T-474 A. ClassStudentMultiSelect — the eligibility contract > the EDITED class's members are always listed (even grade-mismatched) with the marker, sorted first 334ms
+   ✓ T-474 B. CreateClassModal — the selected students persist through updateStudent(classId) > checking students and submitting: createClass first, then one updateStudent per student with the NEW class id 1159ms
+   ✓ T-474 C. ClassDetailPage edit modal — the pre-checked roster and the two-direction diff > members pre-checked; unchecking one and checking a candidate persists classId AND classId:null 1021ms
+   ✓ T-474 D. Partial-failure honesty — a failing assignment is reported, never swallowed > one failing student: the OTHER assignment still applies; the toast carries the failure 806ms
+ ✓ src/tests/features/settings/t-507-contextual-thresholds-config.test.tsx (18 tests) 428ms
+ ✓ src/tests/features/t-370-class-placement-studio.test.tsx (15 tests) 1151ms
+ ✓ src/tests/features/academics/t-407-t401-filiere-ui.test.tsx (13 tests) 6568ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > renders the canonical lycée filière catalog for a 2ème année student 597ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > picks « Technique Mathématique » with the real mouse dance → the 4 génie spécialités appear 480ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > persists filière + spécialité through updateStudent on submit (the wire payload) 690ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > changing the filière RESETS the spécialité (dependent-field rule) 683ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > maps the « Générale » sentinel to null on the wire (the untagged state) 589ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > a primary grade offers only Générale + the cours-commun hint 364ms
+   ✓ T-407 A. EditStudentModal — the filière/spécialité mouse integration > keeps a stored non-applicable filière selectable + shows the incompatibility hint 365ms
+   ✓ T-407 B. GradeLevelsClassView — the class-card classification display > renders the filière + spécialité line on the tagged class card 340ms
+   ✓ T-407 B. GradeLevelsClassView — the class-card classification display > the level header counts the classes per filière (the breakdown chips) 323ms
+   ✓ T-407 B. GradeLevelsClassView — the class-card classification display > clicking a class card navigates to the class detail route 314ms
+   ✓ T-407 C. CreateClassModal — the class-creation classification > offers the canonical tronc-commun filières for 1ère année and persists the pick 717ms
+   ✓ T-407 D. batchRegister — the classification the wizard collected > the MOCK repository persists the wizard's filière/spécialité on the created student 853ms
+ ✓ src/tests/features/academics/t-407-t403-cycles-ui.test.tsx (12 tests) 11083ms
+   ✓ T-407 A. PromotionCyclesTab — the dedicated area > renders the honest empty state with the current-year create labels 460ms
+   ✓ T-407 A. PromotionCyclesTab — the dedicated area > a real click creates the cycle (toast + the aggregated row with the class count) 768ms
+   ✓ T-407 A. PromotionCyclesTab — the dedicated area > the create button disables once the source year has an active cycle 670ms
+   ✓ T-407 B. PromotionCycleDetail — the worklist + the completion gating > « Terminer le cycle » is disabled while a class is pending, with the remaining hint 655ms
+   ✓ T-407 B. PromotionCycleDetail — the worklist + the completion gating > after the last class is processed the button enables; clicking completes + the handoff card 1341ms
+   ✓ T-407 B. PromotionCycleDetail — the worklist + the completion gating > « Rouvrir » returns a processed class to review (Examiner re-appears) 1457ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > renders the decision table with GPAs, destinations and the incomplete badge 714ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > pre-visualizes the incomplete-notes warning BEFORE any confirm attempt 669ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > the FIRST confirm is rejected by the two-phase ack; « Annuler » dismisses without confirming 994ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > « Oui, continuer la confirmation » re-submits with the ack → the class lands processed 1379ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > a per-student decision OVERRIDE via the mouse dance flows into the confirm payload 1302ms
+   ✓ T-407 C. PromotionClassReviewModal — the review + the two-phase ack > raising the « Seuil de passage » flips the borderline student's suggested decision 672ms
+ ✓ src/tests/features/dashboard/ui-recovery-funnel-production.test.tsx (19 tests) 762ms
+ ✓ src/tests/features/t-396-crud-integration.test.tsx (12 tests) 171ms
+ ✓ src/tests/features/t-393-supabase-diagnostics.test.tsx (12 tests) 245ms
+ ✓ src/tests/features/t-382-export-workflow.test.tsx (19 tests) 3170ms
+   ✓ T-382 D. The UI wiring — both entry points + the shared dialog > the BackupTab hosts the Sync/Export area's export button (gated by ManageBackups) 2753ms
+ ✓ src/tests/features/academics/t-512-issue27-multi-student-count.test.tsx (7 tests) 8715ms
+   ✓ T-512 A. ClassDetailPage edit modal — selecting 4 registers exactly 4 (issue #27) > an EMPTY-roster class + 4 checked students ⇒ 4 updateStudent calls, 4 store rows, roster read-back shows 4 1486ms
+   ✓ T-512 A. ClassDetailPage edit modal — selecting 4 registers exactly 4 (issue #27) > selecting 1 student registers exactly 1 (the small-group criterion) 612ms
+   ✓ T-512 A. ClassDetailPage edit modal — selecting 4 registers exactly 4 (issue #27) > selecting 2 students registers exactly 2 (the small-group criterion) 820ms
+   ✓ T-512 B. ClassDetailPage edit modal — a larger group (8 students) > 8 checked students ⇒ 8 updateStudent calls and 8 store rows 1990ms
+   ✓ T-512 C. ClassDetailPage edit modal — 2 existing members + 4 additions > the 4 additions register; existing members are not re-written; final roster is 6 1203ms
+   ✓ T-512 D. CreateClassModal — selecting 4 students at creation links all 4 > create class with 4 checked students ⇒ createClass then 4 updateStudent(classId=<new id>) 1412ms
+   ✓ T-512 E. The count-vs-records invariant (the roster list and the count agree) > after saving 4 additions, the class page's roster header shows 4 élève(s) inscrit(s) and 4 rows 1190ms
+ ✓ src/tests/features/t-498-desktop-audit-regressions.test.ts (30 tests) 31ms
+ ✓ src/tests/features/t-371-account-employee-linkage.test.ts (23 tests) 1685ms
+   ✓ T-371 B. the owner-mandate round-trip — employee signs in and resolves their dossier > a linked account signs in and observeByUserId(session.userId) returns the employee record 423ms
+   ✓ T-371 C. listAccounts — the accounts overview join > a freshly linked account appears in the overview with its employee 322ms
+ ✓ src/tests/features/dashboard/t-503-indicator-consolidation.test.tsx (13 tests) 659ms
+   ✓ T-503 (UI-335) — ONE console mount > the DEFAULT (Pilotage) view renders NO console; the Diagnostic view renders it 478ms
+ ✓ src/tests/features/t-399-test-data-autofill.test.tsx (23 tests) 1939ms
+   ✓ T-399 engine — the representative parent form via a real Ctrl+O > fills every textual field with valid, coherent data and shows the toast 752ms
+   ✓ T-399 engine — the representative parent form via a real Ctrl+O > fills the Radix selects with REAL options (never the sentinel, gender-consistent) 566ms
+   ✓ T-399 engine — the representative parent form via a real Ctrl+O > never duplicates the family last name across fields of the same press 564ms
+ ✓ src/tests/features/academics/t-532-student-counts.test.tsx (8 tests) 5693ms
+   ✓ T-532/DATA-064 A+B. The one counting rule and the create-class link loop > after createClass + 3 updateStudent links, the class card count IS 3 (the zero symptom closed) and classes$ pushed 847ms
+   ✓ T-532/DATA-064 C+D. Moves, removals and deletes recompute both channels > a MOVE A→B drops A and raises B in the same cycle 644ms
+   ✓ T-532/DATA-064 C+D. Moves, removals and deletes recompute both channels > a REMOVAL (classId: null) drops the count (the roster-edit diff's remove leg) 463ms
+   ✓ T-532/DATA-064 C+D. Moves, removals and deletes recompute both channels > deleteStudent recomputes the departed class 463ms
+   ✓ T-532/DATA-064 E. The UI write surfaces refresh the classes cache (the Supabase seam) > the create-class modal calls classes.refresh() after the link batch 1830ms
+   ✓ T-532/DATA-064 E. The UI write surfaces refresh the classes cache (the Supabase seam) > the class-detail roster edit calls classes.refresh() when the diff is non-empty 843ms
+   ✓ T-532/DATA-064 F. finalizePlacements' recompute uses the one rule (the dropped active-only filter) > a non-active member counts in the finalize recompute (mock ≡ Supabase histogram semantics) 322ms
+ ✓ src/tests/features/t-384-remove-parents.test.tsx (16 tests) 1917ms
+   ✓ T-384 A. MockParentRepository.deleteParent > refuses a parent with ACTIVE linked students (the conflict guard) 384ms
+   ✓ T-384 A. MockParentRepository.deleteParent > removes a student-free parent, drops it from the observable store, and audits parent.delete 382ms
+   ✓ T-384 A. MockParentRepository.deleteParent > the guard clears once the linked student is gone (remove students, then the parent) 561ms
+ ✓ src/tests/features/t-296-audit-diff-drawer.test.tsx (18 tests) 969ms
+ ✓ src/tests/features/t-488-chat-dm-recipient-selection.test.tsx (8 tests) 610ms
+   ✓ T-488 / CHAT-303 — the direct-DM recipient selection state machine > S1 (the reported bug): a second recipient click REPLACES the first — exactly one radio stays checked and the DM is created with the replaced recipient 391ms
+ ✓ src/tests/features/t-381-remove-users-students.test.tsx (16 tests) 1183ms
+   ✓ T-381 A. MockUserAccountRepository.deleteAccount > removes the account and unbinds the linked employee (the 0009 SET NULL mirror) 354ms
+   ✓ T-381 C. StudentsTab — the permission-gated Supprimer action > shows the Supprimer action for a session holding Permission.DeleteStudent, confirms, then soft-deletes via the repository 351ms
+ ✓ src/tests/features/financials/t-511-webhook-diagnostics-ui.test.tsx (10 tests) 424ms
+ ✓ src/tests/features/academics/t-409-class-first-ui.test.tsx (12 tests) 253ms
+ ✓ src/tests/features/academics/t-532-placement-draft-persistence.test.tsx (7 tests) 56ms
+ ✓ src/tests/features/crm/t-442-year-breakdown-ui.test.tsx (7 tests) 438ms
+ ✓ src/tests/features/financials/t-442-debt-aging-year-tab.test.tsx (4 tests) 706ms
+ ✓ src/tests/features/financials/t-466-manual-debt.test.tsx (12 tests) 1470ms
+   ✓ T-466 — MockInstallmentRepository.createManualDebt (the canonical record) > rejects a too-short label, a non-positive amount, and unknown refs (fail-closed guards) 604ms
+ ✓ src/tests/features/crm/t-517-modal-financial-consistency.test.tsx (6 tests) 504ms
+ ✓ src/tests/features/academics/t-410-per-class-timetables.test.tsx (6 tests) 1202ms
+ ✓ src/tests/features/academics/t-525-exam-scheduling.test.tsx (10 tests) 693ms
+   ✓ T-525 A — the CREATE flow: the modal writes through the canonical repository > submitting the form calls repos.calendar.create with kind='exam' + the full payload 313ms
+ ✓ src/tests/features/crm/t-437-re-enrollment-ui.test.tsx (10 tests) 554ms
+ ✓ src/tests/features/t-560-load-loop-guards.test.tsx (5 tests) 1924ms
+   ✓ T-560 — configuration-tab: the load-generation-ref gate (listAll) > the failing listAll fires ONCE on mount — toast traffic + parent re-renders never re-fire it; « Rafraîchir » re-loads (explicit refresh); the identical consecutive failure is deduped 610ms
+   ✓ T-560 — promotion-cycle-detail: the load-generation-ref gate (getCycleClasses) > the failing getCycleClasses fires ONCE per cycle (the legitimate reactive dimension) — the SAME cycle stays pinned under the barrage; a NEW cycle.id loads exactly once more 518ms
+ ✓ src/tests/features/t-405-debt-aging-ui.test.tsx (7 tests) 994ms
+ ✓ src/tests/features/dashboard/t-355-t-356-departments-bucket-parity.test.tsx (11 tests) 404ms
+ ✓ src/tests/features/financials/t-578-family-collect-context.test.tsx (14 tests) 377ms
+ ✓ src/tests/features/crm/t-436-year-history-ui.test.tsx (7 tests) 307ms
+ ✓ src/tests/features/t-499-chat-unread-badges.test.tsx (6 tests) 179ms
+ ✓ src/tests/features/dashboard/t-353-year-scoping.test.ts (15 tests) 740ms
+   ✓ T-353 — MockDashboardRepository parity > debtByAgingForRange scopes by the academic year (a far-past year returns all-zero buckets) 490ms
+ ✓ src/tests/features/dashboard/t-448-layout-persistence.test.tsx (11 tests) 843ms
+   ✓ T-448 editor — Enregistrer saves the server row (explicit save only) > the server row is NOT written by merely editing (the debounced buffer stays local-only) 430ms
+ ✓ src/tests/features/academics/t-407-t402-history-ui.test.tsx (7 tests) 1867ms
+   ✓ T-407 A. AcademicTab — the « Historique académique » card > renders one row per archived year with the decision chip and the GPA 400ms
+ ✓ src/tests/features/dashboard/t-351-reactive-debt-wiring.test.tsx (8 tests) 530ms
+   ✓ T-351 — AnalyticsTab consumes the FULL debt stream (DASH-401) > the tab renders the diagnostic view and the severe-debt preset finds the full-stream debt 515ms
+ ✓ src/tests/features/dashboard/t-504-hidden-restore-bar.test.tsx (9 tests) 555ms
+ ✓ src/tests/features/financials/t-510-tranche-amount-edit.test.tsx (8 tests) 511ms
+ ✓ src/tests/features/financials/t-586-money-formatter.test.ts (15 tests) 12ms
+ ✓ src/tests/features/dashboard/t-475-inspection-button-consistency.test.tsx (9 tests) 252ms
+ ✓ src/tests/features/dashboard/t-467-reference-population.test.tsx (11 tests) 70ms
+ ✓ src/tests/features/t-499-chat-notification-navigation.test.tsx (5 tests) 211ms
+ ✓ src/tests/features/academics/t-512-root-cause-race.test.tsx (2 tests) 2121ms
+   ✓ T-512 root cause — the in-flight click window (issue #27) > THE RACE, POST-FIX — a mid-batch checkbox click can NOT be acknowledged-then-discarded: the input is disabled and the badge never lies 1788ms
+   ✓ T-512 root cause — the in-flight click window (issue #27) > the selecting experience is UNCHANGED while idle (disabled=false until submit) 332ms
+ ✓ src/tests/features/personnel/t-515-working-days-step.test.tsx (14 tests) 108ms
+ ✓ src/tests/features/t-413-student-approval.test.ts (28 tests) 13ms
+ ✓ src/tests/features/t-299-audit-realtime.test.ts (15 tests) 8ms
+ ✓ src/tests/features/dashboard/t-503-layout-geometry.test.tsx (7 tests) 294ms
+ ✓ src/tests/features/dashboard/t-352-school-wide-streams.test.ts (11 tests) 41ms
+ ✓ src/tests/features/academics/t-e26-bug016-gpa-context.test.tsx (3 tests) 781ms
+ ✓ src/tests/features/t-485-audit-toaster-loop.test.tsx (6 tests) 184ms
+ ✓ src/tests/features/dashboard/t-596-numbers-equal.test.tsx (3 tests) 4ms
+ ✓ src/tests/features/dashboard/t-426-dynamic-overdue.test.ts (10 tests) 4020ms
+   ✓ T-426 Phase D (DATA-047) — the demographics grade fallback + the honest degradation > a failed KPI read returns Err (the consumer renders '—') — never fabricated zeroes 4014ms
+ ✓ src/tests/features/dashboard/t-503-editor-performance.test.tsx (7 tests) 251ms
+ ✓ src/tests/features/t-416-purge-button.test.tsx (7 tests) 375ms
+ ✓ src/tests/features/t-369-payroll-ui.test.tsx (4 tests) 527ms
+ ✓ src/tests/features/t-412-upcoming-payments-ui.test.tsx (6 tests) 179ms
+ ✓ src/tests/features/settings/t-505-backup-tab-file-ui.test.tsx (3 tests) 601ms
+   ✓ T-505 — the BackupTab's file-based workflows (the UI integration) > C: THE FULL CHAIN — pick a kept export → inspect → select → confirm → safety backup → import → the EXISTING restore → the marker 481ms
+ ✓ src/tests/features/academics/t-409-class-first-workflow.test.tsx (4 tests) 802ms
+ ✓ src/tests/features/t-583-startup-acceleration.test.tsx (13 tests) 172ms
+ ✓ src/tests/features/t-413-cross-section-navigation.test.ts (16 tests) 5ms
+ ✓ src/tests/features/crm/t-439-re-enroll-devis-grade.test.ts (5 tests) 6ms
+ ✓ src/tests/features/dashboard/t-503-inspection-attachment.test.tsx (8 tests) 150ms
+ ✓ src/tests/features/dashboard/t-502-severe-debt-threshold.test.ts (7 tests) 22ms
+ ✓ src/tests/features/personnel/t-521-expense-review-surface.test.tsx (5 tests) 220ms
+ ✓ src/tests/features/t-346-subject-config-panel.test.tsx (3 tests) 104ms
+ ✓ src/tests/features/financials/t-469-amount-thresholds.test.ts (12 tests) 15ms
+ ✓ src/tests/features/t-408-synthetic-year-purge.test.ts (8 tests) 59ms
+ ✓ src/tests/features/financials/t-521-expense-ui.test.tsx (3 tests) 342ms
+ ✓ src/tests/features/dashboard/t-514-pareto-fullnames-click.test.tsx (7 tests) 159ms
+ ✓ src/tests/features/dashboard/t-447-audit-remediation.test.tsx (4 tests) 248ms
+ ✓ src/tests/features/dashboard/t-357-honest-demographics.test.ts (8 tests) 126ms
+ ✓ src/tests/features/academics/t-e27-render-phase-setstate.test.tsx (6 tests) 3605ms
+   ✓ E2.7 / BUG-011 — the behavior survives the move (the deep link lands WITHOUT the render-phase warning) > AcademicsPage consumes the ?studentId= deep link post-commit, with ZERO render-phase update warnings 3601ms
+ ✓ src/tests/features/academics/t-404-timetable-ui.test.tsx (7 tests) 198ms
+ ✓ src/tests/features/financials/t-430-bulk-subscription.test.tsx (2 tests) 305ms
+ ✓ src/tests/features/t-480-personnel-wiring-repairs.test.ts (6 tests) 3ms
+ ✓ src/tests/features/t-331-approvals-existing-parent.test.ts (10 tests) 3ms
+ ✓ src/tests/features/settings/t-443-debt-threshold-validation.test.ts (8 tests) 4ms
+ ✓ src/tests/features/dashboard/t-412-payroll-trend-ui.test.tsx (4 tests) 157ms
+ ✓ src/tests/features/t-374-attendance-personnel-key.test.ts (6 tests) 3ms
+ ✓ src/tests/features/dashboard/dashboard-calendar-sheet.test.ts (11 tests) 16ms
+ ✓ src/tests/features/t-345-subject-config-source-guards.test.ts (5 tests) 67ms
+ ✓ src/tests/features/academics/t-e26-bug026-class-tab-sync.test.tsx (3 tests) 531ms
+ ✓ src/tests/features/t-361-payment-proof-tenant-guard.test.ts (5 tests) 88ms
+ ✓ src/tests/features/t-579-payment-detail-contract.test.tsx (3 tests) 259ms
+ ✓ src/tests/features/t-e26-bug027-copy-truth.test.ts (4 tests) 42ms
+ ✓ src/tests/features/t-e26-bug013-role-strings.test.ts (4 tests) 4ms
+ ✓ src/tests/features/dashboard/t-468-tooltips-sweep.test.tsx (13 tests) 181ms
+ ✓ src/tests/features/workflow-palette-cleanup.test.ts (5 tests) 4ms
+ ✓ src/tests/features/whatsapp-handoff.test.ts (4 tests) 10ms
+
+ Test Files  94 passed (94)
+      Tests  939 passed (939)
+   Start at  17:34:28
+   Duration  320.96s (transform 4.97s, setup 4.80s, collect 164.11s, tests 85.50s, environment 49.47s, prepare 4.51s)
+

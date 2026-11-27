@@ -1,0 +1,195 @@
+
+ RUN  v2.1.9 /home/z/my-project/repos/agentgithubuplaod/elimtiyaz-desktop
+
+ ✓ src/tests/infrastructure/t-574-relocate-auth.test.ts (66 tests) 132ms
+ ✓ src/tests/infrastructure/t-590-dashboard-aggregation.test.ts (26 tests) 393ms
+ ✓ src/tests/infrastructure/supabase-repositories.test.ts (22 tests) 171ms
+ ✓ src/tests/infrastructure/t-575-preflight-target.test.ts (52 tests) 245ms
+ ✓ src/tests/infrastructure/t-415-sync-conflict-hardening.test.ts (26 tests) 40ms
+ ✓ src/tests/infrastructure/t-437-re-enrollment-repositories.test.ts (15 tests) 1208ms
+   ✓ T-437 D — the existingParentCode seam (ADR-031 §7) > D1: the mock batchRegister reuses the EXISTING parent (no duplicate) and writes the billing on the same family 603ms
+   ✓ T-437 E — the origin threading > E2: the mock createStudent persists the origin and updateStudent patches it 584ms
+ ✓ src/tests/infrastructure/t-369-workforce-backend.test.ts (23 tests) 20ms
+ ❯ src/tests/infrastructure/t-591-targeted-projections.test.ts (18 tests | 1 failed) 317ms
+   × T-591 — C. collectDebtors → read_debt_summary_collection (BUG-060) > the RPC path computes the delinquent census from the per-parent aggregates (the days arithmetic ≡ the old fold) 7ms
+     → expected 2 to be 1 // Object.is equality
+ ✓ src/tests/infrastructure/supabase-calendar-repository.test.ts (21 tests) 155ms
+ ✓ src/tests/infrastructure/t-510-installment-amount-adjustment.test.ts (25 tests) 3166ms
+   ✓ T-510 — scenario 10: the double-application guard > a repeated save of the SAME value is rejected — exactly ONE adjustment entry exists, the row is unchanged 363ms
+ ✓ src/tests/infrastructure/t-368-pdf-generation.test.ts (22 tests) 278ms
+ ✓ src/tests/infrastructure/t-415-backup-restore-hardening.test.ts (26 tests) 1088ms
+ ✓ src/tests/infrastructure/t-421-reimport-idempotency.test.ts (10 tests) 11ms
+ ✓ src/tests/infrastructure/t-595-egress-gates.test.ts (9 tests) 64ms
+ ✓ src/tests/infrastructure/t-099-supabase-chat-repository.test.ts (13 tests) 32ms
+ ✓ src/tests/infrastructure/t-573-backend-profile.test.ts (40 tests) 18ms
+ ✓ src/tests/infrastructure/workflow-engine.test.ts (27 tests) 27ms
+ ✓ src/tests/infrastructure/t-504-collection-read-resilience.test.ts (15 tests) 175ms
+ ✓ src/tests/infrastructure/t-521-expense-unification.test.ts (13 tests) 2524ms
+   ✓ T-521 — mock twin: responsible person + attachments > A1: submit() persists the distinct responsible person; defaults to the submitter when omitted 444ms
+   ✓ T-521 — mock twin: responsible person + attachments > B1+B4: addAttachment() registers canonical metadata and NEVER creates a second expense (multi-image) 585ms
+   ✓ T-521 — mock twin: responsible person + attachments > B2: observeAttachments() is reactive over the store 403ms
+   ✓ T-521 — mock twin: responsible person + attachments > B3: removeAttachment() removes the metadata row; unknown ids are notFound 403ms
+ ✓ src/tests/infrastructure/t-438-er-repositories.test.ts (13 tests) 17ms
+ ✓ src/tests/infrastructure/t-615-calendar-datalane.test.ts (12 tests) 13ms
+ ✓ src/tests/infrastructure/t-592-delta-cache.test.ts (22 tests) 158ms
+ ✓ src/tests/infrastructure/supabase-overdue-alert-generator.test.ts (13 tests) 23ms
+ ✓ src/tests/infrastructure/supabase-workflow-repositories.test.ts (13 tests) 56ms
+ ✓ src/tests/infrastructure/t-364-import-flush-idempotency.test.ts (8 tests) 11ms
+ ✓ src/tests/infrastructure/supabase-pricing-repository.test.ts (21 tests) 12ms
+ ✓ src/tests/infrastructure/t-397-batch-register-bulk.test.ts (8 tests) 9ms
+ ✓ src/tests/infrastructure/t-423-finance-seed-degradation.test.ts (11 tests) 583ms
+ ✓ src/tests/infrastructure/t-408-academic-setup.test.ts (18 tests) 116ms
+ ✓ src/tests/infrastructure/supabase-task-repository.test.ts (14 tests) 132ms
+ ✓ src/tests/infrastructure/supabase-shift-schedule-repository.test.ts (13 tests) 77ms
+ ✓ src/tests/infrastructure/t-405-debt-aging-repository.test.ts (10 tests) 416ms
+ ✓ src/tests/infrastructure/t-298-conflict-flow.test.ts (16 tests) 18ms
+ ✓ src/tests/infrastructure/supabase-auto-releve.test.ts (11 tests) 119ms
+ ✓ src/tests/infrastructure/t-584-scheduled-runner.test.ts (20 tests) 2198ms
+   ✓ T-584 D — a scheduled workflow fires end-to-end in mock > D2: a tick whose window contains the cron instant fires the workflow end-to-end 606ms
+   ✓ T-584 D — a scheduled workflow fires end-to-end in mock > D3: the NEXT tick (disjoint window) does NOT double-fire 602ms
+   ✓ T-584 D — a scheduled workflow fires end-to-end in mock > D4: a tick OUTSIDE the schedule does not fire; a DRAFT scheduled workflow never fires 380ms
+   ✓ T-584 D — a scheduled workflow fires end-to-end in mock > D5: the roll-call absence_limit_exceeded bridge (the event half of the working example) still fires 603ms
+ ✓ src/tests/infrastructure/t-439-import-year-identity.test.ts (9 tests) 371ms
+   ✓ T-439 / DATA-055 — the mock twin stamps + scopes identically > two years of the same tranche mint TWO rows (the mock-side DATA-054), each stamped 364ms
+ ✓ src/tests/infrastructure/t-372-student-documents-sync.test.ts (14 tests) 51ms
+ ✓ src/tests/infrastructure/t-416-purge-source-guards.test.ts (43 tests) 32ms
+ ✓ src/tests/infrastructure/supabase-warehouse-task-repository.test.ts (12 tests) 86ms
+ ✓ src/tests/infrastructure/supabase-workforce-attendance-repository.test.ts (16 tests) 123ms
+ ✓ src/tests/infrastructure/t-438-er-gate-and-seam.test.ts (16 tests) 10ms
+ ✓ src/tests/infrastructure/supabase-expense-repository.test.ts (12 tests) 25ms
+ ✓ src/tests/infrastructure/t-415-supabase-backup-repository.test.ts (10 tests) 454ms
+ ✓ src/tests/infrastructure/t-550-ports.test.ts (12 tests) 8ms
+ ✓ src/tests/infrastructure/t-502-audit-fixes.test.ts (13 tests) 12ms
+ ✓ src/tests/infrastructure/t-441-generation-gates.test.ts (11 tests) 97ms
+ ✓ src/tests/infrastructure/t-415-backup-crypto-vault.test.ts (28 tests) 314ms
+ ✓ src/tests/infrastructure/supabase-purchase-request-repository.test.ts (9 tests) 107ms
+ ✓ src/tests/infrastructure/supabase-delivery-repository.test.ts (9 tests) 89ms
+ ✓ src/tests/infrastructure/t-505-export-warmup.test.tsx (11 tests) 472ms
+   ✓ T-505 D. the ExportDialog's warmed collection > the export click warms the sources BEFORE building (the cold-cache fix at the UI layer) 347ms
+ ✓ src/tests/infrastructure/t-368-full-export.test.ts (5 tests) 122ms
+ ✓ src/tests/infrastructure/t-300-offline-restore.test.ts (11 tests) 378ms
+ ✓ src/tests/infrastructure/t-392-session-surfacing.test.tsx (14 tests) 94ms
+ ✓ src/tests/infrastructure/supabase-releve-repository.test.ts (10 tests) 62ms
+ ✓ src/tests/infrastructure/t-171-sync-recovery.test.ts (17 tests) 13ms
+ ✓ src/tests/infrastructure/t-471-family-statement.test.ts (11 tests) 203ms
+ ✓ src/tests/infrastructure/t-014-refund-flow.test.tsx (10 tests) 3459ms
+   ✓ T-014 — mock refundPayment propagates reason + actor (BUSINESS-003) > writes the ledger reversal entry with the real actor + reason 688ms
+   ✓ T-014 — mock refundPayment propagates reason + actor (BUSINESS-003) > reverts the installment allocation (tranche re-opened) 673ms
+   ✓ T-014 — mock refundPayment propagates reason + actor (BUSINESS-003) > rejects a second refund of the same payment (double-refund guard) 873ms
+   ✓ T-014 — mock refundPayment propagates reason + actor (BUSINESS-003) > rejects a refund without a meaningful reason (<3 chars) 473ms
+   ✓ T-014 — PaymentDetailDrawer refund action (DEAD-015) > shows the refund button for a paid payment when the session holds RefundPayment 600ms
+ ✓ src/tests/infrastructure/supabase-supplier-repository.test.ts (10 tests) 88ms
+ ✓ src/tests/infrastructure/t-593-batch-sync-rpc.test.ts (16 tests) 2439ms
+   ✓ T-593 — B. defaultBatchPushHandler > ONE rpc per bounded chunk — 61 entries fire 2 calls (50 + 11 mutations) 2342ms
+ ✓ src/tests/infrastructure/t-041-promotion-flow.test.ts (8 tests) 7ms
+ ✓ src/tests/infrastructure/t-420-honest-bulk-errors.test.ts (5 tests) 19ms
+ ✓ src/tests/infrastructure/supabase-leave-request-repository.test.ts (11 tests) 98ms
+ ✓ src/tests/infrastructure/t-402-academic-history-embedding.test.ts (8 tests) 46ms
+ ✓ src/tests/infrastructure/t-387-blank-rpc-args.test.ts (14 tests) 2353ms
+   ✓ T-387 — SYNC-300: blank strings never reach typed RPC params > A1: student classId "" → p_class_id null (the live 22P02 repro) 2343ms
+ ✓ src/tests/infrastructure/t-505-backup-file-workflows.test.ts (12 tests) 186ms
+ ✓ src/tests/infrastructure/supabase-inventory-repository.test.ts (7 tests) 95ms
+ ✓ src/tests/infrastructure/workflow-event-bridge.test.ts (5 tests) 3530ms
+   ✓ event bridge — RollCallScreen → absence_limit_exceeded (demo 1) > marking the 3rd unexcused absence fires the workflow: bell +1, task created, run recorded 879ms
+   ✓ event bridge — debt delinquent flow (demo 2) > execute() with a high-debt parent context: TRUE branch runs, parent RESTRICTED, WhatsApp prepared 733ms
+   ✓ event bridge — payment & enrollment dispatch (T-314) > dispatchTrigger fires only the workflows whose trigger matches 1283ms
+   ✓ event bridge — payment & enrollment dispatch (T-314) > cycle detection still blocks deployment (Kahn — demo 3, repository gate) 383ms
+ ✓ src/tests/infrastructure/t-398-single-roundtrip-registration.test.ts (4 tests) 9ms
+ ✓ src/tests/infrastructure/supabase-onboarding-repository.test.ts (10 tests) 80ms
+ ✓ src/tests/infrastructure/t-420-partial-rollback-surfacing.test.ts (3 tests) 92ms
+ ✓ src/tests/infrastructure/t-305-conflict-arming.test.ts (5 tests) 185ms
+ ✓ src/tests/infrastructure/t-403-promotion-cycles.test.ts (11 tests) 8ms
+ ✓ src/tests/infrastructure/supabase-pricing-year-configs.test.ts (6 tests) 44ms
+ ✓ src/tests/infrastructure/t-313-academic-write-tenant.test.ts (9 tests) 9ms
+ ✓ src/tests/infrastructure/t-577-context-menu.test.ts (19 tests) 15ms
+ ✓ src/tests/infrastructure/t-t614-prepare-cutover-profile.test.ts (16 tests) 11ms
+ ✓ src/tests/infrastructure/t-264-approval-406-noise.test.ts (7 tests) 7ms
+ ✓ src/tests/infrastructure/t-404-timetable-repository.test.ts (9 tests) 93ms
+ ✓ src/tests/infrastructure/t-022-sync-queue-correctness.test.ts (12 tests) 2497ms
+   ✓ T-022 — SYNC-100: all 15 entity kinds handled or explicitly rejected > installment pushes through upsert_installment_from_import (migration 0037) 2462ms
+ ✓ src/tests/infrastructure/import-config-registry.test.ts (7 tests) 9ms
+ ✓ src/tests/infrastructure/t-192-debt-reminder-delivery.test.ts (10 tests) 21ms
+ ✓ src/tests/infrastructure/t-487-backup-snapshot-warmup.test.ts (12 tests) 110ms
+ ✓ src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts (16 tests) 8ms
+ ✓ src/tests/infrastructure/mock-pricing-year-configs.test.ts (10 tests) 3122ms
+   ✓ T-414 mock pricing repository — per-year configuration > createConfigForYear with cloneFromActive copies the active config's grids 645ms
+   ✓ T-414 mock pricing repository — per-year configuration > activateConfig switches the active config and observe() follows it 423ms
+   ✓ T-414 mock pricing repository — per-year configuration > HISTORICAL PRESERVATION: editing the new active config never mutates the old year's payload 1047ms
+ ✓ src/tests/infrastructure/t-012-bulkcollect-failfast.test.ts (4 tests) 6ms
+ ✓ src/tests/infrastructure/t-581-backup-integrity-trio.test.ts (13 tests) 176ms
+ ✓ src/tests/infrastructure/t-580-winnansi-report-pdfs.test.ts (7 tests) 88ms
+ ✓ src/tests/infrastructure/t-310-payment-audit-details.test.ts (10 tests) 7ms
+ ✓ src/tests/infrastructure/t-184-bind-activation-structured-errors.test.ts (10 tests) 9ms
+ ✓ src/tests/infrastructure/t-015-receipt-server-numbers.test.ts (7 tests) 54ms
+ ✓ src/tests/infrastructure/t-619-login-quarantine.test.ts (7 tests) 13ms
+ ✓ src/tests/infrastructure/t-034-cache-freshness.test.ts (7 tests) 15ms
+ ✓ src/tests/infrastructure/t-023-academic-persistence.test.ts (4 tests) 32ms
+ ✓ src/tests/infrastructure/t-011-payment-atomicity.test.ts (2 tests) 4ms
+ ✓ src/tests/infrastructure/t-301-scheduler-toggle.test.ts (13 tests) 14ms
+ ✓ src/tests/infrastructure/t-115-sql-identity-equivalence.test.ts (9 tests) 5ms
+ ✓ src/tests/infrastructure/t-472-hermeticity.test.ts (5 tests) 2641ms
+   ✓ T-472 / TEST-503 — the hermeticity seam (the default contract) > the repository provider's DEFAULT selection is the mock composite in the hermetic default 2552ms
+ ✓ src/tests/infrastructure/t-368-global-reports.test.ts (6 tests) 112ms
+ ✓ src/tests/infrastructure/t-040-justification-review.test.ts (8 tests) 16ms
+ ✓ src/tests/infrastructure/excel-import-mappers.test.ts (7 tests) 4ms
+ ✓ src/tests/infrastructure/t-552-bypass-routing.test.ts (7 tests) 135ms
+ ✓ src/tests/infrastructure/t-import-110-bulk-installments.test.ts (3 tests) 4ms
+ ✓ src/tests/infrastructure/t-weak030-expense-transition-guard.test.ts (8 tests) 5ms
+ ✓ src/tests/infrastructure/t-013-markcleared-atomic.test.ts (2 tests) 3ms
+ ✓ src/tests/infrastructure/t-145-activation-issuance.test.ts (5 tests) 6ms
+ ✓ src/tests/infrastructure/t-439-er-binding-scope.test.ts (11 tests) 4ms
+ ✓ src/tests/infrastructure/t-060-payment-ux.test.ts (6 tests) 4ms
+ ✓ src/tests/infrastructure/t-409-generation-progress.test.ts (3 tests) 57ms
+ ✓ src/tests/infrastructure/t-594-online-detector-runtime-config.test.ts (4 tests) 444ms
+ ✓ src/tests/infrastructure/t-185-refresh-session-rebuild.test.ts (6 tests) 4ms
+ ✓ src/tests/infrastructure/t-440-re-enroll-parent-display-name.test.ts (3 tests) 11ms
+ ✓ src/tests/infrastructure/t-282-audit-transient-retry.test.ts (5 tests) 6ms
+ ✓ src/tests/infrastructure/t-053-global-admin-tenant.test.ts (9 tests) 6ms
+ ✓ src/tests/infrastructure/workflow-executor-branches.test.ts (4 tests) 2026ms
+   ✓ MockWorkflowRepository.execute — branch-aware execution (T-221) > failing condition skips its branch; the parallel branch still runs 517ms
+   ✓ MockWorkflowRepository.execute — branch-aware execution (T-221) > passing condition lets the downstream action run 504ms
+   ✓ MockWorkflowRepository.execute — branch-aware execution (T-221) > topological order: the run record follows dependency order, not array order 503ms
+   ✓ MockWorkflowRepository.execute — branch-aware execution (T-221) > the run lands in the observable run log with its workflow name 502ms
+ ✓ src/tests/infrastructure/t-050-online-detector.test.ts (13 tests) 8ms
+ ✓ src/tests/infrastructure/t-215-policy-census.test.ts (5 tests) 193ms
+ ✓ src/tests/infrastructure/t-058-migration-append-only.test.ts (6 tests) 279ms
+ ✓ src/tests/infrastructure/t-416-purge-repository.test.ts (7 tests) 5ms
+ ✓ src/tests/infrastructure/t-582-number-parser.test.ts (13 tests) 5ms
+ ✓ src/tests/infrastructure/t-373-empty-id-fetch-guards.test.ts (6 tests) 5ms
+ ✓ src/tests/infrastructure/t-420-realtime-pause-seam.test.ts (3 tests) 4ms
+ ✓ src/tests/infrastructure/t-018-mock-canonical-create.test.ts (4 tests) 1009ms
+   ✓ T-018 mock alignment — the mock CREATE path is canonical (migration 0065) > a DUPLICATE identity is refused (the server's unique-contract mirror) 402ms
+   ✓ T-018 mock alignment — the mock CREATE path is canonical (migration 0065) > the same identity with cosmetic whitespace differences is STILL the same code (trim rule) 402ms
+ ✓ src/tests/infrastructure/t-018-identity-codes.test.ts (7 tests) 13ms
+ ✓ src/tests/infrastructure/t-432-collection-rpc-dedupe.test.ts (5 tests) 29ms
+ ✓ src/tests/infrastructure/fixtures.test.ts (6 tests) 8ms
+ ✓ src/tests/infrastructure/arch-046-config-functions-census.test.ts (4 tests) 4ms
+ ✓ src/tests/infrastructure/t-056-hygiene.test.ts (4 tests) 5ms
+ ✓ src/tests/infrastructure/t-390-financial-realtime.test.ts (3 tests) 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/tests/infrastructure/t-591-targeted-projections.test.ts > T-591 — C. collectDebtors → read_debt_summary_collection (BUG-060) > the RPC path computes the delinquent census from the per-parent aggregates (the days arithmetic ≡ the old fold)
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/tests/infrastructure/t-591-targeted-projections.test.ts:403:33
+    401|     // The update fired for the qualifying family only (the second fam…
+    402|     // is filtered out — its "days overdue" is negative at the as-of).
+    403|     expect(res.ok && res.value).toBe(1);
+       |                                 ^
+    404|     void expectedDays;
+    405|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 127 passed (128)
+      Tests  1 failed | 1537 passed (1538)
+   Start at  17:28:56
+   Duration  325.23s (transform 3.48s, setup 6.63s, collect 185.11s, tests 43.27s, environment 67.48s, prepare 6.08s)
+
