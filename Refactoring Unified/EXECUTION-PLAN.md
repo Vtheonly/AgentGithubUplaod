@@ -816,3 +816,14 @@ The live portal is UP (GET 200, Vercel) with its bundle still on the OLD project
 ### 17.5 The charter typo fix
 
 `AGENTS-CHARTER-AMENDMENT-DRAFT.md` Block B item 7: "CHARITY-FREE" → **"CONCATENATION-FREE"** (the owner-mandated correction, applied verbatim this session — the draft otherwise untouched).
+
+## Dead Code, Duplicates & Re-Implementations to Retire
+
+Load `elimtiyaz-desktop/docs/codebase-audit/MASTER-CONSOLIDATION-CANDIDATE-REGISTER.csv` with the active card. Match its paths, symbols and operation to the rows below before implementation. For each match record the finding ID, survivor and consumers, retirement diff, baseline and post-change tests, and actual net production LOC. If the card has no verified match, record that result in its closeout. Proceed from the implementation SHA and recheck each prior disposition.
+
+| Card | Evidence and work | Acceptance |
+|---|---|---|
+| T-621 · Wave 1 | P3-001, P3-002. Remove only the zero-byte nested Markdown renderer. Retain the canonical renderer and pg. | Inspect both Markdown paths and import globs. Run typecheck and copilot drawer tests. Smoke both historical and streaming Markdown. Expected reduction is one tracked file and zero production LOC. |
+| T-622 · Waves 2–3 | P3-003 through P3-005. Unify the wire-role mapper; then share the switch-route and condition parsers between desktop preview and Edge execution. | Keep both role callers, both bundling entry points, and both public parser contracts. Compare the 11 known roles, unknown codes and malformed workflow trees. Rewire callers and retire the old definitions in the same card. Keep Edge authorization and effects in Edge. |
+| T-623 · Wave 3, follows T-429 | P3-006 through P3-008. Reconcile the parent portal and the materialized view with tenant-configured staff debt aging. Retain the offline Kotlin implementation. | Reproduce the 730-day case, then cover settled amounts, nondefault tenant settings, date boundaries and recent payments in each client. Verify view consumers, grants and outputs on isolated data before planning migration. |
+| T-624 · Remaining evidence | Preserve P2-0177, P2-0188, P2-0189, P2-0289. Review unresolved candidates by active operation using the Pass 2 crosswalk, modeled groups, lint spans and operational-script references. | Each new decision needs a pinned declaration, all consumers, canonical owner and behavior check. Measure actual diff LOC and runtime calls after each retirement. |

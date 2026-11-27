@@ -1955,3 +1955,7 @@ T-404 is implemented end to end (migrations 0109/0110 + ADR-020 + the canonical 
 **The registered discovery (AGENTS.md §15.109):** a vertical-growth mandate on a saved-geometry grid is a TRACK-SIZING problem, never a PLACEMENT problem — dropping `gridRow` for auto-placement "fixes" clipping by silently discarding every saved y/h (the personalization machinery bypassed); the correct primitive is `minmax(floor, auto)` tracks + the saved span as minimum.
 
 **The next task:** the T-541..T-545 queue per the concurrent lane's registration (bd89b260) — GPS Tournées removal first; the T-532 phases 4-6 (ACAD-516, ACAD-515, docs closeout) remain queued behind the owner's mandate.
+
+## Pass 3 cleanup queue
+
+Start the **cleanup lane** at T-621. From elimtiyaz-desktop, inspect the two tracked markdown-view.tsx paths, typecheck with `npx --no-install tsc --noEmit`, and run `npx --no-install vitest run src/tests/ai/copilot-drawer.test.tsx`. Render a saved message and a streaming message in a packaged desktop session before closing the removal card. Record the one-file, zero-line result. Use T-622 for verified duplicates and T-623 for financial disagreement. For financial changes, run `npm test` on disposable fixtures plus the same inputs through the portal and Kotlin. For every wave run the full `npx --no-install vitest run` and the affected packaged Electron/Playwright journey before signoff. Keep the school database read-only during inspection.

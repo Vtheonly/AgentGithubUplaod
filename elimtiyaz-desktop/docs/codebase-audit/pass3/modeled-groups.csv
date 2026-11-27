@@ -1,0 +1,918 @@
+model_id,mode,source_observation,selected_spans
+MODEL-001,--mode_strict,DUP-0006,src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:212-221 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:290-299 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:303-312 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:316-325 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1614-1623 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1642-1651 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3601-3610 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3614-3623 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3627-3636
+MODEL-002,--mode_strict,DUP-0035,src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:198-252 | src/features/settings/supabase-diagnostics/crud-test-tab.tsx:225-278
+MODEL-003,--mode_strict,DUP-0097,src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:235-253 | src/infrastructure/supabase/repositories/supabase-workflow-run-repository.ts:89-105 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:525-540 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:368-380 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:353-365
+MODEL-004,--mode_strict,DUP-0045,src/features/academics/therapy/orthophonie-tab.tsx:441-488 | src/features/academics/therapy/psychology-tab.tsx:484-531
+MODEL-005,--mode_strict,DUP-0253,src/infrastructure/mock/mock-composite.ts:102-147 | src/infrastructure/mock/repositories/backup-repository.ts:284-329
+MODEL-006,--mode_strict,DUP-0083,src/features/settings/approvals-tab.tsx:934-977 | src/features/settings/approvals-tab.tsx:1311-1354
+MODEL-007,--mode_strict,DUP-0056,src/features/academics/therapy/psychology-tab.tsx:90-133 | src/features/academics/therapy/orthophonie-tab.tsx:85-127
+MODEL-008,--mode_strict,DUP-0161,src/features/academics/therapy/psychology-tab.tsx:354-394 | src/features/academics/therapy/orthophonie-tab.tsx:314-353
+MODEL-009,--mode_strict,DUP-0178,src/domain/repository/repository.ts:344-391 | src/domain/repository/academic-repository.ts:161-199
+MODEL-010,--mode_strict,DUP-0185,src/features/settings/supabase-diagnostics/crud-test-tab.tsx:57-94 | src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:50-87
+MODEL-011,--mode_strict,DUP-0046,src/features/settings/pricing/additional-services-card.tsx:26-34 | src/features/settings/pricing/complementary-services-card.tsx:27-35 | src/features/settings/pricing/discounts-card.tsx:32-40 | src/features/settings/pricing/fees-card.tsx:24-32 | src/features/settings/pricing/transport-card.tsx:29-37 | src/features/settings/pricing/tuition-card.tsx:44-52
+MODEL-012,--mode_strict,DUP-0021,src/features/settings/supabase-diagnostics/diagnostics-runner.ts:46-83 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:59-94
+MODEL-013,--mode_strict,DUP-0081,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:948-987 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1022-1057
+MODEL-014,--mode_strict,DUP-0292,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:410-443 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:292-325
+MODEL-015,--mode_strict,DUP-0064,src/infrastructure/mock/repositories/academic-year-repository.ts:151-158 | src/infrastructure/mock/repositories/club-repository.ts:137-144 | src/infrastructure/mock/repositories/teacher-repository.ts:156-163 | src/infrastructure/mock/repositories/teacher-repository.ts:430-437 | src/infrastructure/mock/repositories/therapy-repository.ts:225-232 | src/infrastructure/mock/repositories/therapy-repository.ts:623-630
+MODEL-016,--mode_strict,DUP-0066,src/infrastructure/system-config.ts:209-240 | src/infrastructure/system-config.ts:254-285
+MODEL-017,--mode_strict,DUP-0239,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2376-2394 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3812-3828 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3139-3154
+MODEL-018,--mode_strict,DUP-0071,src/infrastructure/mock/repositories/financial-repository.ts:416-446 | src/infrastructure/mock/repositories/financial-repository.ts:767-796
+MODEL-019,--mode_strict,DUP-0063,supabase/functions/create-user-account/index.ts:131-147 | supabase/functions/approve-signup-request/index.ts:76-91 | supabase/functions/delete-user-account/index.ts:71-86
+MODEL-020,--mode_strict,DUP-0108,src/features/academics/therapy/psychology-tab.tsx:408-436 | src/features/academics/therapy/orthophonie-tab.tsx:366-393
+MODEL-021,--mode_strict,DUP-0195,src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:98-125 | src/features/dashboard/components/analytics/yoy-comparison-card.tsx:172-199
+MODEL-022,--mode_strict,DUP-0320,src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:247-274 | src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:294-321
+MODEL-023,--mode_strict,DUP-0141,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:105-129 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:117-141
+MODEL-024,--mode_strict,DUP-0039,src/infrastructure/mock/repositories/dashboard-repository.ts:62-93 | src/infrastructure/mock/repositories/dashboard-repository.ts:241-265
+MODEL-025,--mode_strict,DUP-0091,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:777-809 | src/infrastructure/mock/repositories/timetable-repository.ts:442-466
+MODEL-026,--mode_strict,DUP-0085,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:898-927 | src/infrastructure/mock/repositories/timetable-repository.ts:531-555
+MODEL-027,--mode_strict,DUP-0441,src/features/settings/supabase-diagnostics/crud-test-tab.tsx:191-214 | src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:168-191
+MODEL-028,--mode_strict,DUP-0089,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:468-482 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:384-396 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:425-437
+MODEL-029,--mode_strict,DUP-0477,src/shared/ui/particle-canvas.tsx:142-165 | src/shared/ui/particle-canvas.tsx:182-205
+MODEL-030,--mode_strict,DUP-0384,src/features/academics/grade-entry-screen.tsx:392-414 | src/features/academics/roll-call-screen.tsx:166-188
+MODEL-031,--mode_strict,DUP-0211,src/features/academics/grade-levels-class-view.tsx:694-718 | src/features/academics/placement/create-section-dialog.tsx:223-245
+MODEL-032,--mode_strict,DUP-0075,src/features/settings/supabase-diagnostics/crud-test-tab.tsx:138-160 | src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:132-154
+MODEL-033,--mode_strict,DUP-0506,src/infrastructure/supabase/repositories/supabase-expense-repository.ts:608-631 | src/infrastructure/mock/repositories/financial/expense-ops.ts:273-295
+MODEL-034,--mode_strict,DUP-0420,src/domain/calc/pricing/transport.ts:133-156 | src/domain/calc/pricing/tuition.ts:66-87
+MODEL-035,--mode_strict,DUP-0288,src/domain/repository/repository.ts:299-324 | src/domain/repository/academic-repository.ts:129-150
+MODEL-036,--mode_strict,DUP-0237,src/features/academics/exam-scheduling-modal.tsx:150-171 | src/features/academics/homework-push-modal.tsx:161-182
+MODEL-037,--mode_strict,DUP-0388,src/features/settings/supabase-diagnostics/crud-test-runner.ts:409-431 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:250-271
+MODEL-038,--mode_strict,DUP-0123,src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:238-244 | src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:250-256 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:256-262 | src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:196-202 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:311-317
+MODEL-039,--mode_strict,DUP-0107,src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:306-312 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:291-297 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:377-383 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:388-394
+MODEL-040,--mode_strict,DUP-0491,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:159-179 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:171-191
+MODEL-041,--mode_strict,DUP-0368,src/features/academics/therapy/orthophonie-tab.tsx:128-148 | src/features/academics/therapy/psychology-tab.tsx:134-154
+MODEL-042,--mode_strict,DUP-0449,src/features/crm/edit-parent-modal.tsx:119-139 | src/features/crm/edit-student-modal.tsx:174-194
+MODEL-043,--mode_strict,DUP-0231,src/infrastructure/mock/mock-repositories.ts:89-109 | src/infrastructure/mock/mock-repositories.ts:111-131
+MODEL-044,--mode_strict,DUP-0119,src/infrastructure/mock/repositories/financial/payment-ops.ts:314-340 | src/infrastructure/mock/repositories/financial/payment-ops.ts:612-632
+MODEL-045,--mode_strict,DUP-0130,supabase/functions/expire-pending-approvals/index.ts:41-61 | supabase/functions/purge-expired-backups/index.ts:52-72
+MODEL-046,--mode_strict,DUP-0460,src/features/academics/academic-year-detail-drawer.tsx:919-938 | src/features/academics/teachers-tab.tsx:359-378
+MODEL-047,--mode_strict,DUP-0132,src/infrastructure/mock/repositories/financial/payment-ops.ts:364-388 | src/infrastructure/mock/repositories/financial/payment-ops.ts:654-673
+MODEL-048,--mode_strict,DUP-0184,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2326-2333 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2341-2348 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2357-2364 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2517-2524
+MODEL-049,--mode_strict,DUP-0273,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4186-4205 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4424-4443
+MODEL-050,--mode_strict,DUP-0103,src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:90-109 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:188-207
+MODEL-051,--mode_strict,DUP-0471,src/features/academics/therapy/orthophonie-tab.tsx:268-286 | src/features/academics/therapy/psychology-tab.tsx:305-323
+MODEL-052,--mode_strict,DUP-0252,src/features/financials/debt-aging-year-history.tsx:60-79 | src/features/crm/parent-detail-drawer.tsx:193-211
+MODEL-053,--mode_strict,DUP-0203,src/features/dashboard/tabs/analytics-tab.tsx:165-184 | src/features/financials/financials-page.tsx:156-174
+MODEL-054,--mode_strict,DUP-0468,src/infrastructure/mock/repositories/academic-repository.ts:850-868 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1660-1678
+MODEL-055,--mode_strict,DUP-0291,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:326-347 | src/infrastructure/mock/workforce/index.ts:743-761
+MODEL-056,--mode_strict,DUP-0360,src/features/academics/academic-year-detail-drawer.tsx:947-964 | src/features/academics/teachers-tab.tsx:387-404
+MODEL-057,--mode_strict,DUP-0207,src/features/academics/class-grades-tab.tsx:56-73 | src/features/academics/grade-entry-screen.tsx:164-181
+MODEL-058,--mode_strict,DUP-0271,src/features/academics/therapy/psychology-tab.tsx:284-296 | src/features/academics/clubs/club-detail-drawer.tsx:384-393 | src/features/academics/therapy/orthophonie-tab.tsx:253-262
+MODEL-059,--mode_strict,DUP-0197,src/features/academics/grade-levels-class-view.tsx:642-661 | src/features/academics/placement/create-section-dialog.tsx:176-193
+MODEL-060,--mode_strict,DUP-0613,src/features/academics/therapy/orthophonie-tab.tsx:184-201 | src/features/academics/therapy/psychology-tab.tsx:197-214
+MODEL-061,--mode_strict,DUP-0532,src/features/academics/therapy/orthophonie-tab.tsx:420-437 | src/features/academics/therapy/psychology-tab.tsx:463-480
+MODEL-062,--mode_strict,DUP-0400,src/features/academics/timetable/timetable-tab.tsx:1308-1325 | src/features/academics/timetable/timetable-tab.tsx:1452-1469
+MODEL-063,--mode_strict,DUP-0094,src/features/auth/splash-screen.tsx:166-186 | src/shared/ui/particle-canvas.tsx:118-135
+MODEL-064,--mode_strict,DUP-0255,src/features/personnel/management/expense-review-section.tsx:337-355 | src/features/personnel/management/requests-management.tsx:285-302
+MODEL-065,--mode_strict,DUP-0142,src/features/settings/supabase-diagnostics/crud-test-tab.tsx:98-115 | src/features/settings/supabase-diagnostics/supabase-diagnostics-tab.tsx:91-108
+MODEL-066,--mode_strict,DUP-0311,src/infrastructure/mock/repositories/workflow-repository.ts:100-117 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:283-300
+MODEL-067,--mode_strict,DUP-0206,src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:728-737 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:722-731 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5178-5187
+MODEL-068,--mode_strict,DUP-0513,src/features/academics/grade-entry-screen.tsx:82-103 | src/features/academics/roll-call-screen.tsx:62-78
+MODEL-069,--mode_strict,DUP-0516,src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:71-89 | src/features/settings/pricing/pricing-year-config-bar.tsx:75-91
+MODEL-070,--mode_strict,DUP-0394,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:677-693 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:498-514
+MODEL-071,--mode_strict,DUP-0198,src/features/academics/therapy/orthophonie-tab.tsx:232-248 | src/features/academics/therapy/psychology-tab.tsx:262-278
+MODEL-072,--mode_strict,DUP-0217,src/infrastructure/mock/repositories/financial-repository.ts:226-242 | src/infrastructure/mock/repositories/financial/payment-ops.ts:98-114
+MODEL-073,--mode_strict,DUP-0529,supabase/functions/workflow-execute/index.ts:327-344 | supabase/functions/workflow-scheduled-runner/index.ts:310-326
+MODEL-074,--mode_strict,DUP-0312,src/features/academics/academic-year-detail-drawer.tsx:496-511 | src/features/academics/academic-year-detail-drawer.tsx:1076-1091
+MODEL-075,--mode_strict,DUP-0573,src/features/academics/therapy/orthophonie-tab.tsx:394-409 | src/features/academics/therapy/psychology-tab.tsx:437-452
+MODEL-076,--mode_strict,DUP-0148,src/features/auth/splash-screen.tsx:191-207 | src/shared/ui/particle-canvas.tsx:217-232
+MODEL-077,--mode_strict,DUP-0152,src/features/dashboard/components/analytics/data-inspector-lineage.ts:541-556 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:746-761
+MODEL-078,--mode_strict,DUP-0140,src/features/personnel/management/employee-form-modal.tsx:192-207 | src/features/personnel/management/employee-form-modal.tsx:222-237
+MODEL-079,--mode_strict,DUP-0326,src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:128-143 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1209-1224
+MODEL-080,--mode_strict,DUP-0150,src/infrastructure/mock/operations/index.ts:255-263 | src/infrastructure/mock/operations/index.ts:462-470 | src/infrastructure/mock/workforce/index.ts:461-469
+MODEL-081,--mode_strict,DUP-0536,src/infrastructure/mock/repositories/academic-repository.ts:378-394 | src/infrastructure/mock/repositories/academic-repository.ts:437-452
+MODEL-082,--mode_strict,DUP-0154,src/infrastructure/mock/repositories/academic-year-repository.ts:182-190 | src/infrastructure/mock/repositories/academic-year-repository.ts:217-225
+MODEL-083,--mode_strict,DUP-0155,src/infrastructure/mock/repositories/club-repository.ts:172-180 | src/infrastructure/mock/repositories/club-repository.ts:222-230
+MODEL-084,--mode_strict,DUP-0300,src/infrastructure/mock/repositories/mock-store.ts:403-418 | src/infrastructure/mock/repositories/personnel-audit-repository.ts:389-404
+MODEL-085,--mode_strict,DUP-0218,src/infrastructure/supabase/repositories/supabase-approval-repository.ts:358-373 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:425-440
+MODEL-086,--mode_strict,DUP-0111,src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:290-301 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:268-276
+MODEL-087,--mode_strict,DUP-0104,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2711-2726 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2746-2761
+MODEL-088,--mode_strict,DUP-0188,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4370-4378 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4391-4399 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4410-4418
+MODEL-089,--mode_strict,DUP-0171,supabase/functions/approve-signup-request/index.ts:217-232 | supabase/functions/approve-signup-request/index.ts:343-358
+MODEL-090,--mode_strict,DUP-0157,supabase/functions/refund-payment/index.ts:38-55 | supabase/functions/collect-payment/index.ts:55-70
+MODEL-091,--mode_strict,DUP-0372,src/features/academics/academic-year-detail-drawer.tsx:1038-1054 | src/features/academics/academic-year-detail-drawer.tsx:230-244
+MODEL-092,--mode_strict,DUP-0428,src/features/academics/academic-year-detail-drawer.tsx:481-495 | src/features/academics/academic-year-detail-drawer.tsx:1061-1075
+MODEL-093,--mode_strict,DUP-0256,src/features/academics/academic-year-detail-drawer.tsx:725-739 | src/features/academics/teachers-tab.tsx:161-175
+MODEL-094,--mode_strict,DUP-0451,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:347-361 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:245-259
+MODEL-095,--mode_strict,DUP-0492,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:585-599 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:535-549
+MODEL-096,--mode_strict,DUP-0459,src/features/academics/therapy/therapy-attachments-card.tsx:106-120 | src/features/crm/student-detail/documents-tab.tsx:231-245
+MODEL-097,--mode_strict,DUP-0250,src/features/crm/edit-parent-modal.tsx:140-154 | src/features/crm/edit-student-modal.tsx:195-209
+MODEL-098,--mode_strict,DUP-0058,src/features/dashboard/components/analytics/data-inspector-core.tsx:206-220 | src/features/dashboard/tabs/analytics-tab.tsx:131-145
+MODEL-099,--mode_strict,DUP-0374,src/features/personnel/management/expense-review-section.tsx:202-216 | src/features/personnel/management/staff-attendance-center.tsx:467-481
+MODEL-100,--mode_strict,DUP-0582,src/infrastructure/excel/import-engine/types.ts:39-64 | src/infrastructure/excel/import-config/types.ts:59-73
+MODEL-101,--mode_strict,DUP-0113,src/infrastructure/mock/repositories/dashboard-repository.ts:123-137 | src/infrastructure/mock/repositories/dashboard-repository.ts:337-351
+MODEL-102,--mode_strict,DUP-0095,src/infrastructure/mock/repositories/teacher-repository.ts:239-253 | src/infrastructure/mock/repositories/teacher-repository.ts:364-378
+MODEL-103,--mode_strict,DUP-0452,src/infrastructure/supabase/repositories/supabase-auth-repository.ts:25-39 | src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:261-275
+MODEL-104,--mode_strict,DUP-0116,src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:691-709 | src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:966-980
+MODEL-105,--mode_strict,DUP-0277,src/domain/calc/payment/webhook-diagnostics.ts:697-706 | src/domain/calc/payment/webhook-diagnostics.ts:731-740 | src/domain/calc/payment/webhook-diagnostics.ts:2421-2426
+MODEL-106,--mode_strict,DUP-0517,src/domain/model/parent.ts:142-162 | src/domain/model/parent.ts:185-198
+MODEL-107,--mode_strict,DUP-0473,src/features/personnel/dashboards/manager-dashboard.tsx:201-214 | src/features/personnel/dashboards/worker-dashboard.tsx:224-237
+MODEL-108,--mode_strict,DUP-0321,src/features/settings/supabase-diagnostics/crud-test-runner.ts:918-933 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:872-885
+MODEL-109,--mode_strict,DUP-0143,src/infrastructure/mock/repositories/ledger-repository.ts:225-238 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3703-3716
+MODEL-110,--mode_strict,DUP-0122,src/infrastructure/mock/repositories/pricing-repository.ts:128-142 | src/infrastructure/mock/repositories/pricing-repository.ts:155-168
+MODEL-111,--mode_strict,DUP-0168,src/infrastructure/supabase/repositories/supabase-chat-repository.ts:477-493 | src/infrastructure/mock/workforce/index.ts:1323-1336
+MODEL-112,--mode_strict,DUP-0324,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:235-242 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:248-255 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:261-268
+MODEL-113,--mode_strict,DUP-0467,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:524-537 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:855-868
+MODEL-114,--mode_strict,DUP-0533,src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:204-217 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:220-233
+MODEL-115,--mode_strict,DUP-0133,src/infrastructure/supabase/repositories/supabase-expense-repository.ts:812-826 | src/infrastructure/supabase/repositories/supabase-expense-repository.ts:558-571
+MODEL-116,--mode_strict,DUP-0134,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:670-684 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:729-742
+MODEL-117,--mode_strict,DUP-0574,src/shared/ui/parent-actions-menu.tsx:86-99 | src/shared/ui/student-actions-menu.tsx:61-74
+MODEL-118,--mode_strict,DUP-0151,supabase/functions/ai-proxy/index.ts:83-96 | supabase/functions/workflow-execute/index.ts:107-120
+MODEL-119,--mode_strict,DUP-0187,src/domain/calc/teacher/validation.ts:93-109 | src/domain/calc/teacher/validation.ts:79-91
+MODEL-120,--mode_strict,DUP-0527,src/domain/repository/repository.ts:1068-1085 | src/infrastructure/supabase/repositories/supabase-audit-log-repository.ts:365-377
+MODEL-121,--mode_strict,DUP-0174,src/features/academics/exams-tab.tsx:101-114 | src/features/academics/homework-history-tab.tsx:73-85
+MODEL-122,--mode_strict,DUP-0408,src/features/academics/grade-entry-screen.tsx:436-448 | src/features/academics/grade-entry-screen.tsx:481-493
+MODEL-123,--mode_strict,DUP-0313,src/features/crm/parent-detail-drawer.tsx:1291-1303 | src/features/crm/parent-detail-drawer.tsx:1311-1323
+MODEL-124,--mode_strict,DUP-0282,src/features/dashboard/dashboard-layout-editor.tsx:582-594 | src/features/dashboard/dashboard-layout-editor.tsx:613-625
+MODEL-125,--mode_strict,DUP-0518,src/infrastructure/backup/backup-file-restore.ts:220-232 | src/infrastructure/backup/backup-file-restore.ts:260-272
+MODEL-126,--mode_strict,DUP-0558,src/infrastructure/mock/operations/index.ts:618-630 | src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:271-283
+MODEL-127,--mode_strict,DUP-0298,src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:929-948 | src/infrastructure/mock/workforce/index.ts:135-147
+MODEL-128,--mode_strict,DUP-0176,src/infrastructure/mock/workforce/index.ts:1019-1026 | src/infrastructure/mock/workforce/index.ts:1037-1044 | src/infrastructure/mock/workforce/index.ts:994-1000
+MODEL-129,--mode_strict,DUP-0264,src/infrastructure/receipt-pdf/account-statement.ts:122-129 | src/infrastructure/receipt-pdf/bulletin.ts:75-82 | src/infrastructure/receipt-pdf/family-statement.ts:161-167
+MODEL-130,--mode_strict,DUP-0257,src/infrastructure/receipt-pdf/report-document.ts:224-236 | src/infrastructure/receipt-pdf/shared.ts:266-278
+MODEL-131,--mode_strict,DUP-0322,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:222-236 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:259-271
+MODEL-132,--mode_strict,DUP-0434,src/features/academics/clubs/club-detail-drawer.tsx:403-414 | src/features/academics/clubs/club-detail-drawer.tsx:442-453
+MODEL-133,--mode_strict,DUP-0412,src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:215-226 | src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:177-188
+MODEL-134,--mode_strict,DUP-0419,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:444-455 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:605-616
+MODEL-135,--mode_strict,DUP-0163,src/features/crm/batch-registration/step2-students.tsx:216-228 | src/features/crm/re-enrollment/re-enroll-modal.tsx:293-304
+MODEL-136,--mode_strict,DUP-0422,src/features/crm/edit-student-modal.tsx:297-311 | src/features/crm/edit-parent-modal.tsx:192-203
+MODEL-137,--mode_strict,DUP-0167,src/features/dashboard/components/analytics/data-inspector-core.tsx:672-683 | src/features/dashboard/components/analytics/data-inspector-core.tsx:903-914
+MODEL-138,--mode_strict,DUP-0530,src/features/dashboard/components/analytics/operational-query-console.tsx:113-124 | src/features/dashboard/see-details-modal.tsx:170-181
+MODEL-139,--mode_strict,DUP-0306,src/features/personnel/management/task-management.tsx:341-352 | src/features/personnel/management/chat-panel.tsx:874-880 | src/features/personnel/management/employee-directory.tsx:210-216
+MODEL-140,--mode_strict,DUP-0351,src/features/personnel/management/requests-management.tsx:95-106 | src/features/personnel/management/staff-attendance-center.tsx:103-114
+MODEL-141,--mode_strict,DUP-0399,src/features/personnel/workflow-monitor-tab.tsx:57-68 | src/features/workflow/workflow-page.tsx:742-753
+MODEL-142,--mode_strict,DUP-0389,src/features/settings/supabase-diagnostics/crud-test-runner.ts:475-486 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:544-555
+MODEL-143,--mode_strict,DUP-0478,src/infrastructure/backup/backup-service.ts:510-524 | src/infrastructure/backup/backup-service.ts:426-437
+MODEL-144,--mode_strict,DUP-0172,src/infrastructure/mock/repositories/auth-repository.ts:127-138 | src/infrastructure/supabase/repositories/supabase-auth-repository.ts:190-201
+MODEL-145,--mode_strict,DUP-0594,src/infrastructure/mock/repositories/identity-resolution-repository.ts:210-221 | src/infrastructure/mock/repositories/identity-resolution-repository.ts:268-279
+MODEL-146,--mode_strict,DUP-0429,src/infrastructure/mock/repositories/therapy-repository.ts:268-279 | src/infrastructure/mock/repositories/therapy-repository.ts:665-676
+MODEL-147,--mode_strict,DUP-0488,src/infrastructure/mock/workforce/index.ts:472-483 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:224-235
+MODEL-148,--mode_strict,DUP-0164,src/infrastructure/mock/workforce/index.ts:797-803 | src/infrastructure/mock/workforce/index.ts:818-824 | src/infrastructure/mock/workforce/index.ts:840-846
+MODEL-149,--mode_strict,DUP-0480,src/infrastructure/supabase/repositories/supabase-approval-repository.ts:258-271 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:298-309
+MODEL-150,--mode_strict,DUP-0519,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:699-710 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:751-762
+MODEL-151,--mode_strict,DUP-0335,src/app/providers/ai-copilot-provider.tsx:327-337 | src/features/financials/receipts-tab.tsx:126-136
+MODEL-152,--mode_strict,DUP-0363,src/core/format/id.ts:136-149 | src/core/format/id.ts:173-183
+MODEL-153,--mode_strict,DUP-0609,src/domain/calc/ledger/entries.ts:58-68 | src/domain/calc/ledger/entries.ts:157-167
+MODEL-154,--mode_strict,DUP-0596,src/domain/calc/ledger/entries.ts:109-119 | src/domain/calc/ledger/entries.ts:199-209
+MODEL-155,--mode_strict,DUP-0266,src/domain/calc/payment/clearance.ts:48-69 | src/domain/calc/payment/waterfall-allocator.ts:24-34
+MODEL-156,--mode_strict,DUP-0562,src/features/academics/academic-year-detail-drawer.tsx:645-655 | src/features/academics/teachers-tab.tsx:109-119
+MODEL-157,--mode_strict,DUP-0620,src/features/academics/academics-page.tsx:107-117 | src/features/academics/students-directory-tab.tsx:120-130
+MODEL-158,--mode_strict,DUP-0327,src/features/academics/therapy/psychology-tab.tsx:63-74 | src/features/academics/therapy/orthophonie-tab.tsx:59-69
+MODEL-159,--mode_strict,DUP-0591,src/features/crm/parent-detail-drawer.tsx:1551-1561 | src/features/financials/debt-aging-year-history.tsx:85-95
+MODEL-160,--mode_strict,DUP-0212,src/features/dashboard/tabs/reports-tab.tsx:183-193 | src/features/dashboard/tabs/reports-tab.tsx:205-215
+MODEL-161,--mode_strict,DUP-0361,src/infrastructure/excel/import-config/configs/etat-2027-2026.ts:95-106 | src/infrastructure/excel/import-config/configs/etat-2026-2027.ts:55-65
+MODEL-162,--mode_strict,DUP-0546,src/infrastructure/mock/repositories/personnel-audit-repository.ts:290-300 | src/infrastructure/supabase/repositories/supabase-releve-repository.ts:221-231
+MODEL-163,--mode_strict,DUP-0567,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:714-724 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:767-777
+MODEL-164,--mode_strict,DUP-0614,src/infrastructure/supabase/repositories/supabase-releve-repository.ts:280-290 | src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:376-386
+MODEL-165,--mode_strict,DUP-0391,src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:284-295 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:262-272
+MODEL-166,--mode_strict,DUP-0474,src/core/ai/tools/analysis-tools.ts:196-205 | src/core/ai/tools/system-tools.ts:684-693
+MODEL-167,--mode_strict,DUP-0093,src/domain/calc/ledger/debt-aging.ts:563-573 | src/domain/calc/ledger/year-history.ts:586-595
+MODEL-168,--mode_strict,DUP-0276,src/domain/calc/therapy/validation.ts:120-129 | src/domain/calc/therapy/validation.ts:231-240
+MODEL-169,--mode_strict,DUP-0509,src/features/academics/grade-levels-class-view.tsx:610-624 | src/features/crm/re-enrollment/re-enroll-modal.tsx:261-270
+MODEL-170,--mode_strict,DUP-0425,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:621-630 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:444-453
+MODEL-171,--mode_strict,DUP-0304,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:756-765 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:692-701
+MODEL-172,--mode_strict,DUP-0165,src/features/auth/splash-screen.tsx:69-79 | src/shared/ui/particle-canvas.tsx:87-96
+MODEL-173,--mode_strict,DUP-0555,src/features/crm/batch-registration/step1-parent.tsx:79-90 | src/features/crm/batch-registration/step2-students.tsx:113-122
+MODEL-174,--mode_strict,DUP-0520,src/features/dashboard/components/analytics/data-inspector-lineage.ts:594-603 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:639-648
+MODEL-175,--mode_strict,DUP-0621,src/features/financials/anomaly-explainer-modal.tsx:93-103 | src/features/financials/expense-detail-drawer.tsx:69-78
+MODEL-176,--mode_strict,DUP-0390,src/infrastructure/excel/data-export.ts:144-155 | src/infrastructure/excel/data-export.ts:305-314
+MODEL-177,--mode_strict,DUP-0499,src/infrastructure/mock/repositories/identity-resolution-repository.ts:230-239 | src/infrastructure/mock/repositories/identity-resolution-repository.ts:288-297
+MODEL-178,--mode_strict,DUP-0200,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1351-1362 | src/infrastructure/mock/repositories/timetable-repository.ts:859-868
+MODEL-179,--mode_strict,DUP-0286,src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:144-153 | src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:166-175
+MODEL-180,--mode_strict,DUP-0559,src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:845-855 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:863-872
+MODEL-181,--mode_strict,DUP-0583,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:966-975 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1251-1260
+MODEL-182,--mode_strict,DUP-0295,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1377-1386 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1476-1485
+MODEL-183,--mode_strict,DUP-0539,src/domain/calc/reconcile/cross-checks.ts:50-58 | src/domain/calc/reconcile/cross-checks.ts:116-124
+MODEL-184,--mode_strict,DUP-0623,src/features/academics/class-detail-page.tsx:207-215 | src/features/academics/grade-levels-class-view.tsx:398-406
+MODEL-185,--mode_strict,DUP-0353,src/features/academics/hooks/use-class-placement-studio.ts:619-627 | src/infrastructure/mock/repositories/academic-repository.ts:1161-1169
+MODEL-186,--mode_strict,DUP-0489,src/features/auth/splash-screen.tsx:49-58 | src/shared/ui/particle-canvas.tsx:73-81
+MODEL-187,--mode_strict,DUP-0534,src/features/crm/student-detail/academic-tab.tsx:112-122 | src/features/crm/student-detail/info-tab.tsx:48-56
+MODEL-188,--mode_strict,DUP-0470,src/features/dashboard/components/analytics/operational-query-console.tsx:1241-1254 | src/features/financials/financials-page.tsx:721-729
+MODEL-189,--mode_strict,DUP-0619,src/features/personnel/management/staff-attendance-center.tsx:84-97 | src/features/personnel/management/requests-management.tsx:84-92
+MODEL-190,--mode_strict,DUP-0540,src/features/settings/supabase-diagnostics/crud-test-runner.ts:953-961 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:1003-1011
+MODEL-191,--mode_strict,DUP-0448,src/infrastructure/backup/backup-service.ts:302-310 | src/infrastructure/export/export-warmup.ts:66-74
+MODEL-192,--mode_strict,DUP-0622,src/infrastructure/excel/data-export.ts:86-95 | src/infrastructure/excel/full-export.ts:189-197
+MODEL-193,--mode_strict,DUP-0265,src/infrastructure/excel/export-engine.ts:161-169 | src/infrastructure/receipt-pdf/download.ts:9-17
+MODEL-194,--mode_strict,DUP-0405,src/infrastructure/mock/operations/index.ts:335-343 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:282-290
+MODEL-195,--mode_strict,DUP-0376,src/infrastructure/mock/repositories/therapy-repository.ts:63-75 | src/infrastructure/mock/repositories/club-repository.ts:46-54
+MODEL-196,--mode_strict,DUP-0549,src/infrastructure/mock/repositories/dashboard-repository.ts:114-122 | src/infrastructure/mock/repositories/dashboard-repository.ts:327-335
+MODEL-197,--mode_strict,DUP-0406,src/infrastructure/mock/repositories/timetable-repository.ts:605-613 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:982-990
+MODEL-198,--mode_strict,DUP-0285,src/infrastructure/mock/repositories/timetable-repository.ts:878-891 | src/infrastructure/mock/repositories/timetable-repository.ts:945-953
+MODEL-199,--mode_strict,DUP-0572,src/infrastructure/mock/repositories/workflow-repository.ts:165-173 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:349-357
+MODEL-200,--mode_strict,DUP-0490,src/infrastructure/mock/workforce/index.ts:1307-1315 | src/infrastructure/supabase/repositories/supabase-chat-repository.ts:461-469
+MODEL-201,--mode_strict,DUP-0314,src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:269-277 | src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:315-323
+MODEL-202,--mode_strict,DUP-0592,src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:584-594 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:950-958
+MODEL-203,--mode_strict,DUP-0240,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4475-4483 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4526-4534
+MODEL-204,--mode_strict,DUP-0590,src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:164-172 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:258-266
+MODEL-205,--mode_strict,DUP-0354,src/infrastructure/sync/online-detector.ts:101-112 | src/infrastructure/sync/online-detector.ts:221-229
+MODEL-206,--mode_strict,DUP-0153,supabase/functions/workflow-execute/engine.ts:957-966 | supabase/functions/workflow-execute/engine.ts:919-927
+MODEL-207,--mode_strict,DUP-0205,src/domain/calc/therapy/validation.ts:103-110 | src/domain/calc/therapy/validation.ts:217-224
+MODEL-208,--mode_strict,DUP-0254,src/domain/calc/therapy/validation.ts:141-148 | src/domain/calc/therapy/validation.ts:280-287
+MODEL-209,--mode_strict,DUP-0424,src/features/academics/class-detail-page.tsx:231-240 | src/features/academics/class-grades-tab.tsx:45-52
+MODEL-210,--mode_strict,DUP-0349,src/features/workflow/workflow-page.tsx:776-794 | src/features/personnel/workflow-monitor-tab.tsx:87-94
+MODEL-211,--mode_strict,DUP-0483,src/features/settings/approvals-tab.tsx:166-173 | src/features/settings/approvals-tab.tsx:202-209
+MODEL-212,--mode_strict,DUP-0610,src/features/settings/supabase-diagnostics/crud-test-runner.ts:982-989 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:1031-1038
+MODEL-213,--mode_strict,DUP-0267,src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:167-174 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1235-1242
+MODEL-214,--mode_strict,DUP-0521,src/infrastructure/excel/import-engine/validators/row-validator.ts:328-335 | src/infrastructure/excel/import-engine/validators/row-validator.ts:369-376
+MODEL-215,--mode_strict,DUP-0224,src/infrastructure/mock/repositories/club-repository.ts:299-306 | src/infrastructure/mock/repositories/club-repository.ts:483-490
+MODEL-216,--mode_strict,DUP-0270,src/infrastructure/mock/repositories/therapy-repository.ts:112-120 | src/infrastructure/mock/repositories/therapy-repository.ts:513-520
+MODEL-217,--mode_strict,DUP-0225,src/infrastructure/mock/repositories/therapy-repository.ts:339-346 | src/infrastructure/mock/repositories/therapy-repository.ts:411-418
+MODEL-218,--mode_strict,DUP-0226,src/infrastructure/mock/repositories/therapy-repository.ts:730-737 | src/infrastructure/mock/repositories/therapy-repository.ts:812-819
+MODEL-219,--mode_strict,DUP-0283,src/infrastructure/mock/repositories/user-account-repository.ts:91-98 | src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:76-83
+MODEL-220,--mode_strict,DUP-0611,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:440-447 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:528-535
+MODEL-221,--mode_strict,DUP-0340,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1012-1020 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1278-1285
+MODEL-222,--mode_strict,DUP-0598,src/shared/devtools/test-data/generators.ts:180-187 | src/shared/devtools/test-data/generators.ts:189-196
+MODEL-223,--mode_strict,DUP-0465,supabase/functions/_shared/supabase.ts:20-27 | supabase/functions/_shared/supabase.ts:40-47
+MODEL-224,--mode_strict,DUP-0595,supabase/functions/update-server-secret/index.ts:110-121 | supabase/functions/update-server-secret/index.ts:211-218
+MODEL-225,--near,DUP-0635,src/features/academics/clubs/club-detail-drawer.tsx:259-361 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:210-307
+MODEL-226,--near,DUP-0637,src/infrastructure/mock/repositories/club-repository.ts:520-543 | src/infrastructure/mock/repositories/therapy-repository.ts:295-318 | src/infrastructure/mock/repositories/therapy-repository.ts:692-715 | src/infrastructure/mock/repositories/therapy-repository.ts:379-398 | src/infrastructure/mock/repositories/therapy-repository.ts:450-469 | src/infrastructure/mock/repositories/therapy-repository.ts:772-791 | src/infrastructure/mock/repositories/therapy-repository.ts:853-872
+MODEL-227,--near,DUP-0642,src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:792-808 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5201-5214
+MODEL-228,--near,DUP-0711,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4293-4349 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3428-3469
+MODEL-229,--near,DUP-0714,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1126-1136 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1147-1157 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1173-1183 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:873-881 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1544-1552 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1562-1570
+MODEL-230,--near,DUP-0690,src/features/academics/school-years-tab.tsx:126-139 | src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:148-161 | src/features/academics/school-years-tab.tsx:141-151 | src/features/academics/school-years-tab.tsx:153-163 | src/features/academics/clubs/clubs-tab.tsx:86-91 | src/features/financials/expense-attachments-gallery.tsx:128-133
+MODEL-231,--near,DUP-0704,src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:385-398 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:567-580
+MODEL-232,--near,DUP-0789,src/features/academics/academic-year-detail-drawer.tsx:1204-1219 | src/features/academics/academic-year-detail-drawer.tsx:1221-1233 | src/features/academics/academic-year-detail-drawer.tsx:1235-1247 | src/features/academics/academic-year-detail-drawer.tsx:1249-1261
+MODEL-233,--near,DUP-0739,src/infrastructure/mock/operations/index.ts:266-305 | src/infrastructure/mock/operations/index.ts:473-507
+MODEL-234,--near,DUP-0654,src/infrastructure/excel/full-export.ts:371-406 | src/infrastructure/excel/full-export.ts:301-334
+MODEL-235,--near,DUP-0674,src/infrastructure/mock/repositories/academic-year-repository.ts:247-279 | src/infrastructure/mock/repositories/club-repository.ts:252-282
+MODEL-236,--near,DUP-0756,src/features/academics/teachers-tab.tsx:201-240 | src/features/academics/academic-year-detail-drawer.tsx:765-793
+MODEL-237,--near,DUP-0832,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:293-303 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:550-560 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:574-584 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:562-571
+MODEL-238,--near,DUP-0771,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:811-825 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:852-866 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:898-912
+MODEL-239,--near,DUP-0806,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:472-483 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:354-364 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:439-449 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:569-578
+MODEL-240,--near,DUP-0841,src/features/crm/student-detail/attendance-tab.tsx:128-149 | src/features/settings/sync-tab.tsx:395-409 | src/features/financials/installment-schedule-tab.tsx:969-982
+MODEL-241,--near,DUP-0653,src/infrastructure/mock/operations/index.ts:101-110 | src/infrastructure/mock/operations/index.ts:603-612 | src/infrastructure/mock/workforce/index.ts:186-195
+MODEL-242,--near,DUP-0917,src/domain/calc/academics/school-year.ts:231-243 | src/domain/calc/clubs/validation.ts:213-225 | src/domain/calc/teacher/validation.ts:124-136
+MODEL-243,--near,DUP-0693,src/domain/calc/diff/field-diff.ts:317-341 | src/domain/calc/diff/field-diff.ts:344-367
+MODEL-244,--near,DUP-0811,src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:432-445 | src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:446-458
+MODEL-245,--near,DUP-0947,src/features/personnel/dashboards/manager-dashboard.tsx:177-199 | src/features/personnel/management/requests-management.tsx:180-202
+MODEL-246,--near,DUP-1020,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2173-2192 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2194-2211 | src/infrastructure/mock/fixtures/parent-fixtures.ts:63-69
+MODEL-247,--near,DUP-0844,src/features/financials/anomaly-explainer-modal.tsx:180-203 | src/features/academics/narrative-generator-modal.tsx:301-321
+MODEL-248,--near,DUP-1051,src/features/dashboard/components/analytics/operational-query-console.tsx:174-197 | src/features/personnel/onboarding/steps/step-header.tsx:3-23
+MODEL-249,--near,DUP-0890,src/features/dashboard/components/analytics/operational-query-console.tsx:146-155 | src/features/dashboard/components/analytics/operational-query-console.tsx:157-164 | src/features/personnel/onboarding/steps/review-step.tsx:18-25 | src/features/settings/backup-tab.tsx:1400-1407
+MODEL-250,--near,DUP-0755,src/features/settings/pricing/transport-card.tsx:40-47 | src/features/settings/pricing/transport-card.tsx:49-56 | src/features/settings/pricing/tuition-card.tsx:61-68
+MODEL-251,--near,DUP-0926,src/infrastructure/mock/repositories/identity-resolution-repository.ts:445-452 | src/infrastructure/mock/repositories/identity-resolution-repository.ts:453-460 | src/infrastructure/mock/repositories/identity-resolution-repository.ts:461-468 | src/infrastructure/mock/repositories/identity-resolution-repository.ts:469-476
+MODEL-252,--near,DUP-0831,src/infrastructure/supabase/repositories/supabase-notification-repository.ts:171-181 | src/infrastructure/supabase/repositories/supabase-notification-repository.ts:213-223
+MODEL-253,--near,DUP-0916,src/features/academics/school-years-tab.tsx:292-304 | src/features/settings/approvals-tab.tsx:428-438 | src/features/academics/clubs/clubs-tab.tsx:223-232
+MODEL-254,--near,DUP-0914,src/features/dashboard/components/analytics/operational-query-console.tsx:277-290 | src/features/dashboard/components/analytics/operational-query-console.tsx:295-307 | src/features/dashboard/components/analytics/operational-query-console.tsx:312-319
+MODEL-255,--near,DUP-0797,src/infrastructure/mock/repositories/teacher-repository.ts:312-333 | src/infrastructure/mock/repositories/teacher-repository.ts:465-483
+MODEL-256,--near,DUP-0805,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:886-905 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:915-933
+MODEL-257,--near,DUP-0862,src/infrastructure/supabase/repositories/supabase-backup-repository.ts:279-297 | src/infrastructure/supabase/repositories/supabase-backup-repository.ts:299-317
+MODEL-258,--near,DUP-1434,src/features/academics/academics-page.tsx:257-286 | src/features/financials/financials-page.tsx:325-342
+MODEL-259,--near,DUP-0869,src/infrastructure/backup/indexed-db-vault.ts:86-103 | src/infrastructure/backup/indexed-db-vault.ts:190-207
+MODEL-260,--near,DUP-0670,src/infrastructure/mock/operations/index.ts:536-545 | src/infrastructure/mock/operations/index.ts:744-753 | src/infrastructure/mock/operations/index.ts:766-775
+MODEL-261,--near,DUP-0734,src/infrastructure/mock/repositories/academic-repository.ts:1297-1302 | src/infrastructure/mock/repositories/club-repository.ts:70-75 | src/infrastructure/mock/repositories/teacher-repository.ts:71-76 | src/infrastructure/mock/repositories/therapy-repository.ts:99-104 | src/infrastructure/mock/repositories/therapy-repository.ts:500-505
+MODEL-262,--near,DUP-0927,src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:586-595 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:582-591 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:551-560
+MODEL-263,--near,DUP-1001,src/domain/calc/ledger/debt-aging.ts:353-369 | src/domain/calc/ledger/debt-aging.ts:377-393
+MODEL-264,--near,DUP-0866,src/domain/calc/timetable/constraints.ts:604-620 | src/domain/calc/timetable/constraints.ts:637-653
+MODEL-265,--near,DUP-1032,src/features/financials/financials-page.tsx:999-1015 | src/features/financials/financials-page.tsx:1017-1033
+MODEL-266,--near,DUP-0948,src/features/settings/pricing/complementary-services-card.tsx:68-85 | src/features/settings/pricing/additional-services-card.tsx:61-77
+MODEL-267,--near,DUP-0825,src/infrastructure/mock/repositories/club-repository.ts:473-479 | src/infrastructure/mock/repositories/therapy-repository.ts:321-327 | src/infrastructure/mock/repositories/therapy-repository.ts:718-724 | src/infrastructure/mock/repositories/therapy-repository.ts:794-800
+MODEL-268,--near,DUP-0820,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:671-679 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:397-403 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:663-669 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:140-146
+MODEL-269,--near,DUP-0719,src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:339-348 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2426-2432 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3186-3192 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3859-3865
+MODEL-270,--near,DUP-1114,src/features/dashboard/dashboard-layout-editor.tsx:92-107 | src/features/dashboard/dashboard-layout-editor.tsx:109-124
+MODEL-271,--near,DUP-1350,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1877-1892 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1894-1909
+MODEL-272,--near,DUP-0988,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:507-522 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:524-539
+MODEL-273,--near,DUP-0758,src/domain/calc/academics/school-year.ts:99-113 | src/domain/calc/clubs/validation.ts:72-86
+MODEL-274,--near,DUP-1255,src/shared/navigation/person-navigation-context.tsx:68-85 | src/shared/navigation/person-navigation-context.tsx:90-104
+MODEL-275,--near,DUP-1282,src/domain/calc/therapy/validation.ts:183-196 | src/domain/calc/therapy/validation.ts:311-324
+MODEL-276,--near,DUP-0865,src/infrastructure/mock/workforce/index.ts:224-231 | src/infrastructure/mock/workforce/index.ts:690-697 | src/infrastructure/mock/workforce/index.ts:1077-1084
+MODEL-277,--near,DUP-0918,src/domain/calc/teacher/validation.ts:162-171 | src/domain/calc/clubs/validation.ts:134-141 | src/domain/calc/clubs/validation.ts:143-149
+MODEL-278,--near,DUP-0956,src/features/crm/edit-student-modal.tsx:108-125 | src/features/crm/edit-parent-modal.tsx:73-85
+MODEL-279,--near,DUP-1182,src/features/personnel/management/requests-management.tsx:110-122 | src/features/personnel/management/staff-attendance-center.tsx:116-128
+MODEL-280,--near,DUP-0966,src/features/crm/parent-detail-drawer.tsx:822-828 | src/features/crm/parent-detail-drawer.tsx:833-839 | src/features/crm/parent-detail-drawer.tsx:865-871
+MODEL-281,--near,DUP-0803,src/infrastructure/mock/operations/index.ts:93-99 | src/infrastructure/mock/operations/index.ts:785-791 | src/infrastructure/mock/workforce/index.ts:119-125
+MODEL-282,--near,DUP-1230,src/infrastructure/mock/repositories/academic-repository.ts:510-523 | src/infrastructure/mock/repositories/academic-repository.ts:524-535
+MODEL-283,--near,DUP-0928,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:111-117 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:405-411 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:118-124
+MODEL-284,--near,DUP-1394,src/core/ai/tools/visualization-tools.ts:259-271 | src/core/ai/tools/visualization-tools.ts:272-282
+MODEL-285,--near,DUP-1185,src/domain/calc/pricing/transport.ts:215-225 | src/domain/calc/pricing/tuition.ts:159-169
+MODEL-286,--near,DUP-1461,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:148-158 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:153-163
+MODEL-287,--near,DUP-1354,src/features/dashboard/dashboard-layout-editor.tsx:780-790 | src/features/dashboard/dashboard-layout-editor.tsx:880-890
+MODEL-288,--near,DUP-0932,src/infrastructure/supabase/financial-realtime.ts:282-292 | src/infrastructure/supabase/financial-realtime.ts:293-303
+MODEL-289,--near,DUP-1035,src/features/academics/clubs/clubs-tab.tsx:75-84 | src/features/academics/clubs/clubs-tab.tsx:93-102
+MODEL-290,--near,DUP-1128,src/features/dashboard/dashboard-calendar.tsx:236-248 | src/features/academics/exams-tab.tsx:44-53
+MODEL-291,--near,DUP-1380,src/infrastructure/excel/import-engine/import-engine.ts:133-145 | src/shared/particle-engine/engine.ts:262-271
+MODEL-292,--near,DUP-1040,src/infrastructure/mock/repositories/parent-repository.ts:40-49 | src/infrastructure/mock/repositories/student-repository.ts:67-76
+MODEL-293,--near,DUP-1073,src/infrastructure/mock/repositories/timetable-repository.ts:272-283 | src/infrastructure/mock/repositories/timetable-repository.ts:350-359
+MODEL-294,--near,DUP-1216,src/infrastructure/receipt-pdf/report-document.ts:135-144 | src/infrastructure/receipt-pdf/report-document.ts:154-163
+MODEL-295,--near,DUP-1099,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:309-320 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:130-139
+MODEL-296,--near,DUP-0990,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:236-245 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:247-256
+MODEL-297,--near,DUP-1061,src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:401-410 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:412-421
+MODEL-298,--near,DUP-1365,src/domain/calc/therapy/validation.ts:33-44 | src/domain/calc/academics/school-year.ts:46-54
+MODEL-299,--near,DUP-1403,src/domain/calc/timetable/feasibility.ts:114-122 | src/domain/calc/timetable/feasibility.ts:123-131
+MODEL-300,--near,DUP-0945,src/features/financials/financial-query-console.tsx:101-113 | src/features/dashboard/components/analytics/pivot-matrix-card.tsx:57-65
+MODEL-301,--near,DUP-1138,src/infrastructure/backup/indexed-db-vault.ts:58-67 | src/infrastructure/sync/sync-queue-store.ts:44-52
+MODEL-302,--near,DUP-0989,src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:342-352 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:332-340
+MODEL-303,--near,DUP-0899,src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:513-521 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:609-617
+MODEL-304,--near,DUP-1353,src/features/academics/timetable/timetable-tab.tsx:1219-1229 | src/features/academics/timetable/timetable-tab.tsx:1198-1205
+MODEL-305,--near,DUP-1082,src/features/settings/pricing/additional-services-card.tsx:39-46 | src/features/settings/pricing/discounts-card.tsx:50-57
+MODEL-306,--near,DUP-1442,src/i18n/i18n.ts:65-72 | src/i18n/i18n.ts:78-85
+MODEL-307,--near,DUP-1472,src/infrastructure/mock/repositories/financial-repository.ts:816-823 | src/infrastructure/mock/repositories/ledger-repository.ts:91-98
+MODEL-308,--near,DUP-1276,src/infrastructure/mock/repositories/parent-repository.ts:187-194 | src/infrastructure/mock/repositories/student-repository.ts:496-503
+MODEL-309,--mode_semantic,DUP-1477,src/i18n/gen/ar.ts:8-1309 | src/i18n/gen/en.ts:8-1309 | src/i18n/gen/fr.ts:8-1309
+MODEL-310,--mode_semantic,DUP-1480,src/i18n/stats-tips.ts:364-687 | src/i18n/stats-tips.ts:1018-1341 | src/i18n/stats-tips.ts:1649-1972
+MODEL-311,--mode_semantic,DUP-1482,src/i18n/stats-tips.ts:57-350 | src/i18n/stats-tips.ts:713-1004 | src/i18n/stats-tips.ts:1344-1635
+MODEL-312,--mode_semantic,DUP-1486,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1774-1801 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1917-1941 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1535-1557 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1613-1635 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1636-1658 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1659-1681 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1682-1704 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1705-1727 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1728-1750 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1751-1773 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1802-1824 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1825-1847 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1848-1870 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1871-1893 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1894-1916 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1942-1963 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1964-1985
+MODEL-313,--mode_semantic,DUP-1514,src/core/rbac/permissions.ts:17-155 | src/core/audit-actions.ts:64-162
+MODEL-314,--mode_semantic,DUP-1487,src/i18n/ar.ts:7-307 | src/i18n/en.ts:8-307
+MODEL-315,--mode_semantic,DUP-1519,src/domain/repository/repository.ts:778-816 | src/features/dashboard/components/analytics/executive-statistics.ts:647-672 | src/domain/calc/payment/billing-breakdown.ts:186-209 | src/features/crm/batch-registration/types.ts:188-210 | src/domain/model/club.ts:153-169 | src/domain/model/therapy.ts:196-212 | src/shared/particle-engine/types.ts:107-123 | src/domain/model/promotion-cycle.ts:86-101 | src/infrastructure/excel/import-engine/types.ts:120-135 | src/domain/calc/payment/financial-query-engine.ts:71-85 | src/domain/model/workforce.ts:205-219 | src/infrastructure/supabase/types.ts:161-175
+MODEL-316,--mode_semantic,DUP-1710,src/domain/model/pricing.ts:176-242 | src/domain/model/timetable.ts:314-360 | src/domain/model/timetable.ts:364-400 | src/domain/calc/academics/class-placement.ts:148-175
+MODEL-317,--mode_semantic,DUP-1522,src/domain/calc/ledger/year-history.ts:253-299 | src/app/providers/repository-provider.tsx:91-113 | src/app/providers/repository-provider.tsx:133-155 | src/core/theme/theme-types.ts:7-27 | src/app/providers/repository-provider.tsx:115-132 | src/shared/particle-engine/types.ts:19-34 | src/shared/ui/unified-modal/types.ts:64-78
+MODEL-318,--mode_semantic,DUP-1552,src/domain/model/payment.ts:470-494 | src/domain/model/academic.ts:8-23
+MODEL-319,--mode_semantic,DUP-1656,src/features/academics/hooks/use-class-placement-studio.ts:689-713 | src/infrastructure/supabase/supabase-repositories.ts:463-487 | src/infrastructure/supabase/supabase-repositories.ts:513-537
+MODEL-320,--mode_semantic,DUP-1660,src/infrastructure/mock/seed-data.ts:163-187 | src/infrastructure/mock/seed-data.ts:189-213 | src/infrastructure/mock/seed-data.ts:215-239 | src/infrastructure/mock/seed-data.ts:254-278 | src/infrastructure/mock/seed-data.ts:280-304 | src/infrastructure/mock/seed-data.ts:306-330 | src/infrastructure/mock/seed-data.ts:332-356
+MODEL-321,--mode_semantic,DUP-1491,src/features/dashboard/tabs/reports-tab.tsx:47-62 | src/features/academics/hooks/use-class-placement-studio.ts:50-62 | src/features/dashboard/components/analytics/operational-query-console.tsx:241-252 | src/features/academics/academic-year-detail-drawer.tsx:591-600 | src/features/academics/class-detail-page.tsx:129-137 | src/features/crm/parent-detail-drawer.tsx:180-187 | src/features/settings/create-account-modal.tsx:152-159 | src/features/financials/financials-page.tsx:137-143 | src/features/personnel/dashboards/administrator-dashboard.tsx:44-50 | src/features/profile/profile-page.tsx:70-75 | src/features/academics/class-subjects-tab.tsx:42-46 | src/features/dashboard/components/analytics/data-inspector-core.tsx:222-226 | src/features/dashboard/components/analytics/operational-query-console.tsx:232-236 | src/features/personnel/dashboards/manager-dashboard.tsx:96-100 | src/features/academics/academic-year-detail-drawer.tsx:208-211 | src/features/workflow/workflow-page.tsx:141-144
+MODEL-322,--mode_semantic,DUP-1512,src/features/dashboard/components/analytics/operational-query-console.tsx:1203-1226 | src/features/dashboard/tabs/alerts-tab.tsx:194-206 | src/features/crm/student-detail/academic-tab.tsx:366-376 | src/features/crm/student-detail/academic-tab.tsx:553-563 | src/features/dashboard/components/recovery-funnel-card.tsx:676-686 | src/features/academics/class-grades-tab.tsx:183-192 | src/features/crm/excel-import-modal.tsx:769-778 | src/features/settings/sync-tab.tsx:318-327
+MODEL-323,--mode_semantic,DUP-2047,src/domain/model/workflow.ts:165-200 | src/domain/model/parent.ts:95-126 | src/domain/model/workflow.ts:275-306 | src/domain/model/workflow.ts:202-232
+MODEL-324,--mode_semantic,DUP-1637,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:362-381 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:260-279 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:363-382 | src/features/personnel/management/payroll-management.tsx:297-312
+MODEL-325,--mode_semantic,DUP-1593,src/features/dashboard/components/analytics/executive-statistics.ts:219-249 | src/infrastructure/excel/import-config/types.ts:123-143 | src/domain/model/timetable.ts:474-489 | src/domain/calc/payment/service-pricing-profile.ts:171-184 | src/domain/model/timetable.ts:89-102 | src/domain/model/workforce.ts:370-383 | src/shared/ui/auto-form/types.ts:13-26
+MODEL-326,--mode_semantic,DUP-1509,src/infrastructure/excel/full-export.ts:218-238 | src/infrastructure/excel/full-export.ts:441-461
+MODEL-327,--mode_semantic,DUP-1535,src/index.css:39-121 | src/index.css:140-211
+MODEL-328,--mode_semantic,DUP-1980,src/domain/model/teacher.ts:98-131 | src/features/dashboard/components/analytics/executive-statistics.ts:377-403 | src/domain/calc/ledger/debt-aging.ts:226-251 | src/infrastructure/backend/ports.ts:115-135
+MODEL-329,--mode_semantic,DUP-1690,src/domain/model/expense.ts:85-105 | src/domain/calc/payment/tranche-waves.ts:171-184 | src/domain/model/academic.ts:242-255 | src/infrastructure/excel/full-export.ts:64-77 | src/shared/ui/unified-modal/types.ts:47-60
+MODEL-330,--mode_semantic,DUP-1498,src/domain/calc/academics/algerian-curriculum.ts:146-216 | src/domain/calc/academics/algerian-curriculum.ts:79-145
+MODEL-331,--mode_semantic,DUP-1747,src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:326-344 | src/features/academics/academic-year-detail-drawer.tsx:512-529 | src/features/academics/academic-year-detail-drawer.tsx:835-852
+MODEL-332,--mode_semantic,DUP-1867,src/core/audit-actions.ts:9-59 | src/domain/calc/pricing/transport.ts:46-82 | src/features/settings/danger-zone-card.tsx:53-83
+MODEL-333,--mode_semantic,DUP-2143,src/domain/model/ledger.ts:132-165 | src/domain/model/therapy.ts:79-102 | src/domain/model/payment.ts:328-350 | src/domain/model/operations-workforce.ts:245-260
+MODEL-334,--mode_semantic,DUP-2511,src/core/ai/tools/system-tools.ts:264-296 | src/core/ai/tools/document-tools.ts:50-79 | src/core/ai/tools/system-tools.ts:233-262
+MODEL-335,--mode_semantic,DUP-1978,src/infrastructure/sync/conflict-detector.ts:45-74 | src/infrastructure/sync/conflict-detector.ts:77-106 | src/infrastructure/sync/conflict-detector.ts:140-169
+MODEL-336,--mode_semantic,DUP-2171,src/shared/particle-engine/types.ts:69-94 | src/domain/model/backup.ts:82-103 | src/features/academics/grade-entry-screen.tsx:48-68 | src/shared/devtools/test-data/generators.ts:45-62
+MODEL-337,--mode_semantic,DUP-2048,src/domain/calc/pricing/devis.ts:383-407 | src/domain/model/ai.ts:103-124
+MODEL-338,--mode_semantic,DUP-2148,src/domain/model/club.ts:94-119 | src/domain/model/therapy.ts:142-164 | src/domain/model/therapy.ts:279-299
+MODEL-339,--mode_semantic,DUP-2079,src/infrastructure/mock/seed-data.ts:409-464 | src/infrastructure/mock/seed-data.ts:465-520
+MODEL-340,--mode_semantic,DUP-2026,src/core/rbac/permissions.ts:271-298 | src/core/rbac/permissions.ts:300-319 | src/core/rbac/permissions.ts:371-390 | src/core/rbac/permissions.ts:397-415
+MODEL-341,--mode_semantic,DUP-1623,src/features/financials/financial-query-console.tsx:186-244 | src/features/dashboard/components/analytics/operational-query-console.tsx:1076-1130
+MODEL-342,--mode_semantic,DUP-2512,src/features/settings/theme-editor-modal.tsx:252-280 | src/features/settings/theme-editor-modal.tsx:302-330 | src/features/settings/theme-editor-modal.tsx:219-246
+MODEL-343,--mode_semantic,DUP-2056,src/infrastructure/supabase/types.ts:353-384 | src/domain/model/operations.ts:63-82 | src/domain/model/timetable.ts:593-611 | src/infrastructure/supabase/types.ts:578-596
+MODEL-344,--mode_semantic,DUP-2091,src/infrastructure/mock/seed-data.ts:960-1013 | src/infrastructure/mock/seed-data.ts:1014-1067
+MODEL-345,--mode_semantic,DUP-2033,src/infrastructure/mock/seed-data.ts:1077-1130 | src/infrastructure/mock/seed-data.ts:1149-1202
+MODEL-346,--mode_semantic,DUP-2275,src/infrastructure/supabase/supabase-repositories.ts:275-371 | src/infrastructure/supabase/supabase-repositories.ts:129-181
+MODEL-347,--mode_semantic,DUP-1628,src/features/academics/clubs/club-detail-drawer.tsx:145-156 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:330-341 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:228-239 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:331-342
+MODEL-348,--mode_semantic,DUP-2006,src/domain/model/academic.ts:27-42 | src/domain/model/operations-workforce.ts:68-81 | src/domain/model/teacher.ts:207-220 | src/domain/model/therapy.ts:118-131 | src/domain/model/workflow.ts:131-144
+MODEL-349,--mode_semantic,DUP-2394,src/domain/model/workforce.ts:107-140 | src/domain/model/operations-workforce.ts:153-178 | src/domain/model/operations-workforce.ts:185-210
+MODEL-350,--mode_semantic,DUP-1550,src/infrastructure/mock/repositories/ledger-repository.ts:39-54 | src/infrastructure/mock/repositories/student-repository.ts:48-63 | src/infrastructure/mock/repositories/academic-repository.ts:150-164 | src/infrastructure/mock/repositories/financial-repository.ts:113-125 | src/infrastructure/mock/repositories/financial-repository.ts:336-347
+MODEL-351,--mode_semantic,DUP-1901,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2415-2428 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3236-3249 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1264-1277
+MODEL-352,--mode_semantic,DUP-2086,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1444-1462 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:491-502
+MODEL-353,--mode_semantic,DUP-1866,src/features/settings/approvals-tab.tsx:1015-1032 | src/features/settings/approvals-tab.tsx:1157-1173
+MODEL-354,--mode_semantic,DUP-2611,src/core/theme/theme-types.ts:111-158 | src/core/theme/theme-types.ts:159-206
+MODEL-355,--mode_semantic,DUP-1633,src/features/academics/clubs/club-detail-drawer.tsx:48-73 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:58-82 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:58-82
+MODEL-356,--mode_semantic,DUP-1742,src/features/personnel/management/staff-attendance-center.tsx:370-420 | src/features/personnel/dashboards/worker-dashboard.tsx:335-382
+MODEL-357,--mode_semantic,DUP-1584,src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:182-201 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:178-196 | src/infrastructure/supabase/repositories/supabase-workflow-run-repository.ts:68-80
+MODEL-358,--mode_semantic,DUP-2209,supabase/functions/bind-activation-code/index.ts:132-152 | supabase/functions/create-user-account/index.ts:156-173 | supabase/functions/delete-user-account/index.ts:95-112
+MODEL-359,--mode_semantic,DUP-2873,src/domain/calc/ledger/entries.ts:70-104 | src/domain/calc/ledger/entries.ts:169-197 | src/domain/calc/ledger/entries.ts:211-230
+MODEL-360,--mode_semantic,DUP-2230,src/infrastructure/mock/workforce/index.ts:294-340 | src/infrastructure/mock/workforce/index.ts:342-388
+MODEL-361,--mode_semantic,DUP-1858,src/features/academics/timetable/timetable-tab.tsx:1067-1082 | src/features/personnel/dashboards/manager-dashboard.tsx:448-462 | src/features/profile/profile-page.tsx:422-433 | src/features/profile/profile-page.tsx:455-465
+MODEL-362,--mode_semantic,DUP-1788,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:2028-2074 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:2077-2122
+MODEL-363,--mode_semantic,DUP-2513,src/infrastructure/mock/academic-seed.ts:290-313 | src/infrastructure/mock/academic-seed.ts:351-374 | src/infrastructure/mock/academic-seed.ts:376-399
+MODEL-364,--mode_semantic,DUP-1717,src/features/academics/grade-entry-screen.tsx:108-129 | src/features/financials/unified-payment-modal.tsx:181-202 | src/features/crm/parent-detail-drawer.tsx:160-174
+MODEL-365,--mode_semantic,DUP-2743,src/features/personnel/management/upcoming-payroll-payments.tsx:241-268 | src/features/financials/payroll-funding-card.tsx:179-202 | src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:239-261
+MODEL-366,--mode_semantic,DUP-1518,src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:118-129 | src/features/financials/installment-schedule-tab.tsx:442-451 | src/features/financials/debt-aging-tab.tsx:186-194 | src/features/personnel/dashboards/buyer-dashboard.tsx:84-89 | src/features/personnel/dashboards/teacher-dashboard.tsx:70-75 | src/features/personnel/management/employee-profile-drawer.tsx:88-93 | src/features/financials/manual-debt-modal.tsx:106-110 | src/features/personnel/management/chat-panel.tsx:188-192 | src/features/personnel/management/task-detail-drawer.tsx:52-56 | src/features/personnel/management/task-form-modal.tsx:45-49
+MODEL-367,--mode_semantic,DUP-2293,src/features/settings/pricing/complementary-services-card.tsx:52-67 | src/features/settings/pricing/fees-card.tsx:70-85
+MODEL-368,--mode_semantic,DUP-1564,src/infrastructure/excel/full-export.ts:522-531 | src/infrastructure/excel/full-export.ts:199-207 | src/infrastructure/excel/full-export.ts:276-284 | src/infrastructure/excel/full-export.ts:347-355 | src/infrastructure/excel/full-export.ts:554-562
+MODEL-369,--mode_semantic,DUP-1911,src/features/academics/grade-levels-class-view.tsx:681-692 | src/features/academics/placement/create-section-dialog.tsx:210-221 | src/features/workflow/node-inspector-drawer.tsx:527-538
+MODEL-370,--mode_semantic,DUP-1778,src/features/dashboard/components/analytics/pivot-matrix-card.tsx:148-162 | src/features/dashboard/see-details-modal.tsx:470-483
+MODEL-371,--mode_semantic,DUP-1596,src/infrastructure/mock/repositories/academic-repository.ts:331-341 | src/infrastructure/mock/repositories/academic-repository.ts:64-70 | src/infrastructure/mock/repositories/financial-repository.ts:930-935
+MODEL-372,--mode_semantic,DUP-2183,src/infrastructure/mock/teacher-seed.ts:28-69 | src/infrastructure/mock/teacher-seed.ts:73-114
+MODEL-373,--mode_semantic,DUP-1768,src/infrastructure/supabase/repositories/supabase-task-repository.ts:186-208 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:154-175 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:158-179
+MODEL-374,--mode_semantic,DUP-2109,src/features/personnel/management/requests-management.tsx:484-498 | src/features/personnel/management/requests-management.tsx:509-523 | src/features/personnel/management/staff-attendance-center.tsx:666-680 | src/features/personnel/management/staff-attendance-center.tsx:691-705
+MODEL-375,--mode_semantic,DUP-2198,src/domain/model/therapy.ts:321-347 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:207-229
+MODEL-376,--mode_semantic,DUP-1675,src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:462-475 | src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:180-190
+MODEL-377,--mode_semantic,DUP-1871,src/domain/calc/academics/class-placement.ts:85-99 | src/domain/model/workforce.ts:294-307 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:139-152
+MODEL-378,--mode_semantic,DUP-1551,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2433-2480 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3866-3904
+MODEL-379,--mode_semantic,DUP-3023,src/core/ai/tools/analysis-tools.ts:102-143 | src/core/ai/tools/workflow-tools.ts:57-94
+MODEL-380,--mode_semantic,DUP-1744,src/features/personnel/management/employee-profile-drawer.tsx:109-122 | src/features/academics/class-detail-page.tsx:120-128
+MODEL-381,--mode_semantic,DUP-2016,src/features/dashboard/components/analytics/executive-card.tsx:32-46 | src/features/settings/contextual-thresholds-config.tsx:381-394 | src/features/workflow/dag-canvas.tsx:225-238 | src/features/workflow/test-studio-drawer.tsx:104-117
+MODEL-382,--mode_semantic,DUP-1893,src/infrastructure/mock/repositories/club-repository.ts:501-514 | src/infrastructure/mock/repositories/therapy-repository.ts:360-373 | src/infrastructure/mock/repositories/therapy-repository.ts:431-444 | src/infrastructure/mock/repositories/therapy-repository.ts:753-766
+MODEL-383,--mode_semantic,DUP-2938,src/infrastructure/mock/seed-data.ts:532-569 | src/infrastructure/mock/seed-data.ts:572-609
+MODEL-384,--mode_semantic,DUP-1845,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:414-433 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:506-525 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1511-1530
+MODEL-385,--mode_semantic,DUP-2356,src/domain/model/payment.ts:575-610 | src/infrastructure/supabase/types.ts:486-499
+MODEL-386,--mode_semantic,DUP-1989,src/features/academics/class-subjects-tab.tsx:285-299 | src/features/financials/expense-submit-modal.tsx:281-295
+MODEL-387,--mode_semantic,DUP-2898,src/features/dashboard/tabs/analytics-tab.tsx:446-484 | src/features/dashboard/tabs/analytics-tab.tsx:640-676
+MODEL-388,--mode_semantic,DUP-2044,src/infrastructure/mock/workforce/index.ts:58-99 | src/infrastructure/mock/operations/index.ts:42-78
+MODEL-389,--mode_semantic,DUP-2100,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2680-2705 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1909-1932
+MODEL-390,--mode_semantic,DUP-2657,src/domain/calc/payment/tranche-waves.ts:77-113 | src/domain/calc/payment/tranche-waves.ts:129-152
+MODEL-391,--mode_semantic,DUP-2120,src/features/dashboard/components/analytics/cross-risk-card.tsx:104-141 | src/features/dashboard/components/analytics/cross-risk-card.tsx:142-177
+MODEL-392,--mode_semantic,DUP-1906,src/core/rbac/permissions.ts:193-228 | src/core/rbac/permissions.ts:158-192
+MODEL-393,--mode_semantic,DUP-4171,src/domain/repository/repository.ts:613-672 | src/domain/repository/repository.ts:1265-1299
+MODEL-394,--mode_semantic,DUP-2495,src/domain/model/academic.ts:50-70 | src/infrastructure/supabase/types.ts:639-657 | src/infrastructure/supabase/types.ts:430-446
+MODEL-395,--mode_semantic,DUP-1590,src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:384-389 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:369-374 | src/infrastructure/supabase/repositories/supabase-releve-repository.ts:301-306 | src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:247-252 | src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:404-409 | src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:258-263 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:543-548
+MODEL-396,--mode_semantic,DUP-3033,src/domain/model/pricing.ts:85-120 | src/domain/calc/payroll/payroll-forecast.ts:188-220
+MODEL-397,--mode_semantic,DUP-2274,src/features/academics/class-detail-page.tsx:805-829 | src/features/academics/homework-push-modal.tsx:198-215 | src/features/workflow/workflow-page.tsx:577-593
+MODEL-398,--mode_semantic,DUP-3461,src/infrastructure/mock/pricing-seed.ts:184-216 | src/infrastructure/mock/pricing-seed.ts:217-249
+MODEL-399,--mode_semantic,DUP-2245,src/shared/ui/avatar.tsx:9-26 | src/shared/ui/card.tsx:6-20 | src/shared/ui/card.tsx:27-40 | src/shared/ui/card.tsx:46-53
+MODEL-400,--mode_semantic,DUP-2872,src/domain/repository/repository.ts:472-527 | src/domain/repository/therapy-repository.ts:51-67 | src/domain/repository/therapy-repository.ts:97-113
+MODEL-401,--mode_semantic,DUP-1859,src/features/financials/cross-service-matrix.tsx:48-59 | src/features/settings/pricing/transport-card.tsx:74-84 | src/features/academics/class-subjects-tab.tsx:187-195 | src/features/personnel/management/upcoming-payroll-payments.tsx:391-399
+MODEL-402,--mode_semantic,DUP-1638,src/features/crm/re-enrollment/re-enrollment-tab.tsx:53-61 | src/features/financials/expense-submit-modal.tsx:69-76 | src/features/settings/ai-config-tab.tsx:86-93 | src/features/academics/clubs/club-detail-drawer.tsx:606-611
+MODEL-403,--mode_semantic,DUP-2202,src/features/workflow/node-inspector-drawer.tsx:685-703 | src/features/workflow/node-inspector-drawer.tsx:618-634 | src/features/workflow/node-inspector-drawer.tsx:797-813
+MODEL-404,--mode_semantic,DUP-1608,src/infrastructure/excel/full-export.ts:417-428 | src/infrastructure/excel/full-export.ts:489-500
+MODEL-405,--mode_semantic,DUP-2731,src/infrastructure/mock/academic-seed.ts:217-248 | src/infrastructure/mock/academic-seed.ts:249-280
+MODEL-406,--mode_semantic,DUP-1762,src/infrastructure/mock/repositories/academic-year-repository.ts:54-66 | src/infrastructure/mock/repositories/workflow-repository.ts:354-363
+MODEL-407,--mode_semantic,DUP-2676,src/infrastructure/mock/seed-data.ts:1474-1505 | src/infrastructure/mock/seed-data.ts:1525-1556
+MODEL-408,--mode_semantic,DUP-2408,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:172-194 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:700-717 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:749-764
+MODEL-409,--mode_semantic,DUP-1813,src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:196-205 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:208-217
+MODEL-410,--mode_semantic,DUP-1581,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2401-2420 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3161-3177 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3835-3851
+MODEL-411,--mode_semantic,DUP-2839,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3282-3328 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4147-4178
+MODEL-412,--mode_semantic,DUP-2702,src/features/academics/academic-year-detail-drawer.tsx:884-914 | src/features/academics/teachers-tab.tsx:324-354
+MODEL-413,--mode_semantic,DUP-1917,src/features/dashboard/alert-detail-modal.tsx:200-217 | src/features/financials/installment-schedule-tab.tsx:728-744 | src/features/crm/parent-detail-drawer.tsx:243-258
+MODEL-414,--mode_semantic,DUP-2691,src/domain/model/student.ts:385-406 | src/domain/model/academic.ts:172-191 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:68-79
+MODEL-415,--mode_semantic,DUP-1648,src/domain/model/payment.ts:103-127 | src/domain/model/ledger.ts:91-110
+MODEL-416,--mode_semantic,DUP-3890,src/domain/repository/repository.ts:105-152 | src/features/dashboard/components/analytics/executive-statistics.ts:544-573
+MODEL-417,--mode_semantic,DUP-2466,src/features/academics/academic-year-detail-drawer.tsx:990-1005 | src/features/academics/class-detail-page.tsx:849-864 | src/features/academics/teachers-tab.tsx:430-445
+MODEL-418,--mode_semantic,DUP-1850,src/features/academics/academic-year-detail-drawer.tsx:1173-1181 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:462-470 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:577-585
+MODEL-419,--mode_semantic,DUP-2658,src/features/dashboard/tabs/alerts-tab.tsx:124-140 | src/features/dashboard/tabs/alerts-tab.tsx:152-168 | src/features/crm/excel-import-modal.tsx:944-958
+MODEL-420,--mode_semantic,DUP-2124,src/features/dashboard/components/analytics/data-inspector-core.tsx:515-527 | src/features/financials/payroll-funding-card.tsx:144-156 | src/features/financials/unified-payment-modal.tsx:1227-1237 | src/features/financials/tranche-amount-edit-modal.tsx:223-232
+MODEL-421,--mode_semantic,DUP-2807,src/features/settings/experimental-tab.tsx:147-163 | src/features/financials/receipts-tab.tsx:204-218
+MODEL-422,--mode_semantic,DUP-1915,src/infrastructure/supabase/repositories/supabase-approval-repository.ts:141-149 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:164-172 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:179-187 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:193-201 | src/infrastructure/supabase/repositories/supabase-approval-repository.ts:207-215
+MODEL-423,--mode_semantic,DUP-1841,src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:178-193 | src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:125-140 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:219-234
+MODEL-424,--mode_semantic,DUP-2844,src/domain/calc/diff/three-way.ts:40-68 | src/domain/calc/timetable/feasibility.ts:74-89
+MODEL-425,--mode_semantic,DUP-1663,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:735-752 | src/domain/calc/payment/webhook-diagnostics.ts:406-415 | src/features/dashboard/components/analytics/operational-query-engine.ts:204-212 | src/domain/calc/payment/financial-query-engine.ts:225-232 | src/domain/calc/payment/financial-query-engine.ts:239-246
+MODEL-426,--mode_semantic,DUP-2196,src/features/workflow/node-inspector-drawer.tsx:339-351 | src/features/personnel/management/chat-panel.tsx:839-849
+MODEL-427,--mode_semantic,DUP-2344,src/features/crm/crm-page.tsx:683-714 | src/features/crm/crm-page.tsx:514-542
+MODEL-428,--mode_semantic,DUP-1776,src/features/settings/pricing/transport-card.tsx:110-138 | src/features/settings/pricing/tuition-card.tsx:152-180
+MODEL-429,--mode_semantic,DUP-1763,src/infrastructure/mock/repositories/student-repository.ts:198-208 | src/infrastructure/mock/repositories/parent-repository.ts:145-153 | src/infrastructure/mock/repositories/academic-repository.ts:306-312 | src/infrastructure/mock/repositories/calendar-repository.ts:158-164 | src/infrastructure/mock/repositories/ledger-repository.ts:132-138 | src/infrastructure/mock/repositories/workflow-repository.ts:138-144
+MODEL-430,--mode_semantic,DUP-1926,src/infrastructure/mock/repositories/teacher-repository.ts:107-118 | src/infrastructure/mock/repositories/club-repository.ts:87-97 | src/infrastructure/mock/repositories/club-repository.ts:313-323 | src/infrastructure/mock/repositories/teacher-repository.ts:382-392
+MODEL-431,--mode_semantic,DUP-2767,src/infrastructure/mock/seed-data.ts:1279-1307 | src/infrastructure/mock/seed-data.ts:1419-1447
+MODEL-432,--mode_semantic,DUP-3799,src/domain/calc/academics/class-placement.ts:189-216 | src/shared/devtools/test-data/classify.ts:106-133
+MODEL-433,--mode_semantic,DUP-3935,src/domain/model/personnel.ts:68-95 | src/domain/model/workforce.ts:235-262
+MODEL-434,--mode_semantic,DUP-2130,src/features/academics/timetable/timetable-entry-dialog.tsx:153-170 | src/features/crm/student-detail/documents-tab.tsx:206-220
+MODEL-435,--mode_semantic,DUP-1790,src/features/crm/batch-registration/step1-parent.tsx:107-115 | src/features/crm/batch-registration/step1-parent.tsx:136-144 | src/features/settings/pricing/complementary-services-card.tsx:104-112 | src/features/settings/pricing/discounts-card.tsx:106-114
+MODEL-436,--mode_semantic,DUP-2440,src/features/settings/ai-config-tab.tsx:381-396 | src/features/settings/ai-config-tab.tsx:350-364 | src/features/settings/ai-config-tab.tsx:366-380
+MODEL-437,--mode_semantic,DUP-3688,src/infrastructure/mock/pedagogy-seed.ts:195-223 | src/infrastructure/mock/pedagogy-seed.ts:165-192
+MODEL-438,--mode_semantic,DUP-2489,src/infrastructure/mock/repositories/club-repository.ts:427-441 | src/infrastructure/mock/repositories/therapy-repository.ts:249-263 | src/infrastructure/mock/repositories/therapy-repository.ts:646-660
+MODEL-439,--mode_semantic,DUP-3471,src/infrastructure/mock/seed-data.ts:53-80 | src/infrastructure/mock/seed-data.ts:109-136
+MODEL-440,--mode_semantic,DUP-3043,src/core/rbac/roles.ts:49-63 | src/core/rbac/roles.ts:35-48
+MODEL-441,--mode_semantic,DUP-1670,src/features/academics/exam-scheduling-modal.tsx:49-55 | src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:42-47 | src/features/crm/batch-registration-modal.tsx:78-83 | src/features/crm/crm-page.tsx:440-445
+MODEL-442,--mode_semantic,DUP-1684,src/features/academics/grade-levels-class-view.tsx:380-388 | src/features/settings/audit-log-tab.tsx:74-82
+MODEL-443,--mode_semantic,DUP-2084,src/features/crm/parent-detail-drawer.tsx:1165-1179 | src/features/dashboard/components/analytics/enrollment-dynamics-card.tsx:110-124
+MODEL-444,--mode_semantic,DUP-1682,src/features/personnel/dashboards/manager-dashboard.tsx:298-330 | src/features/personnel/management/task-form-modal.tsx:67-93
+MODEL-445,--mode_semantic,DUP-2373,src/features/settings/supabase-diagnostics/crud-test-runner.ts:309-323 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:388-402 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:733-746
+MODEL-446,--mode_semantic,DUP-4322,src/infrastructure/mock/repositories/financial/payment-ops.ts:261-291 | src/infrastructure/mock/repositories/financial/installment-ops.ts:99-125
+MODEL-447,--mode_semantic,DUP-2350,supabase/functions/delete-user-account/index.ts:229-251 | supabase/functions/approve-signup-request/index.ts:136-150 | supabase/functions/approve-signup-request/index.ts:181-194
+MODEL-448,--mode_semantic,DUP-1789,src/core/ai/tools/analysis-tools.ts:340-349 | src/core/ai/tools/analysis-tools.ts:528-537 | src/core/ai/tools/document-tools.ts:302-311 | src/core/ai/tools/visualization-tools.ts:219-228
+MODEL-449,--mode_semantic,DUP-3156,src/domain/calc/workflow/templates.ts:217-250 | src/domain/calc/workflow/templates.ts:149-174
+MODEL-450,--mode_semantic,DUP-4139,src/domain/model/workflow.ts:233-264 | src/domain/model/academic.ts:287-312
+MODEL-451,--mode_semantic,DUP-1895,src/features/academics/class-detail-page.tsx:760-771 | src/features/academics/timetable/timetable-entry-dialog.tsx:202-211
+MODEL-452,--mode_semantic,DUP-2409,src/features/personnel/management/payroll-management.tsx:391-405 | src/features/settings/general-tab.tsx:253-266 | src/features/settings/general-tab.tsx:274-287
+MODEL-453,--mode_semantic,DUP-2013,src/features/settings/supabase-diagnostics/crud-test-runner.ts:671-699 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:625-650
+MODEL-454,--mode_semantic,DUP-1862,src/core/ai/tools/system-tools.ts:536-546 | src/core/ai/tools/system-tools.ts:423-431 | src/core/ai/tools/system-tools.ts:571-579
+MODEL-455,--mode_semantic,DUP-3771,src/domain/calc/pricing/discount-engine.ts:30-59 | src/features/dashboard/components/analytics/executive-statistics.ts:871-895
+MODEL-456,--mode_semantic,DUP-2093,src/features/academics/homework-push-modal.tsx:26-39 | src/features/academics/grade-levels-class-view.tsx:361-373
+MODEL-457,--mode_semantic,DUP-2692,src/features/dashboard/components/analytics/data-inspector-core.tsx:699-715 | src/features/academics/teachers-tab.tsx:243-256 | src/features/personnel/management/expense-review-section.tsx:182-194
+MODEL-458,--mode_semantic,DUP-2309,src/features/personnel/management/task-form-modal.tsx:51-64 | src/features/dashboard/calendar-event-creator-modal.tsx:34-46
+MODEL-459,--mode_semantic,DUP-2206,src/features/personnel/management/task-management.tsx:300-315 | src/features/dashboard/tabs/alerts-tab.tsx:178-191 | src/features/financials/installment-schedule-tab.tsx:827-839
+MODEL-460,--mode_semantic,DUP-3024,src/features/financials/webhook-diagnostics-card.tsx:323-348 | src/features/financials/financial-query-console.tsx:282-306
+MODEL-461,--mode_semantic,DUP-4142,src/features/settings/backup-tab.tsx:636-661 | src/features/settings/accounts-tab.tsx:243-267
+MODEL-462,--mode_semantic,DUP-3190,src/features/settings/supabase-diagnostics/diagnostics-runner.ts:380-404 | src/features/settings/supabase-diagnostics/diagnostics-runner.ts:470-494
+MODEL-463,--mode_semantic,DUP-1773,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:522-549 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:459-483
+MODEL-464,--mode_semantic,DUP-4051,src/infrastructure/mock/pedagogy-seed.ts:75-99 | src/infrastructure/mock/pedagogy-seed.ts:109-133
+MODEL-465,--mode_semantic,DUP-3278,src/infrastructure/mock/seed-data.ts:1310-1334 | src/infrastructure/mock/seed-data.ts:1380-1404
+MODEL-466,--mode_semantic,DUP-3536,src/domain/repository/repository.ts:923-948 | src/domain/repository/repository.ts:245-268
+MODEL-467,--mode_semantic,DUP-2985,src/features/academics/timetable/timetable-tab.tsx:1515-1528 | src/features/academics/timetable/timetable-entry-dialog.tsx:176-188
+MODEL-468,--mode_semantic,DUP-2780,src/features/academics/timetable/timetable-tab.tsx:1392-1404 | src/features/dashboard/dashboard-layout-editor.tsx:303-315 | src/shared/ui/form-field.tsx:11-23
+MODEL-469,--mode_semantic,DUP-2420,src/features/crm/edit-parent-modal.tsx:43-55 | src/features/crm/edit-student-modal.tsx:74-86 | src/features/financials/payment-detail-drawer.tsx:39-51
+MODEL-470,--mode_semantic,DUP-3775,src/features/crm/student-detail/academic-tab.tsx:463-486 | src/features/workflow/node-inspector-drawer.tsx:491-514
+MODEL-471,--mode_semantic,DUP-1874,src/features/dashboard/tabs/reports-tab.tsx:247-267 | src/infrastructure/excel/reports.ts:182-194 | src/infrastructure/excel/reports.ts:227-239
+MODEL-472,--mode_semantic,DUP-2156,src/features/personnel/management/requests-management.tsx:418-435 | src/features/personnel/management/payroll-management.tsx:533-545 | src/features/personnel/management/payroll-management.tsx:579-591
+MODEL-473,--mode_semantic,DUP-2145,src/features/settings/approvals-tab.tsx:1074-1097 | src/features/settings/approvals-tab.tsx:1398-1421
+MODEL-474,--mode_semantic,DUP-3008,src/infrastructure/mock/operations/index.ts:180-203 | src/infrastructure/mock/operations/index.ts:206-229
+MODEL-475,--mode_semantic,DUP-2515,src/shared/ui/parent-actions-menu.tsx:111-123 | src/shared/ui/parent-actions-menu.tsx:125-137
+MODEL-476,--mode_semantic,DUP-2174,src/features/academics/placement/class-placement-studio-modal.tsx:335-359 | src/features/academics/academic-year-detail-drawer.tsx:797-819
+MODEL-477,--mode_semantic,DUP-2235,src/features/personnel/management/requests-management.tsx:444-468 | src/features/academics/academic-year-detail-drawer.tsx:1286-1308
+MODEL-478,--mode_semantic,DUP-3405,src/features/personnel/personnel-page.tsx:220-243 | src/features/academics/academics-page.tsx:346-368
+MODEL-479,--mode_semantic,DUP-2038,src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:314-328 | src/features/crm/edit-student-modal.tsx:227-235 | src/features/settings/pricing/discounts-card.tsx:116-124
+MODEL-480,--mode_semantic,DUP-3373,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:647-670 | src/features/academics/therapy/ortho-followup-detail-drawer.tsx:489-511
+MODEL-481,--mode_semantic,DUP-3374,src/features/academics/therapy/psych-followup-detail-drawer.tsx:597-620 | src/features/academics/therapy/psych-followup-detail-drawer.tsx:468-490
+MODEL-482,--mode_semantic,DUP-1916,src/features/financials/payment-slider.tsx:197-205 | src/features/personnel/dashboards/buyer-dashboard.tsx:108-116 | src/features/dashboard/tabs/analytics-tab.tsx:319-326 | src/features/financials/unified-payment-modal.tsx:362-368 | src/features/financials/debt-aging-tab.tsx:262-266
+MODEL-483,--mode_semantic,DUP-3968,src/features/dashboard/tabs/overview-tab.tsx:120-142 | src/features/dashboard/tabs/overview-tab.tsx:144-166
+MODEL-484,--mode_semantic,DUP-2444,src/features/financials/payment-detail-drawer.tsx:113-135 | src/features/financials/payment-detail-drawer.tsx:136-158
+MODEL-485,--mode_semantic,DUP-3048,src/features/financials/payment-detail-drawer.tsx:251-274 | src/features/financials/payment-detail-drawer.tsx:220-242
+MODEL-486,--mode_semantic,DUP-3463,src/features/personnel/dashboards/buyer-dashboard.tsx:243-265 | src/features/personnel/dashboards/worker-dashboard.tsx:288-310
+MODEL-487,--mode_semantic,DUP-2835,src/features/personnel/dashboards/manager-dashboard.tsx:240-253 | src/features/personnel/dashboards/teacher-dashboard.tsx:119-132 | src/features/personnel/dashboards/worker-dashboard.tsx:259-269
+MODEL-488,--mode_semantic,DUP-2115,src/features/settings/supabase-diagnostics/diagnostics-runner.ts:357-379 | src/features/settings/supabase-diagnostics/diagnostics-runner.ts:406-428
+MODEL-489,--mode_semantic,DUP-2276,src/infrastructure/receipt-pdf/global-reports.ts:86-108 | src/infrastructure/receipt-pdf/global-reports.ts:170-192
+MODEL-490,--mode_semantic,DUP-1968,src/infrastructure/receipt-pdf/global-reports.ts:110-118 | src/infrastructure/receipt-pdf/global-reports.ts:325-333
+MODEL-491,--mode_semantic,DUP-2900,src/infrastructure/supabase/repositories/supabase-auth-repository.ts:66-94 | src/infrastructure/supabase/repositories/supabase-auth-repository.ts:166-188
+MODEL-492,--mode_semantic,DUP-1908,src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:796-804 | src/infrastructure/supabase/repositories/supabase-expense-repository.ts:275-282
+MODEL-493,--mode_semantic,DUP-2179,supabase/functions/approve-signup-request/index.ts:103-114 | supabase/functions/refresh-materialized-views/index.ts:66-74
+MODEL-494,--mode_semantic,DUP-1929,src/domain/calc/ledger/year-history.ts:613-621 | src/domain/calc/ledger/year-history.ts:622-630
+MODEL-495,--mode_semantic,DUP-2695,src/domain/repository/academic-repository.ts:310-333 | src/domain/calc/payment/billing-breakdown.ts:144-165
+MODEL-496,--mode_semantic,DUP-2779,src/domain/model/re-enrollment.ts:46-57 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2383-2394
+MODEL-497,--mode_semantic,DUP-2635,src/domain/model/personnel.ts:120-131 | src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:79-90
+MODEL-498,--mode_semantic,DUP-2744,src/domain/model/personnel.ts:138-149 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2138-2149
+MODEL-499,--mode_semantic,DUP-2766,src/features/academics/grade-entry-screen.tsx:500-512 | src/features/crm/batch-registration/step2-students.tsx:130-140
+MODEL-500,--mode_semantic,DUP-3675,src/features/academics/placement/class-placement-studio-modal.tsx:170-191 | src/features/academics/placement/class-placement-studio-modal.tsx:192-213
+MODEL-501,--mode_semantic,DUP-4237,src/features/academics/timetable/timetable-tab.tsx:1089-1110 | src/features/academics/timetable/timetable-tab.tsx:1155-1176
+MODEL-502,--mode_semantic,DUP-2311,src/features/personnel/dashboards/manager-dashboard.tsx:392-405 | src/features/personnel/dashboards/worker-dashboard.tsx:383-396 | src/features/crm/student-detail/attendance-tab.tsx:92-101
+MODEL-503,--mode_semantic,DUP-3038,src/features/dashboard/components/analytics/operational-query-console.tsx:1306-1328 | src/features/financials/financial-query-console.tsx:322-343
+MODEL-504,--mode_semantic,DUP-1697,src/features/dashboard/dashboard-layout-editor.tsx:492-513 | src/features/dashboard/dashboard-layout-editor.tsx:517-538
+MODEL-505,--mode_semantic,DUP-4293,src/features/dashboard/tabs/reports-tab.tsx:76-97 | src/features/dashboard/tabs/reports-tab.tsx:100-121
+MODEL-506,--mode_semantic,DUP-2502,src/features/financials/unified-payment-modal.tsx:1032-1053 | src/features/financials/unified-payment-modal.tsx:1075-1096
+MODEL-507,--mode_semantic,DUP-4335,src/features/settings/ai-config-tab.tsx:561-592 | src/features/settings/export-dialog.tsx:242-263
+MODEL-508,--mode_semantic,DUP-1539,src/infrastructure/mock/repositories/financial/expense-ops.ts:228-236 | src/infrastructure/excel/import-config/config-registry.ts:59-65 | src/infrastructure/mock/repositories/timetable-repository.ts:249-255
+MODEL-509,--mode_semantic,DUP-3826,src/infrastructure/mock/pedagogy-seed.ts:323-344 | src/infrastructure/mock/pedagogy-seed.ts:462-483
+MODEL-510,--mode_semantic,DUP-2911,src/infrastructure/mock/repositories/club-repository.ts:354-369 | src/infrastructure/mock/repositories/therapy-repository.ts:172-183 | src/infrastructure/mock/repositories/therapy-repository.ts:570-581
+MODEL-511,--mode_semantic,DUP-3624,src/infrastructure/mock/repositories/financial/debt-ops.ts:145-167 | src/infrastructure/mock/repositories/financial/debt-ops.ts:219-240
+MODEL-512,--mode_semantic,DUP-2400,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1787-1808 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2144-2165
+MODEL-513,--mode_semantic,DUP-4235,src/domain/calc/workflow/templates.ts:101-124 | src/domain/calc/workflow/templates.ts:264-284
+MODEL-514,--mode_semantic,DUP-3064,src/domain/repository/workforce-repository.ts:74-97 | src/domain/repository/operations-repository.ts:63-83
+MODEL-515,--mode_semantic,DUP-2095,src/features/ai/diagram-svg.tsx:185-206 | src/features/ai/diagram-svg.tsx:139-159
+MODEL-516,--mode_semantic,DUP-3028,src/features/dashboard/components/analytics/aging-composition-card.tsx:35-56 | src/features/dashboard/components/analytics/mix-cards.tsx:79-99
+MODEL-517,--mode_semantic,DUP-3304,src/features/dashboard/components/analytics/operational-query-console.tsx:1020-1040 | src/features/financials/financial-query-console.tsx:142-162
+MODEL-518,--mode_semantic,DUP-2099,src/features/personnel/dashboards/administrator-dashboard.tsx:72-82 | src/features/personnel/dashboards/administrator-dashboard.tsx:58-67 | src/features/personnel/management/payroll-management.tsx:142-151 | src/features/settings/experimental-tab.tsx:80-84
+MODEL-519,--mode_semantic,DUP-3174,src/infrastructure/mock/repositories/financial/payment-ops.ts:577-601 | src/infrastructure/mock/repositories/financial/expense-ops.ts:250-270
+MODEL-520,--mode_semantic,DUP-3095,src/infrastructure/supabase/repositories/supabase-notification-repository.ts:110-134 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:779-799
+MODEL-521,--mode_semantic,DUP-3158,src/infrastructure/sync/conflict-detector.ts:191-211 | src/infrastructure/sync/conflict-detector.ts:217-237
+MODEL-522,--mode_semantic,DUP-3009,src/shared/ui/student-actions-menu.tsx:115-136 | src/shared/ui/student-actions-menu.tsx:82-102
+MODEL-523,--mode_semantic,DUP-2665,src/core/ai/analysis/statistics.ts:29-39 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:108-118 | src/infrastructure/supabase/types.ts:851-861
+MODEL-524,--mode_semantic,DUP-2636,src/domain/model/re-enrollment.ts:63-73 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2400-2410 | src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:110-120
+MODEL-525,--mode_semantic,DUP-3554,src/domain/model/student.ts:295-319 | src/domain/model/workforce.ts:399-418
+MODEL-526,--mode_semantic,DUP-2742,src/domain/model/student.ts:323-357 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:105-115
+MODEL-527,--mode_semantic,DUP-2915,src/features/crm/batch-registration/step2-students.tsx:202-215 | src/features/crm/batch-registration/step2-students.tsx:146-156 | src/features/crm/batch-registration/step2-students.tsx:184-194
+MODEL-528,--mode_semantic,DUP-2448,src/features/settings/audit-log-tab.tsx:264-284 | src/features/dashboard/academic-year-selector.tsx:210-229
+MODEL-529,--mode_semantic,DUP-4144,src/features/dashboard/components/analytics/mix-cards.tsx:196-216 | src/features/dashboard/components/analytics/payroll-cost-trend-card.tsx:45-64
+MODEL-530,--mode_semantic,DUP-2220,src/features/personnel/dashboards/driver-dashboard.tsx:119-131 | src/features/profile/profile-page.tsx:98-108
+MODEL-531,--mode_semantic,DUP-3418,src/features/settings/experimental-tab.tsx:203-223 | src/features/settings/experimental-tab.tsx:266-285
+MODEL-532,--mode_semantic,DUP-2096,src/infrastructure/excel/reports.ts:58-77 | src/infrastructure/excel/reports.ts:81-100
+MODEL-533,--mode_semantic,DUP-2787,src/infrastructure/mock/repositories/academic-year-repository.ts:124-134 | src/infrastructure/mock/repositories/club-repository.ts:110-120 | src/infrastructure/mock/repositories/teacher-repository.ts:129-139
+MODEL-534,--mode_semantic,DUP-3173,src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:148-173 | src/infrastructure/supabase/repositories/supabase-chat-repository.ts:143-162
+MODEL-535,--mode_semantic,DUP-2304,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:333-345 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:356-367 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:315-324
+MODEL-536,--mode_semantic,DUP-2958,src/shared/ui/parent-actions-menu.tsx:60-79 | src/shared/ui/student-actions-menu.tsx:35-54
+MODEL-537,--mode_semantic,DUP-3047,src/core/ai/agent-runtime.ts:271-294 | src/core/ai/agent-runtime.ts:248-266
+MODEL-538,--mode_semantic,DUP-4041,src/features/dashboard/components/analytics/data-inspector-lineage.ts:145-169 | src/domain/model/workflow.ts:88-106
+MODEL-539,--mode_semantic,DUP-2601,src/features/academics/timetable/timetable-tab.tsx:110-125 | src/features/crm/excel-import-modal.tsx:110-122 | src/features/academics/clubs/clubs-tab.tsx:58-65
+MODEL-540,--mode_semantic,DUP-3915,src/features/settings/approvals-tab.tsx:672-693 | src/features/academics/school-years-tab.tsx:348-366
+MODEL-541,--mode_semantic,DUP-3807,src/features/dashboard/components/analytics/operational-query-console.tsx:1283-1302 | src/features/dashboard/components/analytics/pivot-matrix-card.tsx:172-190
+MODEL-542,--mode_semantic,DUP-3626,src/features/dashboard/see-details-modal.tsx:532-551 | src/features/dashboard/see-details-modal.tsx:715-733
+MODEL-543,--mode_semantic,DUP-2722,src/features/financials/installment-schedule-tab.tsx:797-809 | src/features/financials/debt-aging-tab.tsx:503-513 | src/features/financials/debt-aging-tab.tsx:490-499
+MODEL-544,--mode_semantic,DUP-3608,src/features/settings/configuration-tab.tsx:220-238 | src/features/settings/configuration-tab.tsx:239-257
+MODEL-545,--mode_semantic,DUP-4053,src/infrastructure/mock/seed-data.ts:827-845 | src/infrastructure/mock/seed-data.ts:852-870
+MODEL-546,--mode_semantic,DUP-4054,src/infrastructure/mock/workflow-seed.ts:76-94 | src/infrastructure/mock/workflow-seed.ts:123-141
+MODEL-547,--mode_semantic,DUP-2901,src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:853-877 | src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:809-827
+MODEL-548,--mode_semantic,DUP-4173,src/domain/calc/ledger/debt-aging.ts:482-527 | src/domain/model/re-enrollment.ts:74-91
+MODEL-549,--mode_semantic,DUP-2573,src/domain/model/workforce.ts:58-67 | src/features/workflow/node-inspector-drawer.tsx:76-85 | src/infrastructure/excel/data-export.ts:294-303
+MODEL-550,--mode_semantic,DUP-2790,src/features/academics/clubs/club-detail-drawer.tsx:681-699 | src/features/academics/therapy/orthophonie-tab.tsx:502-519
+MODEL-551,--mode_semantic,DUP-2699,src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:264-276 | src/features/academics/grade-entry-screen.tsx:561-570
+MODEL-552,--mode_semantic,DUP-3390,src/features/academics/subjects-directory-tab.tsx:253-271 | src/features/academics/school-years-tab.tsx:220-237
+MODEL-553,--mode_semantic,DUP-4366,src/features/dashboard/components/analytics/cross-risk-card.tsx:71-88 | src/features/dashboard/components/analytics/pivot-matrix-card.tsx:67-84
+MODEL-554,--mode_semantic,DUP-2591,src/features/personnel/management/employee-profile-drawer.tsx:365-386 | src/features/personnel/management/payroll-management.tsx:617-634
+MODEL-555,--mode_semantic,DUP-2773,src/features/personnel/management/staff-attendance-center.tsx:259-268 | src/features/personnel/management/staff-attendance-center.tsx:302-311
+MODEL-556,--mode_semantic,DUP-4006,src/features/settings/conflict-resolver-modal.tsx:171-189 | src/features/settings/conflict-resolver-modal.tsx:190-207
+MODEL-557,--mode_semantic,DUP-2186,src/infrastructure/backup/indexed-db-vault.ts:146-167 | src/infrastructure/backup/indexed-db-vault.ts:120-137
+MODEL-558,--mode_semantic,DUP-1842,src/infrastructure/mock/repositories/teacher-repository.ts:92-104 | src/infrastructure/mock/repositories/academic-year-repository.ts:96-105
+MODEL-559,--mode_semantic,DUP-3006,src/infrastructure/mock/repositories/timetable-repository.ts:618-635 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:993-1010
+MODEL-560,--mode_semantic,DUP-3259,src/infrastructure/supabase/repositories/supabase-expense-repository.ts:290-308 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:802-819
+MODEL-561,--mode_semantic,DUP-4024,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1526-1551 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1187-1204
+MODEL-562,--mode_semantic,DUP-3878,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:231-249 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:159-176
+MODEL-563,--mode_semantic,DUP-1910,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1204-1209 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1303-1308 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1334-1339 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1437-1442 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1549-1554
+MODEL-564,--mode_semantic,DUP-3951,src/core/ai/analysis/insights.ts:512-534 | src/shared/particle-engine/pipeline/projector.ts:11-27
+MODEL-565,--mode_semantic,DUP-2151,src/core/ai/analysis/statistics.ts:270-276 | src/core/ai/tools/analysis-tools.ts:388-394 | src/infrastructure/mock/repositories/dashboard-repository.ts:162-168 | src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:981-987
+MODEL-566,--mode_semantic,DUP-4295,src/core/rbac/feature-registry.ts:136-153 | src/core/rbac/feature-registry.ts:118-134
+MODEL-567,--mode_semantic,DUP-3487,src/domain/calc/timetable/fixture.ts:57-73 | src/infrastructure/mock/repositories/student-repository.ts:673-689
+MODEL-568,--mode_semantic,DUP-4223,src/features/academics/academic-year-detail-drawer.tsx:147-164 | src/features/crm/parent-detail-drawer.tsx:1789-1805
+MODEL-569,--mode_semantic,DUP-3091,src/features/crm/crm-page.tsx:628-647 | src/features/academics/class-detail-page.tsx:627-643
+MODEL-570,--mode_semantic,DUP-2753,src/features/crm/student-detail/academic-tab.tsx:90-103 | src/features/academics/class-subjects-tab.tsx:52-62 | src/features/academics/justifications-tab.tsx:46-53
+MODEL-571,--mode_semantic,DUP-3122,src/features/academics/timetable/timetable-tab.tsx:1356-1372 | src/features/academics/timetable/timetable-tab.tsx:1487-1503
+MODEL-572,--mode_semantic,DUP-2246,src/features/crm/batch-registration/step4-review.tsx:89-98 | src/features/crm/batch-registration/step4-review.tsx:105-114 | src/features/financials/tranche-amount-edit-modal.tsx:212-220
+MODEL-573,--mode_semantic,DUP-2975,src/features/crm/student-detail/academic-tab.tsx:390-406 | src/features/crm/student-detail/academic-tab.tsx:569-585
+MODEL-574,--mode_semantic,DUP-4325,src/features/financials/payroll-funding-card.tsx:67-85 | src/features/financials/cash-flow-radar.tsx:39-55
+MODEL-575,--mode_semantic,DUP-3241,src/features/financials/financials-page.tsx:746-763 | src/features/financials/financials-page.tsx:776-792
+MODEL-576,--mode_semantic,DUP-1757,src/features/personnel/management/upcoming-payroll-payments.tsx:74-85 | src/features/financials/receipts-tab.tsx:56-62 | src/features/personnel/management/employee-directory.tsx:47-53
+MODEL-577,--mode_semantic,DUP-4367,src/features/personnel/management/staff-attendance-center.tsx:61-78 | src/features/personnel/management/requests-management.tsx:62-78
+MODEL-578,--mode_semantic,DUP-3828,src/features/personnel/management/task-detail-drawer.tsx:118-136 | src/features/personnel/management/task-detail-drawer.tsx:97-113
+MODEL-579,--mode_semantic,DUP-3810,src/features/workflow/test-studio-drawer.tsx:304-322 | src/features/workflow/test-studio-drawer.tsx:287-303
+MODEL-580,--mode_semantic,DUP-1586,src/infrastructure/excel/import-config/configs/etat-2026-2027.ts:66-75 | src/infrastructure/excel/import-config/configs/etat-2027-2026.ts:107-116 | src/infrastructure/excel/import-config/configs/etat-2026-2027.ts:78-86
+MODEL-581,--mode_semantic,DUP-4344,src/infrastructure/mock/repositories/financial/charge-ops.ts:69-85 | src/infrastructure/mock/repositories/financial/expense-ops.ts:90-106
+MODEL-582,--mode_semantic,DUP-1873,src/infrastructure/mock/repositories/mock-store.ts:176-196 | src/infrastructure/mock/repositories/mock-store.ts:159-175
+MODEL-583,--mode_semantic,DUP-4056,src/infrastructure/receipt-pdf/global-reports.ts:201-218 | src/infrastructure/receipt-pdf/global-reports.ts:290-306
+MODEL-584,--mode_semantic,DUP-1775,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1395-1406 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4588-4598
+MODEL-585,--mode_semantic,DUP-3722,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2639-2656 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4077-4093
+MODEL-586,--mode_semantic,DUP-2435,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4207-4244 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2860-2876
+MODEL-587,--mode_semantic,DUP-4238,src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:367-386 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:466-482
+MODEL-588,--mode_semantic,DUP-3084,src/shared/ui/dashboard-theme.ts:70-86 | src/shared/ui/dashboard-theme.ts:88-104
+MODEL-589,--mode_semantic,DUP-4057,supabase/functions/approve-signup-request/index.ts:474-490 | supabase/functions/approve-signup-request/index.ts:634-650
+MODEL-590,--mode_semantic,DUP-1951,src/core/ai/tools/system-tools.ts:464-481 | src/core/ai/tools/document-tools.ts:205-220
+MODEL-591,--mode_semantic,DUP-3652,src/domain/model/audit.ts:13-35 | src/domain/calc/payment/service-pricing-profile.ts:86-101
+MODEL-592,--mode_semantic,DUP-1981,src/domain/calc/timetable/class-reports.ts:241-259 | src/domain/calc/payment/webhook-diagnostics.ts:2186-2201
+MODEL-593,--mode_semantic,DUP-3010,src/domain/calc/timetable/constraints.ts:82-97 | src/domain/calc/timetable/constraints.ts:100-115
+MODEL-594,--mode_semantic,DUP-3260,src/domain/model/operations-workforce.ts:130-145 | src/domain/model/workforce.ts:348-363
+MODEL-595,--mode_semantic,DUP-3410,src/features/academics/clubs/club-detail-drawer.tsx:192-208 | src/features/personnel/dashboards/teacher-dashboard.tsx:226-241
+MODEL-596,--mode_semantic,DUP-1970,src/features/crm/edit-student-modal.tsx:89-97 | src/features/crm/re-enrollment/re-enroll-modal.tsx:65-73
+MODEL-597,--mode_semantic,DUP-2602,src/features/personnel/management/task-management.tsx:99-108 | src/features/financials/unified-payment-modal.tsx:152-160 | src/features/personnel/management/staff-attendance-center.tsx:145-153
+MODEL-598,--mode_semantic,DUP-3778,src/features/settings/general-tab.tsx:211-229 | src/features/personnel/management/payroll-management.tsx:256-271
+MODEL-599,--mode_semantic,DUP-3939,src/features/personnel/onboarding/steps/roles-step.tsx:34-49 | src/features/personnel/onboarding/steps/shift-types-step.tsx:37-52
+MODEL-600,--mode_semantic,DUP-3242,src/infrastructure/excel/import-engine/validators/row-validator.ts:156-172 | src/infrastructure/excel/import-engine/validators/row-validator.ts:138-153
+MODEL-601,--mode_semantic,DUP-3268,src/infrastructure/mock/repositories/academic-repository.ts:1240-1258 | src/infrastructure/mock/workforce/index.ts:1513-1528
+MODEL-602,--mode_semantic,DUP-2629,src/infrastructure/mock/repositories/mock-store.ts:123-132 | src/infrastructure/mock/repositories/mock-store.ts:109-117 | src/infrastructure/mock/repositories/mock-store.ts:143-151
+MODEL-603,--mode_semantic,DUP-2063,src/infrastructure/mock/repositories/pricing-repository.ts:207-234 | src/infrastructure/mock/repositories/pricing-repository.ts:111-126
+MODEL-604,--mode_semantic,DUP-4047,src/infrastructure/mock/repositories/timetable-repository.ts:566-581 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:941-956
+MODEL-605,--mode_semantic,DUP-3434,src/infrastructure/mock/seed-data.ts:1617-1632 | src/infrastructure/mock/seed-data.ts:1633-1648
+MODEL-606,--mode_semantic,DUP-2305,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2277-2285 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2454-2462 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:384-392
+MODEL-607,--mode_semantic,DUP-2353,src/infrastructure/supabase/repositories/supabase-notification-repository.ts:292-300 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:561-569 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:911-919
+MODEL-608,--mode_semantic,DUP-1708,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1830-1846 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1407-1422
+MODEL-609,--mode_semantic,DUP-3627,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:448-464 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:366-381
+MODEL-610,--mode_semantic,DUP-4075,src/shared/ui/dropdown-menu.tsx:26-42 | src/shared/ui/select.tsx:63-78
+MODEL-611,--mode_semantic,DUP-3142,src/core/ai/tools/system-tools.ts:773-791 | src/core/ai/tools/workflow-tools.ts:332-346
+MODEL-612,--mode_semantic,DUP-3371,src/core/format/id.ts:44-68 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:92-106
+MODEL-613,--mode_semantic,DUP-2135,src/core/rbac/feature-registry.ts:92-107 | src/core/rbac/feature-registry.ts:68-82
+MODEL-614,--mode_semantic,DUP-3125,src/domain/calc/ledger/entries.ts:40-54 | src/domain/calc/ledger/entries.ts:139-153
+MODEL-615,--mode_semantic,DUP-4324,src/domain/calc/payment/clearance.ts:21-41 | src/domain/calc/payment/lifo-reversal.ts:15-29
+MODEL-616,--mode_semantic,DUP-3857,src/domain/calc/payment/webhook-diagnostics.ts:140-190 | src/features/dashboard/components/analytics/operational-query-engine.ts:79-93
+MODEL-617,--mode_semantic,DUP-3993,src/infrastructure/supabase/types.ts:123-141 | src/domain/calc/payroll/payroll-forecast.ts:66-80
+MODEL-618,--mode_semantic,DUP-4339,src/domain/calc/pricing/transport.ts:182-203 | src/domain/calc/pricing/tuition.ts:120-134
+MODEL-619,--mode_semantic,DUP-2961,src/domain/calc/timetable/constraints.ts:457-471 | src/domain/calc/timetable/constraints.ts:472-486
+MODEL-620,--mode_semantic,DUP-2182,src/features/academics/class-detail-page.tsx:190-202 | src/features/crm/edit-parent-modal.tsx:61-68
+MODEL-621,--mode_semantic,DUP-2717,src/features/academics/school-years-tab.tsx:200-212 | src/features/personnel/dashboards/driver-dashboard.tsx:166-175 | src/features/academics/clubs/clubs-tab.tsx:153-159
+MODEL-622,--mode_semantic,DUP-2846,src/features/settings/experimental-tab.tsx:164-177 | src/features/academics/timetable/timetable-grid.tsx:251-259 | src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:227-234
+MODEL-623,--mode_semantic,DUP-3344,src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:240-254 | src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:204-218
+MODEL-624,--mode_semantic,DUP-2942,src/features/crm/batch-registration-modal.tsx:128-142 | src/features/crm/batch-registration-modal.tsx:148-162
+MODEL-625,--mode_semantic,DUP-4296,src/features/crm/crm-page.tsx:459-473 | src/features/crm/crm-page.tsx:612-626
+MODEL-626,--mode_semantic,DUP-2493,src/features/crm/edit-parent-modal.tsx:94-108 | src/features/crm/edit-student-modal.tsx:145-159
+MODEL-627,--mode_semantic,DUP-3282,src/features/crm/parent-detail-drawer.tsx:1992-2006 | src/features/crm/parent-detail-drawer.tsx:2087-2101
+MODEL-628,--mode_semantic,DUP-4059,src/features/dashboard/components/analytics/wave-velocity-card.tsx:434-448 | src/features/dashboard/components/analytics/wave-velocity-card.tsx:507-521
+MODEL-629,--mode_semantic,DUP-3575,src/features/financials/cash-flow-radar.tsx:102-116 | src/features/financials/cash-flow-radar.tsx:127-141
+MODEL-630,--mode_semantic,DUP-3311,src/features/personnel/dashboards/worker-dashboard.tsx:201-215 | src/features/personnel/management/staff-attendance-center.tsx:190-204
+MODEL-631,--mode_semantic,DUP-3731,src/features/personnel/management/staff-attendance-center.tsx:510-529 | src/features/personnel/management/requests-management.tsx:331-345
+MODEL-632,--mode_semantic,DUP-3714,src/features/personnel/management/task-detail-drawer.tsx:205-224 | src/features/workflow/workflow-run-detail-drawer.tsx:124-138
+MODEL-633,--mode_semantic,DUP-3319,src/features/settings/backup-tab.tsx:279-295 | src/features/settings/backup-tab.tsx:507-521
+MODEL-634,--mode_semantic,DUP-3881,src/features/settings/pricing/complementary-services-card.tsx:115-129 | src/features/settings/pricing/discounts-card.tsx:136-150
+MODEL-635,--mode_semantic,DUP-3681,src/infrastructure/backup/backup-locations.ts:31-45 | src/infrastructure/backup/backup-service.ts:136-150
+MODEL-636,--mode_semantic,DUP-3518,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:2431-2462 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:2259-2273
+MODEL-637,--mode_semantic,DUP-4088,src/infrastructure/mock/repositories/personnel-audit-repository.ts:97-117 | src/infrastructure/mock/operations/index.ts:657-671
+MODEL-638,--mode_semantic,DUP-2021,src/infrastructure/mock/repositories/academic-repository.ts:108-118 | src/infrastructure/mock/repositories/calendar-repository.ts:119-127 | src/infrastructure/mock/repositories/personnel-audit-repository.ts:82-89
+MODEL-639,--mode_semantic,DUP-1833,src/infrastructure/mock/repositories/therapy-repository.ts:234-240 | src/infrastructure/mock/repositories/therapy-repository.ts:631-637 | src/infrastructure/mock/repositories/club-repository.ts:147-152
+MODEL-640,--mode_semantic,DUP-3114,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:3666-3684 | src/infrastructure/mock/repositories/ledger-repository.ts:204-218
+MODEL-641,--mode_semantic,DUP-2479,src/infrastructure/mock/repositories/student-repository.ts:428-447 | src/infrastructure/mock/repositories/student-repository.ts:463-477
+MODEL-642,--mode_semantic,DUP-3879,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2085-2100 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:165-179
+MODEL-643,--mode_semantic,DUP-4150,src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:145-159 | src/infrastructure/supabase/repositories/supabase-chat-repository.ts:80-94
+MODEL-644,--mode_semantic,DUP-1889,src/infrastructure/supabase/repositories/supabase-supplier-repository.ts:142-158 | src/infrastructure/supabase/repositories/supabase-workflow-repository.ts:239-253
+MODEL-645,--mode_semantic,DUP-2854,supabase/functions/collect-payment/index.ts:159-182 | supabase/functions/refund-payment/index.ts:106-120
+MODEL-646,--mode_semantic,DUP-3321,src/app/providers/sync-provider.tsx:128-141 | src/app/providers/sync-provider.tsx:162-175
+MODEL-647,--mode_semantic,DUP-3880,src/core/ai/tools/analysis-tools.ts:466-480 | src/core/ai/tools/workflow-tools.ts:497-510
+MODEL-648,--mode_semantic,DUP-3503,src/domain/calc/academics/class-placement.ts:126-139 | src/features/dashboard/components/analytics/operational-query-engine.ts:60-73
+MODEL-649,--mode_semantic,DUP-3594,src/domain/calc/payment/tranche-waves.ts:312-325 | src/domain/calc/payment/tranche-waves.ts:580-593
+MODEL-650,--mode_semantic,DUP-2681,src/domain/calc/payment/webhook-diagnostics.ts:1264-1277 | src/domain/calc/payment/webhook-diagnostics.ts:1334-1347
+MODEL-651,--mode_semantic,DUP-2425,src/domain/calc/pricing/school-price-matrix.ts:161-175 | src/domain/calc/pricing/school-price-matrix.ts:176-189
+MODEL-652,--mode_semantic,DUP-4045,src/infrastructure/supabase/types.ts:211-235 | src/domain/model/personnel.ts:174-187
+MODEL-653,--mode_semantic,DUP-2813,src/features/academics/narrative-generator-modal.tsx:104-112 | src/features/academics/academic-year-detail-drawer.tsx:583-590 | src/features/academics/promotion-cycles/promotion-class-review-modal.tsx:66-73
+MODEL-654,--mode_semantic,DUP-4089,src/features/academics/class-grades-tab.tsx:121-135 | src/features/financials/unified-payment-modal.tsx:975-988
+MODEL-655,--mode_semantic,DUP-4206,src/features/academics/roll-call-screen.tsx:271-285 | src/features/academics/grade-entry-screen.tsx:606-619
+MODEL-656,--mode_semantic,DUP-3269,src/features/academics/homework-push-modal.tsx:250-265 | src/features/financials/expense-submit-modal.tsx:345-358
+MODEL-657,--mode_semantic,DUP-2928,src/features/academics/promotion-cycles/promotion-cycles-tab.tsx:56-69 | src/features/settings/pricing/pricing-year-config-bar.tsx:61-74
+MODEL-658,--mode_semantic,DUP-3896,src/features/academics/students-directory-tab.tsx:286-303 | src/features/dashboard/components/analytics/aging-composition-card.tsx:109-122
+MODEL-659,--mode_semantic,DUP-3419,src/features/academics/timetable/timetable-tab.tsx:205-223 | src/features/academics/timetable/timetable-tab.tsx:232-245
+MODEL-660,--mode_semantic,DUP-3085,src/features/crm/batch-registration/step2-students.tsx:261-275 | src/features/crm/batch-registration/step2-students.tsx:301-314
+MODEL-661,--mode_semantic,DUP-3378,src/features/crm/crm-page.tsx:560-576 | src/features/crm/crm-page.tsx:734-747
+MODEL-662,--mode_semantic,DUP-4108,src/features/crm/parent-detail-drawer.tsx:378-392 | src/features/personnel/management/employee-profile-drawer.tsx:200-213
+MODEL-663,--mode_semantic,DUP-2447,src/features/financials/expense-detail-drawer.tsx:81-89 | src/features/settings/backup-tab.tsx:213-221
+MODEL-664,--mode_semantic,DUP-3897,src/features/dashboard/components/analytics/operational-query-console.tsx:336-354 | src/features/dashboard/components/analytics/operational-query-console.tsx:257-270
+MODEL-665,--mode_semantic,DUP-3291,src/features/personnel/management/task-detail-drawer.tsx:270-289 | src/features/financials/expense-detail-drawer.tsx:334-347
+MODEL-666,--mode_semantic,DUP-4327,src/features/financials/expense-detail-drawer.tsx:362-376 | src/features/financials/payment-detail-drawer.tsx:439-452
+MODEL-667,--mode_semantic,DUP-2316,src/features/financials/payment-detail-drawer.tsx:283-301 | src/features/financials/payment-detail-drawer.tsx:302-315
+MODEL-668,--mode_semantic,DUP-3790,src/features/financials/unified-payment-modal.tsx:108-121 | src/features/settings/theme-editor-modal.tsx:20-33
+MODEL-669,--mode_semantic,DUP-3270,src/features/personnel/dashboards/manager-dashboard.tsx:218-231 | src/features/personnel/management/task-form-modal.tsx:97-110
+MODEL-670,--mode_semantic,DUP-3117,src/features/settings/pricing/tuition-card.tsx:110-125 | src/features/personnel/management/payroll-management.tsx:414-427
+MODEL-671,--mode_semantic,DUP-2585,src/features/workflow/node-inspector-drawer.tsx:705-712 | src/features/workflow/node-inspector-drawer.tsx:713-720
+MODEL-672,--mode_semantic,DUP-3052,src/infrastructure/mock/repositories/financial/expense-ops.ts:201-216 | src/infrastructure/mock/repositories/financial/expense-ops.ts:140-153
+MODEL-673,--mode_semantic,DUP-3143,src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:234-249 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:275-288
+MODEL-674,--mode_semantic,DUP-4118,src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:627-643 | src/infrastructure/supabase/repositories/supabase-personnel-repository.ts:679-692
+MODEL-675,--mode_semantic,DUP-4246,src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1160-1173 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1176-1189
+MODEL-676,--mode_semantic,DUP-2894,src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:357-365 | src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:368-375
+MODEL-677,--mode_semantic,DUP-3629,supabase/functions/workflow-execute/index.ts:588-602 | supabase/functions/workflow-execute/index.ts:615-628
+MODEL-678,--mode_semantic,DUP-2193,src/core/theme/theme-engine.ts:119-136 | src/core/theme/theme-engine.ts:137-149
+MODEL-679,--mode_semantic,DUP-3458,src/domain/calc/academics/class-placement.ts:107-121 | src/infrastructure/supabase/types.ts:877-889
+MODEL-680,--mode_semantic,DUP-3661,src/domain/calc/clubs/validation.ts:99-114 | src/domain/calc/teacher/validation.ts:272-284
+MODEL-681,--mode_semantic,DUP-4105,src/domain/calc/finance/financial-fault-inspector.ts:77-94 | src/domain/repository/timetable-repository.ts:66-78
+MODEL-682,--mode_semantic,DUP-3801,src/domain/calc/payment/service-pricing-profile.ts:140-152 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:75-87
+MODEL-683,--mode_semantic,DUP-3752,src/domain/calc/payment/webhook-diagnostics.ts:1458-1470 | src/domain/calc/payment/webhook-diagnostics.ts:1484-1496
+MODEL-684,--mode_semantic,DUP-2114,src/domain/identity/scoring.ts:126-149 | src/domain/identity/scoring.ts:202-214
+MODEL-685,--mode_semantic,DUP-2679,src/features/academics/school-years-tab.tsx:172-191 | src/features/academics/clubs/clubs-tab.tsx:128-140
+MODEL-686,--mode_semantic,DUP-4033,src/features/settings/ai-config-tab.tsx:666-679 | src/features/academics/placement/class-card-dropzone.tsx:41-53
+MODEL-687,--mode_semantic,DUP-2475,src/features/academics/placement/class-placement-studio-modal.tsx:275-291 | src/features/academics/placement/class-placement-studio-modal.tsx:625-637
+MODEL-688,--mode_semantic,DUP-3919,src/features/academics/subjects-directory-tab.tsx:153-165 | src/features/financials/financials-page.tsx:850-862
+MODEL-689,--mode_semantic,DUP-3586,src/features/academics/therapy/psych-followup-detail-drawer.tsx:519-532 | src/features/settings/approvals-tab.tsx:1364-1376
+MODEL-690,--mode_semantic,DUP-3318,src/features/crm/edit-student-modal.tsx:312-328 | src/features/crm/re-enrollment/re-enroll-modal.tsx:328-340
+MODEL-691,--mode_semantic,DUP-3214,src/features/crm/excel-import-modal.tsx:501-514 | src/features/settings/experimental-tab.tsx:99-111
+MODEL-692,--mode_semantic,DUP-3663,src/features/crm/parent-detail-drawer.tsx:131-143 | src/features/financials/debt-aging-tab.tsx:597-609
+MODEL-693,--mode_semantic,DUP-2569,src/features/dashboard/alert-creator-modal.tsx:63-71 | src/features/personnel/dashboards/worker-dashboard.tsx:122-129
+MODEL-694,--mode_semantic,DUP-3821,src/features/financials/webhook-diagnostics-card.tsx:135-148 | src/features/dashboard/components/analytics/analytics-slicers.tsx:60-72
+MODEL-695,--mode_semantic,DUP-4055,src/features/dashboard/components/analytics/data-inspector-lineage.ts:183-200 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:337-349
+MODEL-696,--mode_semantic,DUP-4301,src/features/dashboard/components/analytics/data-inspector-lineage.ts:619-631 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:702-714
+MODEL-697,--mode_semantic,DUP-3498,src/features/dashboard/components/analytics/family-concentration-card.tsx:104-117 | src/features/settings/accounts-tab.tsx:279-291
+MODEL-698,--mode_semantic,DUP-4026,src/features/financials/expense-submit-modal.tsx:247-260 | src/features/workflow/workflow-page.tsx:602-614
+MODEL-699,--mode_semantic,DUP-2855,src/features/financials/installment-schedule-tab.tsx:563-575 | src/features/settings/backup-tab.tsx:372-384
+MODEL-700,--mode_semantic,DUP-3927,src/features/personnel/dashboards/manager-dashboard.tsx:419-434 | src/features/settings/approvals-tab.tsx:1175-1187
+MODEL-701,--mode_semantic,DUP-4076,src/features/personnel/dashboards/worker-dashboard.tsx:418-433 | src/features/personnel/dashboards/manager-dashboard.tsx:479-491
+MODEL-702,--mode_semantic,DUP-2850,src/features/personnel/management/staff-attendance-center.tsx:206-222 | src/features/personnel/management/requests-management.tsx:235-247
+MODEL-703,--mode_semantic,DUP-4176,src/features/personnel/management/staff-attendance-center.tsx:447-460 | src/features/workflow/test-studio-drawer.tsx:204-216
+MODEL-704,--mode_semantic,DUP-1594,src/infrastructure/excel/data-export.ts:209-228 | src/infrastructure/excel/full-export.ts:93-105
+MODEL-705,--mode_semantic,DUP-4245,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:484-497 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:550-562
+MODEL-706,--mode_semantic,DUP-2015,src/infrastructure/export/export-warmup.ts:94-106 | src/infrastructure/export/export-warmup.ts:108-120
+MODEL-707,--mode_semantic,DUP-1720,src/infrastructure/mock/academic-seed.ts:38-51 | src/infrastructure/mock/academic-seed.ts:25-37
+MODEL-708,--mode_semantic,DUP-4243,src/infrastructure/mock/academic-seed.ts:175-189 | src/infrastructure/mock/academic-seed.ts:193-205
+MODEL-709,--mode_semantic,DUP-3240,src/infrastructure/mock/pricing-seed.ts:76-95 | src/infrastructure/mock/pricing-seed.ts:58-70
+MODEL-710,--mode_semantic,DUP-4297,src/infrastructure/mock/repositories/academic-repository.ts:245-259 | src/infrastructure/mock/repositories/academic-repository.ts:207-219
+MODEL-711,--mode_semantic,DUP-2379,src/infrastructure/mock/repositories/timetable-repository.ts:304-316 | src/infrastructure/mock/repositories/timetable-repository.ts:954-966
+MODEL-712,--mode_semantic,DUP-2327,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1156-1173 | src/infrastructure/supabase/financial-realtime.ts:151-163
+MODEL-713,--mode_semantic,DUP-3990,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4945-4970 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2517-2529
+MODEL-714,--mode_semantic,DUP-2793,supabase/functions/workflow-execute/index.ts:142-155 | supabase/functions/refund-payment/index.ts:76-88
+MODEL-715,--mode_semantic,DUP-2632,supabase/functions/workflow-resume-scheduler/index.ts:65-77 | supabase/functions/workflow-scheduled-runner/index.ts:83-95
+MODEL-716,--mode_semantic,DUP-4374,electron/preload.cts:66-77 | electron/preload.cts:78-89
+MODEL-717,--mode_semantic,DUP-3040,src/core/ai/agent-runtime.ts:128-141 | src/infrastructure/ai/llm-adapter.ts:75-86
+MODEL-718,--mode_semantic,DUP-3894,src/core/ai/tools/workflow-tools.ts:234-245 | src/infrastructure/supabase/repositories/supabase-delivery-repository.ts:346-357
+MODEL-719,--mode_semantic,DUP-3723,src/domain/calc/finance/financial-fault-inspector.ts:95-108 | src/infrastructure/mock/repositories/re-enrollment-repository.ts:55-66
+MODEL-720,--mode_semantic,DUP-2698,src/domain/calc/payment/webhook-diagnostics.ts:390-403 | src/domain/calc/ledger/year-history.ts:601-612
+MODEL-721,--mode_semantic,DUP-3631,src/domain/calc/payment/webhook-diagnostics.ts:2370-2382 | src/domain/calc/payment/webhook-diagnostics.ts:2319-2330
+MODEL-722,--mode_semantic,DUP-3320,src/domain/calc/therapy/validation.ts:351-365 | src/domain/calc/therapy/validation.ts:373-384
+MODEL-723,--mode_semantic,DUP-3823,src/features/dashboard/components/analytics/debtors-pareto-card.tsx:45-57 | src/features/academics/academic-year-detail-drawer.tsx:70-81
+MODEL-724,--mode_semantic,DUP-2876,src/features/academics/academic-year-detail-drawer.tsx:693-699 | src/features/academics/therapy/orthophonie-tab.tsx:76-82 | src/features/academics/therapy/psychology-tab.tsx:81-87
+MODEL-725,--mode_semantic,DUP-3596,src/features/academics/academic-year-detail-drawer.tsx:1092-1104 | src/features/crm/parent-detail-drawer.tsx:543-554
+MODEL-726,--mode_semantic,DUP-4060,src/features/academics/class-subjects-tab.tsx:272-283 | src/features/academics/clubs/club-detail-drawer.tsx:560-571
+MODEL-727,--mode_semantic,DUP-2453,src/features/academics/school-years-tab.tsx:425-469 | src/features/academics/clubs/clubs-tab.tsx:325-336
+MODEL-728,--mode_semantic,DUP-3831,src/features/academics/grade-levels-class-view.tsx:626-639 | src/features/academics/therapy/psychology-tab.tsx:596-607
+MODEL-729,--mode_semantic,DUP-3063,src/features/crm/student-detail/academic-tab.tsx:136-151 | src/features/dashboard/components/analytics/operational-query-engine.ts:226-237
+MODEL-730,--mode_semantic,DUP-4113,src/features/crm/student-detail/payments-tab.tsx:120-131 | src/features/financials/payment-slider.tsx:428-439
+MODEL-731,--mode_semantic,DUP-3917,src/features/settings/create-account-modal.tsx:124-141 | src/features/dashboard/alert-detail-modal.tsx:47-58
+MODEL-732,--mode_semantic,DUP-4166,src/features/dashboard/calendar-event-creator-modal.tsx:63-74 | src/features/financials/tranche-amount-edit-modal.tsx:77-88
+MODEL-733,--mode_semantic,DUP-4372,src/features/financials/debt-aging-tab.tsx:288-301 | src/features/financials/financials-page.tsx:883-894
+MODEL-734,--mode_semantic,DUP-4012,src/features/personnel/dashboards/buyer-dashboard.tsx:47-58 | src/features/personnel/dashboards/manager-dashboard.tsx:73-84
+MODEL-735,--mode_semantic,DUP-3401,src/features/personnel/dashboards/manager-dashboard.tsx:368-391 | src/features/settings/locked-features-tab.tsx:35-46
+MODEL-736,--mode_semantic,DUP-4369,src/features/personnel/management/chat-panel.tsx:317-333 | src/features/personnel/management/employee-profile-drawer.tsx:136-147
+MODEL-737,--mode_semantic,DUP-3145,src/features/personnel/management/employee-form-modal.tsx:64-75 | src/features/personnel/management/task-form-modal.tsx:28-39
+MODEL-738,--mode_semantic,DUP-3680,src/features/personnel/management/staff-attendance-center.tsx:276-290 | src/features/personnel/management/requests-management.tsx:214-225
+MODEL-739,--mode_semantic,DUP-4183,src/features/settings/approvals-tab.tsx:258-273 | src/features/settings/approvals-tab.tsx:236-247
+MODEL-740,--mode_semantic,DUP-2979,src/features/workflow/node-inspector-drawer.tsx:640-651 | src/features/workflow/node-inspector-drawer.tsx:830-841
+MODEL-741,--mode_semantic,DUP-3284,src/features/workflow/node-inspector-drawer.tsx:848-859 | src/features/workflow/node-inspector-drawer.tsx:870-881
+MODEL-742,--mode_semantic,DUP-3285,src/infrastructure/excel/import-engine/parsers/excel-parser.ts:129-140 | src/infrastructure/excel/import-engine/parsers/excel-parser.ts:142-153
+MODEL-743,--mode_semantic,DUP-2243,src/infrastructure/export/zip-writer.ts:137-148 | src/infrastructure/export/zip-writer.ts:153-164
+MODEL-744,--mode_semantic,DUP-2242,src/infrastructure/mock/seed-data.ts:790-802 | src/infrastructure/mock/fixtures/payment-fixtures.ts:102-113
+MODEL-745,--mode_semantic,DUP-3978,src/infrastructure/mock/operations/index.ts:398-409 | src/infrastructure/mock/operations/index.ts:420-431
+MODEL-746,--mode_semantic,DUP-3974,src/infrastructure/mock/repositories/student-repository.ts:91-103 | src/infrastructure/mock/repositories/student-repository.ts:304-315
+MODEL-747,--mode_semantic,DUP-3632,src/infrastructure/mock/repositories/workflow-side-effects.ts:112-123 | src/infrastructure/mock/repositories/workflow-side-effects.ts:168-179
+MODEL-748,--mode_semantic,DUP-4013,src/infrastructure/receipt-pdf/debt-report.ts:30-41 | src/infrastructure/receipt-pdf/payment-plan.ts:27-38
+MODEL-749,--mode_semantic,DUP-2415,src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:411-423 | src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:447-458
+MODEL-750,--mode_semantic,DUP-4209,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1940-1951 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:401-412
+MODEL-751,--mode_semantic,DUP-2919,src/shared/ui/markdown-view.tsx:57-63 | src/shared/ui/markdown-view.tsx:64-70 | src/shared/ui/markdown-view.tsx:71-77
+MODEL-752,--mode_semantic,DUP-2736,src/core/ai/artifacts.ts:267-281 | src/core/ai/artifacts.ts:220-230
+MODEL-753,--mode_semantic,DUP-2713,src/core/ai/tools/analysis-tools.ts:372-382 | src/core/ai/tools/analysis-tools.ts:482-492
+MODEL-754,--mode_semantic,DUP-3393,src/domain/calc/payment/clearance.ts:80-90 | src/domain/calc/payment/lifo-reversal.ts:70-80
+MODEL-755,--mode_semantic,DUP-2943,src/domain/calc/payment/webhook-diagnostics.ts:1618-1630 | src/domain/calc/payment/webhook-diagnostics.ts:1538-1548
+MODEL-756,--mode_semantic,DUP-4248,src/domain/calc/payment/webhook-diagnostics.ts:1956-1967 | src/domain/calc/payment/webhook-diagnostics.ts:1884-1894
+MODEL-757,--mode_semantic,DUP-3381,src/domain/calc/pricing/school-price-matrix.ts:105-115 | src/domain/calc/pricing/school-price-matrix.ts:117-127
+MODEL-758,--mode_semantic,DUP-3527,src/domain/calc/timetable/constraints.ts:684-694 | src/domain/calc/timetable/constraints.ts:701-711
+MODEL-759,--mode_semantic,DUP-4302,src/domain/calc/timetable/feasibility.ts:315-326 | src/domain/calc/timetable/feasibility.ts:401-411
+MODEL-760,--mode_semantic,DUP-3323,src/domain/calc/timetable/solver/greedy-solver.ts:109-121 | src/domain/calc/timetable/solver/greedy-solver.ts:125-135
+MODEL-761,--mode_semantic,DUP-3585,src/features/academics/academic-year-detail-drawer.tsx:1011-1025 | src/features/academics/academic-year-detail-drawer.tsx:455-465
+MODEL-762,--mode_semantic,DUP-1900,src/features/academics/teachers-tab.tsx:51-58 | src/features/academics/timetable/timetable-tab.tsx:152-158 | src/features/academics/academics-page.tsx:79-84
+MODEL-763,--mode_semantic,DUP-4034,src/features/academics/therapy/ortho-followup-detail-drawer.tsx:530-542 | src/features/crm/edit-parent-modal.tsx:206-216
+MODEL-764,--mode_semantic,DUP-4035,src/features/settings/approvals-tab.tsx:1202-1214 | src/features/crm/batch-registration/step1-parent.tsx:124-134
+MODEL-765,--mode_semantic,DUP-2802,src/features/crm/batch-registration/step3-billing.tsx:130-141 | src/features/crm/batch-registration/step3-billing.tsx:151-161
+MODEL-766,--mode_semantic,DUP-3423,src/features/crm/edit-student-modal.tsx:263-274 | src/features/crm/re-enrollment/re-enroll-modal.tsx:271-281
+MODEL-767,--mode_semantic,DUP-4340,src/features/dashboard/components/analytics/analytics-derivations.ts:81-102 | src/features/dashboard/components/analytics/executive-statistics.ts:67-77
+MODEL-768,--mode_semantic,DUP-3060,src/features/dashboard/components/analytics/data-inspector-lineage.ts:454-465 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:793-803
+MODEL-769,--mode_semantic,DUP-3756,src/features/dashboard/components/analytics/data-inspector-lineage.ts:578-588 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:777-787
+MODEL-770,--mode_semantic,DUP-3620,src/infrastructure/export/export-warmup.ts:187-198 | src/features/dashboard/tabs/reports-tab.tsx:65-75
+MODEL-771,--mode_semantic,DUP-3382,src/features/dashboard/tabs/reports-tab.tsx:278-288 | src/features/dashboard/tabs/reports-tab.tsx:317-327
+MODEL-772,--mode_semantic,DUP-4305,src/features/financials/financials-page.tsx:387-397 | src/features/financials/financials-page.tsx:400-410
+MODEL-773,--mode_semantic,DUP-4031,src/features/personnel/management/employee-profile-drawer.tsx:219-237 | src/features/settings/accounts-tab.tsx:196-206
+MODEL-774,--mode_semantic,DUP-4186,src/features/personnel/management/expense-review-section.tsx:251-263 | src/features/personnel/management/expense-review-section.tsx:371-381
+MODEL-775,--mode_semantic,DUP-2137,src/infrastructure/excel/import-config/configs/etat-2026-2027.ts:125-135 | src/infrastructure/excel/import-config/configs/etat-2026-2027.ts:145-155
+MODEL-776,--mode_semantic,DUP-4349,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:600-610 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:611-621
+MODEL-777,--mode_semantic,DUP-2163,src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1511-1524 | src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1500-1510
+MODEL-778,--mode_semantic,DUP-3244,src/infrastructure/excel/reports.ts:162-172 | src/infrastructure/excel/reports.ts:243-253
+MODEL-779,--mode_semantic,DUP-3962,src/infrastructure/mock/repositories/therapy-repository.ts:741-751 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4503-4513
+MODEL-780,--mode_semantic,DUP-3822,src/infrastructure/mock/repositories/timetable-repository.ts:83-96 | src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:197-207
+MODEL-781,--mode_semantic,DUP-2041,src/infrastructure/mock/teacher-seed.ts:126-132 | src/infrastructure/mock/teacher-seed.ts:142-148 | src/infrastructure/mock/teacher-seed.ts:135-140
+MODEL-782,--mode_semantic,DUP-1792,src/infrastructure/mock/workforce/index.ts:1090-1100 | src/infrastructure/mock/workforce/index.ts:1295-1305
+MODEL-783,--mode_semantic,DUP-3380,src/infrastructure/receipt-pdf/payment-receipt.ts:335-346 | src/infrastructure/receipt-pdf/payment-receipt.ts:353-363
+MODEL-784,--mode_semantic,DUP-2792,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:501-514 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:788-798
+MODEL-785,--mode_semantic,DUP-3070,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:775-785 | src/infrastructure/supabase/repositories/supabase-notification-repository.ts:256-266
+MODEL-786,--mode_semantic,DUP-3296,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1739-1750 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2346-2356
+MODEL-787,--mode_semantic,DUP-2831,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2219-2229 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2234-2244
+MODEL-788,--mode_semantic,DUP-3633,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2557-2568 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2474-2484
+MODEL-789,--mode_semantic,DUP-3560,src/infrastructure/supabase/repositories/supabase-leave-request-repository.ts:107-117 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:167-177
+MODEL-790,--mode_semantic,DUP-2347,src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:210-220 | src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:358-368
+MODEL-791,--mode_semantic,DUP-3524,src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:267-278 | src/infrastructure/supabase/repositories/supabase-teacher-repository.ts:392-402
+MODEL-792,--mode_semantic,DUP-1689,src/infrastructure/supabase/types.ts:673-683 | src/infrastructure/supabase/types.ts:684-694
+MODEL-793,--mode_semantic,DUP-2829,src/infrastructure/sync/default-push-handler.ts:185-201 | src/infrastructure/sync/default-push-handler.ts:209-219
+MODEL-794,--mode_semantic,DUP-3902,src/infrastructure/sync/default-push-handler.ts:234-247 | src/infrastructure/sync/default-push-handler.ts:276-286
+MODEL-795,--mode_semantic,DUP-2944,src/infrastructure/system-config.ts:147-157 | src/infrastructure/system-config.ts:173-183
+MODEL-796,--mode_semantic,DUP-3794,supabase/functions/workflow-execute/index.ts:283-293 | supabase/functions/workflow-scheduled-runner/index.ts:273-283
+MODEL-797,--mode_semantic,DUP-3830,src/domain/calc/ledger/charges.ts:148-161 | src/domain/calc/ledger/charges.ts:261-270
+MODEL-798,--mode_semantic,DUP-3592,src/domain/calc/shared/dates.ts:225-234 | src/infrastructure/mock/repositories/dashboard-repository.ts:283-292
+MODEL-799,--mode_semantic,DUP-1615,src/domain/kahn.ts:65-79 | src/domain/calc/workflow/dry-run.ts:508-517
+MODEL-800,--mode_semantic,DUP-3795,src/features/academics/academics-page.tsx:68-77 | src/features/crm/crm-page.tsx:80-89
+MODEL-801,--mode_semantic,DUP-3051,src/features/academics/students-directory-tab.tsx:163-178 | src/features/academics/clubs/clubs-tab.tsx:193-202
+MODEL-802,--mode_semantic,DUP-3496,src/features/academics/teachers-tab.tsx:64-74 | src/features/personnel/releve-tab.tsx:63-72
+MODEL-803,--mode_semantic,DUP-4178,src/features/financials/expense-detail-drawer.tsx:126-135 | src/features/personnel/management/chat-panel.tsx:443-452
+MODEL-804,--mode_semantic,DUP-3718,src/features/financials/expense-submit-modal.tsx:233-245 | src/features/personnel/releve-tab.tsx:189-198
+MODEL-805,--mode_semantic,DUP-4212,src/features/financials/payment-detail-drawer.tsx:167-176 | src/features/financials/receipts-tab.tsx:81-90
+MODEL-806,--mode_semantic,DUP-3910,src/shared/layout/topbar.tsx:240-254 | src/features/personnel/dashboards/role-dashboard-layout.tsx:66-75
+MODEL-807,--mode_semantic,DUP-4306,src/features/settings/create-account-modal.tsx:94-103 | src/features/settings/create-account-modal.tsx:109-118
+MODEL-808,--mode_semantic,DUP-4307,src/features/settings/supabase-diagnostics/crud-test-runner.ts:747-756 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:773-782
+MODEL-809,--mode_semantic,DUP-3528,src/features/workflow/node-inspector-drawer.tsx:897-906 | src/features/workflow/node-inspector-drawer.tsx:985-994
+MODEL-810,--mode_semantic,DUP-3128,src/features/workflow/workflow-page.tsx:233-244 | src/features/workflow/workflow-page.tsx:255-264
+MODEL-811,--mode_semantic,DUP-3437,src/infrastructure/excel/data-export.ts:240-249 | src/infrastructure/excel/full-export.ts:145-154
+MODEL-812,--mode_semantic,DUP-2535,src/infrastructure/excel/import-engine/mappers/niveau-mapper.ts:79-89 | src/infrastructure/excel/import-engine/mappers/niveau-mapper.ts:91-100
+MODEL-813,--mode_semantic,DUP-3865,src/infrastructure/excel/import-engine/reporters/excel-reporter.ts:83-92 | src/infrastructure/excel/reports.ts:102-111
+MODEL-814,--mode_semantic,DUP-1634,src/infrastructure/mock/academic-seed.ts:103-112 | src/infrastructure/mock/academic-seed.ts:114-123
+MODEL-815,--mode_semantic,DUP-1751,src/infrastructure/mock/operations/index.ts:243-252 | src/infrastructure/mock/operations/index.ts:450-459
+MODEL-816,--mode_semantic,DUP-3736,src/infrastructure/mock/repositories/academic-year-repository.ts:31-42 | src/infrastructure/mock/repositories/workflow-repository.ts:45-54
+MODEL-817,--mode_semantic,DUP-3011,src/infrastructure/mock/repositories/financial-repository.ts:949-961 | src/infrastructure/mock/repositories/financial-repository.ts:936-945
+MODEL-818,--mode_semantic,DUP-2256,src/infrastructure/mock/repositories/student-repository.ts:145-155 | src/infrastructure/mock/repositories/parent-repository.ts:126-135
+MODEL-819,--mode_semantic,DUP-4188,src/infrastructure/mock/repositories/teacher-repository.ts:297-306 | src/infrastructure/mock/repositories/teacher-repository.ts:404-413
+MODEL-820,--mode_semantic,DUP-4154,src/infrastructure/mock/repositories/workflow-event-bridge.ts:203-212 | src/infrastructure/mock/repositories/workflow-side-effects.ts:350-359
+MODEL-821,--mode_semantic,DUP-3833,src/infrastructure/receipt-pdf/account-statement.ts:244-256 | src/infrastructure/receipt-pdf/account-statement.ts:273-282
+MODEL-822,--mode_semantic,DUP-4341,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:418-438 | src/infrastructure/supabase/repositories/supabase-student-narrative-repository.ts:63-72
+MODEL-823,--mode_semantic,DUP-4114,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:1841-1851 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2542-2551
+MODEL-824,--mode_semantic,DUP-2592,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5038-5056 | src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:373-382
+MODEL-825,--mode_semantic,DUP-4079,src/infrastructure/supabase/repositories/supabase-warehouse-task-repository.ts:345-355 | src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:224-233
+MODEL-826,--mode_semantic,DUP-2054,src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:233-242 | src/infrastructure/supabase/repositories/supabase-overdue-alert-generator.ts:280-289
+MODEL-827,--mode_semantic,DUP-3196,src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:205-214 | src/infrastructure/supabase/repositories/supabase-pricing-repository.ts:248-257
+MODEL-828,--mode_semantic,DUP-4240,src/infrastructure/supabase/types.ts:70-86 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1043-1052
+MODEL-829,--mode_semantic,DUP-3357,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1466-1475 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2029-2038
+MODEL-830,--mode_semantic,DUP-4145,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2582-2602 | src/infrastructure/supabase/repositories/supabase-workforce-attendance-repository.ts:182-191
+MODEL-831,--mode_semantic,DUP-3340,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:2887-2896 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4254-4263
+MODEL-832,--mode_semantic,DUP-4329,src/shared/hooks/use-edit-modal.ts:34-43 | src/shared/hooks/use-settings-section.ts:47-56
+MODEL-833,--mode_semantic,DUP-2358,supabase/functions/workflow-execute/index.ts:178-187 | supabase/functions/workflow-scheduled-runner/index.ts:194-203
+MODEL-834,--mode_semantic,DUP-3599,supabase/functions/workflow-execute/index.ts:394-405 | supabase/functions/workflow-scheduled-runner/index.ts:389-398
+MODEL-835,--mode_semantic,DUP-3478,supabase/functions/workflow-resume-scheduler/index.ts:120-129 | supabase/functions/workflow-resume-scheduler/index.ts:310-319
+MODEL-836,--mode_semantic,DUP-3247,src/core/rbac/access-requirement.ts:30-38 | src/core/rbac/access-requirement.ts:40-48
+MODEL-837,--mode_semantic,DUP-2432,src/domain/calc/academics/class-placement.ts:480-490 | src/features/academics/hooks/use-class-placement-studio.ts:375-383
+MODEL-838,--mode_semantic,DUP-3983,src/domain/calc/payment/service-pricing-profile.ts:485-493 | src/domain/calc/payment/service-pricing-profile.ts:501-509
+MODEL-839,--mode_semantic,DUP-3621,src/domain/calc/payment/webhook-diagnostics.ts:589-599 | src/domain/calc/payment/webhook-diagnostics.ts:1778-1786
+MODEL-840,--mode_semantic,DUP-1959,src/domain/calc/reconcile/index.ts:74-87 | src/domain/calc/reconcile/reconciliation.ts:93-101
+MODEL-841,--mode_semantic,DUP-3163,src/domain/calc/timetable/class-reports.ts:151-159 | src/domain/calc/timetable/class-reports.ts:195-203
+MODEL-842,--mode_semantic,DUP-2852,src/features/academics/class-attendance-tab.tsx:49-57 | src/features/academics/class-grades-tab.tsx:83-91
+MODEL-843,--mode_semantic,DUP-4378,src/features/academics/clubs/clubs-tab.tsx:264-273 | src/features/academics/clubs/clubs-tab.tsx:274-282
+MODEL-844,--mode_semantic,DUP-3973,src/features/academics/therapy/orthophonie-tab.tsx:531-543 | src/features/academics/exam-scheduling-modal.tsx:185-193
+MODEL-845,--mode_semantic,DUP-3656,src/features/settings/accounts-tab.tsx:55-64 | src/features/academics/promotion-cycles/promotion-cycle-detail.tsx:64-72
+MODEL-846,--mode_semantic,DUP-3495,src/features/academics/subject-configurations-panel.tsx:261-271 | src/features/profile/profile-page.tsx:306-314
+MODEL-847,--mode_semantic,DUP-3354,src/features/academics/therapy/psychology-tab.tsx:555-568 | src/features/personnel/releve-tab.tsx:180-188
+MODEL-848,--mode_semantic,DUP-3227,src/features/academics/timetable/timetable-grid.tsx:81-89 | src/features/academics/timetable/timetable-grid.tsx:90-98
+MODEL-849,--mode_semantic,DUP-4253,src/features/crm/parent-detail-drawer.tsx:406-415 | src/features/crm/batch-registration/step1-parent.tsx:43-51
+MODEL-850,--mode_semantic,DUP-4310,src/features/crm/batch-registration/step1-parent.tsx:63-71 | src/features/crm/batch-registration/step1-parent.tsx:96-104
+MODEL-851,--mode_semantic,DUP-3501,src/features/dashboard/components/analytics/discount-erosion-card.tsx:124-135 | src/features/crm/batch-registration/step3-billing.tsx:119-127
+MODEL-852,--mode_semantic,DUP-3426,src/features/crm/batch-registration/step3-billing.tsx:180-189 | src/features/crm/batch-registration/step3-billing.tsx:169-177
+MODEL-853,--mode_semantic,DUP-3481,src/features/crm/parent-detail-drawer.tsx:298-306 | src/features/crm/student-detail/academic-tab.tsx:238-246
+MODEL-854,--mode_semantic,DUP-3168,src/features/financials/financial-query-console.tsx:84-93 | src/features/dashboard/components/analytics/operational-query-console.tsx:965-973
+MODEL-855,--mode_semantic,DUP-4096,src/features/dashboard/components/analytics/wave-velocity-card.tsx:148-156 | src/features/dashboard/components/analytics/wave-velocity-card.tsx:453-461
+MODEL-856,--mode_semantic,DUP-3349,src/features/dashboard/tabs/analytics-tab.tsx:288-296 | src/features/dashboard/tabs/analytics-tab.tsx:297-305
+MODEL-857,--mode_semantic,DUP-3901,src/features/financials/debt-aging-tab.tsx:418-432 | src/features/financials/debt-aging-tab.tsx:442-450
+MODEL-858,--mode_semantic,DUP-4078,src/features/financials/payment-breakdown-card.tsx:155-165 | src/features/financials/unified-payment-modal.tsx:845-853
+MODEL-859,--mode_semantic,DUP-4008,src/features/personnel/dashboards/teacher-dashboard.tsx:78-95 | src/features/personnel/dashboards/driver-dashboard.tsx:107-115
+MODEL-860,--mode_semantic,DUP-4123,src/features/personnel/management/employee-form-modal.tsx:211-219 | src/features/personnel/management/employee-form-modal.tsx:244-252
+MODEL-861,--mode_semantic,DUP-3297,src/features/personnel/management/task-management.tsx:77-87 | src/features/personnel/management/payroll-management.tsx:90-98
+MODEL-862,--mode_semantic,DUP-3851,src/infrastructure/mock/repositories/academic-level-repository.ts:30-39 | src/features/workflow/test-studio-drawer.tsx:83-91
+MODEL-863,--mode_semantic,DUP-3614,src/infrastructure/excel/import-engine/mappers/niveau-mapper.ts:31-41 | src/infrastructure/excel/import-engine/mappers/niveau-mapper.ts:22-30
+MODEL-864,--mode_semantic,DUP-3013,src/infrastructure/mock/repositories/re-enrollment-repository.ts:235-243 | src/infrastructure/mock/repositories/re-enrollment-repository.ts:264-272
+MODEL-865,--mode_semantic,DUP-1953,src/infrastructure/mock/workflow-seed.ts:259-267 | src/infrastructure/mock/workflow-seed.ts:268-276
+MODEL-866,--mode_semantic,DUP-2719,src/infrastructure/mock/workforce/index.ts:277-285 | src/infrastructure/mock/workforce/index.ts:1373-1381
+MODEL-867,--mode_semantic,DUP-3883,src/infrastructure/supabase/repositories/supabase-calendar-repository.ts:563-574 | src/infrastructure/supabase/repositories/supabase-expense-repository.ts:712-720
+MODEL-868,--mode_semantic,DUP-2991,src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:155-163 | src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts:602-610
+MODEL-869,--mode_semantic,DUP-3146,src/infrastructure/supabase/repositories/supabase-expense-repository.ts:682-693 | src/infrastructure/supabase/repositories/supabase-task-repository.ts:509-517
+MODEL-870,--mode_semantic,DUP-4312,src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:263-271 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:368-376
+MODEL-871,--mode_semantic,DUP-2650,src/infrastructure/supabase/repositories/supabase-releve-repository.ts:208-217 | src/infrastructure/supabase/repositories/supabase-shift-schedule-repositories.ts:279-287
+MODEL-872,--mode_semantic,DUP-4244,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5397-5411 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5440-5448
+MODEL-873,--mode_semantic,DUP-3637,src/shared/search-index.ts:142-150 | src/shared/search-index.ts:160-168
+MODEL-874,--mode_semantic,DUP-2582,src/shared/ui/markdown-view.tsx:197-205 | src/shared/ui/markdown-view.tsx:208-216
+MODEL-875,--mode_semantic,DUP-2331,supabase/functions/workflow-execute/actions.ts:255-263 | supabase/functions/workflow-execute/actions.ts:476-484
+MODEL-876,--mode_semantic,DUP-2583,supabase/functions/workflow-execute/index.ts:422-430 | supabase/functions/workflow-execute/index.ts:443-451
+MODEL-877,--mode_semantic,DUP-2385,electron/backend-profile-contract.cts:247-256 | electron/backend-profile-contract.cts:205-212
+MODEL-878,--mode_semantic,DUP-3300,src/app/providers/user-preferences-provider.tsx:111-118 | src/app/providers/user-preferences-provider.tsx:119-126
+MODEL-879,--mode_semantic,DUP-3985,src/core/ai/tools/analysis-tools.ts:448-455 | src/core/ai/tools/analysis-tools.ts:636-643
+MODEL-880,--mode_semantic,DUP-3245,src/domain/calc/diff/field-diff.ts:155-164 | src/domain/calc/diff/field-diff.ts:238-245
+MODEL-881,--mode_semantic,DUP-3803,src/domain/calc/payment/webhook-diagnostics.ts:761-768 | src/domain/calc/payment/webhook-diagnostics.ts:2040-2047
+MODEL-882,--mode_semantic,DUP-3841,src/domain/pii-mask.ts:87-94 | src/domain/pii-mask.ts:122-129
+MODEL-883,--mode_semantic,DUP-2576,src/features/academics/placement/class-placement-studio-modal.tsx:111-122 | src/features/academics/clubs/clubs-tab.tsx:66-73
+MODEL-884,--mode_semantic,DUP-3530,src/features/academics/hooks/use-class-placement-studio.ts:406-413 | src/features/academics/hooks/use-class-placement-studio.ts:415-422
+MODEL-885,--mode_semantic,DUP-4355,src/features/academics/school-years-tab.tsx:37-44 | src/features/academics/subjects-directory-tab.tsx:27-34
+MODEL-886,--mode_semantic,DUP-3164,src/features/academics/timetable/timetable-tab.tsx:1279-1286 | src/features/academics/timetable/timetable-tab.tsx:1409-1416
+MODEL-887,--mode_semantic,DUP-4028,src/features/settings/experimental-tab.tsx:236-244 | src/features/crm/excel-import-modal.tsx:729-736
+MODEL-888,--mode_semantic,DUP-3815,src/features/crm/student-detail/info-tab.tsx:39-46 | src/features/crm/student-detail/payments-tab.tsx:56-63
+MODEL-889,--mode_semantic,DUP-3926,src/features/personnel/dashboards/warehouse-worker-dashboard.tsx:247-264 | src/features/dashboard/alert-creator-modal.tsx:83-90
+MODEL-890,--mode_semantic,DUP-2984,src/features/dashboard/components/analytics/data-inspector-lineage.ts:382-389 | src/features/dashboard/components/analytics/data-inspector-lineage.ts:392-399
+MODEL-891,--mode_semantic,DUP-3965,src/features/financials/financial-query-console.tsx:68-77 | src/features/dashboard/components/analytics/operational-query-console.tsx:940-947
+MODEL-892,--mode_semantic,DUP-4214,src/features/financials/debt-meter.tsx:117-124 | src/features/financials/debt-meter.tsx:125-132
+MODEL-893,--mode_semantic,DUP-2937,src/features/personnel/releve-tab.tsx:291-298 | src/infrastructure/supabase/repositories/supabase-releve-repository.ts:132-139
+MODEL-894,--mode_semantic,DUP-4097,src/features/settings/supabase-diagnostics/crud-test-runner.ts:702-710 | src/features/settings/supabase-diagnostics/crud-test-runner.ts:1064-1071
+MODEL-895,--mode_semantic,DUP-2555,src/infrastructure/backup/backup-service.ts:190-198 | src/infrastructure/export/export-warmup.ts:199-206
+MODEL-896,--mode_semantic,DUP-4284,src/infrastructure/excel/import-engine/import-engine.ts:279-286 | src/infrastructure/excel/import-engine/import-engine.ts:287-294
+MODEL-897,--mode_semantic,DUP-2508,src/infrastructure/mock/operations/index.ts:320-327 | src/infrastructure/mock/operations/index.ts:518-525
+MODEL-898,--mode_semantic,DUP-4027,src/infrastructure/mock/repositories/academic-repository.ts:995-1004 | src/infrastructure/mock/repositories/academic-repository.ts:1311-1318
+MODEL-899,--mode_semantic,DUP-4357,src/infrastructure/mock/repositories/financial/charge-ops.ts:48-55 | src/infrastructure/mock/repositories/financial/expense-ops.ts:62-69
+MODEL-900,--mode_semantic,DUP-2598,src/infrastructure/supabase/repositories/supabase-expense-repository.ts:463-478 | src/infrastructure/mock/repositories/financial/expense-ops.ts:187-194
+MODEL-901,--mode_semantic,DUP-3838,src/infrastructure/mock/repositories/ledger-repository.ts:189-198 | src/infrastructure/mock/repositories/ledger-repository.ts:162-169
+MODEL-902,--mode_semantic,DUP-4260,src/infrastructure/mock/workforce/index.ts:810-817 | src/infrastructure/mock/workforce/index.ts:854-861
+MODEL-903,--mode_semantic,DUP-3497,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:271-279 | src/infrastructure/supabase/repositories/supabase-academic-repository.ts:733-740
+MODEL-904,--mode_semantic,DUP-4358,src/infrastructure/supabase/repositories/supabase-academic-repository.ts:2507-2514 | src/infrastructure/supabase/repositories/supabase-identity-resolution-repository.ts:413-420
+MODEL-905,--mode_semantic,DUP-3195,src/infrastructure/supabase/repositories/supabase-chat-repository.ts:246-255 | src/infrastructure/supabase/repositories/supabase-chat-repository.ts:261-268
+MODEL-906,--mode_semantic,DUP-3685,src/infrastructure/supabase/repositories/supabase-chat-repository.ts:279-286 | src/infrastructure/supabase/repositories/supabase-expense-repository.ts:732-739
+MODEL-907,--mode_semantic,DUP-3945,src/infrastructure/supabase/repositories/supabase-inventory-repository.ts:119-127 | src/infrastructure/supabase/repositories/supabase-purchase-request-repository.ts:104-111
+MODEL-908,--mode_semantic,DUP-4309,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1853-1862 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:1883-1890
+MODEL-909,--mode_semantic,DUP-3698,src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5229-5240 | src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:5254-5261
+MODEL-910,--mode_semantic,DUP-3845,src/infrastructure/sync/sync-queue-store.ts:88-95 | src/infrastructure/sync/sync-queue-store.ts:172-179
+MODEL-911,--mode_semantic,DUP-3987,src/infrastructure/sync/sync-queue-store.ts:137-144 | src/infrastructure/sync/sync-queue-store.ts:147-154
+MODEL-912,--mode_semantic,DUP-4215,src/shared/devtools/test-data/generators.ts:197-204 | src/shared/devtools/test-data/generators.ts:205-212
+MODEL-913,--mode_semantic,DUP-2830,src/shared/particle-engine/color-interpolator.ts:19-33 | src/shared/particle-engine/color-interpolator.ts:47-54
+MODEL-914,--mode_semantic,DUP-4333,supabase/functions/ai-proxy/index.ts:394-401 | supabase/functions/ai-proxy/index.ts:402-409
+MODEL-915,--mode_semantic,DUP-4091,supabase/functions/approve-signup-request/index.ts:566-576 | supabase/functions/delete-user-account/index.ts:191-198
+MODEL-916,--mode_semantic,DUP-3701,supabase/functions/run-overdue-scan/index.ts:162-169 | supabase/functions/run-overdue-scan/index.ts:179-186
+MODEL-917,--mode_semantic,DUP-3015,supabase/functions/run-overdue-scan/index.ts:222-229 | supabase/functions/run-overdue-scan/index.ts:242-249

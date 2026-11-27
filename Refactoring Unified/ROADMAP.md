@@ -354,3 +354,9 @@ The register carries **204 registered IDs** (DEAD-001..015, 017..024 · DUP-001.
 | C-27 | Doc (the corrections register — six corrections, none invalidating a disposition) |
 
 **Orphan check after S27: still zero** — the register now carries **204 IDs** (197 + the seven S27 additions); all 204 map to phase rows here and to EXECUTION-PLAN §6 task homes (re-verified programmatically in Session 27 — range-aware, the same method as S24/S26).
+
+## Dead Code, Duplicates & Re-Implementations to Retire
+
+Load `elimtiyaz-desktop/docs/codebase-audit/MASTER-CONSOLIDATION-CANDIDATE-REGISTER.csv` with the active card. Match its paths, symbols and operation to the rows below before implementation. For each match record the finding ID, survivor and consumers, retirement diff, baseline and post-change tests, and actual net production LOC. If the card has no verified match, record that result in its closeout. Proceed from the implementation SHA and recheck each prior disposition.
+
+T-621 through T-624 in EXECUTION-PLAN.md own the cleanup sequence. T-429 supplies the canonical debt-aging rule for T-623.

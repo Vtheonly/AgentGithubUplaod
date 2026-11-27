@@ -1,0 +1,300 @@
+flagged_path,candidate_reference_file,first_matching_line,kind
+scripts/build-test-fixture.ts,Context Report/Optimizing AI Context for Development — Scripts.md,101,documentation mention
+scripts/build-test-fixture.ts,Investigation Archive/Handoffs/handoff-session-05.md,26,documentation mention
+scripts/build-test-fixture.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,12,documentation mention
+scripts/build-test-fixture.ts,Investigation Archive/Local-First Architecture/LF0-TNUMBER-DRAFTS-2026-11-19.md,54,documentation mention
+scripts/build-test-fixture.ts,Investigation Archive/Local-First Architecture/LOCAL-FIRST-BLUEPRINT.md,164,documentation mention
+scripts/check-supabase.mjs,Investigation Archive/Database and Supabase/SUPABASE-COUPLING-MAP.md,189,documentation mention
+scripts/check-supabase.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,93,documentation mention
+scripts/check-supabase.ts,Context Report/Optimizing AI Context for Development — Scripts.md,86,documentation mention
+scripts/check-supabase.ts,Investigation Archive/Architecture Maps/unified-architecture-map.md,166,documentation mention
+scripts/check-supabase.ts,Investigation Archive/Database and Supabase/SUPABASE-COUPLING-MAP.md,189,documentation mention
+scripts/check-supabase.ts,Investigation Archive/Findings and Hypotheses/FINDINGS_INDEX.md,140,documentation mention
+scripts/check-supabase.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,39,documentation mention
+scripts/check-supabase.ts,Refactoring Unified/BLUEPRINT.md,96,documentation mention
+scripts/check-supabase.ts,Refactoring Unified/EXECUTION-PLAN.md,195,documentation mention
+scripts/check-supabase.ts,Refactoring Unified/ROADMAP.md,23,documentation mention
+scripts/clean-slate-reset.mjs,Investigation Archive/Architecture Maps/unified-architecture-map.md,164,documentation mention
+scripts/clean-slate-reset.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,94,documentation mention
+scripts/generate_analytics_visuals_corpus.ts,Context Report/Optimizing AI Context for Development — Scripts.md,27,documentation mention
+scripts/generate_analytics_visuals_corpus.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,84,documentation mention
+scripts/generate_analytics_visuals_corpus.ts,docs/recovery/change-log.md,4012,documentation mention
+scripts/generate_analytics_visuals_corpus.ts,docs/recovery/current-state.md,562,documentation mention
+scripts/generate_analytics_visuals_corpus.ts,docs/recovery/task-registry.md,325,documentation mention
+scripts/generate_executive_statistics_corpus.ts,Context Report/Optimizing AI Context for Development — Scripts.md,27,documentation mention
+scripts/generate_executive_statistics_corpus.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,84,documentation mention
+scripts/generate_executive_statistics_corpus.ts,docs/recovery/t-443-live-verification.md,90,documentation mention
+scripts/generate_executive_statistics_corpus.ts,docs/recovery/t-449-parity-audit-verification.md,116,documentation mention
+scripts/generate_executive_statistics_corpus.ts,elimtiyaz-desktop/src/tests/cross-platform/T-455-UiSurfaceParity.test.ts,19,source/config mention
+scripts/i18n/apply-i18n.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,99,documentation mention
+scripts/i18n/apply-i18n.mjs,Investigation Archive/Initial Reports Analysis/06-Shared-report-verification.md,74,documentation mention
+scripts/i18n/apply-i18n.mjs,docs/recovery/task-registry.md,3448,documentation mention
+scripts/i18n/apply-i18n.mjs,elimtiyaz-desktop/scripts/i18n/translate-templates.mjs,11,source/config mention
+scripts/i18n/apply-i18n.mjs,elimtiyaz-desktop/src/i18n/gen/ar.ts,2,source/config mention
+scripts/i18n/apply-i18n.mjs,elimtiyaz-desktop/src/i18n/gen/en.ts,2,source/config mention
+scripts/i18n/apply-i18n.mjs,elimtiyaz-desktop/src/i18n/gen/fr.ts,2,source/config mention
+scripts/i18n/apply-i18n.mjs,elimtiyaz-desktop/src/i18n/i18n.ts,12,source/config mention
+scripts/i18n/check-parity.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,99,documentation mention
+scripts/i18n/check-parity.mjs,docs/recovery/change-log.md,1671,documentation mention
+scripts/i18n/check-parity.mjs,docs/recovery/problem-registry.md,5290,documentation mention
+scripts/i18n/check-parity.mjs,docs/recovery/t-399-live-verification.md,32,documentation mention
+scripts/i18n/check-parity.mjs,docs/recovery/t-405-live-verification.md,59,documentation mention
+scripts/i18n/check-parity.mjs,elimtiyaz-desktop/src/i18n/stats-tips.ts,20,source/config mention
+scripts/i18n/collect-unique-strings.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,99,documentation mention
+scripts/i18n/collect-unique-strings.mjs,docs/recovery/problem-registry.md,5319,documentation mention
+scripts/i18n/collect-unique-strings.mjs,docs/recovery/task-registry.md,3448,documentation mention
+scripts/i18n/scan-hardcoded-strings.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,99,documentation mention
+scripts/i18n/scan-hardcoded-strings.mjs,docs/recovery/change-log.md,1671,documentation mention
+scripts/i18n/scan-hardcoded-strings.mjs,docs/recovery/problem-registry.md,5290,documentation mention
+scripts/i18n/scan-hardcoded-strings.mjs,docs/recovery/task-registry.md,3448,documentation mention
+scripts/i18n/scan-hardcoded-strings.mjs,elimtiyaz-desktop/scripts/i18n/apply-i18n.mjs,17,source/config mention
+scripts/i18n/translate-strings.mjs,,,no literal filename reference found
+scripts/i18n/translate-templates.mjs,elimtiyaz-desktop/scripts/i18n/apply-i18n.mjs,15,source/config mention
+scripts/package-target.d.mts,docs/recovery/task-registry.md,6708,documentation mention
+scripts/preflight-target.d.mts,docs/recovery/session/next-task.md,45,documentation mention
+scripts/preflight-target.d.mts,docs/recovery/task-registry.md,6708,documentation mention
+scripts/preflight-target.d.mts,elimtiyaz-desktop/src/tests/infrastructure/t-575-preflight-target.test.ts,37,source/config mention
+scripts/prepare-cutover-profile.d.mts,,,no literal filename reference found
+scripts/realtime-probe.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,97,documentation mention
+scripts/realtime-probe.mjs,docs/recovery/change-log.md,2010,documentation mention
+scripts/realtime-probe.mjs,docs/recovery/problem-registry.md,4804,documentation mention
+scripts/realtime-probe.mjs,docs/recovery/session/next-task.md,1483,documentation mention
+scripts/realtime-probe.mjs,docs/recovery/t-400-live-verification.md,101,documentation mention
+scripts/realtime-probe.mjs,docs/recovery/task-registry.md,2965,documentation mention
+scripts/realtime-probe.mjs,elimtiyaz-desktop/scripts/t-400-realtime-probe.mjs,2,source/config mention
+scripts/relocate-auth.d.mts,Investigation Archive/SESSION_LOG.md,53,documentation mention
+scripts/relocate-auth.d.mts,docs/recovery/session/next-task.md,43,documentation mention
+scripts/relocate-auth.d.mts,docs/recovery/task-registry.md,6718,documentation mention
+scripts/relocate-auth.d.mts,elimtiyaz-desktop/src/tests/infrastructure/t-574-relocate-auth.test.ts,49,source/config mention
+scripts/run-egress-harness.mjs,docs/recovery/egress-gates/EXTERNAL-DEPENDENCIES-REGISTER.md,3,documentation mention
+scripts/run-egress-harness.mjs,docs/recovery/egress-gates/OPS-015-DELTA-TABLE.md,9,documentation mention
+scripts/run-egress-harness.mjs,docs/recovery/egress-gates/README.md,14,documentation mention
+scripts/run-egress-harness.mjs,docs/recovery/task-registry.md,6806,documentation mention
+scripts/run-egress-harness.mjs,elimtiyaz-desktop/src/tests/infrastructure/t-595-egress-gates.test.ts,33,source/config mention
+scripts/t-368-live-export-e2e.ts,Context Report/Optimizing AI Context for Development — Scripts.md,139,documentation mention
+scripts/t-368-live-export-e2e.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,37,documentation mention
+scripts/t-368-live-export-e2e.ts,docs/recovery/change-log.md,1883,documentation mention
+scripts/t-368-live-export-e2e.ts,docs/recovery/problem-registry.md,5067,documentation mention
+scripts/t-368-live-export-e2e.ts,docs/recovery/t-368-live-verification.md,77,documentation mention
+scripts/t-368-verify-live-summary.ts,Context Report/Optimizing AI Context for Development — Scripts.md,139,documentation mention
+scripts/t-368-verify-live-summary.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,37,documentation mention
+scripts/t-368-verify-live-summary.ts,Investigation Archive/Local-First Architecture/LOCAL-FIRST-BLUEPRINT.md,315,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/audits/supabase-access-audit-2026-09-18.md,98,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/recovery/change-log.md,1883,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/recovery/current-state.md,470,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/recovery/problem-registry.md,5067,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/recovery/session/next-task.md,1600,documentation mention
+scripts/t-368-verify-live-summary.ts,docs/recovery/t-368-live-verification.md,97,documentation mention
+scripts/t-396-crud-live-e2e.ts,docs/recovery/change-log.md,1620,documentation mention
+scripts/t-396-crud-live-e2e.ts,docs/recovery/problem-registry.md,5459,documentation mention
+scripts/t-396-crud-live-e2e.ts,docs/recovery/t-396-live-verification.md,21,documentation mention
+scripts/t-396-crud-live-e2e.ts,docs/recovery/task-registry.md,3523,documentation mention
+scripts/t-397-batch-register-live-e2e.ts,docs/recovery/change-log.md,1632,documentation mention
+scripts/t-397-batch-register-live-e2e.ts,docs/recovery/t-397-live-verification.md,23,documentation mention
+scripts/t-398-registration-live-e2e.ts,docs/recovery/change-log.md,4263,documentation mention
+scripts/t-398-registration-live-e2e.ts,docs/recovery/t-398-live-verification.md,21,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,Context Report/Optimizing AI Context for Development — Shared.md,10,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,Investigation Archive/Initial Reports Analysis/06-Shared-report-verification.md,63,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,docs/recovery/change-log.md,1611,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,docs/recovery/t-399-live-verification.md,35,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,docs/recovery/t-400-live-verification.md,117,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,docs/recovery/task-registry.md,3556,documentation mention
+scripts/t-399-autofill-data-live-e2e.ts,elimtiyaz-desktop/src/shared/devtools/test-data/generators.ts,24,source/config mention
+scripts/t-400-realtime-probe.mjs,docs/recovery/change-log.md,4272,documentation mention
+scripts/t-400-realtime-probe.mjs,docs/recovery/problem-registry.md,5494,documentation mention
+scripts/t-400-realtime-probe.mjs,docs/recovery/session/next-task.md,1483,documentation mention
+scripts/t-400-realtime-probe.mjs,docs/recovery/t-400-live-verification.md,101,documentation mention
+scripts/t-400-realtime-probe.mjs,docs/recovery/task-registry.md,3567,documentation mention
+scripts/t-408-fake-academic-e2e.ts,Context Report/Optimizing AI Context for Development — Scripts.md,135,documentation mention
+scripts/t-408-fake-academic-e2e.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,35,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/change-log.md,4330,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/current-state.md,384,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/problem-registry.md,5575,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/session/next-task.md,1395,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/t-408-academic-setup-creation.md,212,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/t-408-live-verification.md,92,documentation mention
+scripts/t-408-fake-academic-e2e.ts,docs/recovery/task-registry.md,4081,documentation mention
+scripts/t-408-fake-academic-e2e.ts,elimtiyaz-desktop/scripts/t-408-fake-data-purge.py,5,source/config mention
+scripts/t-412-live-forecast-verification.ts,docs/recovery/change-log.md,4444,documentation mention
+scripts/t-412-live-forecast-verification.ts,docs/recovery/t-412-second-round-verification.md,14,documentation mention
+scripts/t-412-live-forecast-verification.ts,docs/recovery/task-registry.md,4341,documentation mention
+scripts/t-412-payroll-forecast-e2e.ts,docs/recovery/change-log.md,4444,documentation mention
+scripts/t-412-payroll-forecast-e2e.ts,docs/recovery/problem-registry.md,5974,documentation mention
+scripts/t-412-payroll-forecast-e2e.ts,docs/recovery/t-412-second-round-verification.md,15,documentation mention
+scripts/t-412-payroll-forecast-e2e.ts,docs/recovery/task-registry.md,4341,documentation mention
+scripts/t-415-live-verification.mjs,docs/recovery/change-log.md,4477,documentation mention
+scripts/t-415-live-verification.mjs,docs/recovery/problem-registry.md,7351,documentation mention
+scripts/t-415-live-verification.mjs,docs/recovery/session/next-task.md,1322,documentation mention
+scripts/t-415-live-verification.mjs,docs/recovery/t-415-live-verification.md,4,documentation mention
+scripts/t-415-live-verification.mjs,docs/recovery/task-registry.md,4445,documentation mention
+scripts/t-416-purge-live-verification.mjs,AGENTS.md,351,documentation mention
+scripts/t-416-purge-live-verification.mjs,docs/decisions/ADR-027-purge-student-parent-domain.md,42,documentation mention
+scripts/t-416-purge-live-verification.mjs,docs/recovery/change-log.md,1413,documentation mention
+scripts/t-416-purge-live-verification.mjs,docs/recovery/problem-registry.md,6118,documentation mention
+scripts/t-416-purge-live-verification.mjs,docs/recovery/t-416-live-verification.md,4,documentation mention
+scripts/t-416-purge-live-verification.mjs,docs/recovery/task-registry.md,4479,documentation mention
+scripts/t-420-final-verification.ts,Context Report/Optimizing AI Context for Development — Scripts.md,76,documentation mention
+scripts/t-420-live-verification.ts,,,no literal filename reference found
+scripts/t-421-live-forensics.mjs,,,no literal filename reference found
+scripts/t-421-live-forensics2.mjs,,,no literal filename reference found
+scripts/t-421-live-verification.mts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,100,documentation mention
+scripts/t-421-live-verification.mts,docs/recovery/problem-registry.md,6334,documentation mention
+scripts/t-421-live-verification.mts,docs/recovery/task-registry.md,4687,documentation mention
+scripts/t-421-page-size-probe.mjs,,,no literal filename reference found
+scripts/t-421-preflight-probe.mjs,,,no literal filename reference found
+scripts/t-421-wire-semantics.mjs,AGENTS.md,634,documentation mention
+scripts/t-421-wire-semantics.mjs,docs/recovery/problem-registry.md,6283,documentation mention
+scripts/t-421-wire-semantics.mjs,docs/recovery/session/next-task.md,1236,documentation mention
+scripts/t-421-wire-semantics.mjs,docs/recovery/task-registry.md,4675,documentation mention
+scripts/t-421-wire-semantics.mjs,elimtiyaz-desktop/src/tests/infrastructure/t-421-reimport-idempotency.test.ts,16,source/config mention
+scripts/t-422-e2e-simulation.mjs,docs/recovery/change-log.md,1308,documentation mention
+scripts/t-422-e2e-simulation.mjs,docs/recovery/problem-registry.md,6364,documentation mention
+scripts/t-422-e2e-simulation.mjs,docs/recovery/t-422-finance-zeros-verification.md,30,documentation mention
+scripts/t-422-e2e-simulation.mjs,docs/recovery/task-registry.md,4662,documentation mention
+scripts/t-422-finance-zeros-probe.mjs,docs/recovery/change-log.md,1308,documentation mention
+scripts/t-422-finance-zeros-probe.mjs,docs/recovery/problem-registry.md,6388,documentation mention
+scripts/t-422-finance-zeros-probe.mjs,docs/recovery/t-422-finance-zeros-verification.md,28,documentation mention
+scripts/t-422-finance-zeros-probe.mjs,docs/recovery/task-registry.md,4662,documentation mention
+scripts/t-422-flakiness-meter.mjs,docs/recovery/change-log.md,1308,documentation mention
+scripts/t-422-flakiness-meter.mjs,docs/recovery/problem-registry.md,6352,documentation mention
+scripts/t-422-flakiness-meter.mjs,docs/recovery/t-422-finance-zeros-verification.md,29,documentation mention
+scripts/t-422-flakiness-meter.mjs,docs/recovery/t-423-finance-zeros-fix-verification.md,104,documentation mention
+scripts/t-422-flakiness-meter.mjs,docs/recovery/task-registry.md,4662,documentation mention
+scripts/t-423-class-sweep-probe.mjs,AGENTS.md,664,documentation mention
+scripts/t-423-class-sweep-probe.mjs,docs/recovery/problem-registry.md,6405,documentation mention
+scripts/t-423-class-sweep-probe.mjs,docs/recovery/t-423-finance-zeros-fix-verification.md,106,documentation mention
+scripts/t-423-class-sweep-probe.mjs,docs/recovery/task-registry.md,4599,documentation mention
+scripts/t-423-post-fix-verification.mjs,docs/recovery/change-log.md,1270,documentation mention
+scripts/t-423-post-fix-verification.mjs,docs/recovery/t-423-finance-zeros-fix-verification.md,45,documentation mention
+scripts/t-424-consistency-probe.mjs,docs/recovery/problem-registry.md,6419,documentation mention
+scripts/t-424-tranche-attribution-analysis.ts,Context Report/Optimizing AI Context for Development — Scripts.md,117,documentation mention
+scripts/t-424-tranche-attribution-analysis.ts,docs/recovery/problem-registry.md,6419,documentation mention
+scripts/t-424-tranche-attribution-analysis.ts,docs/recovery/t-463-chat-separation-verification.md,65,documentation mention
+scripts/t-424-tranche-attribution-analysis.ts,elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/repository-adapter.ts,2455,source/config mention
+scripts/t-425-live-reimport.ts,Context Report/Optimizing AI Context for Development — Scripts.md,76,documentation mention
+scripts/t-425-live-reimport.ts,Investigation Archive/Data Pipeline Unification/01-PIPELINE-INVENTORY.md,14,documentation mention
+scripts/t-425-live-reimport.ts,Investigation Archive/Data Pipeline Unification/02-UNIFIED-PIPELINE-DESIGN.md,234,documentation mention
+scripts/t-425-live-reimport.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,38,documentation mention
+scripts/t-425-live-reimport.ts,docs/recovery/problem-registry.md,6647,documentation mention
+scripts/t-425-live-reimport.ts,docs/recovery/t-425-official-tranche-model-verification.md,16,documentation mention
+scripts/t-425-live-reimport.ts,docs/recovery/task-registry.md,4884,documentation mention
+scripts/t-425-live-reimport.ts,elimtiyaz-desktop/scripts/t-433-live-reimport.ts,6,source/config mention
+scripts/t-425-live-verify.mjs,docs/recovery/t-425-official-tranche-model-verification.md,33,documentation mention
+scripts/t-425-live-verify.mjs,docs/recovery/t-433-live-verification.md,80,documentation mention
+scripts/t-425-match-debug.mjs,,,no literal filename reference found
+scripts/t-425-no-4th-tranche-probe.mjs,docs/recovery/problem-registry.md,6457,documentation mention
+scripts/t-425-no-4th-tranche-probe.mjs,docs/recovery/t-425-official-tranche-model-verification.md,7,documentation mention
+scripts/t-425-no-4th-tranche-probe.mjs,docs/recovery/t-433-live-verification.md,85,documentation mention
+scripts/t-425-no-4th-tranche-probe.mjs,docs/recovery/task-registry.md,4787,documentation mention
+scripts/t-425-post-migration-verify.mjs,elimtiyaz-desktop/scripts/t-425-live-reimport.ts,99,source/config mention
+scripts/t-425-purge-safety-check.mjs,,,no literal filename reference found
+scripts/t-425-q-column-diagnostic.mjs,docs/recovery/t-425-official-tranche-model-verification.md,37,documentation mention
+scripts/t-433-live-reimport.ts,Context Report/Optimizing AI Context for Development — Scripts.md,76,documentation mention
+scripts/t-433-live-reimport.ts,Investigation Archive/Data Pipeline Unification/01-PIPELINE-INVENTORY.md,14,documentation mention
+scripts/t-433-live-reimport.ts,Investigation Archive/Data Pipeline Unification/02-UNIFIED-PIPELINE-DESIGN.md,234,documentation mention
+scripts/t-433-live-reimport.ts,Investigation Archive/Handoffs/handoff-session-43.md,23,documentation mention
+scripts/t-433-live-reimport.ts,Investigation Archive/Session Reports/session-43-report.md,16,documentation mention
+scripts/t-433-live-reimport.ts,docs/recovery/change-log.md,50,documentation mention
+scripts/t-433-live-reimport.ts,docs/recovery/problem-registry.md,6646,documentation mention
+scripts/t-433-live-reimport.ts,docs/recovery/session/next-task.md,23,documentation mention
+scripts/t-433-live-reimport.ts,docs/recovery/t-433-live-verification.md,72,documentation mention
+scripts/t-433-live-reimport.ts,docs/recovery/task-registry.md,7091,documentation mention
+scripts/t-433-purge-execute.mjs,docs/recovery/change-log.md,1127,documentation mention
+scripts/t-433-purge-execute.mjs,docs/recovery/t-433-live-verification.md,59,documentation mention
+scripts/t-434-wave-reconciliation-probe.ts,docs/recovery/change-log.md,1086,documentation mention
+scripts/t-434-wave-reconciliation-probe.ts,docs/recovery/problem-registry.md,6658,documentation mention
+scripts/t-434-wave-reconciliation-probe.ts,docs/recovery/t-434-wave-card-verification.md,16,documentation mention
+scripts/t-434-wave-reconciliation-probe.ts,docs/recovery/task-registry.md,4894,documentation mention
+scripts/t-441-debug-groups.ts,Context Report/Optimizing AI Context for Development — Scripts.md,79,documentation mention
+scripts/t-441-live-e2e.ts,AGENTS.md,790,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/change-log.md,935,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/current-state.md,181,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/session/next-task.md,1006,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/t-441-live-verification.md,153,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/t-445-live-verification.md,65,documentation mention
+scripts/t-441-live-e2e.ts,docs/recovery/task-registry.md,5017,documentation mention
+scripts/t-441-live-problem-run.ts,Context Report/Optimizing AI Context for Development — Scripts.md,79,documentation mention
+scripts/t-441-live-problem-run.ts,docs/recovery/t-441-live-verification.md,146,documentation mention
+scripts/t-441-reproduce-17.ts,Context Report/Optimizing AI Context for Development — Scripts.md,79,documentation mention
+scripts/t-441-reproduce-17.ts,docs/recovery/change-log.md,959,documentation mention
+scripts/t-441-reproduce-17.ts,docs/recovery/problem-registry.md,5723,documentation mention
+scripts/t-441-reproduce-17.ts,docs/recovery/t-441-live-verification.md,39,documentation mention
+scripts/t-442-live-verify.mjs,AGENTS.md,358,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/change-log.md,935,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/current-state.md,181,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/problem-registry.md,6944,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/session/next-task.md,1018,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/t-445-live-verification.md,54,documentation mention
+scripts/t-442-live-verify.mjs,docs/recovery/task-registry.md,5026,documentation mention
+scripts/t-447-live-verify.mjs,docs/recovery/change-log.md,4707,documentation mention
+scripts/t-447-live-verify.mjs,docs/recovery/session/next-task.md,915,documentation mention
+scripts/t-447-live-verify.mjs,docs/recovery/t-447-live-verification.md,4,documentation mention
+scripts/t-447-live-verify.mjs,docs/recovery/task-registry.md,5163,documentation mention
+scripts/t-487-workflow-e2e.ts,AGENTS.md,857,documentation mention
+scripts/t-487-workflow-e2e.ts,Context Report/Optimizing AI Context for Development — Scripts.md,125,documentation mention
+scripts/t-487-workflow-e2e.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,36,documentation mention
+scripts/t-487-workflow-e2e.ts,docs/recovery/change-log.md,665,documentation mention
+scripts/t-487-workflow-e2e.ts,docs/recovery/problem-registry.md,7346,documentation mention
+scripts/t-487-workflow-e2e.ts,docs/recovery/t-487-live-verification.md,4,documentation mention
+scripts/t-487-workflow-e2e.ts,docs/recovery/task-registry.md,5606,documentation mention
+scripts/t-487-workflow-e2e.ts,scripts/t487-build-zips.sh,56,source/config mention
+scripts/t-615-excel-datalane-verify.ts,Investigation Archive/SESSION_LOG.md,60,documentation mention
+scripts/t-615-excel-datalane-verify.ts,docs/recovery/change-log.md,68,documentation mention
+scripts/t-615-excel-datalane-verify.ts,docs/recovery/problem-registry.md,8250,documentation mention
+scripts/t-615-excel-datalane-verify.ts,docs/recovery/session/next-task.md,24,documentation mention
+scripts/t-615-excel-datalane-verify.ts,docs/recovery/task-registry.md,7076,documentation mention
+scripts/t505-file-workflows-live.ts,docs/recovery/change-log.md,467,documentation mention
+scripts/t505-file-workflows-live.ts,docs/recovery/problem-registry.md,7837,documentation mention
+scripts/t505-file-workflows-live.ts,docs/recovery/t-505-live-verification.md,27,documentation mention
+scripts/t505-file-workflows-live.ts,docs/recovery/task-registry.md,5812,documentation mention
+scripts/t505-sync-backup-repro.ts,docs/recovery/change-log.md,461,documentation mention
+scripts/t505-sync-backup-repro.ts,docs/recovery/t-505-live-verification.md,5,documentation mention
+scripts/t505-sync-backup-repro.ts,docs/recovery/task-registry.md,5813,documentation mention
+scripts/t505-sync-backup-repro.ts,elimtiyaz-desktop/scripts/t505-file-workflows-live.ts,4,source/config mention
+scripts/t508-recovery-funnel-live.ts,docs/recovery/change-log.md,445,documentation mention
+scripts/t508-recovery-funnel-live.ts,docs/recovery/problem-registry.md,7898,documentation mention
+scripts/t511-webhook-diagnostics-live.ts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,43,documentation mention
+scripts/t511-webhook-diagnostics-live.ts,docs/recovery/change-log.md,391,documentation mention
+scripts/t511-webhook-diagnostics-live.ts,docs/recovery/problem-registry.md,7949,documentation mention
+scripts/t511-webhook-diagnostics-live.ts,docs/recovery/t-511-live-verification.md,3,documentation mention
+scripts/t511-webhook-diagnostics-live.ts,docs/recovery/task-registry.md,5876,documentation mention
+scripts/t528-delta-probe.ts,Context Report/Optimizing AI Context for Development — Scripts.md,81,documentation mention
+scripts/t528-false-positive-probe.ts,Context Report/Optimizing AI Context for Development — Scripts.md,81,documentation mention
+scripts/t528-false-positive-probe.ts,docs/recovery/change-log.md,165,documentation mention
+scripts/t528-false-positive-probe.ts,docs/recovery/problem-registry.md,8354,documentation mention
+scripts/t528-false-positive-probe.ts,docs/recovery/session/next-task.md,178,documentation mention
+scripts/t528-false-positive-probe.ts,docs/recovery/t-528-live-verification.md,25,documentation mention
+scripts/t528-false-positive-probe.ts,docs/recovery/task-registry.md,6205,documentation mention
+scripts/t528-false-positive-probe2.ts,Context Report/Optimizing AI Context for Development — Scripts.md,81,documentation mention
+scripts/t528-false-positive-probe2.ts,docs/recovery/problem-registry.md,8354,documentation mention
+scripts/t528-false-positive-probe2.ts,docs/recovery/t-528-live-verification.md,58,documentation mention
+scripts/t528-false-positive-probe2.ts,docs/recovery/task-registry.md,6205,documentation mention
+scripts/t528-false-positives-live.ts,docs/recovery/change-log.md,169,documentation mention
+scripts/t528-false-positives-live.ts,docs/recovery/problem-registry.md,8359,documentation mention
+scripts/t528-false-positives-live.ts,docs/recovery/t-528-live-verification.md,4,documentation mention
+scripts/t528-false-positives-live.ts,docs/recovery/task-registry.md,6207,documentation mention
+scripts/t529-diagnostics-purpose-live.ts,docs/recovery/change-log.md,155,documentation mention
+scripts/t529-diagnostics-purpose-live.ts,docs/recovery/problem-registry.md,8404,documentation mention
+scripts/t529-diagnostics-purpose-live.ts,docs/recovery/t-529-live-verification.md,4,documentation mention
+scripts/t529-diagnostics-purpose-live.ts,docs/recovery/task-registry.md,6227,documentation mention
+scripts/t529-diagnostics-purpose-probe.ts,Context Report/Optimizing AI Context for Development — Scripts.md,81,documentation mention
+scripts/t529-diagnostics-purpose-probe.ts,docs/recovery/change-log.md,151,documentation mention
+scripts/t529-diagnostics-purpose-probe.ts,docs/recovery/problem-registry.md,8397,documentation mention
+scripts/t529-diagnostics-purpose-probe.ts,docs/recovery/t-529-live-verification.md,4,documentation mention
+scripts/t529-diagnostics-purpose-probe.ts,docs/recovery/task-registry.md,6225,documentation mention
+scripts/t546-katex-render-check.mts,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,100,documentation mention
+scripts/timetable-packaging-smoke.mjs,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,97,documentation mention
+scripts/timetable-packaging-smoke.mjs,docs/recovery/change-log.md,1558,documentation mention
+scripts/timetable-packaging-smoke.mjs,docs/recovery/t-404-live-verification.md,83,documentation mention
+scripts/verify_t-310_e2e.js,Context Report/Optimizing AI Context for Development — Scripts.md,139,documentation mention
+scripts/verify_t-310_e2e.js,Investigation Archive/Initial Reports Analysis/05-Scripts-report-verification.md,37,documentation mention
+scripts/verify_t-310_e2e.js,docs/recovery/change-log.md,4041,documentation mention
+scripts/verify_t-310_e2e.js,docs/recovery/problem-registry.md,4602,documentation mention
+scripts/verify_t-310_e2e.js,docs/recovery/task-registry.md,445,documentation mention
+scripts/verify_t-338_live.ts,Context Report/Optimizing AI Context for Development — Scripts.md,99,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/change-log.md,1978,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/current-state.md,505,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/problem-registry.md,4821,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/t-338-live-verification.md,7,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/t-350-live-verification.md,64,documentation mention
+scripts/verify_t-338_live.ts,docs/recovery/task-registry.md,2997,documentation mention

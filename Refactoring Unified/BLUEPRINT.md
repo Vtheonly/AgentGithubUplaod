@@ -617,3 +617,9 @@ The owner's report ("obviously wrong outputs") was root-caused by the S27 line-b
 ### 19.4 The register + the mechanics (S27)
 
 The register carries **204 IDs — zero orphans** (the programmatic re-check, the same range-aware method as S24/S26; the new homes: EXECUTION-PLAN §17.1 / ROADMAP's S27 addendum). The S27 mechanics spot-checks all CONFIRMED at HEAD `58662636`: the OPS-018 Commit-1 census (30/30 + 3/3 + 4/4 sites at the exact lines; every archived filename resolves; the §1b numbering reconciled), the test-runner mechanics (`run-unified-tests.mjs`/`test-baseline.json`/`package.json` scripts/`verify_t-376.sql`), the Stage-A card sites (T-559/T-560×5/T-594/T-573/T-552×17/T-577), and the `0001` ↔ RELOAD-GUIDE §A.2 consistency (no `migrations_archive/` push; the verification SQL matches the baseline's census). The charter typo fixed (`AGENTS-CHARTER-AMENDMENT-DRAFT.md`: "CHARITY-FREE" → "CONCATENATION-FREE").
+
+## Dead Code, Duplicates & Re-Implementations to Retire
+
+Load `elimtiyaz-desktop/docs/codebase-audit/MASTER-CONSOLIDATION-CANDIDATE-REGISTER.csv` with the active card. Match its paths, symbols and operation to the rows below before implementation. For each match record the finding ID, survivor and consumers, retirement diff, baseline and post-change tests, and actual net production LOC. If the card has no verified match, record that result in its closeout. Proceed from the implementation SHA and recheck each prior disposition.
+
+T-621 through T-624 in EXECUTION-PLAN.md own the cleanup sequence. T-429 supplies the canonical debt-aging rule for T-623.
