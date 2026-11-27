@@ -1,6 +1,6 @@
 # FINAL REPORT — Codebase Intelligence, Architecture & Duplication Audit
 
-**App:** `elimtiyaz-desktop` v1.3.0 (Electron 33 + React 18 + TS 5.7 + Vite 6 + Supabase) · **Audited:** 2026-11-27, branch `audit/codebase-intelligence-and-architecture` (from `main` @ `94f21688`) · **Mode:** read-only.
+**App:** `elimtiyaz-desktop` v1.3.0 (Electron 33 + React 18 + TS 5.7 + Vite 6 + Supabase) · **Audited:** 2026-11-27, branch `audit/codebase-intelligence-and-architecture` (from `main` @ `94f21688`; that branch and the `docs/consolidation-audit-handoff` branch are now consolidated into `audit/unified-cleanup-plan` — see [CONSOLIDATION-RECORD.md](CONSOLIDATION-RECORD.md)) · **Mode:** read-only.
 **Method:** every finding was produced by an executed tool (TOOLING.md) — Knip + Fallow (dead code), jscpd + Fallow×3 + ts-morph (duplication), dependency-cruiser + Madge + Fallow (architecture/complexity), Supabase Management API + SQLFluff (database), Vitest + Playwright + Vite/visualizer (runtime/bundle).
 
 ---

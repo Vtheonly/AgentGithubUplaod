@@ -5,7 +5,7 @@ Every finding in this audit traces to a tool listed here that **actually execute
 ## Environment
 
 - Node v24.22.3 · npm 11.19.1 · Python 3.12.16 · git 2.47.3 · Linux x64 (sandboxed, 4 GB RAM)
-- Repo: `Vtheonly/AgentGithubUplaod` branch `main` @ `94f21688` (clean tree), audit branch `audit/codebase-intelligence-and-architecture`
+- Repo: `Vtheonly/AgentGithubUplaod` branch `main` @ `94f21688` (clean tree), audit branch `audit/codebase-intelligence-and-architecture` (since consolidated into `audit/unified-cleanup-plan` together with `docs/consolidation-audit-handoff` — see [CONSOLIDATION-RECORD.md](CONSOLIDATION-RECORD.md))
 - Dependencies installed with `npm ci --ignore-scripts` (603 packages; no Electron binary, no lifecycle scripts — build behavior untouched)
 
 ## Tools executed

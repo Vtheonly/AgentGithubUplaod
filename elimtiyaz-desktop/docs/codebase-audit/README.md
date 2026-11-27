@@ -1,7 +1,7 @@
 # Codebase Intelligence, Architecture & Duplication Audit — el-imtiyaz-desktop
 
 **Scope:** `elimtiyaz-desktop/` (Electron + React + TypeScript + Vite + Supabase), with cross-app duplication checks against `elimtiyaz-website` and `elimtiyaz-android`.
-**Audit branch:** `audit/codebase-intelligence-and-architecture` (cut from `main` @ `94f21688`, clean tree)
+**Audit branch:** `audit/unified-cleanup-plan` — the single consolidated audit branch of this repository (originally cut from `main` @ `94f21688` as `audit/codebase-intelligence-and-architecture`; branch provenance and verification: [CONSOLIDATION-RECORD.md](CONSOLIDATION-RECORD.md))
 **Date:** 2026-11-27 · **Mode:** read-only audit (no refactors, no schema changes, no dependency changes committed)
 
 ---
@@ -25,8 +25,11 @@
 | 13 | [RISK-REGISTER.md](RISK-REGISTER.md) | All findings, classified, with owners and remediation order |
 | 14 | [FINAL-REPORT.md](FINAL-REPORT.md) | Executive summary + **quantitative code-reduction estimate** |
 | 15 | [AGENTS.md](AGENTS.md) | Permanent engineering rules to prevent re-duplication |
+| 16 | [unified-cleanup/README.md](unified-cleanup/README.md) | **The unified cleanup plan** — combined decisions from both audits, behavioral acceptance gates, execution sequence (cycles 0–9) |
+| 17 | [unified-cleanup/NEXT-AUDIT-SESSION.md](unified-cleanup/NEXT-AUDIT-SESSION.md) | The queued discovery task: competing implementations by user outcome |
+| 18 | [CONSOLIDATION-RECORD.md](CONSOLIDATION-RECORD.md) | Branch-consolidation provenance: the three audit branches, the merge, and the preservation verification |
 
-Raw tool outputs: [`raw/`](raw/) · Reproducible audit tooling: [`tools/`](tools/)
+Raw tool outputs: [`raw/`](raw/) (supplementary run logs: [`raw/verification/`](raw/verification/)) · Reproducible audit tooling: [`tools/`](tools/) · Consolidated working inventories: [`unified-cleanup/`](unified-cleanup/) — [candidate register](unified-cleanup/candidate-register.csv) · [duplication index](unified-cleanup/duplication-index.csv) · [unused-variable review](unified-cleanup/unused-variable-review.csv)
 
 ## Headline results (all tool-verified, 2026-11-27)
 
