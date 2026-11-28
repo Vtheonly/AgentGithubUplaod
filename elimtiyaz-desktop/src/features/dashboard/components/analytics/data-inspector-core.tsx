@@ -35,17 +35,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-/*
- * T-583 (startup acceleration): ExcelJS + pdf-lib are EXPORT-ONLY
- * dependencies (the lineage audit downloads) — the static imports kept
- * ~1.3 MB of vendor chunks in the eager boot graph. Both load on first
- * export click (the dynamic imports inside exportExcel/exportPdf); the
- * generators are the same modules (no re-implementation).
- */
-// T-580 (BUG-049): the PDF export routes through the WinAnsi-safe pair —
-// formatDzdPlain's U+202F grouping and non-WinAnsi name glyphs crash
-// pdf-lib's Helvetica drawText.
-import { sanitizePdfText, dzdPdf } from "../../../../infrastructure/receipt-pdf/shared";
+// T-632/T-583: the shared export adapters load only on an export click.
 import { UnifiedModal } from "../../../../shared/ui/unified-modal";
 import { Button } from "../../../../shared/ui/button";
 // T-467 (DASH-411): the reference-population selector + the canonical
@@ -60,6 +50,7 @@ import { PersonLink } from "../../../../shared/ui/person-link";
 import { Input } from "../../../../shared/ui/input";
 import { Badge } from "../../../../shared/ui/badge";
 import { formatDzdPlain } from "../../../../core/format/currency";
+import { useToast } from "../../../../app/providers/toast-provider";
 import { useRepositories } from "../../../../app/providers/repository-provider";
 import { useObservable } from "../../../../shared/hooks/use-observable";
 import {
@@ -105,15 +96,6 @@ import { createContext, useContext } from "react";
 import { TooltipHint } from "../../../../shared/ui/tooltip";
 
 const DataInspectorContext = createContext<InspectorContextValue | null>(null);
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
 
 function dateLabel(value: string | null): string {
   if (!value) return "—";
@@ -204,6 +186,8 @@ export function DataInspectorProvider({
   riskProfiles?: readonly StudentRiskProfile[];
 }) {
   const repos = useRepositories();
+  const toast = useToast();
+  const [exporting, setExporting] = useState(false);
   const students = useObservable(() => repos.students.observe(), []);
   const parents = useObservable(() => repos.parents.observe(), []);
   const classes = useObservable(() => repos.classes.observe(), []);
@@ -337,124 +321,27 @@ export function DataInspectorProvider({
     setRequest(next);
   }
 
-  async function exportExcel() {
-    if (!resolved) return;
-    // T-583: exceljs loads on first export (the dashboard's boot graph
-    // no longer carries it).
-    const ExcelJS = (await import("exceljs")).default;
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Audit");
-    sheet.addRow(["El-Imtiyaz — Audit de lignage (data lineage)"]);
-    sheet.addRow(["Métrique", resolved.request.title]);
-    sheet.addRow(["Définition", resolved.definition]);
-    sheet.addRow(["Périmètre", resolved.scopeLabel]);
-    sheet.addRow(["Fenêtre", resolved.windowLabel ?? "—"]);
-    sheet.addRow(["Formule", resolved.formula]);
-    sheet.addRow(["Valeur affichée", resolved.request.sourceValue]);
-    sheet.addRow(["Valeur résolue", resolved.resolvedValue]);
-    sheet.addRow(["Écart", resolved.difference]);
-    sheet.addRow([]);
-    const headerRowIndex = sheet.addRow([
-      "Contributeur",
-      "Code",
-      "Téléphone",
-      "Élève",
-      "Classe",
-      "Nature (catégorie)",
-      "Type de montant",
-      "Montant",
-      "%",
-      "Date",
-      "Référence",
-      "Statut",
-      "Méthode",
-      "Description",
-      "Table source",
-      "Détail",
-    ]);
-    void headerRowIndex;
-    for (const row of visibleRecords) {
-      sheet.addRow([
-        row.contributorName,
-        row.contributorCode,
-        row.contributorPhone,
-        row.studentName,
-        row.className,
-        row.categoryLabel,
-        AMOUNT_KIND_LABELS_FR[row.amountKind],
-        row.amount,
-        row.percentage / 100,
-        row.date,
-        row.reference,
-        row.status,
-        row.method,
-        row.description,
-        row.sourceTable,
-        row.detail,
-      ]);
-    }
-    sheet.getRow(1).font = { bold: true, size: 14 };
-    sheet.getRow(11).font = { bold: true };
-    sheet.columns.forEach((column) => {
-      column.width = Math.min(
-        36,
-        Math.max(12, Number(column.header?.length ?? 12) + 3),
-      );
-    });
-    const buffer = await workbook.xlsx.writeBuffer();
-    downloadBlob(
-      new Blob([buffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }),
-      "elimtiyaz-lineage-audit.xlsx",
-    );
-  }
-
-  async function exportPdf() {
-    if (!resolved) return;
-    // T-583: pdf-lib loads on first export (the dashboard's boot graph
-    // no longer carries it).
-    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-    const pdf = await PDFDocument.create();
-    const page = pdf.addPage([842, 595]);
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
-    let y = 560;
-    const draw = (text: string, size = 9) => {
-      // T-580 (BUG-049): EVERY drawn string is WinAnsi-sanitized — the raw
-      // drawText crashed on formatDzdPlain's U+202F and on non-Latin name
-      // glyphs. (The pagination/addPage discards stay T-613's card.)
-      page.drawText(sanitizePdfText(text.slice(0, 130)), {
-        x: 30,
-        y,
-        size,
-        font,
-        color: rgb(0.12, 0.12, 0.14),
-      });
-      y -= size + 6;
-      if (y < 45) {
-        y = 560;
-        pdf.addPage([842, 595]);
+  // One failure boundary for both export formats. The button awaits the
+  // generation and download; a failed export is visible and retryable.
+  async function exportInspection(format: "xlsx" | "pdf") {
+    if (!resolved || exporting) return;
+    setExporting(true);
+    try {
+      const adapter = await import("./inspector-export");
+      if (format === "pdf") {
+        const bytes = await adapter.inspectorPdf(resolved, visibleRecords, search);
+        const { downloadPdf } = await import("../../../../infrastructure/receipt-pdf/download");
+        downloadPdf(bytes, "elimtiyaz-lineage-audit.pdf");
+      } else {
+        const bytes = await adapter.inspectorXlsx(resolved, visibleRecords, search);
+        const { downloadBlob } = await import("../../../../infrastructure/excel/export-engine");
+        downloadBlob(bytes, "elimtiyaz-lineage-audit.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
       }
-    };
-    draw("El-Imtiyaz — Data Lineage Audit", 16);
-    draw(resolved.request.title, 11);
-    draw(resolved.definition.slice(0, 120));
-    for (const step of resolved.formulaSteps) draw(step.slice(0, 125));
-    draw(
-      // T-580: dzdPdf = the U+202F-safe twin of formatDzdPlain for PDF.
-      `Valeur affichée: ${dzdPdf(resolved.request.sourceValue)} · Résolue: ${dzdPdf(resolved.resolvedValue)} · Écart: ${dzdPdf(resolved.difference)}`,
-    );
-    draw("");
-    for (const row of visibleRecords.slice(0, 80)) {
-      draw(
-        `${row.contributorName} · ${row.studentName} · ${row.categoryLabel} · ${dzdPdf(row.amount)} · ${Math.round(row.percentage * 10) / 10}% · ${row.sourceTable}:${row.reference}`,
-      );
+    } catch {
+      toast.showError("Export impossible", "Réessayez l’export du document.");
+    } finally {
+      setExporting(false);
     }
-    const bytes = await pdf.save();
-    downloadBlob(
-      new Blob([bytes], { type: "application/pdf" }),
-      "elimtiyaz-lineage-audit.pdf",
-    );
   }
 
   return (
@@ -724,7 +611,8 @@ export function DataInspectorProvider({
                 size="sm"
                 variant="outline"
                 className="text-xs"
-                onClick={() => void exportExcel()}
+                disabled={exporting}
+                onClick={() => void exportInspection("xlsx")}
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Excel
@@ -733,7 +621,8 @@ export function DataInspectorProvider({
                 size="sm"
                 variant="outline"
                 className="text-xs"
-                onClick={() => void exportPdf()}
+                disabled={exporting}
+                onClick={() => void exportInspection("pdf")}
               >
                 <FileText className="h-3.5 w-3.5" />
                 PDF
@@ -953,13 +842,15 @@ export function DataInspectorProvider({
                 onClick={() => setExpanded(true)}
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
-                Agrandir / forensic
+                Voir le détail
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 className="text-xs"
-                onClick={() => void exportExcel()}
+                disabled={exporting}
+                aria-label="Exporter les résultats en Excel"
+                onClick={() => void exportInspection("xlsx")}
               >
                 <Download className="h-3.5 w-3.5" />
               </Button>

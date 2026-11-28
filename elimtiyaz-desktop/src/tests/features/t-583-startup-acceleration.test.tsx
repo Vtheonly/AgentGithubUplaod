@@ -150,8 +150,9 @@ describe("T-583 C — exceljs / pdf-lib leave the eager boot graph", () => {
     expect(src).not.toMatch(/^import\s+ExcelJS\s+from\s+["']exceljs["']/m);
     expect(src).not.toMatch(/^import\s*\{[^}]*\}\s*from\s+["']pdf-lib["']/m);
     // The dynamic forms ARE present (the export handlers own them).
-    expect(src).toContain('await import("exceljs")');
-    expect(src).toContain('await import("pdf-lib")');
+    // T-632: the entire adapter is now deferred; its imports transitively
+    // load ExcelJS/pdf-lib through the canonical export engines.
+    expect(src).toContain('await import("./inspector-export")');
   });
 
   it("C2: ai-copilot-provider.tsx has NO static receipt-pdf / export-engine import", () => {

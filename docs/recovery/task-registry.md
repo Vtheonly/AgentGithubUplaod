@@ -7407,7 +7407,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-632 — Inspector exports: complete paginated PDF and shared export engines
 
-**Status:** IN_PROGRESS (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; registered before code).
 
 **Problem IDs:** BUG-073 / ARCH-028, bounded T-613 export increment.
 
@@ -7415,6 +7415,9 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 **Scope and required tests:** data-inspector-core + existing report-document/export-engine adapters; actual PDF text and export-failure tests. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
 
+
+
+**Session-58 resolution:** Both inspector formats consume canonical shared export engines via one deferred adapter/failure boundary. The 80-row/130-character caps and discarded continuation page disappear; generic notes/footnotes paginate line-by-line without the old ten-line loss. French « Voir le détail » and « Export impossible » feedback; the icon export has an accessible name; support IDs are in a separate XLSX sheet and raw UUID receipt references are hidden from primary output. Corrected-harness RED control against the committed old component/renderer: 3 failed plus an unhandled download rejection. GREEN: actual clicked PDF exports all 95 records (every receipt parsed from PDF content), failed download toasts without leaking the raw error, searched XLSX subset reads back one numeric 1000-DZD row with separate technical provenance, and long report notes retain their tail beyond ten lines. Final four-suite neighborhood 46/46; renderer/Electron tsc 0; build 26.71 s; full lint 0 errors (1381 existing warnings). T-613’s year/trigger/debt-basis remainder remains OPEN; no whole-overhaul completion is claimed. Packaged/manual export checks remain pending.
 
 ## T-633 — Website baseline test-fixture TypeScript errors (verification blocker)
 

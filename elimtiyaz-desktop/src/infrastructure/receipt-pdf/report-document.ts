@@ -169,8 +169,8 @@ export async function generateReportPdf(spec: ReportSpec): Promise<Uint8Array> {
     // Note
     if (section.note) {
       const lines = wrapPdfText(section.note, font, 9, CONTENT_W - 8);
-      c = ensure(c, lines.length * 12 + 6);
       for (const line of lines) {
+        c = ensure(c, 12);
         c.page.drawText(sanitizePdfText(line), { x: MARGIN + 4, y: c.y, size: 9, font, color: TEXT_MUTED });
         c.y -= 12;
       }
@@ -186,8 +186,9 @@ export async function generateReportPdf(spec: ReportSpec): Promise<Uint8Array> {
   // footnote on long reports).
   if (spec.footnote) {
     const lines = wrapPdfText(spec.footnote, font, 8.5, CONTENT_W);
-    const c = ensure(cursor, lines.length * 11 + 6);
+    let c = cursor;
     for (const line of lines) {
+      c = ensure(c, 11);
       c.page.drawText(sanitizePdfText(line), { x: MARGIN, y: c.y, size: 8.5, font, color: TEXT_MUTED });
       c.y -= 11;
     }
@@ -221,25 +222,22 @@ function truncate(text: string, maxWidth: number, font: PDFFont, size: number): 
 
 function wrapPdfText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const safe = sanitizePdfText(text);
-  const words = safe.split(/\s+/);
   const lines: string[] = [];
-  let current = "";
-  for (const w of words) {
-    const test = current ? `${current} ${w}` : w;
-    if (font.widthOfTextAtSize(test, size) > maxWidth) {
-      if (current) lines.push(current);
-      current = w;
-    } else {
-      current = test;
+  for (const paragraph of safe.split(/\r?\n/)) {
+    let current = "";
+    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+      if (current && font.widthOfTextAtSize(`${current}${word}`, size) > maxWidth) {
+        lines.push(current); current = "";
+      }
+      for (const char of word) {
+        if (current && font.widthOfTextAtSize(current + char, size) > maxWidth) {
+          lines.push(current); current = "";
+        }
+        current += char;
+      }
+      current += " ";
     }
-  }
-  if (current) lines.push(current);
-  // T-368 (REPT-501): truncation stays bounded (notes are short prose) but
-  // is now HONEST — an ellipsis marks a cut instead of silently vanishing.
-  // (ASCII "..." — the sanitizer strips U+2026 before the WinAnsi encode.)
-  const MAX_LINES = 10;
-  if (lines.length > MAX_LINES) {
-    return [...lines.slice(0, MAX_LINES), "..."];
+    if (current.trim()) lines.push(current.trimEnd());
   }
   return lines;
 }

@@ -5245,3 +5245,8 @@ Website commit d0bbc69 (pushed). Four RED regressions; GREEN canonical suites 10
 ## Session 58 / T-633 — website fixture typecheck gate (2026-11-28)
 
 Website commit e8cbefe (pushed). Six original diagnostics removed; no test or rule disabled. npx tsc --noEmit 0; npm run lint 0; five targeted suites 44/44; full working tree 773/773 including T-631; strict build green. Status RESOLVED-TESTED. No production behavior changed; browser checks remain a separate task gap.
+
+
+## Session 58 / T-632 — complete inspector exports (2026-11-28)
+
+The old PDF drew continuation rows onto the first page and silently dropped rows after 80 and text after 130 characters. Exports now reuse the existing engines; long notes paginate and failures surface with concise French feedback. Corrected-harness RED control against the committed old component/renderer: 3 failed plus an unhandled download rejection. GREEN: actual clicked PDF exports all 95 records (every receipt parsed from PDF content), failed download toasts without leaking the raw error, searched XLSX subset reads back one numeric 1000-DZD row with separate technical provenance, and long report notes retain their tail beyond ten lines. Final four-suite neighborhood 46/46; renderer/Electron tsc 0; build 26.71 s; full lint 0 errors (1381 existing warnings). Status RESOLVED-TESTED; packaged/manual checks pending. Only T-613’s export increment is closed.

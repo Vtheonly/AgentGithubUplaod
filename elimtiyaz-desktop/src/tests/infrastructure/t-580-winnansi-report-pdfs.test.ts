@@ -1,3 +1,4 @@
+import { extractText } from "../_helpers/pdf-text";
 /**
  * T-580 / BUG-049 — the WinAnsi-crash + report-PDF family suite.
  *
@@ -19,8 +20,6 @@
  */
 import { describe, it, expect } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import zlib from "node:zlib";
-import { PDFRawStream, PDFArray } from "pdf-lib";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,45 +31,6 @@ import type { Payment } from "../../domain/model/payment";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /* ---------------- the t-368 extraction helper (verbatim technique) --- */
-
-function decodeDrawnStrings(content: string): string[] {
-  const out: string[] = [];
-  for (const m of content.matchAll(/<([0-9A-Fa-f\s]+)>\s*Tj/g)) {
-    const hex = m[1].replace(/\s+/g, "");
-    let s = "";
-    for (let i = 0; i + 1 < hex.length; i += 2) {
-      s += String.fromCharCode(Number.parseInt(hex.slice(i, i + 2), 16));
-    }
-    out.push(s);
-  }
-  for (const m of content.matchAll(/\(((?:[^()\\]|\\.)*)\)\s*Tj/g)) {
-    out.push(m[1].replace(/\\([()\\])/g, "$1"));
-  }
-  return out;
-}
-
-async function extractText(bytes: Uint8Array): Promise<string> {
-  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-  const pages: string[] = [];
-  for (const page of doc.getPages()) {
-    const contents = page.node.Contents();
-    let text = "";
-    const collect = (obj: unknown) => {
-      if (obj instanceof PDFRawStream) {
-        text += zlib.inflateSync(Buffer.from(obj.getContents())).toString("latin1");
-      }
-    };
-    if (contents instanceof PDFArray) {
-      for (let i = 0; i < contents.size(); i++) {
-        collect(doc.context.lookup(contents.get(i)));
-      }
-    } else {
-      collect(doc.context.lookup(contents));
-    }
-    pages.push(decodeDrawnStrings(text).join("\u000a"));
-  }
-  return pages.join("\u000a");
-}
 
 /* ---------------- 1. The U+202F hazard, reproduced then closed ------- */
 
@@ -115,24 +75,17 @@ describe("T-580 / BUG-049 — the inspector's U+202F drawText crash", () => {
       join(here, "../../features/dashboard/components/analytics/data-inspector-core.tsx"),
       "utf8",
     );
-    // The WinAnsi-safe import + the sanitized draw + the dzdPdf amounts.
-    expect(src).toContain("sanitizePdfText, dzdPdf");
-    expect(src).toMatch(/page\.drawText\(sanitizePdfText\(text\.slice\(0, 130\)\)/);
-    expect(src).toMatch(/dzdPdf\(resolved\.request\.sourceValue\)/);
-    expect(src).toMatch(/dzdPdf\(row\.amount\)/);
-    // formatDzdPlain stays ONLY on the DOM display paths — the exportPdf
-    // body itself (bounded to its blob-download end, comments stripped)
-    // never touches it.
-    const pdfSection = src
-      .slice(
-        src.indexOf("async function exportPdf"),
-        src.indexOf('"elimtiyaz-lineage-audit.pdf"'),
-      )
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(pdfSection).not.toContain("formatDzdPlain");
-    // The pagination/addPage discards stay T-613's card (boundary pin).
-    expect(src).toContain("T-613");
+    // T-632: preservation moved to the shared engine, with no hand-drawn
+    // PDF implementation left in the component. Behavioral completeness is
+    // pinned by t-632's actual clicked download + parsed PDF content.
+    expect(src).toContain('await import("./inspector-export")');
+    expect(src).not.toContain("PDFDocument.create()");
+    const adapter = readFileSync(join(here, "../../features/dashboard/components/analytics/inspector-export.ts"), "utf8");
+    expect(adapter).toContain("generateReportPdf(spec)");
+    expect(adapter).toContain("dzdPdf(row.amount)");
+    const renderer = readFileSync(join(here, "../../infrastructure/receipt-pdf/report-document.ts"), "utf8");
+    expect(renderer).toContain("sanitizePdfText");
+
   });
 });
 
