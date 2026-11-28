@@ -31,10 +31,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 // The preflight tool runs as PLAIN NODE (.mjs — build-windows.mjs imports it at
-// packaging time; scripts/ is outside the root tsconfig's include, so tsc
-// cannot see the .d.mts sibling). The type surface below is pinned by these
+// packaging time; its adjacent .d.mts declaration supplies the type surface).
+// The type surface below is pinned by these
 // gates themselves; vitest executes the real module.
-// @ts-ignore -- .mjs outside the include tree (see scripts/preflight-target.d.mts)
 import {
   CENSUS_SQL,
   CONSOLIDATED_BASELINE,

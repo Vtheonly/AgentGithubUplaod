@@ -43,10 +43,9 @@ import { tmpdir } from "node:os";
 import { describe, expect, it, vi } from "vitest";
 
 // The tool runs as PLAIN NODE (.mjs — the packager/operators invoke it;
-// scripts/ is outside the root tsconfig's include, so tsc cannot see the
-// .d.mts sibling). The type surface below is pinned by these gates
+// scripts/ is resolved through its adjacent
+// .d.mts declaration. The type surface below is pinned by these gates
 // themselves; vitest executes the real module.
-// @ts-ignore -- .mjs outside the include tree (see scripts/relocate-auth.d.mts)
 import {
   ADMIN_GENERATE_LINK_PATH,
   ADMIN_USERS_PATH,

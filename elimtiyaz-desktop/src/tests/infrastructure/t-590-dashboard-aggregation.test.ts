@@ -20,7 +20,7 @@
  *   F. The mock repository's bounded reads (cross-backend parity).
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -419,9 +419,8 @@ describe("T-590 — A. The migration 0002 surface", () => {
   });
 
   it("the append-only layout holds (0002 sorts after 0001; the file is an ADDITION)", () => {
-    const fs = require("node:fs") as typeof import("node:fs");
     const dir = join(SRC, "../supabase/migrations");
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+    const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
     expect(files[0]).toBe("0001_initial_consolidated_schema.sql");
     expect(files).toContain("0002_stage_a_dashboard_aggregation.sql");
     expect(files.filter((f) => f.startsWith("0002_"))).toHaveLength(1);

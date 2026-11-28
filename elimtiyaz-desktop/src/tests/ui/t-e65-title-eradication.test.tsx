@@ -151,7 +151,7 @@ function prevToken(s: string, i: number): { word: string; prevChar: string } {
   while (j >= 0 && /\s/.test(s[j])) j--;
   if (j < 0) return { word: "", prevChar: "" };
   if (!/[A-Za-z0-9_$]/.test(s[j])) return { word: "", prevChar: s[j] };
-  let end = j;
+  const end = j;
   while (j >= 0 && /[A-Za-z0-9_$]/.test(s[j])) j--;
   return { word: s.slice(j + 1, end + 1), prevChar: s[end] };
 }

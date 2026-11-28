@@ -6,6 +6,7 @@
  * contract. The defect list was re-verified at HEAD before each edit per the
  * E2.6 registry contract.
  */
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import { currentTermWindow, isDateInCurrentTerm } from "../../../domain/calc/academics/terms";
 import {
@@ -380,7 +381,6 @@ describe("E2.6 / BUG-023 — analyze_revenue_trends moving-average honesty", () 
   });
 
   it("the tool's chart series carries nulls (source pin: no ?? 0 fabrication)", () => {
-    const { readFileSync } = require("node:fs") as typeof import("node:fs");
     const src = readFileSync("src/core/ai/tools/analysis-tools.ts", "utf8");
     expect(src).not.toContain("ma.map((v) => v ?? 0)");
     expect(src).toContain("data: ma },");

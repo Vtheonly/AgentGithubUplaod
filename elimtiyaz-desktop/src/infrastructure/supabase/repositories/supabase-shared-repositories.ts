@@ -5468,7 +5468,7 @@ export class SupabaseDebtRepository implements DebtRepository {
     // tenant scope + the keyset walk (the same projection columns).
     const tenantId = requireTenantId();
     const nowMs = Date.now();
-    let byParent = new Map<string, { outstanding: number; daysOverdue: number }>();
+    const byParent = new Map<string, { outstanding: number; daysOverdue: number }>();
     // The per-parent aggregate row read_debt_summary_collection returns.
     type DebtSummaryRpcRow = {
       parent_id: string;

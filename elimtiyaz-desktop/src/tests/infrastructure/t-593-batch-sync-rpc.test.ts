@@ -17,7 +17,7 @@
  *      join a batch; the 30 s poll cadence stays.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SyncQueueEntry } from "../../infrastructure/sync/sync-types";
@@ -92,7 +92,6 @@ describe("T-593 — A. The migration 0005 surface (sync_apply_batch)", () => {
   });
 
   it("the append-only layout holds (0001..0005 sort)", () => {
-    const { readdirSync } = require("node:fs") as typeof import("node:fs");
     const files = readdirSync(join(REPO_ROOT, "elimtiyaz-desktop/supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
     expect(files.slice(0, 5)).toEqual([
       "0001_initial_consolidated_schema.sql",

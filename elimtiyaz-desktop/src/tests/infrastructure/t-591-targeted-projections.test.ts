@@ -23,7 +23,7 @@
  *      fails by name).
  */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -277,7 +277,6 @@ describe("T-591 — A. The migration 0003 surface", () => {
   });
 
   it("the append-only layout holds (0001/0002/0003 sort; nothing before 0001)", () => {
-    const { readdirSync } = require("node:fs") as typeof import("node:fs");
     const files = readdirSync(join(REPO_ROOT, "elimtiyaz-desktop/supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
     expect(files.slice(0, 3)).toEqual([
       "0001_initial_consolidated_schema.sql",

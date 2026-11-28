@@ -5260,3 +5260,8 @@ The first full battery caught two regressions from the repository-object sentine
 ## Session 58 / T-635 — payment-plan date serialization (2026-11-28)
 
 The untouched baseline’s Oct 10→Oct 9 failure was a real local-midnight→UTC serialization defect. Reused toIsoDay; preserved money and monthly construction. RED timezone matrix: 2 failed / 2 passed (Algiers/Kolkata shifted to the previous day). GREEN: four isolated timezone processes (UTC, Africa/Algiers, Asia/Kolkata, America/New_York) retain Oct/Nov/Dec 10 and exactly 100001 DZD; combined t-635 + ai-311 **55/55**. Renderer/Electron tsc 0; full lint 0 errors; build 26.71 s. RESOLVED-TESTED; packaged manual plan generation remains pending.
+
+
+## Session 58 / T-636 — lint gate repair (2026-11-28)
+
+Mechanical import/binding repairs remove the 12 baseline ESLint errors without changing rules, suppressing checks or sweeping warnings. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. RESOLVED-TESTED.

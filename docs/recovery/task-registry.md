@@ -7459,8 +7459,11 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-636 — Remove the existing ESLint error blockers without weakening rules
 
-**Status:** IN_PROGRESS (Session 58, registered before edits).
+**Status:** RESOLVED-TESTED (Session 58, registered before edits).
 
 **Problem IDs:** TEST-507.
 
 **Contract:** The required full Desktop lint reports 12 errors in unchanged baseline code/tests. Convert CommonJS test imports to static imports, remove obsolete ts-ignore comments when declarations already resolve, and use const for the two non-reassigned bindings. Preserve all assertions and rules; do not sweep the existing warning backlog. Run the affected suites, full lint, typecheck and build.
+
+
+**Session-58 resolution:** Static Node imports replace test require calls; obsolete ts-ignore directives are removed (the declarations already resolve); two unmodified bindings use const. Every assertion, lint rule and warning remains. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. No new behavioral test was added for mechanical import/binding edits; the existing relevant suites were executed.

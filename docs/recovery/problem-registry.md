@@ -8852,6 +8852,9 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### TEST-507 — Baseline ESLint errors block the required verification ladder
 
-- **Status:** IN_PROGRESS (T-636, Session 58).
+- **Status:** RESOLVED-TESTED (T-636, Session 58).
 - **Evidence:** `npm run lint`: 12 errors / 1,381 warnings. Error classes: two prefer-const, eight no-require-imports, two obsolete ts-ignore. All errors existed in baseline files; no rule changes or warning sweep is authorized by this repair.
 - **Expected:** same tests and behavior with 0 errors; warning count remains explicit.
+
+
+**Session-58 resolution:** Static Node imports replace test require calls; obsolete ts-ignore directives are removed (the declarations already resolve); two unmodified bindings use const. Every assertion, lint rule and warning remains. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. No new behavioral test was added for mechanical import/binding edits; the existing relevant suites were executed.

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 /**
  * Smoke tests for the 5 core UI primitives built in Phase 3.
  */
@@ -282,8 +284,8 @@ describe("EntityDetailDrawer primitive", () => {
     // The scrim 60 (the drawer overlay opacity, from the shell).
     const overlay = document.querySelector("[data-radix-overlay]") ?? document.querySelectorAll("[style*='pointer-events']")[0];
     void overlay; // the overlay is asserted at the source level below.
-    const shellSrc = require("node:fs").readFileSync(
-      require("node:path").resolve(__dirname, "../../shared/ui/unified-modal/modal-shell.tsx"),
+    const shellSrc = readFileSync(
+      resolve(__dirname, "../../shared/ui/unified-modal/modal-shell.tsx"),
       "utf8",
     );
     expect(shellSrc).toContain('variant === "drawer" ? "bg-black/60" : "bg-black/70"');

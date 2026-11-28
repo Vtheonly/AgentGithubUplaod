@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 /**
  * T-592 (E7A-3 / ROADMAP 6.5) — the incremental delta cache.
  *
@@ -20,7 +21,7 @@
  *   E. The documented students deviation.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -137,7 +138,6 @@ describe("T-592 — A. The migration 0004 surface (pull_installments_for_sync)",
   });
 
   it("the append-only layout holds (0001..0004 sort)", () => {
-    const { readdirSync } = require("node:fs") as typeof import("node:fs");
     const files = readdirSync(join(REPO_ROOT, "elimtiyaz-desktop/supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
     expect(files.slice(0, 4)).toEqual([
       "0001_initial_consolidated_schema.sql",
@@ -423,7 +423,6 @@ describe("T-592 — D. The phantom-dependency pins (the one-coherent-caching dec
   });
 
   it("the src/ tree imports react-query NOWHERE (the phantom is gone, not renamed)", () => {
-    const { execSync } = require("node:child_process") as typeof import("node:child_process");
     let hits = "";
     try {
       hits = execSync(
