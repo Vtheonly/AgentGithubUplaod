@@ -1,0 +1,563 @@
+{
+ "batch": 1,
+ "batch_size": 25,
+ "date": "2026-11-28",
+ "scope": {
+  "desktop": "8c4872d9cd9952cfa101ee2d9fe4343db715b651",
+  "website": "f93d7642e43c5c17cef7e75022f327dd526eaaa9",
+  "android": "9a414b1f133a598d33740e0775f05e8ffd047661"
+ },
+ "scanned_source_files": 2017,
+ "totals": {
+  "reviewed": 25,
+  "pending_after": 6425,
+  "counts": {
+   "intentional": 10,
+   "equivalent": 13,
+   "exact": 1,
+   "conflict": 1
+  }
+ },
+ "method": "Every span read with enclosing function; callers traced (rg); clone claims checked with diff; registries cross-checked (FINDINGS_INDEX, task-registry, problem-registry, EXECUTION-PLAN, MASTER-CONSOLIDATION-CANDIDATE-REGISTER, source-of-truth). No production code modified.",
+ "verdicts": [
+  {
+   "group_id": "362f28446ffd917dcd3067c2",
+   "verdict": "intentional",
+   "owner": "n/a",
+   "detectors": [
+    "ast-exact",
+    "ast-structure",
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/t-425-live-verify.mjs:26-38",
+    "desktop/elimtiyaz-desktop/scripts/t-425-q-column-diagnostic.mjs:16-28"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/t-425-live-verify.mjs",
+    "desktop/elimtiyaz-desktop/scripts/t-425-q-column-diagnostic.mjs"
+   ],
+   "evidence": "num() ExcelJS coercion helper byte-identical (diff clean) at scripts/t-425-live-verify.mjs:26-38 and t-425-q-column-diagnostic.mjs:16-28; both cited as re-runnable evidence in docs/recovery/t-425-official-tranche-model-verification.md:33+37; frozen T-425 DONE harness evidence, not a consolidation lead.",
+   "registry_linkage": "frozen T-425 DONE harness evidence"
+  },
+  {
+   "group_id": "1128e443839e461e8fba7a8c",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/features/dashboard/components/analytics/data-inspector-lineage.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/features/dashboard/components/analytics/data-inspector-lineage.ts:541-556",
+    "desktop/elimtiyaz-desktop/src/features/dashboard/components/analytics/data-inspector-lineage.ts:746-761"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/features/dashboard/components/analytics/data-inspector-lineage.ts",
+    "desktop/elimtiyaz-desktop/src/tests/features/dashboard/t-389-inspector-lineage.test.ts"
+   ],
+   "evidence": "Two LineageRecord row-builder heads inside buildResolution (data-inspector-lineage.ts:541-556 vs :746-761) identical except :541 snapshot now.getTime() vs :746 fresh Date.now() and :556 category label vs :761 route dest; NOT covered by DUP-040 (console INV-4 sites + :733 predicate); new lead, natural home EXECUTION-PLAN section 16 / T-613.",
+   "registry_linkage": "new lead -> EXECUTION-PLAN s16/T-613 home (not DUP-040)"
+  },
+  {
+   "group_id": "11950f47afb382cd2db425a2",
+   "verdict": "intentional",
+   "owner": "desktop/elimtiyaz-desktop/src/shared/ui/particle-canvas.tsx",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/shared/ui/particle-canvas.tsx:121-137",
+    "website/src/components/particle-canvas.tsx:152-168"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/shared/ui/particle-canvas.tsx",
+    "website/src/components/particle-canvas.tsx"
+   ],
+   "evidence": "AGENTS section 15.107(b) / T-530 (UI-344) documented desktop-website wrapper pair; render loop identical (fill rgba 36,37,38,0.22; particle alpha 0.92; PI*2 arcs); website delta = lazy engine?.step() null-guard (engine built at :183) vs desktop pre-built engine; platform diffs live in the wrappers by design.",
+   "registry_linkage": "AGENTS 15.107(b) / T-530 (UI-344) documented pair"
+  },
+  {
+   "group_id": "14695740048ff80ad0d57c11",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/mock/repositories/dashboard-repository.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/repositories/dashboard-repository.ts:114-122",
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/repositories/dashboard-repository.ts:327-335"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/repositories/dashboard-repository.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-dashboard-repository.ts"
+   ],
+   "evidence": "MockDashboardRepository debtByAging (:114-122) vs debtByAgingForRange (:327-335) share the 0_30..180_plus bucket init + replay loop 8/9 lines; only delta is entries source (:122 full ledger vs :335 entriesInYear window); the Supabase twin delegates (supabase-dashboard-repository.ts:485-486) while the mock copies the body — extract shared bucket-replay helper.",
+   "registry_linkage": "new lead; context ARCH-001/DATA-020"
+  },
+  {
+   "group_id": "162b97aea3e09bb67b7edec9",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-expense-repository.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-expense-repository.ts:558-571",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-expense-repository.ts:812-826"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-expense-repository.ts",
+    "desktop/elimtiyaz-desktop/src/tests/infrastructure/t-521-expense-unification.test.ts"
+   ],
+   "evidence": "update() and transition() share byte-identical patch plumbing (supabase-expense-repository.ts:559-569 vs :813-824; payload :558 vs :812 and audit action :571 vs :826 are parameters); extract shared patchTicket helper; BUG-018 stringify site fixed at :848-849; consumers expense-detail-drawer.tsx + expense-review-section.tsx.",
+   "registry_linkage": "new lead (patchTicket); T-521/ADR-035 context"
+  },
+  {
+   "group_id": "221fa8781e64d60c722a6afe",
+   "verdict": "intentional",
+   "owner": "n/a",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/t511-webhook-diagnostics-live.ts:244-260",
+    "desktop/elimtiyaz-desktop/scripts/t528-false-positives-live.ts:296-312"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/t511-webhook-diagnostics-live.ts",
+    "desktop/elimtiyaz-desktop/scripts/t528-false-positives-live.ts",
+    "desktop/elimtiyaz-desktop/scripts/t529-diagnostics-purpose-live.ts"
+   ],
+   "evidence": "Summary+exit tail byte-identical (t511:247-260 vs t528:299-312, diff clean); both frozen live evidence in closed entries AUDIT-506 (problem-registry.md:7949) and AUDIT-507/508 (:8359); t528 header :11 documents reuse of the t511 seam; t529 copied the scaffolding a third time — OPS note only, not a consolidation of frozen evidence.",
+   "registry_linkage": "frozen AUDIT-506/507/508 (T-511/T-528) evidence"
+  },
+  {
+   "group_id": "2d446502c07e39a3270ac8b8",
+   "verdict": "intentional",
+   "owner": "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/desktop_runner.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/desktop_runner.ts:1169-1184",
+    "desktop/elimtiyaz-desktop/scripts/generate_executive_statistics_corpus.ts:280-295"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/analytics_bridge.ts",
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/desktop_runner.ts",
+    "desktop/elimtiyaz-desktop/scripts/generate_executive_statistics_corpus.ts"
+   ],
+   "evidence": "Runner and corpus-generator import the SAME derivations from analytics_bridge (desktop_runner.ts:77-91; generate_executive_statistics_corpus.ts:24-42); only scenario given-shaping duplicated (:1169-1186 vs :280-297; createdAt now vs when.now — same value); comparator checks then-blocks so shaping drift fails loudly (corpus RED, not silent).",
+   "registry_linkage": "ADR-006 corpus design; drift fails loudly"
+  },
+  {
+   "group_id": "3e6c30dfa4285d1d3a18f2c2",
+   "verdict": "intentional",
+   "owner": "n/a",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/backup/backup-service.ts:302-310",
+    "desktop/elimtiyaz-desktop/src/infrastructure/export/export-warmup.ts:66-74"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/backup/backup-service.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/export/export-warmup.ts",
+    "desktop/elimtiyaz-desktop/src/tests/infrastructure/t-487-backup-snapshot-warmup.test.ts",
+    "desktop/elimtiyaz-desktop/src/tests/infrastructure/t-505-export-warmup.test.tsx"
+   ],
+   "evidence": "warmSnapshotSources (backup-service.ts:301-326, T-487/BKUP-508) vs warmExportSources (export-warmup.ts:62-123, T-505/BKUP-510 documented as the T-487 warm-up mirror): two documented distinct seams; source sets differ (backup warms workflows :310; export warms classes/subjects :74-75); both Excel-ZIP consumers go through the ONE collectWarmedExportData (:172) — no per-feature re-implementation, section 15.91 holds.",
+   "registry_linkage": "T-487/BKUP-508 + T-505/BKUP-510 documented seams"
+  },
+  {
+   "group_id": "475a581d5fff68544fbfedfb",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/financial-tests/equivalence/generators/scenario_generator.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/generators/scenario_generator.ts:110-129",
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/generators/scenario_generator.ts:149-168"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/generators/scenario_generator.ts"
+   ],
+   "evidence": "generatePaymentScenario :110-126 vs generateOverpaymentScenario :149-165 paste the same single-charge given fixture; only delta gradeLevel pick(rng) (:110) vs literal 1ap (:149); when-blocks differ per family by design; academicYearStartYear was lockstep-edited 7x — extract shared singleChargeGiven helper (low priority, test tooling).",
+   "registry_linkage": "new LOW lead (test tooling)"
+  },
+  {
+   "group_id": "63b763c92e15e5d00d1da61a",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1377-1386",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:1476-1485"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/domain/calc/timetable/constraints.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/repositories/timetable-repository.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts",
+    "desktop/elimtiyaz-desktop/src/tests/infrastructure/t-404-timetable-repository.test.ts"
+   ],
+   "evidence": "Hard-constraint gate byte-identical in moveEntry (supabase-timetable-repository.ts:1378-1383) and createEntry (:1477-1482); candidate assembly intentionally differs (:1374-1377 exclude-self vs :1465-1476 all+new); validateTimetable + loadProblemForValidation already shared; mock twin repeats the gate twice more (:875-889, :942-952) — extract private hardGate helper.",
+   "registry_linkage": "new lead (hardGate helper)"
+  },
+  {
+   "group_id": "64e4f1ff5d5aa71f5542be6d",
+   "verdict": "intentional",
+   "owner": "desktop/elimtiyaz-desktop/src/domain/calc/reconcile/cross-checks.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts:1198-1206",
+    "desktop/elimtiyaz-desktop/src/domain/calc/reconcile/cross-checks.ts:302-310"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/android_mirror/kotlin_mirror_engine.ts",
+    "desktop/elimtiyaz-desktop/src/domain/calc/reconcile/cross-checks.ts"
+   ],
+   "evidence": "Mirror is the documented Android Reconcile.kt port (kotlin_mirror_engine.ts:4-11,21-25): same accountKey/grouping/precise-fallback gating; only unit adaptation tolerance 1 centime (:1143) vs 0.01 DZD (cross-checks.ts:310); no drift in the flagged spans; adjacent unflagged note: BUG-021 duplicate detection exists only in the desktop canonical, not in the mirror or Kotlin.",
+   "registry_linkage": "documented Reconcile.kt port (unit adaptation only)"
+  },
+  {
+   "group_id": "6af40a577cd4f5c53513850b",
+   "verdict": "equivalent",
+   "owner": "n/a",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/features/academics/grade-levels-class-view.tsx:694-718",
+    "desktop/elimtiyaz-desktop/src/features/academics/placement/create-section-dialog.tsx:223-245"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/features/academics/grade-levels-class-view.tsx",
+    "desktop/elimtiyaz-desktop/src/features/academics/placement/class-placement-studio-modal.tsx",
+    "desktop/elimtiyaz-desktop/src/features/academics/placement/create-section-dialog.tsx",
+    "desktop/elimtiyaz-desktop/src/tests/features/academics/t-407-t401-filiere-ui.test.tsx"
+   ],
+   "evidence": "T-401 specialite picker duplicated (grade-levels-class-view.tsx:693-714 vs create-section-dialog.tsx:222-241): same getFilieresForGrade/getSpecialitesForFiliere helpers, same sentinel and gating; sole delta the hint at :223; NOT the T-532 student-count scope (no student logic in spans); extraction = shared track-classification picker component (canonical logic already in domain/model/filiere.ts).",
+   "registry_linkage": "new lead (shared T-401 picker); NOT T-532 scope"
+  },
+  {
+   "group_id": "6fc6499ba55cae630a65a666",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/analytics_bridge.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/desktop_runner.ts:1239-1250",
+    "desktop/elimtiyaz-desktop/scripts/generate_executive_statistics_corpus.ts:348-359"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/analytics_bridge.ts",
+    "desktop/elimtiyaz-desktop/financial-tests/equivalence/desktop/desktop_runner.ts",
+    "desktop/elimtiyaz-desktop/scripts/generate_executive_statistics_corpus.ts"
+   ],
+   "evidence": "Identical triple-risk ladder (gpa < 10; unexcusedAbsences >= 3 or rate < 0.85; debt >= 25000) at desktop_runner.ts:1241-1249 vs generate_executive_statistics_corpus.ts:350-358; both then call the already-shared deriveTripleRiskSummary from analytics_bridge; extract categorizeRiskProfile into analytics_bridge.",
+   "registry_linkage": "new lead (categorizeRiskProfile -> analytics_bridge)"
+  },
+  {
+   "group_id": "8272d46145c44628be4480d4",
+   "verdict": "exact",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-auth-repository.ts",
+   "detectors": [
+    "ast-exact",
+    "ast-structure",
+    "fallow-near",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-auth-repository.ts:25-40",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-user-account-repository.ts:261-276"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-auth-repository.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-user-account-repository.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/supabase-repositories.ts",
+    "desktop/elimtiyaz-desktop/src/tests/rbac/t-313-session-semantics.test.ts"
+   ],
+   "evidence": "mapRoleCode (supabase-auth-repository.ts:25-40) = mapWireRoleCode (supabase-user-account-repository.ts:261-276): identical 11-entry table + SupportStaff fallback; live consumers :118 (buildSession) and :182 (listAccounts), wired at supabase-repositories.ts:130/:136; matches master-register P3-003 CONFIRMED_DUPLICATE_EXACT under T-622 — already dispositioned, no new card.",
+   "registry_linkage": "existing: P3-003 / T-622"
+  },
+  {
+   "group_id": "bc0e1777d0d936ca5e7de02e",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/storage-adapter.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts:128-143",
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/repository-adapter.ts:1209-1224"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/import-engine.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/in-memory-adapter.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/storage-adapter.ts"
+   ],
+   "evidence": "saveAuditRun twins: in-memory-adapter.ts:121-144 vs repository-adapter.ts:1203-1224 share the identical partial/failed/success ladder + 15-field mapping; both write only a private runs Map; hoist into the shared StorageAdapter base (:157) with zero behavior change; consumers import-engine.ts:109 + excel-import-modal.tsx:179.",
+   "registry_linkage": "new lead (hoist saveAuditRun to StorageAdapter base)"
+  },
+  {
+   "group_id": "bcb1e52338c55516b243aaac",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4186-4205",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts:4424-4443"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/excel/import-engine/storage/repository-adapter.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-shared-repositories.ts"
+   ],
+   "evidence": "Installments wire-row builders inside ONE class (SupabaseInstallmentRepository): bulk :4186-4205 vs importInstallment :4424-4443; 18 fields identical incl source_id fallback; deltas only updated_at batch-now (:4206) vs per-call ISO (:4444) and map vs direct year resolve (same semantics); extract intra-class toInstallmentWireRow; the E4.3 ARCH-008 split moves both spans together.",
+   "registry_linkage": "new lead (toInstallmentWireRow); ARCH-008/E4.3 context"
+  },
+  {
+   "group_id": "d72704840ec4b10b192a3b24",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/mock/mock-repositories.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/mock-repositories.ts:89-109",
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/mock-repositories.ts:111-131"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/mock-repositories.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/operations/index.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/mock/workforce/index.ts"
+   ],
+   "evidence": "setWorkforceAuditSink (:89-109) vs setOperationsAuditSink (:111-131) adapter bodies byte-identical (diff of :90-108 vs :112-130 empty); both appendAudit with system/Système defaults; one shared adapter could serve both setters; stale comment operations/index.ts:49 claims reuse while defining its own sink.",
+   "registry_linkage": "new small lead (shared audit-sink adapter)"
+  },
+  {
+   "group_id": "e17698fb8ce2ccf7fd64d1ae",
+   "verdict": "intentional",
+   "owner": "website/scripts/i18n/scan-hardcoded-strings.mjs",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/i18n/scan-hardcoded-strings.mjs:244-260",
+    "website/scripts/i18n/scan-hardcoded-strings.mjs:286-302"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/i18n/scan-hardcoded-strings.mjs",
+    "website/scripts/i18n/scan-hardcoded-strings.mjs"
+   ],
+   "evidence": "Desktop scanner is the documented T-388 port of the website T-385 tool (desktop header :5-7): core AST helpers byte-identical (flattenConcat :248-258 = website :290-300); documented deltas = scanned layers (UI only), desktop toast API set, t() skip; burn-down tracked by I18N-500 (closed) and I18N-501 (open, T-388).",
+   "registry_linkage": "T-388 documented port of the T-385 tool (I18N-500/501)"
+  },
+  {
+   "group_id": "e2b9ddf62abca30e0b7c0bb3",
+   "verdict": "intentional",
+   "owner": "desktop/elimtiyaz-desktop/scripts/t-487-workflow-e2e.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/t-487-workflow-e2e.ts:259-273",
+    "desktop/elimtiyaz-desktop/scripts/t-487-workflow-e2e.ts:661-669"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/t-487-workflow-e2e.ts"
+   ],
+   "evidence": "runImport (:259-273, real auditSink :273-282) vs runEdgeImport (:661-669, documented no-op sink :669) inside the frozen T-487 harness (live E2E 73/73 GREEN): identical storage-adapter fields; the audit divergence is deliberate (edge audit non-critical); registry filename .mjs is stale — only the .ts exists.",
+   "registry_linkage": "frozen T-487 harness (registry .mjs misnomer)"
+  },
+  {
+   "group_id": "f76b9f4165ae9a229afbdf88",
+   "verdict": "equivalent",
+   "owner": "n/a",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/features/personnel/management/requests-management.tsx:95-106",
+    "desktop/elimtiyaz-desktop/src/features/personnel/management/staff-attendance-center.tsx:103-114"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/features/personnel/management/requests-management.tsx",
+    "desktop/elimtiyaz-desktop/src/features/personnel/management/staff-attendance-center.tsx"
+   ],
+   "evidence": "Manager team-scope memo duplicated: requests-management.tsx:95-106 = staff-attendance-center.tsx:103-114 (same supervisor/department predicate, identical Set output); a third copy exists in the manager dashboard surfaces; no date keys in the spans — adjacent BUG-014 residue: requests-management.tsx:135/:138 still UTC-slices date defaults vs schoolLocalDateKey at staff-attendance-center.tsx:166.",
+   "registry_linkage": "new lead (shared manager-team hook); BUG-014 residue adjacent"
+  },
+  {
+   "group_id": "fdf92c7ca1d043dc4966e3be",
+   "verdict": "conflict",
+   "owner": "desktop/elimtiyaz-desktop/src/domain/calc/ledger/debt-aging.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/domain/calc/ledger/debt-aging.ts:600-618",
+    "website/src/lib/canonical/calc/ledger/debt-aging.ts:359-376"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/domain/calc/ledger/debt-aging.ts",
+    "website/src/lib/canonical/calc/ledger/debt-aging.ts",
+    "website/src/lib/canonical/debt-aging.test.ts"
+   ],
+   "evidence": "computeDebtAgingAnalysis driver diverged: desktop :597-600 uses the T-436 persisted-year precedence + :612-620 passes input.thresholds (T-429 configurable, migration 0125); website port :359 date-only attribution + :371-376 no thresholds arg (old fixed boundaries); live portal consumers portal-derive.ts:95ff to financial-view.tsx; = the registered P3-006 conflict family, task T-623 (follows T-429).",
+   "registry_linkage": "existing: P3-006 / T-623 (follows T-429)"
+  },
+  {
+   "group_id": "01e26d0539dea88131585dc4",
+   "verdict": "intentional",
+   "owner": "n/a",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "jscpd"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/t-398-registration-live-e2e.ts:34-46",
+    "desktop/elimtiyaz-desktop/scripts/t-399-autofill-data-live-e2e.ts:51-63"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/t-398-registration-live-e2e.ts",
+    "desktop/elimtiyaz-desktop/scripts/t-399-autofill-data-live-e2e.ts"
+   ],
+   "evidence": "installSessionFixture shim byte-identical except the displayName evidence tag (t-398-registration-live-e2e.ts:34-47 vs t-399-autofill-data-live-e2e.ts:51-64); repo-wide self-contained-harness convention (15+ variants); both T-398 and T-399 COMPLETE/VERIFIED frozen live evidence.",
+   "registry_linkage": "self-contained-harness convention; T-398/T-399 VERIFIED"
+  },
+  {
+   "group_id": "02d01996ecc7ddf3bde820fe",
+   "verdict": "intentional",
+   "owner": "desktop/elimtiyaz-desktop/src/domain/calc/ledger/overdue.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/domain/calc/ledger/overdue.ts:29-63",
+    "website/src/lib/canonical/calc/ledger/overdue.ts:42-76"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/domain/calc/ledger/overdue.ts",
+    "website/src/lib/canonical/calc/ledger/overdue.ts",
+    "website/src/lib/canonical/t-057-port-honesty.test.ts"
+   ],
+   "evidence": "Website overdue.ts is the T-057 verbatim port (header :2-14, source sha 3123ac25d5da): whole-file diff = the provenance header + import path only; span :42-76 = desktop :29-63 shifted by exactly the 13 header lines; buildOverdueDueDateMap consumed by portal-derive.ts:95; kept-surface machine-enforced by t-057-port-honesty.test.ts; maxDaysOverdueFromLedger pruned on the website (model/ledger.ts:218).",
+   "registry_linkage": "T-057 verbatim mirror; machine-enforced"
+  },
+  {
+   "group_id": "03d657d2d5ea3f2eca055820",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/core/ai/tools/analysis-tools.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/src/core/ai/tools/analysis-tools.ts:196-205",
+    "desktop/elimtiyaz-desktop/src/core/ai/tools/system-tools.ts:684-693"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/src/core/ai/tools/analysis-tools.ts",
+    "desktop/elimtiyaz-desktop/src/core/ai/tools/system-tools.ts"
+   ],
+   "evidence": "Token-identical class-GPA setup blocks (analysis-tools.ts:196-203 vs system-tools.ts:684-691, same BUG-002 comment, same evaluateStudentTermPerformance args + DEFAULT_PASSING_GRADE 10.0); outputs pinned by ai-310-deep-integration :347-376 and ai-311 :409-419; consolidation = share the extracted classPerformanceRow helper; latent drift point: system-tools :718 hardcodes < 10.",
+   "registry_linkage": "new lead (share classPerformanceRow)"
+  },
+  {
+   "group_id": "0604574c67fa4d8d1686e706",
+   "verdict": "equivalent",
+   "owner": "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts",
+   "detectors": [
+    "fallow-strict",
+    "fallow-near",
+    "fallow-semantic"
+   ],
+   "spans": [
+    "desktop/elimtiyaz-desktop/scripts/t-441-live-e2e.ts:135-141",
+    "desktop/elimtiyaz-desktop/scripts/t-441-reproduce-17.ts:82-88",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts:717-724"
+   ],
+   "watch": [
+    "desktop/elimtiyaz-desktop/scripts/t-441-live-e2e.ts",
+    "desktop/elimtiyaz-desktop/scripts/t-441-reproduce-17.ts",
+    "desktop/elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-timetable-repository.ts"
+   ],
+   "evidence": "TimetableRequirement row-mapping x3: t-441-live-e2e.ts:135-141 = t-441-reproduce-17.ts:82-88 (byte-identical incl weeklyHours default 2 + clamp 1-4); production :717-724 adds the ROOM_TYPES whitelist validation the frozen scripts skip; frozen T-441 (DONE-TESTED) harness evidence; if the mapper ever changes, the frozen scripts pin the old shape — revive-note in the verdict ledger.",
+   "registry_linkage": "links frozen T-441 harness lane (no new card)"
+  }
+ ],
+ "next": "Batch 1b registry bridge (register the 12 new leads per the 15.54a ID census at registration time; apply the 6 registry corrections in VERDICTS-BATCH-01.md section 4), then Batch 2 at the head of .audit/REVIEW.md."
+}

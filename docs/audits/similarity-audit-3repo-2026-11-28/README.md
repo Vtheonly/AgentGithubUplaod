@@ -121,3 +121,13 @@ Most-involved files (spans hosted): `supabase-shared-repositories.ts` (340) · `
 ## 6. How to continue
 
 The next verification agent should start at `tools/similarity-audit/.audit/REVIEW.md` (25 groups per batch, 258 batches in total at the default size) and record verdicts only with code/caller evidence via `npm run review -- GROUP_ID VERDICT --owner … --evidence … --watch …`. No production code was modified by this scan; the only repository changes are the scanner fix/timing instrumentation under `tools/similarity-audit/` and this archived report.
+
+## 7. Batch 1 verdicts — COMPLETE (2026-11-28)
+
+All 25 Batch-1 groups verified with code + caller evidence and recorded in the engine: **1 `exact` · 13 `equivalent` · 1 `conflict` · 10 `intentional` · 0 false-positive · 0 still open.**
+
+- `VERDICTS-BATCH-01.md` — the tracked verdict ledger (full evidence, canonical owners, registry linkage, next steps).
+- `VERDICTS-BATCH-01.json` — machine-readable copy.
+- `REVIEW-AFTER-BATCH-01.md` — the updated queue snapshot (Batch 1 reviewed; Batch 2 of 258 queued next).
+
+Key outcomes: the debt-aging desktop↔website pair is the **live `conflict`** (already tracked as P3-006 / T-623 — the website port lacks the T-429 configurable thresholds and the T-436 year-attribution precedence); the auth/user-account role mapper pair is the **exact duplicate** (already tracked as P3-003 / T-622). Twelve new consolidation leads are queued for registry registration (Batch 1b), and six verified registry corrections are listed in the ledger's §4.
