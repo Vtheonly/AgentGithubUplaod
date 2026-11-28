@@ -4,19 +4,32 @@
 
 ## Current agent identity (Session 57)
 
-- **Agent:** Z.ai autonomous engineering agent (GLM) — the owner's 2026-11-28 "AUTONOMOUS ENGINEERING AGENT — WORKING DELIVERY & VERIFICATION KICKOFF" directive.
-- **Base:** clean clone of `main` at the Session-56 closeout; branch `main`; push after each verified unit; never force-push.
-- **Scope honored:** the 6,450-group deduplication backlog + the Pass-3 cleanup lane (T-621..T-624) NOT touched; the bounded unit = T-627 (the Session-56 queue head per handoff-56: the C-25 follow-up trio), executed against the LOCAL OFFLINE harness with ZERO remote egress.
+- **Agent:** Z.ai autonomous engineering agent (GLM) — the owner's 2026-11-28 "AUTONOMOUS ENGINEERING AGENT — WORKING DELIVERY & VERIFICATION KICKOFF" directive (resumed run: the prior run of this session landed leg 1 through the GitHub API during a tool outage; this run completed legs 2–3 from a fresh clone).
+- **Base:** clean clone of `main` at the Session-56 closeout; branch `main`; pushed after each verified leg (never force-pushed).
+- **Scope honored:** the 6,450-group deduplication backlog + the Pass-3 cleanup lane (T-621..T-624) NOT touched; the bounded unit = T-627 (the Session-56 queue head per handoff-56), executed against the LOCAL OFFLINE harness with ZERO remote egress (OPS-015/G2).
 
 ## Selected tasks (this session)
 
 | # | Task ID | Card | Status | Evidence |
 |---|---|---|---|---|
-| 1 | T-627 | the C-25 follow-up trio: ai-config (non-secret half) + backup-scheduler-enabled + custom-themes → system_settings | IN_PROGRESS | registered §13-first (task-registry + SEC-121 + this block) |
+| 1 | T-627 | the C-25 follow-up trio: ai-config (non-secret half) + backup-scheduler-enabled + custom-themes → system_settings + SEC-121 | **RESOLVED-TESTED** | commits `56135bb` + `303e884` + the leg-3 closeout; the t627 persona matrix 22/22 · the census (all axes = the audit of record) · the t-627 suite 21/21 · the full battery POST-PUSH 6,013/0/5 · tsc ×2 0 · build 22.73 s · the registered baseline move |
 
 ## Task status log
 
-- (2026-11-28) T-627 registered IN_PROGRESS in the task registry with the full contract BEFORE any code change; SEC-121 (the ungated upsert_setting/upsert_secret_setting pair) registered in the problem-registry — the in-lane discovery of the write-path design.
+- (2026-11-28) T-627 registered IN_PROGRESS in the task registry with the full contract BEFORE any code change; SEC-121 (the ungated upsert_setting/upsert_secret_setting pair) registered in the problem-registry — the in-lane discovery of the write-path design. [prior run]
+- (2026-11-28, leg 1) Migration 0007 + the t627 persona script authored + pushed through the GitHub API during the tool outage (commit 56135bb); the script's FIRST execution deferred to the resumed run. [prior run]
+- (2026-11-28, resumed) **The pending gate executed for the first time — 2 real defects caught + repaired in-lane:** (1) the max(jsonb) DOA defect in read_public_settings (§15.83b in-place repair, probed before the edit); (2) the script's JSON.stringify comparison (jsonb key-order false negative — repaired to deep-equality). The matrix then GREEN 22/22.
+- (2026-11-28, leg 2) The client seam delivered (the domain contract + both twins + the composite wiring 55→56 + the ARCH-001 aiConfig retirement + the tenant overlay + the scheduler/theme legs + the census bumps + the t-627 suite 21/21) — commit 303e884, pushed, then the post-commit battery re-verified GREEN.
+- (2026-11-28, leg 3) The docs closeout: task-registry (T-627 → RESOLVED-TESTED) + problem-registry (SEC-121 → RESOLVED-TESTED) + change-log + settings-stores.md (the register item 1 → DONE) + the registered baseline move (5,722 → 6,013, citing T-627 + the absorbed S45..S56 drift) + next-task.md (the Session-57 closeout + the Session-58 queue head) + handoff-57 + this record.
+
+## Verification discipline (this session's gates, all green)
+
+- `npx tsc --noEmit` 0 (renderer) · `npx tsc -p electron/tsconfig.json --noEmit` 0 · `npm run build` 22.73 s.
+- `node scripts/schema-test/t627-tenant-public-settings-rpc.mjs` **22/22** on the fresh repaired chain.
+- `node scripts/schema-test/local-pg.mjs census` — every axis = the audit of record (functions 162 [+2 RPCs], systemSettings 54 [+3 seeds]).
+- The t-627 suite 21/21 · the neighborhoods green (t-550/t-301/t-505/t-588×3/t-581/t-415/t-423/t-583/route-access/t-546/ai-310/ai-311/t-585/agent-architecture).
+- The full battery POST-COMMIT-PUSH, in chunks: **376 files (375 passed + 1 skipped) / 6,013 passed / 0 failed / 5 skipped** (the pre-commit run's only 4 failures were the append-only guards' documented detection of the 0007 DOA in-place repair — re-verified green post-push).
+- OPS-015/G2: ZERO remote Supabase traffic (the harness is in-memory, 127.0.0.1 only); migration 0007 NOT live-applied (the owner window — same as 0006).
 
 ---
 

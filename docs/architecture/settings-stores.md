@@ -37,14 +37,14 @@ traced through its constant to its call sites:
 |---|---|---|---|
 | `el-imtiyaz:rbac-overrides` | `RBAC_OVERRIDES_STORAGE_KEY` (`domain/model/rbac.ts`) | MOCK-mode persistence of the RBAC matrix | Tenant-level truth = `tenant_role_overrides` (T-588, migration 0006 RPCs). Device key is the mock medium + the backup snapshot capture point (VAULT §13.01). |
 | `el-imtiyaz:prefs` | `STORAGE_KEY` (user-preferences) | Device preference (theme/locale) | Stays device-local (class 2). Candidate for a `system_settings` mirror only if cross-device sync is ever requested. |
-| `el-imtiyaz:ai-config` | `AI_CONFIG_STORAGE_KEY` (ai-config-storage) | Tenant-level config (BYOK provider list) | **Collapse candidate** → `system_settings` (non-secret half). Follow-up task. |
+| `el-imtiyaz:ai-config` | `AI_CONFIG_STORAGE_KEY` (ai-config-storage) | Tenant-level config (BYOK provider list) | **COLLAPSED (T-627/0007)** — the NON-SECRET half (provider/models/sampling) mirrors to `system_settings` `ai.provider_config` (the `aiConfig` slot's Supabase twin writes BOTH media; `loadConfig()` merges the tenant row over the device cache). The SECRETS (the three API keys) stay device-local — rule 3 — and the encrypted device store doubles as the offline cache. |
 | `el-imtiyaz:ai-passphrase` | `AI_PASSPHRASE_STORAGE_KEY` | Secret | Stays device-local — rule 3 (secrets manager in production, never the settings table). |
 | `el-imtiyaz:ai-copilot-conversation` | `CONVERSATION_STORAGE_KEY` | Device cache (conversation history) | Stays device-local (class 2). |
 | `el-imtiyaz:backup-passphrase` | `BACKUP_PASSPHRASE_KEY` (`domain/model/backup.ts` — the ONE canonical since T-588) | Secret | Stays device-local — rule 3. |
-| `el-imtiyaz:backup-scheduler-enabled` | `SCHEDULER_ENABLED_KEY` | Tenant-level config | **Collapse candidate** → `system_settings` (the schedule itself is already DB-read since T-581/BUG-051). Follow-up task. |
+| `el-imtiyaz:backup-scheduler-enabled` | `SCHEDULER_ENABLED_KEY` | Tenant-level config | **COLLAPSED (T-627/0007)** — `system_settings` `backup.scheduler_enabled` is the tenant truth (the daemon reads tenant-first via `readSchedulerEnabledConfig`: tenant row → this device cache → default ON, fail-open); the Backup tab's toggle writes the seam (the super_admin render gate in Supabase mode). |
 | `el-imtiyaz:backup-run-log` | `RUN_LOG_KEY` | Device operational log | Stays device-local (class 2). |
 | `el-imtiyaz:backup-last-source-dir` / `-destination-dir` | `LAST_SOURCE_KEY` / `LAST_DESTINATION_KEY` (backup-locations) | Device MRU (class 2) | Stays device-local. |
-| `el-imtiyaz:custom-themes` | `CUSTOM_THEMES_STORAGE_KEY` | Tenant-level config (branding) | **Collapse candidate** → `system_settings`. Follow-up task. |
+| `el-imtiyaz:custom-themes` | `CUSTOM_THEMES_STORAGE_KEY` | Tenant-level config (branding) | **COLLAPSED (T-627/0007)** — `system_settings` `theme.custom_palettes` is the tenant truth (the `TenantThemeHydrator` hydrates the tenant list over this device cache at session start — tenant wins on id collision, the merged list mirrors back here; super_admin edits/deletes in Supabase mode, every staff member reads/selects). |
 | `el-imtiyaz:dashboard-layout:*` | `DASHBOARD_LAYOUT_STORAGE_PREFIX` | Per-user layout | Tenant-level truth already exists: `dashboard_layouts` table + `save_dashboard_layout` RPC (T-448, migration 0134 lineage). The localStorage prefix is the offline cache/fallback — document the fallback rule at the collapse task. |
 | `el-imtiyaz:placement-draft:*` | `PLACEMENT_DRAFT_STORAGE_PREFIX` | Working draft (tenant+year scoped) | **Collapse candidate** → `system_settings` keyed draft, or a purpose table if drafts gain concurrency needs. Follow-up task. |
 | `el-imtiyaz:recent-searches` | `RECENT_SEARCHES_KEY` | Device MRU | Stays device-local (class 2). |
@@ -76,9 +76,14 @@ here.
 
 ## The follow-up register (the physical collapse, bounded)
 
-1. `ai-config` (non-secret half) + `backup-scheduler-enabled` +
-   `custom-themes` → `system_settings` rows (one task, the simple
-   key/value trio).
+1. **DONE (T-627, Session 57, migration 0007):** `ai-config` (non-secret
+   half) + `backup-scheduler-enabled` + `custom-themes` → `system_settings`
+   rows — the seam (`TenantSettingsRepository`: the Supabase twin over
+   `read_public_settings`/`save_public_setting` + the device-local mock
+   twin over the EXISTING keys) + the three store rewires + the ARCH-001
+   `aiConfig` slot retirement + SEC-121 (the upsert pair's caller
+   verification) resolved in the same migration. RESOLVED-TESTED; the live
+   apply is owner-gated (OPS-015).
 2. `placement-draft` → keyed draft row (needs the draft shape contract).
 3. `dashboard-layout` offline-cache fallback rule documented at the
    layout store (already DB-backed; only the fallback needs wording).
