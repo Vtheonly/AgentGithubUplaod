@@ -8596,6 +8596,19 @@ The inspection confirms the gap with THREE structural facts:
 - **What must change:** permission-aware index construction — each result type maps to its section's permission (parent/student → ViewRoster, payment/expense → ViewFinancials, audit → ViewAuditLog, personnel → ViewPersonnel); unpermitted types are never queried; the chips show only permitted types. RLS untouched (already correct).
 - **Evidence:** source read 2026-10-15 (search-index.ts lines 46–176 — no session reference); RLS census (0019 parents_select/payments_select/personnel_select role sets); the owner's live report.
 
+### SEC-121 — The `upsert_setting` / `upsert_secret_setting` SECURITY DEFINER RPCs (0024-era, consolidated 0001) carry NO caller verification — no role gate, no tenant-ownership check on the CALLER-SUPPLIED `p_tenant_id` — and the chain carries no REVOKE for them (the platform's default-privilege model grants anon/public EXECUTE, the §15.39c/§15.104 documented behavior): any caller reaching the data gateway can write or overwrite ANY tenant's `system_settings` rows through the audited-looking path the pricing repository already uses
+
+- **Category:** SEC / unguarded RPC (the SEC-118/119 §15.104 class) | **Severity:** HIGH
+- **Status:** OPEN → IN_PROGRESS (2026-11-28, T-627 — discovered while designing the C-25 trio's write path: the natural audited writer for plain settings rows is this RPC, and reading its body revealed no gate)
+- **Repositories:** AgentGithubUplaod (the desktop supabase chain — consolidated 0001 lines 13296–13374)
+- **Platforms affected:** backend (all clients of the shared Supabase projects)
+- **Task:** T-627
+- **Registered:** 2026-11-28, Session 57.
+- **Description (what is wrong):** both functions are `SECURITY DEFINER` (they bypass the `system_settings` RLS entirely — correctly, that is their purpose), take `p_tenant_id` from the caller with NO `current_tenant_id()` ownership check, and perform NO `has_role`/caller verification of any kind. The chain's grants census contains no GRANT or REVOKE mentioning either function, so on the live platform the default-privilege EXECUTE for anon/public applies. The only existing client caller is the super_admin-gated pricing tab (`SupabasePricingRepository.updateMonthly`) — the vulnerability is the RPC surface, not the UI path.
+- **Root cause:** the functions predate the 0055 caller-verification recipe (and were authored before any client consumed them); the SEC-118/119 same-class audits of the 0022 RPC set never swept the settings family.
+- **What must change (the 0155 recipe, in migration 0007):** in-body caller verification (`service_role OR (auth.uid() IS NOT NULL AND has_role('super_admin'))`), the tenant-ownership guard (`p_tenant_id = current_tenant_id()` for non-service callers), the actor fallback (`coalesce(p_actor_profile_id, current_user_profile_id())`), and `REVOKE ALL ... FROM public, anon` + `GRANT EXECUTE ... TO authenticated, service_role`. The pricing path (super_admin UI) is preserved verbatim — it passes the caller's own tenant.
+- **Evidence:** source read 2026-11-28 (both bodies gate-free at 0001 lines 13296–13374; `grep -c "upsert_setting"` over the chain's GRANT/REVOKE statements: zero matches); the only client call site `supabase-pricing-repository.ts:631`; no Edge Function references (the functions/ tree greps clean).
+
 ### UI-351 — The desktop staff sidebar renders permission-denied sections as cluttered lock rows (a worker sees seven "Permission insuffisante" rows) — and the worker's own workspace entry (Personnel — the UNGATED /personnel fallback home) renders LOCKED because the FeatureNode requires ViewPersonnel
 
 - **Category:** UI / RBAC presentation (the owner's mandate part 4) | **Severity:** MEDIUM (UX mandate: "Avoid cluttering the sidebar with unnecessary permission-denied items … Avoid making the interface look broken or filled with disabled elements")

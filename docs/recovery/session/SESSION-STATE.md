@@ -1,3 +1,25 @@
+# SESSION STATE — Session 57 (2026-11-28)
+
+> Successor note: this file now tracks Session 57 (the C-25 follow-up trio — T-627). The Session-56 record below is preserved verbatim.
+
+## Current agent identity (Session 57)
+
+- **Agent:** Z.ai autonomous engineering agent (GLM) — the owner's 2026-11-28 "AUTONOMOUS ENGINEERING AGENT — WORKING DELIVERY & VERIFICATION KICKOFF" directive.
+- **Base:** clean clone of `main` at the Session-56 closeout; branch `main`; push after each verified unit; never force-push.
+- **Scope honored:** the 6,450-group deduplication backlog + the Pass-3 cleanup lane (T-621..T-624) NOT touched; the bounded unit = T-627 (the Session-56 queue head per handoff-56: the C-25 follow-up trio), executed against the LOCAL OFFLINE harness with ZERO remote egress.
+
+## Selected tasks (this session)
+
+| # | Task ID | Card | Status | Evidence |
+|---|---|---|---|---|
+| 1 | T-627 | the C-25 follow-up trio: ai-config (non-secret half) + backup-scheduler-enabled + custom-themes → system_settings | IN_PROGRESS | registered §13-first (task-registry + SEC-121 + this block) |
+
+## Task status log
+
+- (2026-11-28) T-627 registered IN_PROGRESS in the task registry with the full contract BEFORE any code change; SEC-121 (the ungated upsert_setting/upsert_secret_setting pair) registered in the problem-registry — the in-lane discovery of the write-path design.
+
+---
+
 # SESSION STATE — Session 56 (2026-11-28)
 
 > Successor note: this file now tracks Session 56 (the T-588 settings-unification lane). The Session-55 record below is preserved verbatim.
