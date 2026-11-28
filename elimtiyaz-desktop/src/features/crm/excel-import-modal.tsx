@@ -60,6 +60,21 @@ import {
 } from "../../infrastructure/excel/import-engine/er-matcher";
 import type { ImportRecord } from "../../infrastructure/excel/import-engine/types";
 import type { ErMatchProposal } from "../../domain/identity/types";
+// T-638 (FIN-115 / ADR-038): the dry-run financial conflict analysis —
+// the preview shows new/existing/duplicate/conflicting/missing payments
+// and the tranche-total changes BEFORE anything is committed, and the
+// commit is gated on an explicit review acknowledgment.
+import {
+  analyzeImportPaymentConflicts,
+  importCommitGate,
+  type ImportPaymentConflictReport,
+} from "../../infrastructure/excel/import-engine/payment-conflict-preview";
+import {
+  PAYMENT_CONFLICT_CLASS_LABELS_FR,
+  type PaymentConflictClass,
+} from "../../domain/calc/payment/payment-conflict";
+import { paymentCategoryLabelFr, type PaymentCategory } from "../../domain/model/payment";
+import { formatDzd } from "../../core/format/currency";
 
 /**
  * Trigger a browser download for an in-memory report. The bytes were
@@ -121,6 +136,12 @@ export function ExcelImportModal({
   /** The collected ETAT rows from the dry-run (the review surface's join data). */
   const [erRows, setErRows] = useState<ReadonlyArray<{ record: ImportRecord; rowIndex: number }>>([]);
   const [erBusy, setErBusy] = useState(false);
+  /** T-638: the dry-run financial conflict report (null = not analyzed —
+   * an analysis failure degrades honestly and never blocks the import). */
+  const [conflictReport, setConflictReport] = useState<ImportPaymentConflictReport | null>(null);
+  /** T-638: the explicit review acknowledgment gating the commit when the
+   * analysis found anything requiring a human decision. */
+  const [conflictAcknowledged, setConflictAcknowledged] = useState(false);
   /** Per-row errors collected during the commit (parent/student creation failures). */
   const [skipErrors, setSkipErrors] = useState<Array<{ rowIndex: number; identity: string; error: string }>>([]);
   /** Progress feedback during the commit step — shows phase + current/total. */
@@ -141,6 +162,8 @@ export function ExcelImportModal({
     setAlert(null);
     setSkipErrors([]);
     setCommitProgress(null);
+    setConflictReport(null);
+    setConflictAcknowledged(false);
     // Clear the underlying input so re-opening the modal lets the user pick
     // the same file again (the input's `change` event won't fire otherwise).
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -226,19 +249,20 @@ export function ExcelImportModal({
 
       const engine = getEngine();
 
-      // T-438: when the experimental flag is ON, collect the ETAT rows the
-      // dry-run parses (the "sheet:row" events carry them) for the ER analysis.
+      // T-438 + T-638: collect the ETAT rows the dry-run parses (the
+      // "sheet:row" events carry them). The ER analysis uses them when the
+      // experimental flag is ON; the T-638 financial conflict analysis uses
+      // them ALWAYS — the preview must show the payment conflicts before
+      // anything is committed.
       const erEnabled = isExperimentalEnabled(EXPERIMENTAL_ER_PMAE_KEY);
       const collectedRows: Array<{ record: ImportRecord; rowIndex: number }> = [];
-      const collectRow = erEnabled
-        ? (payload: { sheet: string; row: ImportRecord; rowIndex: number; action: string }) => {
-            // ETAT rows carry the family identity fields (NOM / NEM).
-            if (payload.row && (payload.row.nom !== undefined || payload.row.nem !== undefined)) {
-              collectedRows.push({ record: payload.row, rowIndex: payload.rowIndex });
-            }
-          }
-        : null;
-      const stopCollecting = collectRow ? engine.on("sheet:row", collectRow) : null;
+      const collectRow = (payload: { sheet: string; row: ImportRecord; rowIndex: number; action: string }) => {
+        // ETAT rows carry the family identity fields (NOM / NEM).
+        if (payload.row && (payload.row.nom !== undefined || payload.row.nem !== undefined)) {
+          collectedRows.push({ record: payload.row, rowIndex: payload.rowIndex });
+        }
+      };
+      const stopCollecting = engine.on("sheet:row", collectRow);
 
       // Dry-run import — validates + shows stats without writing to storage.
       const ctx = await engine.importFile(buf, file.name, {
@@ -247,13 +271,52 @@ export function ExcelImportModal({
       });
       setPreviewCtx(ctx);
       setStage("preview");
+      stopCollecting?.();
+      setErRows(collectedRows);
+      setConflictReport(null);
+      setConflictAcknowledged(false);
+
+      // T-638 (FIN-115): the financial conflict analysis — pure snapshots
+      // in, report out. An analysis failure is an ENHANCEMENT failure: it
+      // degrades honestly (no report, no gate) and never blocks the import
+      // (the ER precedent's honest-degradation rule). The snapshots are
+      // read the SAME way the commit path reads them: search("") for the
+      // identity stores (the documented full-list read), and an awaited
+      // refresh for the financial streams (the Supabase observe() cache is
+      // lazy — reading .get() cold would silently compare against NOTHING
+      // and mislabel every payment as new).
+      if (collectedRows.length > 0) {
+        try {
+          const [parentsRes, studentsRes] = await Promise.all([
+            repos.parents.search(""),
+            repos.students.search(""),
+          ]);
+          if (repos.payments.refresh) await repos.payments.refresh();
+          if (repos.installments.refresh) await repos.installments.refresh();
+          const [payments, installments] = await Promise.all([
+            repos.payments.observe().get(),
+            repos.installments.observe().get(),
+          ]);
+          setConflictReport(
+            analyzeImportPaymentConflicts({
+              records: collectedRows,
+              parents: parentsRes.ok ? parentsRes.value : [],
+              students: studentsRes.ok ? studentsRes.value : [],
+              existingPayments: payments,
+              installments,
+              sourceFile: file.name,
+            }),
+          );
+        } catch (conflictErr) {
+          console.warn("[ExcelImportModal] financial conflict analysis failed — continuing without it:", conflictErr);
+          setConflictReport(null);
+        }
+      }
 
       // T-438: the ER-PMAE analysis — the dedicated review/confirmation flow
       // (identity-rules §7.2). Proposals are PERSISTED for review; NOTHING is
       // bound yet (INV-50).
-      if (collectRow) {
-        stopCollecting?.();
-        setErRows(collectedRows);
+      if (erEnabled) {
         setErAnalysis(null);
         try {
           const parents = repos.parents.observe().get();
@@ -323,6 +386,33 @@ export function ExcelImportModal({
     }
     setStage("committing");
     setAlert(null);
+    // T-638 (FIN-115): the review acknowledgment is itself an audited
+    // decision — the worker CONFIRMED seeing the financial findings before
+    // the commit ran. The record preserves the summary + the finding keys;
+    // resolving each finding happens afterwards in the financial auditor.
+    if (conflictReport && conflictReport.summary.requiresReview > 0) {
+      try {
+        await repos.audit.log({
+          action: "import.payment_conflicts_reviewed",
+          entityType: "import_payment_conflicts",
+          entityId: fileName ?? "unknown",
+          actorId: session?.userId ?? "system",
+          actorName: session?.displayName ?? "System",
+          tenantId: session?.tenantId ?? "default",
+          diff: {
+            after: {
+              sourceFile: conflictReport.sourceFile,
+              summary: conflictReport.summary,
+              findingKeys: conflictReport.findings.map((f) => f.id),
+            },
+          },
+          note: `Avertissements financiers examinés avant l'import : ${conflictReport.summary.requiresReview} point(s) à examiner, ${conflictReport.summary.existingMatches} paiement(s) déjà importés à l'identique.`,
+        });
+      } catch (auditErr) {
+        // The audit trail must never block the import — warn and continue.
+        console.warn("[ExcelImportModal] conflict-review audit log failed:", auditErr);
+      }
+    }
     setCommitProgress({ phase: "importing", current: 0, total: previewCtx.stats.rowsRead, label: "Lecture du fichier Excel..." });
     // PERF-504 (T-420, issue #20): the financial realtime bridge re-seeds
     // EIGHT full collections on every debounced realtime event — during a
@@ -549,7 +639,11 @@ export function ExcelImportModal({
   // validation errors. Errors are now downgraded to warnings by the validator,
   // so `totalErrors` should always be 0. But even if some slip through, we
   // only block commit when there are zero rows to import.
-  const canCommit = totalRows > 0;
+  // T-638 (FIN-115): when the financial conflict analysis found anything
+  // requiring a human decision, the commit ALSO requires the explicit
+  // review acknowledgment (the checkbox in the conflict panel). No
+  // findings → no gate → the button behaves exactly as before.
+  const canCommit = importCommitGate(conflictReport, totalRows, conflictAcknowledged).canCommit;
 
   return (
     <UnifiedModal
@@ -757,6 +851,186 @@ export function ExcelImportModal({
                 fichier — {erAnalysis.stats.unbound} nouvelle(s) famille(s) seront créées par le
                 chemin standard.
               </p>
+            </div>
+          )}
+
+          {/* T-638 (FIN-115): the financial conflict analysis — what the
+              commit would write, compared against the registered books
+              BEFORE anything is committed. The panel is quiet when the
+              projection is clean; every ambiguous class names its evidence
+              and gates the commit on an explicit review acknowledgment. */}
+          {conflictReport && conflictReport.summary.projectedPayments > 0 && (
+            <div
+              className={`rounded-md border p-3 space-y-2 ${
+                conflictReport.summary.requiresReview > 0
+                  ? "border-amber-500/40 bg-amber-500/5"
+                  : "border-border"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  {conflictReport.summary.requiresReview > 0 ? (
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  )}
+                  Analyse financière — {conflictReport.summary.projectedPayments} paiement(s) projeté(s)
+                </p>
+                {conflictReport.pureReimport && (
+                  <Badge variant="secondary">ré-import sans changement</Badge>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {conflictReport.summary.newPayments} nouveau(x) ·{" "}
+                {conflictReport.summary.existingMatches} déjà importé(s) à l'identique
+                {conflictReport.summary.requiresReview > 0
+                  ? ` · ${conflictReport.summary.requiresReview} point(s) à examiner (${[
+                      conflictReport.summary.potentialDuplicates > 0
+                        ? `${conflictReport.summary.potentialDuplicates} doublon(s) possible(s)`
+                        : null,
+                      conflictReport.summary.conflicts > 0
+                        ? `${conflictReport.summary.conflicts} conflit(s)`
+                        : null,
+                      conflictReport.summary.partialOrCorrections > 0
+                        ? `${conflictReport.summary.partialOrCorrections} partiel(s)/correction(s)`
+                        : null,
+                      conflictReport.summary.insufficientInfo > 0
+                        ? `${conflictReport.summary.insufficientInfo} information(s) insuffisante(s)`
+                        : null,
+                      conflictReport.summary.overpayments > 0
+                        ? `${conflictReport.summary.overpayments} surpaiement(s)`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")})`
+                  : " — aucun conflit détecté"}
+                .{" "}
+                {conflictReport.summary.trancheChanges > 0
+                  ? `${conflictReport.summary.trancheChanges} total(s) de tranche modifié(s) — voir le détail ci-dessous.`
+                  : ""}
+              </p>
+
+              {conflictReport.findings.length > 0 && (
+                <ul className="space-y-2 max-h-64 overflow-y-auto">
+                  {conflictReport.findings.map((f) => (
+                    <li key={f.id} className="rounded-md border border-border bg-background p-2.5 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            f.class === "conflicting_information" || f.class === "confirmed_duplicate"
+                              ? "destructive"
+                              : f.class === "distinct"
+                                ? "outline"
+                                : "secondary"
+                          }
+                          className="text-[10px]"
+                        >
+                          {PAYMENT_CONFLICT_CLASS_LABELS_FR[f.class as PaymentConflictClass]}
+                        </Badge>
+                        {f.rowIndex !== null && (
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            Ligne {f.rowIndex}
+                          </Badge>
+                        )}
+                        <span className="text-xs font-medium truncate max-w-[200px]">
+                          {f.parentLabel}
+                        </span>
+                        {f.studentLabel && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+                            · {f.studentLabel}
+                          </span>
+                        )}
+                        {f.incomingAmount !== null && (
+                          <span className="text-xs font-mono">
+                            {formatDzd(f.incomingAmount, { compact: true })}
+                            {f.existingAmount !== null && (
+                              <span className="text-muted-foreground">
+                                {" "}vs {formatDzd(f.existingAmount, { compact: true })}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{f.reason}</p>
+                      {(f.matchingEvidence.length > 0 || f.missingEvidence.length > 0) && (
+                        <details className="text-[11px] text-muted-foreground">
+                          <summary className="cursor-pointer select-none">Détails de la comparaison</summary>
+                          <ul className="mt-1 space-y-0.5">
+                            {f.matchingEvidence.map((e, i) => (
+                              <li key={`m${i}`}>✓ {e}</li>
+                            ))}
+                            {f.differingEvidence.map((e, i) => (
+                              <li key={`d${i}`}>✗ {e}</li>
+                            ))}
+                            {f.missingEvidence.map((e, i) => (
+                              <li key={`x${i}`}>? {e}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {conflictReport.families.length > 0 && (
+                <details className="text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer select-none">
+                    Situation par famille — {conflictReport.families.length} groupe(s) concerné(s)
+                  </summary>
+                  <div className="mt-1 max-h-48 overflow-y-auto">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="text-left text-muted-foreground">
+                          <th className="py-1 pr-2 font-medium">Famille / élève</th>
+                          <th className="py-1 pr-2 font-medium">Objet</th>
+                          <th className="py-1 pr-2 font-medium text-right">Actuel</th>
+                          <th className="py-1 pr-2 font-medium text-right">Import</th>
+                          <th className="py-1 pr-2 font-medium text-right">Projeté</th>
+                          <th className="py-1 font-medium text-right">Attendu</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {conflictReport.families.map((r, i) => (
+                          <tr key={i} className={r.overpaid ? "text-amber-700 dark:text-amber-400" : undefined}>
+                            <td className="py-1 pr-2 truncate max-w-[180px]">
+                              {r.parentLabel}
+                              {r.studentLabel ? ` · ${r.studentLabel}` : ""}
+                            </td>
+                            <td className="py-1 pr-2">
+                              {r.category ? paymentCategoryLabelFr(r.category as PaymentCategory) : "—"}
+                            </td>
+                            <td className="py-1 pr-2 text-right font-mono">{formatDzd(r.currentPaid, { compact: true })}</td>
+                            <td className="py-1 pr-2 text-right font-mono">{formatDzd(r.incoming, { compact: true })}</td>
+                            <td className="py-1 pr-2 text-right font-mono font-medium">{formatDzd(r.projectedPaid, { compact: true })}</td>
+                            <td className="py-1 text-right font-mono">
+                              {r.expectedTotal !== null ? formatDzd(r.expectedTotal, { compact: true }) : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )}
+
+              {conflictReport.summary.requiresReview > 0 && (
+                <label className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-background p-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={conflictAcknowledged}
+                    onChange={(e) => setConflictAcknowledged(e.target.checked)}
+                  />
+                  <span className="text-xs">
+                    J'ai examiné les {conflictReport.summary.requiresReview} avertissement(s)
+                    financier(s) ci-dessus. Les paiements concernés seront importés tels quels :
+                    aucun doublon ne sera fusionné ni supprimé automatiquement — la vérification et
+                    la régularisation se font après l'import dans l'audit financier.
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
