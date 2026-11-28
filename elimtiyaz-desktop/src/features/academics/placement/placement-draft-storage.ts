@@ -25,7 +25,8 @@
 // draft was saved drop out honestly; assignments to classes that no longer
 // exist drop back to the reserve. Finalizing or deliberately resetting
 // clears the draft (a completed workflow leaves no stale draft behind).
-import type { GradeLevel } from "../../../domain/model/student";
+import { z } from "zod";
+import { GRADE_LEVELS, type GradeLevel } from "../../../domain/model/student";
 import type { ClassDraft } from "../../../domain/calc/academics/class-placement";
 
 export const PLACEMENT_DRAFT_STORAGE_PREFIX = "el-imtiyaz:placement-draft:";
@@ -54,25 +55,47 @@ export function placementDraftKey(
   return `${PLACEMENT_DRAFT_STORAGE_PREFIX}${tenant}:${yearCode}:${gradeLevel}`;
 }
 
+// T-628 / C-25: validate the complete version-1 wire shape before any
+// consumer constructs Maps or reads section fields. Persisted JSON is untrusted.
+const gradeSchema = z.custom<GradeLevel>(
+  (value) => typeof value === "string" && GRADE_LEVELS.includes(value as GradeLevel),
+);
+const classDraftSchema = z.object({
+  id: z.string().min(1), name: z.string(), section: z.string(),
+  gradeCode: gradeSchema, level: z.enum(["primaire", "cem", "lycee"]),
+  gradeYear: z.number().finite(), academicYearId: z.string(), academicYearCode: z.string(),
+  filiereCode: z.string().nullable(), specialiteCode: z.string().nullable(),
+  room: z.string().nullable(), capacity: z.number().finite().nullable(),
+  homeroomTeacherId: z.string().nullable(), homeroomTeacherName: z.string().nullable(),
+  notes: z.string().nullable(), isNew: z.boolean(),
+}) satisfies z.ZodType<ClassDraft>;
+// Infer the partial from the same object schema, rather than maintaining
+// a second definition of the section fields.
+const assignmentSchema = z.tuple([z.string().min(1), z.string().min(1).nullable()]);
+const patchSchema = z.tuple([z.string().min(1), classDraftSchema.partial()]);
+const persistedDraftSchema = z.object({
+  version: z.literal(PLACEMENT_DRAFT_VERSION), targetYearCode: z.string().min(1),
+  targetGradeLevel: gradeSchema, assignedMap: z.array(assignmentSchema),
+  customClassDrafts: z.array(classDraftSchema), modifiedClassPatches: z.array(patchSchema),
+  savedAt: z.string().datetime({ offset: true }),
+});
+
 export function readPlacementDraft(key: string): PersistedPlacementDraft | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedPlacementDraft;
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      parsed.version !== PLACEMENT_DRAFT_VERSION ||
-      typeof parsed.targetYearCode !== "string" ||
-      typeof parsed.targetGradeLevel !== "string" ||
-      !Array.isArray(parsed.assignedMap) ||
-      !Array.isArray(parsed.customClassDrafts) ||
-      !Array.isArray(parsed.modifiedClassPatches)
-    ) {
-      // A malformed or future-versioned draft is discarded, never guessed at.
-      return null;
-    }
-    return parsed;
+    const result = persistedDraftSchema.safeParse(JSON.parse(raw));
+    if (!result.success) return null;
+    const draft = result.data;
+    if (!key.endsWith(`:${draft.targetYearCode}:${draft.targetGradeLevel}`)) return null;
+    // Duplicate identities would silently overwrite work in new Map().
+    if (new Set(draft.assignedMap.map(([id]) => id)).size !== draft.assignedMap.length ||
+        new Set(draft.modifiedClassPatches.map(([id]) => id)).size !== draft.modifiedClassPatches.length ||
+        new Set(draft.customClassDrafts.map(({ id }) => id)).size !== draft.customClassDrafts.length) return null;
+    if (draft.customClassDrafts.some((section) =>
+      section.academicYearCode !== draft.targetYearCode || section.gradeCode !== draft.targetGradeLevel
+    )) return null;
+    return draft;
   } catch {
     return null;
   }

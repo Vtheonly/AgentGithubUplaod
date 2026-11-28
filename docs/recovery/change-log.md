@@ -5215,3 +5215,8 @@ The owner supplied the full token set and the #1 next action ran end to end, dat
 ## Pass 3 cleanup integration
 
 Registered T-621 through T-624 and linked the master decisions to the roadmap, session prompt and handoff. The financial discrepancy has a runnable reproducer. Inventory reconciliation covers 1,089 candidates, 5,914 observations and 799 diagnostics. Behavioral verification remains open on 1,083 original candidates.
+
+
+## Session 58 / T-628 — placement draft recovery (2026-11-28)
+
+Malformed persisted nested arrays passed the old outer guard and could crash Map restoration or apply foreign-context work. The existing storage seam now validates the complete v1 draft before exposing it to the hook. RED: t-532 suite 10 failed / 8 passed on the pre-fix parser. GREEN: npx vitest run src/tests/features/academics/t-532-placement-draft-persistence.test.tsx src/tests/features/t-370-class-placement-studio.test.tsx — 2 files / 33 passed. npx tsc --noEmit + npx tsc -p electron/tsconfig.json --noEmit: 0 errors. Targeted eslint: 0 errors/warnings. npm run build: passed (Vite 25.20 s). Status RESOLVED-TESTED; packaged UI check pending. No financial rule, RPC, RLS or migration changed.

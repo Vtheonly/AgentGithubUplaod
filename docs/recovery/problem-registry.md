@@ -8770,10 +8770,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-078 — Placement draft recovery: validate the persisted shape and isolate context switches
 
-- **Status:** IN_PROGRESS (Session 58, T-628).
-- **Evidence / root cause / expected behavior:** The existing draft cache validates arrays only; malformed entries can throw in Map construction and context switches can save a stale closure under the next key. Keep one versioned parser; preserve each tenant/year/grade draft on navigation; reject malformed or mismatched contexts without losing other drafts. No new DB store in this bounded repair.
+- **Status:** RESOLVED-TESTED (Session 58, T-628).
+- **Evidence / root cause / expected behavior:** The existing draft cache validates arrays only; malformed entries can throw in Map construction and a valid-looking payload can carry another year/grade than its cache key. The suspected stale-closure overwrite was not reproduced and is not claimed fixed. Keep one versioned parser; preserve each tenant/year/grade draft on navigation; reject malformed or mismatched contexts without losing other drafts. No new DB store in this bounded repair.
 - **Affected paths and verification:** placement storage + use-class-placement-studio; t-532 regression suite. Local-offline verification only; no live Supabase egress.
 
+
+
+**Session-58 resolution:** The version-1 schema validates every tuple, section and patch, finite numeric values, timestamp and grade; duplicate identities and mismatched cache/section contexts are refused before restore. Other contexts are untouched. RED: t-532 suite 10 failed / 8 passed on the pre-fix parser. GREEN: npx vitest run src/tests/features/academics/t-532-placement-draft-persistence.test.tsx src/tests/features/t-370-class-placement-studio.test.tsx — 2 files / 33 passed. npx tsc --noEmit + npx tsc -p electron/tsconfig.json --noEmit: 0 errors. Targeted eslint: 0 errors/warnings. npm run build: passed (Vite 25.20 s). Packaged placement workflow remains unrun; no live or cross-device synchronization claim.
 
 ### BUG-079 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 

@@ -476,3 +476,41 @@ describe("T-532/UI-346 F. The storage module's malformed-draft guard", () => {
     expect(readPlacementDraft(key)).toBeNull();
   });
 });
+
+
+describe("T-628 — persisted draft shape and context boundary", () => {
+  const key = placementDraftKey("tenant-1", "2025-2026", "4ap");
+  const valid = {
+    version: PLACEMENT_DRAFT_VERSION,
+    targetYearCode: "2025-2026", targetGradeLevel: "4ap",
+    assignedMap: [["student-1", null]], customClassDrafts: [],
+    modifiedClassPatches: [], savedAt: "2026-11-28T10:00:00.000Z",
+  };
+  it.each([
+    { assignedMap: [null] },
+    { assignedMap: [["student-1", { id: "class-1" }]] },
+    { assignedMap: [["student-1", null], ["student-1", "class-1"]] },
+    { customClassDrafts: [null] },
+    { customClassDrafts: [{ id: "broken" }] },
+    { modifiedClassPatches: [["class-1", null]] },
+    { modifiedClassPatches: [["class-1", { capacity: "thirty" }]] },
+    { targetGradeLevel: "unknown-grade" },
+    { savedAt: "not-a-date" },
+  ])("rejects malformed nested data before Map construction: %j", (patch) => {
+    localStorage.setItem(key, JSON.stringify({ ...valid, ...patch }));
+    expect(readPlacementDraft(key)).toBeNull();
+  });
+  it("rejects another year or grade even when the outer JSON shape is valid", () => {
+    localStorage.setItem(key, JSON.stringify({ ...valid, targetYearCode: "2027-2028" }));
+    expect(readPlacementDraft(key)).toBeNull();
+    localStorage.setItem(key, JSON.stringify({ ...valid, targetGradeLevel: "5ap" }));
+    expect(readPlacementDraft(key)).toBeNull();
+  });
+  it("keeps a valid draft and leaves the other context's bytes intact", () => {
+    const other = placementDraftKey("tenant-2", "2025-2026", "4ap");
+    localStorage.setItem(key, JSON.stringify(valid));
+    localStorage.setItem(other, "preserve-other-context");
+    expect(readPlacementDraft(key)).toEqual(valid);
+    expect(localStorage.getItem(other)).toBe("preserve-other-context");
+  });
+});

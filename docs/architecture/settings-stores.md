@@ -84,7 +84,7 @@ here.
    `aiConfig` slot retirement + SEC-121 (the upsert pair's caller
    verification) resolved in the same migration. RESOLVED-TESTED; the live
    apply is owner-gated (OPS-015).
-2. `placement-draft` → keyed draft row (needs the draft shape contract).
+2. `placement-draft` → keyed draft row. **T-628 (Session 58) established the runtime-validated v1 shape at `placement-draft-storage.ts`** (tuples/sections/patches/timestamp/context/identity checks); malformed state never reaches restore. The cross-device write/concurrency contract and DB collapse remain follow-up work; this repair does not synchronize drafts.
 3. `dashboard-layout` offline-cache fallback rule documented at the
    layout store (already DB-backed; only the fallback needs wording).
 4. **The legacy-vocabulary reconciliation** (discovered during T-588, see
