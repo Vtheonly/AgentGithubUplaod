@@ -1,3 +1,37 @@
+# SESSION STATE — Session 56 (2026-11-28)
+
+> Successor note: this file now tracks Session 56 (the T-588 settings-unification lane). The Session-55 record below is preserved verbatim.
+
+## Current agent identity (Session 56)
+
+- **Agent:** Z.ai autonomous engineering agent (GLM) — the owner's 2026-11-28 continuation directive ("Make Desktop + Website Work Accurately Now — Working Delivery & Verification Kickoff").
+- **Base:** clean clone of `main` at `18e8475c` (the Session-55 closeout); branch `main`; push after the verified unit; never force-push.
+- **Scope honored:** the 6,450-group deduplication backlog NOT touched; the bounded unit = T-588 (the queue head per the Session-55 closeout), executed against the LOCAL OFFLINE harness with ZERO remote egress.
+
+## Selected tasks (this session)
+
+| # | Task ID | Card | Status | Evidence |
+|---|---|---|---|---|
+| 1 | T-588 | the settings 8-store unification (BUG-017/031/043, DEAD-018, ARCH-038, C-25) | RESOLVED-TESTED | migration 0006 + the RbacRepository seam + the editor rewire + the boundary map; full battery 5,992/0/5; census + 23/23 RPC checks on the local offline DB |
+| 2 | BUG-077 | the consecutive-capitals mapper drop (discovered in-lane) | RESOLVED-TESTED | registered + fixed; the value-keyed PERMISSION_BY_CODE map |
+| 3 | ARCH-054 | the legacy-vocabulary default matrix (discovered in-lane) | OPEN (registered) | the deliberate T-588 scope fence; the follow-up register |
+
+## Verification discipline (this session's gates, all green)
+
+- `npx tsc --noEmit` 0 (renderer) · `npx tsc -p electron/tsconfig.json --noEmit` 0 · `npm run build` 23.19 s.
+- Full battery in chunks: **5,992 passed / 0 failed / 5 skipped** (S55's 5,968 + the 24 new T-588 tests).
+- Local offline: census (permissions 95 · rolePermissions 186 · functions 160 · every other axis = the audit of record) + `t588-rbac-matrix-rpc.mjs` 23/23 (incl. the enforcement-parity check).
+- OPS-015/G2: ZERO remote Supabase traffic.
+
+## Task status log
+
+- (2026-11-28) T-588 registered IN the task-registry with the full contract (the S54 selection finally executed) → RESOLVED-TESTED (this session's commit; the evidence in the registry entry).
+- (2026-11-28) BUG-077 registered (problem-registry) + fixed in-lane; ARCH-054 registered OPEN.
+- (2026-11-28) The stale queue pointer corrected in next-task.md (T-590/T-591 were already RESOLVED-TESTED in S35 — the S54/S55 pointers carried the dead selection forward).
+- (2026-11-28) The Session-56 closeout written to next-task.md + change-log; the queue head for Session 57: the C-588 follow-up trio (see next-task.md).
+
+---
+
 # SESSION STATE — Session 55 (2026-11-28)
 
 > Successor note: this file now tracks Session 55 (the local-offline-testing lane). The Session-54 record below is preserved verbatim.

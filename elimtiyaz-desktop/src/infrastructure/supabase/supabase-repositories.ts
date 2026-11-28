@@ -111,6 +111,7 @@ import {
   RoleLookup,
 } from "./repositories/supabase-personnel-repository";
 import { SupabaseBackupRepository } from "./repositories/supabase-backup-repository";
+import { SupabaseRbacRepository } from "./repositories/supabase-rbac-repository";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -128,6 +129,9 @@ export function getSupabaseRepositories(): Repositories {
 
   const client = getSupabaseClient();
   const auth = new SupabaseAuthRepository(client);
+  // T-588 (BUG-017): the RBAC matrix persistence — the 0006 RPCs over
+  // tenant_role_overrides (replaces the localStorage placebo).
+  const rbac = new SupabaseRbacRepository(client);
   const approvals = new SupabaseApprovalRepository(client);
   // T-079 — admin account provisioning goes through the create-user-account
   // EF (super_admin only). Explicitly overrides the mock spread below: in
@@ -429,6 +433,7 @@ export function getSupabaseRepositories(): Repositories {
   const repositories = {
     ...mockRepositories,
     auth,
+    rbac, // T-588 — the 0006 RPC path (not the mock spread)
     userAccounts,
     parents,
     students,

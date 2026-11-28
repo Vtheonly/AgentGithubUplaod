@@ -12,6 +12,7 @@
 import { SubjectBehavior } from "../subject-behavior";
 import { logger } from "../../../core/logger";
 import { AuditActions } from "../../../core/audit-actions";
+import { RBAC_OVERRIDES_STORAGE_KEY } from "../../../domain/model/rbac";
 import { TENANT_ID } from "../seed-data";
 import {
   seedParents,
@@ -287,12 +288,19 @@ export class MockStore {
     this.personnel$.set([...this.personnel]);
     this.workflows$.set([...this.workflows]);
     // RBAC matrix overrides ride inside the snapshot (vault §13.01).
+    // T-588 (DEAD-018): the restore path previously wrote the DEAD key
+    // "el-imtiyaz:rbac-matrix-overrides" — nobody ever read it back (the
+    // editor + the mock auth resolver read the canonical
+    // RBAC_OVERRIDES_STORAGE_KEY), so restoring a backup silently dropped
+    // every RBAC customization. One canonical constant for the writer
+    // (backup-service), the restorer (here) and the reader (the mock
+    // repository) — the three can no longer disagree.
     const rbac = snapshot["rbacMatrixOverrides"];
     try {
       if (rbac != null) {
-        localStorage.setItem("el-imtiyaz:rbac-matrix-overrides", JSON.stringify(rbac));
+        localStorage.setItem(RBAC_OVERRIDES_STORAGE_KEY, JSON.stringify(rbac));
       } else {
-        localStorage.removeItem("el-imtiyaz:rbac-matrix-overrides");
+        localStorage.removeItem(RBAC_OVERRIDES_STORAGE_KEY);
       }
     } catch {
       /* localStorage unavailable — the data collections still restored. */

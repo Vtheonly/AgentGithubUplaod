@@ -8718,3 +8718,38 @@ The inspection confirms the gap with THREE structural facts:
 ## Pass 3 · Debt-aging disagreement · T-623
 
 P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. The portal returned active_payer on the same factors for which desktop returned critical_delinquency. Reconcile tenant thresholds and matching reason codes before retiring either path. See the master register for exact locations and acceptance.
+
+## Session 56 entries (2026-11-28) — the T-588 settings-unification lane
+
+### BUG-077 — mapPermissionCodes silently DROPPED every consecutive-capitals permission code (use_ai → "UseAi" ≠ UseAI) from Supabase sessions
+
+- **Category:** Authorization / enforcement parity | **Severity:** HIGH (a server-side grant never reached the client gates — the UI denied what the server allowed).
+- **Status:** RESOLVED — TESTED (T-588, Session 56, 2026-11-28: the value-keyed `PERMISSION_BY_CODE` map replaces the PascalCase reconstruction; `t-588-rbac-persistence.test.ts` E-pins the unmapped-code contract; the local-offline harness proves the server side).
+- **Repositories:** AgentGithubUplaod (`elimtiyaz-desktop/src/infrastructure/supabase/repositories/supabase-auth-repository.ts`)
+- **Platforms affected:** Desktop (session build); every consumer of `session.permissions`.
+- **Task:** T-588 (discovered in-lane while pinning the effective-matrix load).
+- **Registered:** 2026-11-28, BEFORE the fix per §13.
+- **Description:** the DB→enum mapper reconstructed PascalCase keys from snake_case codes (`"use_ai"` → `"UseAi"`) and looked them up in the enum object — but the enum member is `UseAI` (as is `ManageAIConfig`). Every consecutive-capitals code was silently dropped from the mapped permission set, so a non-SuperAdmin granted `use_ai`/`manage_ai_config` server-side never received it client-side (the T-266 SuperAdmin stamp masked the class for the one role).
+- **Root cause:** key-reconstruction instead of value lookup — the enum's VALUES are the DB codes verbatim.
+- **The fix:** `PERMISSION_BY_CODE: ReadonlyMap<string, Permission>` built once from `Object.values(Permission)`; unknown codes still dropped defensively.
+- **Evidence:** the failing assertion chain in `src/tests/infrastructure/t-588-rbac-persistence.test.ts` (E: loadEffectiveMatrix … expected ['view_roster'] to include 'use_ai') before the fix; 13/13 after.
+
+### ARCH-054 — The DB `role_permissions` DEFAULT matrix speaks a LEGACY code vocabulary the desktop enum does not model (view_students/assign_tasks/settle_expense/push_homework/log_releve/…)
+
+- **Category:** Architecture / catalog drift | **Severity:** MEDIUM (no live policy breaks — RLS gates on `has_role`, not per-permission — but the effective matrix diverges from the desktop defaults and the vocabulary split blocks honest full-matrix editing).
+- **Status:** OPEN (the T-588 scope fence: alignment changes effective permissions for every user — needs its own task + ADR; the 0006 migration deliberately seeds only the MISSING codes + completes super_admin's grants additively).
+- **Repositories:** AgentGithubUplaod (DB seed `supabase/migrations/0001_initial_consolidated_schema.sql` vs desktop `src/core/rbac/permissions.ts`).
+- **Platforms affected:** DB + desktop (the RBAC editor's legacy-codes note; `current_user_permissions()`).
+- **Task:** registered by T-588 (Session 56); follow-up task to be numbered when scheduled.
+- **Registered:** 2026-11-28.
+- **Description:** 24 DB-only codes (legacy vocabulary) vs 41 desktop-only codes (now seeded by 0006). The DB default matrix grants e.g. teacher `view_students` while the desktop default grants `view_roster`; `assign_tasks` vs `manage_tasks`; `settle_expense` vs `settle_expense_proof`; `push_homework` vs `assign_homework`; `log_releve` vs `view_releve`. Consequence: the effective matrix shown by the editor (server truth) differs from `DEFAULT_ROLE_PERMISSIONS` with zero overrides; the editor manages the desktop vocabulary and leaves legacy grants untouched (surfaced as the honest "N permissions serveur supplémentaires" note).
+- **Root cause:** the consolidated baseline's seed predates the desktop/Android enum unification; the catalogs grew independently.
+- **What must change (the follow-up task):** a vocabulary reconciliation ADR (one code per concept, legacy codes mapped or retired), then a default-matrix alignment migration — additive-only where possible, with per-role diff review against the desktop defaults.
+- **Evidence:** the T-588 catalog diff scripts (permissions 54→95; the legacy/missing code lists in `docs/architecture/settings-stores.md` §follow-up register).
+
+### Closure notes (T-588, Session 56, 2026-11-28)
+
+- **BUG-017 — CLOSED (TESTED):** the RBAC matrix persistence completion — the editor saves through `tenant_role_overrides` (migration 0006's `save_rbac_matrix`/`read_rbac_effective_matrix`/`reset_rbac_matrix`), not the localStorage placebo. Enforcement parity proven on the local offline harness (the deny override drops the code from the teacher's `current_user_permissions()`), mock parity pinned (`signIn` applies the override).
+- **BUG-031 + BUG-043 — CLOSED (TESTED):** the Settings `?tab=` deep-link is followed at runtime (the effect), mount-time selection preserved, param removal never yanks. `t-588-settings-deep-link.test.tsx` 5/5.
+- **DEAD-018 — PARTIALLY CLOSED (TESTED):** the dead `el-imtiyaz:rbac-matrix-overrides` key removed (the restore path writes the canonical `RBAC_OVERRIDES_STORAGE_KEY`); the full store inventory + boundaries documented in `docs/architecture/settings-stores.md` (the C-25 map). The physical collapse of the remaining tenant-level candidates is the documented follow-up register.
+- **C-25 — DOCUMENTED:** the 13+ store map with the boundary rule (tenant-level = DB; device-local = one canonical constant each; secrets never in the settings table).

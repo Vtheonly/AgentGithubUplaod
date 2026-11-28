@@ -98,18 +98,37 @@ describe("T-581 / BUG-050 — the RBAC overrides enter the archive", () => {
     expect(snapshot.rbacMatrixOverrides).toBeNull();
   });
 
-  it("the service source reads the editor's key (the mismatch cannot regress silently)", () => {
+  it("the service source reads the canonical key (the mismatch cannot regress silently)", () => {
     const src = codeOnly(
       read("../../infrastructure/backup/backup-service.ts"),
     );
-    expect(src).toContain('localStorage.getItem("el-imtiyaz:rbac-overrides")');
+    // T-588: the literal moved into the ONE domain constant — the pin is
+    // now that the reader uses that constant (not a private literal).
+    expect(src).toContain('localStorage.getItem(RBAC_OVERRIDES_STORAGE_KEY)');
+    expect(src).not.toContain('localStorage.getItem("el-imtiyaz:rbac-overrides")');
     expect(src).not.toContain('localStorage.getItem("el-imtiyaz:rbac-matrix-overrides")');
   });
 
-  it("the editor and the reader agree on the ONE key (cross-file pin)", () => {
-    const editorSrc = read("../../features/settings/rbac-matrix-editor.tsx");
-    const editorKey = editorSrc.match(/STORAGE_KEY = "([^"]+)"/)?.[1];
-    expect(editorKey).toBe("el-imtiyaz:rbac-overrides");
+  it("the writer, the restorer and the reader agree on the ONE key (cross-file pin)", () => {
+    // T-588: the canonical constant lives in the domain model; the backup
+    // reader, the mock-store restore path and the mock repository all
+    // import it — a drift is now a compile-time break, not a silent one.
+    const modelSrc = read("../../domain/model/rbac.ts");
+    const key = modelSrc.match(/RBAC_OVERRIDES_STORAGE_KEY = "([^"]+)"/)?.[1];
+    expect(key).toBe("el-imtiyaz:rbac-overrides");
+    for (const rel of [
+      "../../infrastructure/backup/backup-service.ts",
+      "../../infrastructure/mock/repositories/mock-store.ts",
+      "../../infrastructure/mock/repositories/mock-rbac-repository.ts",
+    ]) {
+      const src = read(rel);
+      expect(src).toContain("RBAC_OVERRIDES_STORAGE_KEY");
+    }
+    // the DEAD key is gone from the restore path's CODE (DEAD-018) —
+    // codeOnly strips the explanatory comment that names the dead key
+    const storeSrc = codeOnly(read("../../infrastructure/mock/repositories/mock-store.ts"));
+    expect(storeSrc).not.toContain('"el-imtiyaz:rbac-matrix-overrides"');
+    expect(storeSrc).toContain("RBAC_OVERRIDES_STORAGE_KEY");
   });
 });
 

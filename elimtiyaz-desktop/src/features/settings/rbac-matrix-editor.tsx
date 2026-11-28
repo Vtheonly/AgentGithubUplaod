@@ -1,24 +1,22 @@
 /**
  * RbacMatrixEditor — editable role × permission matrix.
  *
- * Iteration 3-I (plan §02.07): SuperAdmin can edit role → permission mapping
- * from the UI. Updates persist to localStorage (so the change survives reloads
- * in mock mode) AND trigger an audit log entry.
+ * T-588 (BUG-017 / SET-U5): the matrix now persists through the ONE
+ * canonical RbacRepository seam — the `tenant_role_overrides` table via
+ * the migration-0006 RPCs in Supabase mode, the device-local store in
+ * mock mode. BEFORE T-588 the editor wrote a localStorage key that
+ * NOTHING on the enforcement path ever read (a placebo: sessions derive
+ * their permissions from current_user_permissions() / the mock resolver,
+ * neither of which looked at that key on the save side).
  *
- * Iteration 15 fix: previously the save() function only fired a toast — no
- * actual persistence happened, and no audit entry was written. Now:
- *   - The matrix is loaded from localStorage on mount (falls back to
- *     DEFAULT_ROLE_PERMISSIONS if no override has been saved).
- *   - The save() function writes the override to localStorage AND writes
- *     a real audit entry via the audit repository with action
- *     "rbac.matrix_update" + a diff of the permission sets per role.
- *   - The reset() function clears the localStorage override.
+ * The displayed matrix is the EFFECTIVE one the server enforces (loaded
+ * via read_rbac_effective_matrix in Supabase mode — defaults + overrides,
+ * deny wins), not the desktop's fictional DEFAULT_ROLE_PERMISSIONS
+ * baseline. Server-only codes (the legacy catalog vocabulary) are counted
+ * honestly but not editable here.
  *
- * In a future iteration, the override will be persisted to the
- * `tenant_role_overrides` Supabase table (migration 0003_rbac.sql defines
- * the table; the desktop Supabase adapter does not yet implement the
- * RBAC repository — that's documented in ITERATION-12-DONE.md as
- * remaining work).
+ * Every save/reset writes a real audit entry (iteration 15 + T-588: the
+ * reset is a mutation too — rule §7.6).
  */
 import { useState, useMemo, useEffect, Fragment } from "react";
 import { Shield, Check, RotateCcw, Save, Lock } from "lucide-react";
@@ -31,48 +29,7 @@ import { Role, ROLE_LABELS_FR, STAFF_ROLES } from "../../core/rbac/roles";
 import { Permission, PERMISSION_LABELS_FR, DEFAULT_ROLE_PERMISSIONS } from "../../core/rbac/permissions";
 import { useRepositories } from "../../app/providers/repository-provider";
 import { TooltipHint } from "../../shared/ui/tooltip";
-
-const STORAGE_KEY = "el-imtiyaz:rbac-overrides";
-
-/**
- * Read the saved override (or null if none). Stored as a plain object
- * { [role]: Permission[] } because Set doesn't serialize to JSON.
- */
-function loadOverride(): Record<Role, Set<Permission>> | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, Permission[]>;
-    const result = {} as Record<Role, Set<Permission>>;
-    for (const role of STAFF_ROLES) {
-      const arr = parsed[role];
-      result[role] = new Set(Array.isArray(arr) ? arr : DEFAULT_ROLE_PERMISSIONS[role]);
-    }
-    return result;
-  } catch {
-    return null;
-  }
-}
-
-function saveOverride(matrix: Record<Role, Set<Permission>>): void {
-  try {
-    const serializable: Record<string, Permission[]> = {};
-    for (const role of STAFF_ROLES) {
-      serializable[role] = Array.from(matrix[role]);
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
-  } catch {
-    /* ignore — in-memory only */
-  }
-}
-
-function clearOverride(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-}
+import { RBAC_OVERRIDES_STORAGE_KEY } from "../../domain/model/rbac";
 
 // Group permissions by domain for easier scanning
 const PERMISSION_GROUPS: Array<{ name: string; permissions: Permission[] }> = [
@@ -81,7 +38,7 @@ const PERMISSION_GROUPS: Array<{ name: string; permissions: Permission[] }> = [
     permissions: [
       Permission.ViewRoster, Permission.CreateParent, Permission.EditParent,
       Permission.DeleteParent, Permission.CreateStudent, Permission.EditStudent,
-      Permission.PromoteStudent,
+      Permission.DeleteStudent, Permission.PromoteStudent,
     ],
   },
   {
@@ -89,6 +46,9 @@ const PERMISSION_GROUPS: Array<{ name: string; permissions: Permission[] }> = [
     permissions: [
       Permission.ViewAcademics, Permission.EnterGrades, Permission.ManageSubjects,
       Permission.ManageClasses, Permission.AssignHomework, Permission.RollCall,
+      Permission.ManageSchoolYears, Permission.ViewClubs, Permission.ManageClubs,
+      Permission.EnrollClubMembers, Permission.LogClubActivities,
+      Permission.ViewAttendance,
     ],
   },
   {
@@ -120,54 +80,91 @@ const PERMISSION_GROUPS: Array<{ name: string; permissions: Permission[] }> = [
   },
 ];
 
+/** The default matrix as a fresh mutable copy (per-role Sets). */
+function defaultMatrix(): Record<Role, Set<Permission>> {
+  const result = {} as Record<Role, Set<Permission>>;
+  for (const role of STAFF_ROLES) {
+    result[role] = new Set(DEFAULT_ROLE_PERMISSIONS[role]);
+  }
+  return result;
+}
+
+/** Does the matrix differ from the defaults on any role? */
+function differsFromDefaults(matrix: Record<Role, Set<Permission>>): boolean {
+  for (const role of STAFF_ROLES) {
+    const a = Array.from(matrix[role]).sort();
+    const b = Array.from(DEFAULT_ROLE_PERMISSIONS[role]).sort();
+    if (JSON.stringify(a) !== JSON.stringify(b)) return true;
+  }
+  return false;
+}
+
 export function RbacMatrixEditor() {
   const toast = useToast();
-  const { session } = useAuth();
+  const { session, refreshPermissions } = useAuth();
   const repos = useRepositories();
   const canEdit = !!session && session.role === Role.SuperAdmin;
 
-  // Initialize from saved override if present (iteration 15 fix), else
-  // fall back to DEFAULT_ROLE_PERMISSIONS.
-  const [matrix, setMatrix] = useState<Record<Role, Set<Permission>>>(() => {
-    const saved = loadOverride();
-    if (saved) return saved;
-    const result = {} as Record<Role, Set<Permission>>;
-    for (const role of STAFF_ROLES) {
-      result[role] = new Set(DEFAULT_ROLE_PERMISSIONS[role]);
-    }
-    return result;
-  });
-
-  // Track whether the user has unsaved changes (matrix differs from last save).
+  // The effective matrix starts at the defaults and is replaced by the
+  // loaded server state (defaults + overrides) once the repository answers.
+  const [matrix, setMatrix] = useState<Record<Role, Set<Permission>>>(defaultMatrix);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [usingOverride, setUsingOverride] = useState(() => loadOverride() !== null);
+  const [loading, setLoading] = useState(true);
+  const [customized, setCustomized] = useState(false);
+  /** Server-catalog codes the desktop enum cannot display (legacy vocabulary). */
+  const [unmappedCount, setUnmappedCount] = useState(0);
 
   const staffRoleList = useMemo(() => Array.from(STAFF_ROLES), []);
 
-  // Re-load if the saved override changes from elsewhere (multi-window).
+  // Load the EFFECTIVE matrix from the canonical repository (T-588).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await repos.rbac.loadEffectiveMatrix();
+      if (cancelled) return;
+      if (res.ok) {
+        const next = {} as Record<Role, Set<Permission>>;
+        for (const role of STAFF_ROLES) {
+          next[role] = new Set(res.value.matrix[role] ?? DEFAULT_ROLE_PERMISSIONS[role]);
+        }
+        setMatrix(next);
+        setCustomized(res.value.hasOverrides);
+        setUnmappedCount(res.value.unmappedServerCodes.length);
+      } else {
+        // Fail-loud but non-blocking: the editor stays on the defaults with
+        // an honest banner (never a silent fictional matrix).
+        toast.showError(
+          "Matrice non chargée",
+          "Impossible de lire la matrice effective du serveur. Vérifiez la connexion puis rouvrez cet onglet.",
+        );
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mock-mode multi-window sync: a save in another window updates this one.
   useEffect(() => {
     function onStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) {
-        const next = loadOverride();
-        if (next) {
-          setMatrix(next);
-          setUsingOverride(true);
-        } else {
-          // Override was cleared — fall back to defaults.
-          const result = {} as Record<Role, Set<Permission>>;
-          for (const role of STAFF_ROLES) {
-            result[role] = new Set(DEFAULT_ROLE_PERMISSIONS[role]);
-          }
-          setMatrix(result);
-          setUsingOverride(false);
+      if (e.key !== RBAC_OVERRIDES_STORAGE_KEY) return;
+      void repos.rbac.loadEffectiveMatrix().then((res) => {
+        if (!res.ok) return;
+        const next = {} as Record<Role, Set<Permission>>;
+        for (const role of STAFF_ROLES) {
+          next[role] = new Set(res.value.matrix[role] ?? DEFAULT_ROLE_PERMISSIONS[role]);
         }
+        setMatrix(next);
+        setCustomized(res.value.hasOverrides);
         setDirty(false);
-      }
+      });
     }
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [repos.rbac]);
 
   function toggle(role: Role, perm: Permission) {
     if (!canEdit) return;
@@ -180,31 +177,69 @@ export function RbacMatrixEditor() {
     setDirty(true);
   }
 
-  function reset() {
-    const result = {} as Record<Role, Set<Permission>>;
-    for (const role of STAFF_ROLES) {
-      result[role] = new Set(DEFAULT_ROLE_PERMISSIONS[role]);
+  async function reset() {
+    if (!session) return;
+    setSaving(true);
+    try {
+      const res = await repos.rbac.resetMatrix();
+      if (!res.ok) {
+        toast.showError("Échec de la réinitialisation", res.error.userMessage ?? res.error.message);
+        return;
+      }
+      setMatrix(defaultMatrix());
+      setCustomized(false);
+      setDirty(false);
+      // The reset is a mutation — it leaves its audit trail too (rule §7.6).
+      await repos.audit.log({
+        action: "rbac.matrix_reset",
+        entityType: "rbac",
+        entityId: "role-permission-matrix",
+        actorId: session.userId,
+        actorName: session.displayName,
+        tenantId: session.tenantId,
+        diff: { before: { customized: true }, after: { customized: false } },
+        note: `SuperAdmin a réinitialisé la matrice RBAC (${res.value.removed} personnalisation(s) supprimée(s)).`,
+      });
+      toast.showInfo(
+        "Matrice réinitialisée",
+        "Les permissions par défaut ont été restaurées.",
+      );
+    } catch (e) {
+      toast.showError("Échec", e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
     }
-    setMatrix(result);
-    clearOverride();
-    setUsingOverride(false);
-    setDirty(false);
-    toast.showInfo("Matrice réinitialisée", "Les permissions par défaut ont été restaurées.");
   }
 
   async function save() {
     if (!session) return;
     setSaving(true);
     try {
-      // 1. Persist the override to localStorage (so it survives reloads in mock mode).
-      saveOverride(matrix);
-      setUsingOverride(true);
+      // 1. Persist through the canonical seam — tenant_role_overrides via
+      //    the 0006 RPCs (Supabase) / the device-local store (mock).
+      const asArrays = {} as Record<Role, Permission[]>;
+      for (const role of staffRoleList) asArrays[role] = Array.from(matrix[role]);
+      const res = await repos.rbac.saveMatrix(asArrays);
+      if (!res.ok) {
+        toast.showError("Échec de l'enregistrement", res.error.userMessage ?? res.error.message);
+        return;
+      }
+      // 1b. Reload the source of truth — the honest "Personnalisé" state
+      //     (overrides may pre-exist this save; saved/removed alone cannot
+      //     tell whether the tenant is still customized).
+      const reloaded = await repos.rbac.loadEffectiveMatrix();
+      if (reloaded.ok) {
+        const next = {} as Record<Role, Set<Permission>>;
+        for (const role of STAFF_ROLES) {
+          next[role] = new Set(reloaded.value.matrix[role] ?? DEFAULT_ROLE_PERMISSIONS[role]);
+        }
+        setMatrix(next);
+        setCustomized(reloaded.value.hasOverrides);
+      }
 
-      // 2. Write a real audit log entry — iteration 15 fix. Previously the
-      //    save function was a no-op that only fired a success toast. The
-      //    audit log signature expects diff: { before?: unknown; after?: unknown }.
-      //    We pack the per-role diff into `before` (DEFAULT_ROLE_PERMISSIONS) and
-      //    `after` (the new override) so the audit drawer can render it.
+      // 2. The audit entry: per-role diff against the DEFAULT matrix (the
+      //    server-side diff against role_permissions is recorded by the RPC
+      //    itself — these two views intentionally complement).
       const totalPerms = staffRoleList.reduce((s, r) => s + matrix[r].size, 0);
       const before: Record<string, string[]> = {};
       const after: Record<string, string[]> = {};
@@ -224,12 +259,18 @@ export function RbacMatrixEditor() {
         actorName: session.displayName,
         tenantId: session.tenantId,
         diff: { before, after },
-        note: `SuperAdmin updated RBAC matrix — ${staffRoleList.length} roles × ${totalPerms} total permissions. ${changedRoles} role(s) changed.`,
+        note: `SuperAdmin updated RBAC matrix — ${staffRoleList.length} roles × ${totalPerms} total permissions. ${changedRoles} role(s) changed. Server diff: ${res.value.saved} granted/denied, ${res.value.removed} restored to default.`,
       });
+
+      // 3. Best-effort live refresh of the caller's own session (Supabase
+      //    mode rebuilds from current_user_permissions; mock mode keeps the
+      //    current session and applies the override at the next sign-in).
+      const refreshed = await refreshPermissions();
 
       toast.showSuccess(
         "Matrice RBAC enregistrée",
-        `${staffRoleList.length} rôles × ${totalPerms} permissions au total. ${changedRoles} rôle(s) modifié(s) — journal d'audit mis à jour.`,
+        `${changedRoles} rôle(s) modifié(s) — journal d'audit mis à jour.` +
+          (refreshed ? "" : " Les changements s'appliquent à la prochaine connexion."),
       );
       setDirty(false);
     } catch (e) {
@@ -245,22 +286,25 @@ export function RbacMatrixEditor() {
         <div>
           <CardTitle className="text-base flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" /> Matrice RBAC — Édition
-            {usingOverride && (
+            {customized && (
               <Badge variant="secondary" className="text-[10px]">Personnalisé</Badge>
+            )}
+            {loading && (
+              <Badge variant="outline" className="text-[10px]">Chargement…</Badge>
             )}
           </CardTitle>
           <CardDescription>
             {canEdit
-              ? "Cliquez sur une cellule pour accorder/retirer une permission. Les modifications sont persistées localement et journalisées."
+              ? "Cliquez sur une cellule pour accorder/retirer une permission. Les modifications sont enregistrées pour toute l'organisation et journalisées."
               : "Lecture seule — réservé au Super Administrateur."}
           </CardDescription>
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={reset} disabled={(!dirty && !usingOverride) || saving}>
+            <Button variant="outline" size="sm" onClick={reset} disabled={(!dirty && !customized) || saving || loading}>
               <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
             </Button>
-            <Button size="sm" onClick={save} disabled={!dirty || saving}>
+            <Button size="sm" onClick={save} disabled={!dirty || saving || loading}>
               <Save className="h-3.5 w-3.5" /> {saving ? "Enregistrement…" : "Enregistrer"}
             </Button>
           </div>
@@ -272,6 +316,15 @@ export function RbacMatrixEditor() {
             <Lock className="h-4 w-4 text-status-warning mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground">
               Lecture seule pour votre rôle. Connectez-vous en tant que Super Administrateur pour modifier la matrice.
+            </p>
+          </div>
+        )}
+
+        {unmappedCount > 0 && (
+          <div className="rounded-md border border-border bg-muted/20 p-2.5 mb-4">
+            <p className="text-xs text-muted-foreground">
+              {unmappedCount} permission(s) serveur supplémentaire(s) — issues d'un catalogue
+              antérieur — restent actives et inchangées par cet écran.
             </p>
           </div>
         )}
@@ -304,8 +357,9 @@ export function RbacMatrixEditor() {
                   {group.permissions.map((perm) => (
                     <tr key={perm} className="border-t border-border hover:bg-accent/5">
                       <td className="p-3 sticky left-0 bg-popover z-10">
-                        <p className="text-sm font-medium">{PERMISSION_LABELS_FR[perm]}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{perm}</p>
+                        <TooltipHint content={perm}>
+                          <p className="text-sm font-medium">{PERMISSION_LABELS_FR[perm]}</p>
+                        </TooltipHint>
                       </td>
                       {staffRoleList.map((role) => {
                         const granted = matrix[role].has(perm);
@@ -348,8 +402,7 @@ export function RbacMatrixEditor() {
           {/* E2.6 / BUG-027: derived, never hardcoded — the role and
               permission catalogs have both grown since §02.07 was
               written (both old counts were stale). */}
-          Plan §02.07 — {staffRoleList.length} rôles × {Object.values(Permission).length} permissions. Les modifications sont journalisées dans l'audit log.
-          Les rôles Parent et Étudiant ne sont pas éditables ici (portail web).
+          {staffRoleList.length} rôles × {Object.values(Permission).length} permissions. Les rôles Parent et Étudiant ne sont pas éditables ici (portail web).
         </p>
       </CardContent>
     </Card>

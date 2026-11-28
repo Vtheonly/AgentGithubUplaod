@@ -3,7 +3,7 @@
  *
  * Three gates, zero runtime change to production code:
  *
- *  1. THE SLOT CENSUS (the runtime half of the exhaustiveness gate): the 54
+ *  1. THE SLOT CENSUS (the runtime half of the exhaustiveness gate): the 55
  *     `Repositories` slots are pinned through a `satisfies readonly (keyof
  *     Repositories)[]` literal — ADDING a slot to `Repositories` without
  *     updating the census fails `npx tsc --noEmit` (the Records stop being
@@ -46,9 +46,10 @@ import { Role } from "../../core/rbac/roles";
 // 1. The slot census — the satisfies-guarded literal + the runtime equality
 // ============================================================================
 
-/** The 54 `Repositories` slots (repository-provider.tsx, the T-550 census). */
+/** The 55 `Repositories` slots (repository-provider.tsx; 54 + rbac since T-588). */
 const REPOSITORY_SLOTS = [
   "auth",
+  "rbac", // T-588 — the RBAC matrix persistence seam
   "userAccounts",
   "parents",
   "students",
@@ -112,16 +113,16 @@ expectTypeOf<Record<(typeof REPOSITORY_SLOTS)[number], true>>().toEqualTypeOf<
   Record<keyof Repositories, true>
 >();
 
-describe("T-550 — the 54-slot repository census (ARCH-033)", () => {
+describe("T-550 — the 55-slot repository census (ARCH-033)", () => {
   it("the mock composite carries EXACTLY the census slots — no drift, no extras", () => {
     const compositeKeys = Object.keys(mockRepositories).sort();
     const census = [...REPOSITORY_SLOTS].sort();
     expect(compositeKeys).toEqual(census);
   });
 
-  it("the census is pinned at 54 slots (the S24-verified count)", () => {
-    expect(REPOSITORY_SLOTS).toHaveLength(54);
-    expect(Object.keys(mockRepositories)).toHaveLength(54);
+  it("the census is pinned at 55 slots (54 + the T-588 rbac seam)", () => {
+    expect(REPOSITORY_SLOTS).toHaveLength(55);
+    expect(Object.keys(mockRepositories)).toHaveLength(55);
   });
 });
 

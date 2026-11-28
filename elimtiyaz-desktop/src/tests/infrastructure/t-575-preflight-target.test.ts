@@ -799,12 +799,14 @@ describe("T-575 M — the migrations layout lane + deriveTargetRef", () => {
     expect(real.ok).toBe(true);
     // T-590..T-593 / Session 35: the append-only chain grew — the Stage-A
     // SQL ships beside the baseline (0002..0005); the baseline still leads.
+    // T-588 / Session 56: 0006_rbac_matrix_persistence joins the chain.
     expect(real.files).toEqual([
       "0001_initial_consolidated_schema.sql",
       "0002_stage_a_dashboard_aggregation.sql",
       "0003_read_reconcile_inputs.sql",
       "0004_pull_installments_for_sync.sql",
       "0005_sync_apply_batch.sql",
+      "0006_rbac_matrix_persistence.sql",
     ]);
 
     expect(evaluateMigrationsLayout(["0002_next.sql"]).ok).toBe(false); // the baseline is missing

@@ -373,6 +373,7 @@ If evidence is insufficient — which implementation is correct, what a business
 | `docs/architecture/system-map.md` | CURRENT (and TARGET) architecture of the whole system |
 | `docs/architecture/source-of-truth.md` | Canonical implementation per domain concept |
 | `docs/architecture/boundaries.md` | What each layer/platform is (and is NOT) responsible for |
+| `docs/architecture/settings-stores.md` | The settings-family store inventory + boundary rule (T-588/C-25: tenant-level = DB, device-local = one canonical constant, secrets never in the settings table) |
 | `docs/domain/financial-rules.md` | Canonical financial invariants and rules |
 | `docs/domain/academic-rules.md` | Canonical academic/attendance rules |
 | `docs/decisions/ADR-0*.md` | Architecture Decision Records (ADR-008 = chat is committed, staff-initiated) |

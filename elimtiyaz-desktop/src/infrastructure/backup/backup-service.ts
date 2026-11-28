@@ -29,6 +29,7 @@ import type {
   RestoredFromMarker,
 } from "../../domain/model/backup";
 import { BACKUP_RETENTION_DAYS } from "../../domain/model/backup";
+import { RBAC_OVERRIDES_STORAGE_KEY } from "../../domain/model/rbac";
 import { logger } from "../../core/logger";
 import {
   generateKey,
@@ -54,8 +55,11 @@ import { store as mockStore } from "../mock/repositories/mock-store";
 // injected per call; this is only the fallback).
 import { TENANT_ID } from "../mock/seed-data";
 
-/** localStorage key for the backup passphrase (mock-only; production uses a secrets manager). */
-export const BACKUP_PASSPHRASE_KEY = "el-imtiyaz:backup-passphrase";
+/* T-588 (C-25 store unification): the ONE canonical passphrase key lives
+ * in the domain model — backup-service re-exports it for its existing
+ * importers (the local duplicate constant was the drift-prone twin). */
+import { BACKUP_PASSPHRASE_KEY } from "../../domain/model/backup";
+export { BACKUP_PASSPHRASE_KEY };
 
 /** T-300 (OFFLINE-400): the restored-from marker's localStorage key. */
 export const RESTORED_FROM_KEY = "el-imtiyaz:restored-from";
@@ -178,7 +182,7 @@ function snapshotState(repos: Repositories, tenantId: string): Record<string, un
   // silently dropped every RBAC customization).
   let rbacMatrixOverrides: unknown = null;
   try {
-    const raw = localStorage.getItem("el-imtiyaz:rbac-overrides");
+    const raw = localStorage.getItem(RBAC_OVERRIDES_STORAGE_KEY);
     if (raw) rbacMatrixOverrides = JSON.parse(raw);
   } catch {
     /* ignore */

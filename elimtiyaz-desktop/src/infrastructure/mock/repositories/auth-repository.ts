@@ -12,6 +12,7 @@ import { Errors } from "../../../core/app-error";
 import type { Session } from "../../../core/rbac/session";
 import { Role } from "../../../core/rbac/roles";
 import { DEFAULT_ROLE_PERMISSIONS } from "../../../core/rbac/permissions";
+import { loadRbacOverride } from "./mock-rbac-repository";
 import { SubjectBehavior } from "../subject-behavior";
 import {
   store,
@@ -56,6 +57,12 @@ export class MockAuthRepository implements AuthRepository {
       return Err(Errors.unauthorized("Invalid credentials"));
     }
     const role = account.role as Role;
+    // T-588 (BUG-017): mock sessions now APPLY the saved RBAC override —
+    // previously the editor's localStorage write never reached the
+    // enforcement path (mock permissions were always the defaults), so
+    // editing the matrix changed nothing in mock mode either. Mirrors the
+    // Supabase resolver's semantics (the stored list IS the effective set).
+    const override = loadRbacOverride();
     const session: Session = {
       userId: account.userId,
       tenantId: TENANT_ID,
@@ -63,7 +70,9 @@ export class MockAuthRepository implements AuthRepository {
       displayName: account.displayName,
       avatarUrl: null,
       role,
-      permissions: DEFAULT_ROLE_PERMISSIONS[role] ?? new Set(),
+      permissions: override?.[role]
+        ? new Set(override[role])
+        : DEFAULT_ROLE_PERMISSIONS[role] ?? new Set(),
       accessToken: `mock-jwt-${account.userId}-${Date.now()}`,
       refreshToken: `mock-refresh-${account.userId}`,
       expiresAt: Date.now() + 8 * 3600_000,

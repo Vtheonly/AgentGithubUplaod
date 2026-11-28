@@ -21,8 +21,11 @@ import { supabaseErrorToAppError } from "../supabase-client";
 /**
  * Map a role code string from the database to the Role enum.
  * Falls back to SupportStaff if the code is unknown.
+ *
+ * T-588: exported for reuse by SupabaseRbacRepository (ONE mapping, not a
+ * hand-copied twin — the DUP-class lesson).
  */
-function mapRoleCode(code: string): Role {
+export function mapRoleCode(code: string): Role {
   const mapping: Record<string, Role> = {
     super_admin: Role.SuperAdmin,
     financial_officer: Role.FinancialOfficer,
@@ -40,21 +43,25 @@ function mapRoleCode(code: string): Role {
 }
 
 /**
- * Map a permission code string from the database to the Permission enum.
+ * Map permission code strings from the database to the Permission enum.
  * Unknown codes are silently dropped (defensive).
+ *
+ * T-588 (enforcement-parity fix): the old PascalCase reconstruction
+ * ("use_ai" → "UseAi") MISSED every consecutive-capitals member (UseAI,
+ * ManageAIConfig, …) — those codes were silently dropped from sessions,
+ * so a server-side grant never reached the client gates (masked for
+ * SuperAdmin by the T-266 stamp). The value-keyed map cannot miss: the
+ * enum's VALUES are the DB codes verbatim.
  */
-function mapPermissionCodes(codes: string[]): ReadonlySet<Permission> {
+const PERMISSION_BY_CODE: ReadonlyMap<string, Permission> = new Map(
+  (Object.values(Permission) as Permission[]).map((p) => [p as unknown as string, p]),
+);
+
+export function mapPermissionCodes(codes: string[]): ReadonlySet<Permission> {
   const result = new Set<Permission>();
-  // The Permission enum uses PascalCase (ViewRoster, EnterGrades, etc.)
-  // while DB codes are snake_case (view_roster, enter_grades, etc.)
   for (const code of codes) {
-    const pascal = code
-      .split("_")
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-      .join("");
-    if (pascal in Permission) {
-      result.add((Permission as unknown as Record<string, Permission>)[pascal]);
-    }
+    const p = PERMISSION_BY_CODE.get(code);
+    if (p) result.add(p);
   }
   return result;
 }

@@ -84,9 +84,13 @@ import {
   mockWarehouseTaskRepository,
 } from "./operations";
 import { mockTimetableRepository } from "./repositories/timetable-repository";
+import { mockRbacRepository } from "./repositories/mock-rbac-repository";
 
 export const mockRepositories: Repositories = {
   auth: mockAuthRepository,
+  // T-588 (BUG-017): the RBAC matrix persistence seam — device-local in
+  // mock mode, tenant_role_overrides via the 0006 RPCs in Supabase mode.
+  rbac: mockRbacRepository,
   userAccounts: mockUserAccountRepository,
   parents: mockParentRepository,
   students: mockStudentRepository,

@@ -24,7 +24,7 @@
  * RBAC: the Audit tab is restricted to SuperAdmin + FinancialOfficer
  * (plan §12). The Pricing tab requires ManagePricing or ViewFinancials.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -104,6 +104,20 @@ export function SettingsPage() {
       ? (tabParam as SettingsTabId)
       : "general";
   const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  // T-588 (BUG-031 + BUG-043): FOLLOW the ?tab= param at RUNTIME too.
+  // Previously the param was read ONCE at mount — navigating to
+  // /settings?tab=backup while the page was already open (the Topbar
+  // quick-backup button's exact flow) silently did nothing: same route,
+  // no remount, state stuck on the previous tab. A param REMOVAL (or an
+  // invalid value) never yanks the user off their current tab — only a
+  // VALID new param navigates.
+  useEffect(() => {
+    const param = searchParams.get("tab");
+    if (param && (VALID_TABS as readonly string[]).includes(param)) {
+      setActiveTab(param);
+    }
+  }, [searchParams]);
 
   return (
     <div className="flex flex-col h-full">

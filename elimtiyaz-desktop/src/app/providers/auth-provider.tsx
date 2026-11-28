@@ -52,6 +52,14 @@ interface AuthContextValue {
     currentPassword: string,
     newPassword: string,
   ): Promise<{ ok: true } | { ok: false; error: string }>;
+  /**
+   * T-588 (BUG-017): best-effort live rebuild of the CURRENT session's
+   * permission set (e.g. right after the RBAC matrix save). Supabase mode
+   * rebuilds via refreshSession (current_user_permissions re-reads the
+   * overrides); mock mode keeps the current session (the override applies
+   * at the next sign-in) and returns false. NEVER evicts on failure.
+   */
+  refreshPermissions(): Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -302,6 +310,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [repos, session],
   );
 
+  // T-588 (BUG-017): the live post-save permission refresh. Deliberately
+  // best-effort: any failure keeps the current session untouched (the
+  // changes apply at the next natural refresh) — this is a UX nicety, not
+  // an enforcement path.
+  const refreshPermissions = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await repos.auth.refreshSession();
+      if (res.ok && res.value) {
+        const next = ensureSuperAdminPermissions(res.value);
+        setSession(next);
+        persistSession(next);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, [repos.auth]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -310,8 +337,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       switchTenant,
       changePassword,
+      refreshPermissions,
     }),
-    [session, isLoading, signIn, signOut, switchTenant, changePassword],
+    [session, isLoading, signIn, signOut, switchTenant, changePassword, refreshPermissions],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

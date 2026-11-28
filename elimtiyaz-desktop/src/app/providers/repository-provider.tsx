@@ -85,10 +85,14 @@ import type {
 import { mockRepositories } from "../../infrastructure/mock/mock-composite";
 export { mockRepositories } from "../../infrastructure/mock/mock-composite";
 import type { TimetableRepository } from "../../domain/repository/timetable-repository";
+import type { RbacRepository } from "../../domain/repository/rbac-repository";
 import type { IdentityResolutionRepository } from "../../domain/identity/repository";
 
 export interface Repositories {
   readonly auth: AuthRepository;
+  /** T-588 (BUG-017): the RBAC matrix persistence (tenant_role_overrides
+   * via the 0006 RPCs in Supabase mode; the device-local store in mock). */
+  readonly rbac: RbacRepository;
   readonly userAccounts: UserAccountRepository;
   readonly parents: ParentRepository;
   readonly students: StudentRepository;
