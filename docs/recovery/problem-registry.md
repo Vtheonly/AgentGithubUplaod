@@ -8814,3 +8814,16 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 - **Status:** IN_PROGRESS (T-633, Session 58).
 - **Evidence:** `npx tsc --noEmit`: 6 pre-existing diagnostics across t-107/t-516/t-519/t-520/t-531; those files are unmodified from website main f93d764. A seventh diagnostic in the new T-631 parameter table was corrected before delivery.
 - **Expected:** preserve assertion messages via expect(actual, message), use typed DOM fixtures, and achieve 0 errors without weakening checks.
+
+
+### BUG-082 — Student short-code identity can overwrite a different family
+
+- **Status:** IN_PROGRESS (T-634, Session 58).
+- **Evidence:** The second real-workbook local-DB run measured DEVIS 355,982,800 vs projection 356,222,800 (240,000 short); the first and third measured zero gap. Root-cause candidate: student codes hash random server parent UUIDs into six hex characters, while the canonical upsert's primary match checks `(tenant, code)` and then overwrites parent/name without checking the existing parent. A forced-collision probe will distinguish this from other causes; the 240,000 observation is not yet attributed conclusively.
+- **Expected:** different-family code collision never reassigns an existing child; the canonical RPC resolves it idempotently, with no lost financial row.
+
+### BUG-083 — AI payment-plan due dates shift one day on UTC-positive machines
+
+- **Status:** IN_PROGRESS (T-635, Session 58).
+- **Evidence:** untouched baseline ai-311 test: expected 2026-10-10, got 2026-10-09. `buildPaymentPlan` constructs local midnight then calls toISOString().slice(0,10). Same previously documented date-only class as §15.103.
+- **Expected:** retain the local calendar day through the canonical toIsoDay formatter; money and monthly arithmetic unchanged.

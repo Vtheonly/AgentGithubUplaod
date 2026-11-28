@@ -7414,3 +7414,20 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 **Problem IDs:** TEST-506.
 
 **Contract:** Fix only pre-existing fixture typing/API misuse exposed by `npx tsc --noEmit`: three invalid `toEqual(expected, message)` calls, Notification permission mock typing, and an untyped image query. Preserve all assertions and production security guards; no exclusions or suppression. Re-run website typecheck, lint, full tests and strict build.
+
+
+## T-634 — Protect student identity from cross-family short-code collisions
+
+**Status:** IN_PROGRESS (Session 58; before application/SQL edits).
+
+**Problem IDs:** BUG-082.
+
+**Contract:** A proposed deterministic short student code must never cause `upsert_student_from_import` to re-parent and rename another family's child. Preserve same-family code updates and name fallback. Resolve foreign-family collisions server-side into a stable available canonical-format code, serialize competing base-code writers, and re-import idempotently through the existing RPC signature. Add a new migration only; no old migration edits. First prove the overwrite with a forced collision on the offline chain, then prove both children and their financial identities survive, re-import is stable, and the real workbooks still balance. No live apply.
+
+## T-635 — Payment-plan date-only serialization
+
+**Status:** IN_PROGRESS (Session 58; before application edits).
+
+**Problem IDs:** BUG-083.
+
+**Contract:** buildPaymentPlan creates LOCAL calendar dates, so serialize them with the existing toIsoDay formatter; never convert local midnight through UTC. Preserve monetary conservation and monthly date construction. Regression across Algeria/UTC-positive and UTC-negative timezones.
