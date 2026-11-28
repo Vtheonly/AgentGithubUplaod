@@ -8788,6 +8788,9 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 **Session-58 resolution:** Keyed view sessions isolate late loads; a persistence revision prevents an earlier read from undoing reset/save; clear/save promise rejections produce honest feedback. Failed reset says « Réinitialisation sur cet appareil uniquement — réessayez ». RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Packaged/manual UI remains pending.
 
+
+**Full-battery correction closed:** The sentinel again keys by the view string inside the keyed session, preserving once-per-view behavior even when a provider returns fresh repository wrappers. Revision fencing remains. t-448/t-503/t-504/repository neighborhood: **47/47**, including both formerly red t-504 controls; renderer tsc 0. No assertion weakened.
+
 ### BUG-080 — Revenue Excel reports: selected period and human category labels
 
 - **Status:** RESOLVED-TESTED (Session 58, T-630).

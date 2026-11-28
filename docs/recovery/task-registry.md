@@ -7365,7 +7365,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-629 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 
-**Status:** IN_PROGRESS (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; registered before code).
 
 **Problem IDs:** BUG-079 / C-25.
 
@@ -7378,6 +7378,9 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 
 **Full-battery follow-up (Session 58):** t-504 exposed two regressions in the new guard: a referentially fresh repository wrapper caused repeated loads and invalidated a pending save outcome. Restore the original once-per-view sentinel inside the keyed view session; preserve revision checks. Existing t-504 tests are the RED controls. Reopened before the source correction.
+
+
+**Full-battery correction closed:** The sentinel again keys by the view string inside the keyed session, preserving once-per-view behavior even when a provider returns fresh repository wrappers. Revision fencing remains. t-448/t-503/t-504/repository neighborhood: **47/47**, including both formerly red t-504 controls; renderer tsc 0. No assertion weakened.
 
 ## T-630 — Revenue Excel reports: selected period and human category labels
 

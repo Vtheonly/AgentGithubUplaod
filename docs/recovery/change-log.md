@@ -5250,3 +5250,8 @@ Website commit e8cbefe (pushed). Six original diagnostics removed; no test or ru
 ## Session 58 / T-632 — complete inspector exports (2026-11-28)
 
 The old PDF drew continuation rows onto the first page and silently dropped rows after 80 and text after 130 characters. Exports now reuse the existing engines; long notes paginate and failures surface with concise French feedback. Corrected-harness RED control against the committed old component/renderer: 3 failed plus an unhandled download rejection. GREEN: actual clicked PDF exports all 95 records (every receipt parsed from PDF content), failed download toasts without leaking the raw error, searched XLSX subset reads back one numeric 1000-DZD row with separate technical provenance, and long report notes retain their tail beyond ten lines. Final four-suite neighborhood 46/46; renderer/Electron tsc 0; build 26.71 s; full lint 0 errors (1381 existing warnings). Status RESOLVED-TESTED; packaged/manual checks pending. Only T-613’s export increment is closed.
+
+
+### T-629 full-battery correction (Session 58)
+
+The first full battery caught two regressions from the repository-object sentinel introduced in 95b6b568: fresh wrappers restarted the loader and invalidated save feedback. Restored the original view-key sentinel inside the keyed session; retained reset/save revision fencing. All four layout suites **47/47**, including the unchanged t-504 controls; renderer tsc 0. This is a forward fix; the earlier commits and evidence remain.

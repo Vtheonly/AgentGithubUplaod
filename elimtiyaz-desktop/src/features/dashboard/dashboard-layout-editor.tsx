@@ -21,7 +21,6 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { logger } from "../../core/logger";
 import {
   parseStoredDashboardLayout,
-  type DashboardLayoutRepository,
   type StoredDashboardLayout,
 } from "../../domain/repository/dashboard-layout-repository";
 import {
@@ -431,12 +430,12 @@ function DashboardLayoutSession({
   itemsRef.current = items;
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
-  const serverLoadDoneFor = useRef<DashboardLayoutRepository | null>(null);
+  const serverLoadDoneFor = useRef<string | null>(null);
   const persistenceRevision = useRef(0);
 
   useEffect(() => {
-    if (serverLoadDoneFor.current === repos.dashboardLayouts) return;
-    serverLoadDoneFor.current = repos.dashboardLayouts;
+    if (serverLoadDoneFor.current === storageKey) return;
+    serverLoadDoneFor.current = storageKey;
     const loadRevision = ++persistenceRevision.current;
 
     void (async () => {
