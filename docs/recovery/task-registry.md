@@ -7365,7 +7365,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-629 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** IN_PROGRESS (Session 58; registered before code).
 
 **Problem IDs:** BUG-079 / C-25.
 
@@ -7375,6 +7375,9 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 
 **Session-58 resolution:** Keyed view sessions isolate late loads; a persistence revision prevents an earlier read from undoing reset/save; clear/save promise rejections produce honest feedback. Failed reset says « Réinitialisation sur cet appareil uniquement — réessayez ». RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Packaged/manual UI remains pending.
+
+
+**Full-battery follow-up (Session 58):** t-504 exposed two regressions in the new guard: a referentially fresh repository wrapper caused repeated loads and invalidated a pending save outcome. Restore the original once-per-view sentinel inside the keyed view session; preserve revision checks. Existing t-504 tests are the RED controls. Reopened before the source correction.
 
 ## T-630 — Revenue Excel reports: selected period and human category labels
 

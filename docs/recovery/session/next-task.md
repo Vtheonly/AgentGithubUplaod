@@ -1,3 +1,5 @@
+**T-629 reopened IN_PROGRESS:** full-suite t-504 caught the repository-wrapper identity regression; restore once-per-view loading before final closeout.
+
 **Session-58 final gate repair:** T-636 IN_PROGRESS — remove the 12 baseline lint errors without changing rules or sweeping warnings.
 
 **Session-58 verification discoveries:** T-634 IN_PROGRESS — protect cross-family student-code collisions (forced proof before SQL); T-635 IN_PROGRESS — repair the baseline payment-plan date shift. Both are direct blockers found during required local verification.
