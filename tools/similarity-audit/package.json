@@ -4,11 +4,15 @@
   "private": true,
   "scripts": {
     "scan": "python3 audit.py scan",
-    "review": "python3 audit.py review"
+    "review": "python3 audit.py review",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "fallow": "3.49.0",
     "jscpd": "4.0.5",
     "typescript": "5.7.3"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
   }
 }

@@ -29,3 +29,8 @@ Verdicts are `exact`, `equivalent`, `conflict`, `intentional` and `false-positiv
 ## What keeps repeat runs manageable
 
 An identical source and scanner fingerprint skips all detection passes. A changed snapshot runs the detectors again across the selected sources so newly copied code can match an older file. Matches are grouped, and the queue size can be changed with `--batch` (1–250). The scan allows up to 20,000 source files, 200 MiB total, 5 MiB per file, and five minutes per detector invocation. Review state lives in the local, Git-ignored `.audit/` directory. Keep it between sessions to reuse decisions. Matches are investigation leads, and sufficiently different implementations can escape detection.
+
+## Pinned dependency patches
+
+`patches/@jscpd+tokenizer+4.0.1.patch` is applied automatically by `patch-package` on `npm ci`. Upstream `@jscpd/tokenizer` 4.0.1 rebuilds its token arrays with `concat`/spread on every token (`groupByFormat`, `tokenize`, `createTokens`), which is quadratic per file; on the full three-repository snapshot (2,017 files, 24 MiB, led by an 18,528-line SQL migration) jscpd exceeded ten minutes and hit the per-invocation timeout. The patch replaces the quadratic rebuilds with `push` only — order, grouping and output are unchanged (verified byte-identical after timestamp normalization on the worst file and on the website+Android subset), and the full-scan jscpd pass drops to about a minute.
+

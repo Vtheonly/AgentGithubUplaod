@@ -10,6 +10,7 @@ import signal
 import sqlite3
 import subprocess
 import tempfile
+import time
 
 HERE = Path(__file__).resolve().parent
 HUB = HERE.parents[1]
@@ -20,6 +21,7 @@ MAX_FILE = 5 * 1024 * 1024
 MAX_TOTAL = 200 * 1024 * 1024
 MAX_FILES = 20000
 TIMEOUT = 300
+TIMINGS = []
 
 
 def digest(value):
@@ -75,22 +77,27 @@ def materialize(files, root):
                 raise ValueError("Git snapshot failed")
 
 
-def run(cmd, root, out):
+def run(cmd, root, out, label=None):
     # Keep scanner output off the console and out of the agent's context.
-    with out.open("wb") as stdout, tempfile.TemporaryFile() as stderr:
-        proc = subprocess.Popen(cmd, cwd=root, stdout=stdout, stderr=stderr, start_new_session=True,
-                                env={**os.environ, "NODE_OPTIONS": "--max-old-space-size=2048",
-                                     "RAYON_NUM_THREADS": "2", "NO_COLOR": "1"})
-        try:
-            proc.wait(TIMEOUT)
-        except (subprocess.TimeoutExpired, KeyboardInterrupt):
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait()
-            raise
-        if proc.returncode:
-            stderr.seek(0, os.SEEK_END)
-            stderr.seek(max(0, stderr.tell()-2000))
-            raise ValueError(f"{Path(cmd[0]).name} failed ({proc.returncode}): {stderr.read().decode(errors='replace')}")
+    started = time.monotonic()
+    try:
+        with out.open("wb") as stdout, tempfile.TemporaryFile() as stderr:
+            proc = subprocess.Popen(cmd, cwd=root, stdout=stdout, stderr=stderr, start_new_session=True,
+                                    env={**os.environ, "NODE_OPTIONS": "--max-old-space-size=2048",
+                                         "RAYON_NUM_THREADS": "2", "NO_COLOR": "1"})
+            try:
+                proc.wait(TIMEOUT)
+            except (subprocess.TimeoutExpired, KeyboardInterrupt):
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait()
+                raise
+            if proc.returncode:
+                stderr.seek(0, os.SEEK_END)
+                stderr.seek(max(0, stderr.tell()-2000))
+                raise ValueError(f"{Path(cmd[0]).name} failed ({proc.returncode}): {stderr.read().decode(errors='replace')}")
+    finally:
+        TIMINGS.append({"pass": label or Path(str(cmd[0])).name,
+                        "seconds": round(time.monotonic() - started, 1)})
 
 
 def detect(files, root, tmp):
@@ -114,13 +121,14 @@ def detect(files, root, tmp):
             entry["methods"].append(method)
 
     raw = tmp / "raw"
-    run(["node", HERE/"ast.cjs"], root, raw)
+    run(["node", HERE/"ast.cjs"], root, raw, label="ast")
     for g in json.loads(raw.read_bytes()):
         add(g["method"], g["locations"])
     if any(Path(f).suffix not in (".sql", ".kt", ".kts") for f in files):
         for mode, extra in [("strict", []), ("mild", ["--near"]), ("semantic", [])]:
             run([BIN/"fallow", "dupes", "--mode", mode, *extra, "--threads", "2",
-                 "--no-cache", "--format", "json", "--no-fragments"], root, raw)
+                 "--no-cache", "--format", "json", "--no-fragments"], root, raw,
+                label="fallow-"+("near" if extra else mode))
             data = json.loads(raw.read_bytes())
             if data.get("clone_groups_omitted", 0):
                 raise ValueError("Fallow truncated its output")
@@ -132,7 +140,7 @@ def detect(files, root, tmp):
     json_dir = tmp / "jscpd"
     run([BIN/"jscpd", ".", "--mode", "mild", "--min-lines", "5", "--min-tokens", "65",
          "--max-lines", "1000000", "--max-size", "6mb", "--reporters", "json",
-         "--absolute", "--output", json_dir, "--silent"], root, raw)
+         "--absolute", "--output", json_dir, "--silent"], root, raw, label="jscpd")
     parents = {}
     def leader(span):
         parents.setdefault(span, span)
@@ -150,6 +158,7 @@ def detect(files, root, tmp):
         add("jscpd", spans)
 
     # Same business name across languages is a lead even if tokenization differs.
+    started = time.monotonic()
     names = defaultdict(list)
     pattern = re.compile(r"(?:\bfun\s+|\bfunction\s+(?:(?:public|private)\.)?)([A-Za-z_]\w*)\s*\(", re.I)
     for file in files:
@@ -163,6 +172,7 @@ def detect(files, root, tmp):
     for spans in names.values():
         if len({language(f) for f, _, _ in spans}) > 1:
             add("cross-language-name", spans)
+    TIMINGS.append({"pass": "cross-language-name", "seconds": round(time.monotonic() - started, 1)})
     return groups
 
 
@@ -251,10 +261,13 @@ def main():
                          for p in ("audit.py","ast.cjs","package-lock.json")])
         signature = digest([engine, blobs, excluded])
         if state.get("signature") != signature:
+            scan_started = time.monotonic()
             with tempfile.TemporaryDirectory() as t:
                 tmp = Path(t)
                 root = tmp / "snapshot"
+                m0 = time.monotonic()
                 materialize(files, root)
+                TIMINGS.append({"pass": "materialize", "seconds": round(time.monotonic() - m0, 1)})
                 groups = detect(files, root, tmp)
             previous = state.get("groups", {})
             db.executemany("delete from reviews where id=?", ((gid,) for gid in previous.keys() - groups.keys()))
@@ -263,7 +276,10 @@ def main():
                 group["change"] = ("new" if gid not in previous else
                                    "unchanged" if group["revision"] == previous[gid]["revision"] else "changed")
             state = {"signature":signature, "files":len(files), "blobs":blobs, "excluded":excluded, "groups":groups}
-            print("Completed scanner passes.")
+            state["timings"] = {"total_seconds": round(time.monotonic() - scan_started, 1), "passes": list(TIMINGS)}
+            print("Completed scanner passes in {0}s: {1}.".format(
+                state["timings"]["total_seconds"],
+                ", ".join(f"{p['pass']}={p['seconds']}s" for p in state["timings"]["passes"])))
         else:
             print("Source snapshot cache hit; skipped all scanner passes.")
         state.update(heads=heads, batch=args.batch)
