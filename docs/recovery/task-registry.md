@@ -7391,13 +7391,16 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-631 — Portal pricing reversal parity with the canonical desktop engine
 
-**Status:** IN_PROGRESS (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; registered before code).
 
 **Problem IDs:** BUG-081 / BUG-020 follow-up.
 
 **Expected behavior / bounded contract:** The desktop excludes reversesId rows and their targets symmetrically from applied discounts/debits; the portal still lists cancelled reductions and majorations. Port the existing rule at the wire-model seam, handling nullable PK / entry-number identity, and pin matching desktop and portal vectors.
 
 **Scope and required tests:** website service-pricing-profile + paired financial regression/parity checks. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+
+**Session-58 resolution:** Website commit d0bbc69 (pushed). Four RED regressions; GREEN canonical suites 103/103, full Website 773/773, website tsc 0/lint 0/strict build green. The enhanced offline real-workbook suite executes the sibling portal engine for 25 families and proves exact charged/paid/adjusted/outstanding parity with Desktop, plus SQL comparison. Genuine -8000/+3000 adjustments preserve 335000; cancelled +/-5000 pairs preserve 340000. Production browser/packaged checks remain unrun; no live database traffic.
 
 ## T-632 — Inspector exports: complete paginated PDF and shared export engines
 

@@ -8800,10 +8800,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-081 — Portal pricing reversal parity with the canonical desktop engine
 
-- **Status:** IN_PROGRESS (Session 58, T-631).
+- **Status:** RESOLVED-TESTED (Session 58, T-631).
 - **Evidence / root cause / expected behavior:** The desktop excludes reversesId rows and their targets symmetrically from applied discounts/debits; the portal still lists cancelled reductions and majorations. Port the existing rule at the wire-model seam, handling nullable PK / entry-number identity, and pin matching desktop and portal vectors.
 - **Affected paths and verification:** website service-pricing-profile + paired financial regression/parity checks. Local-offline verification only; no live Supabase egress.
 
+
+
+**Session-58 resolution:** Website commit d0bbc69 (pushed). Four RED regressions; GREEN canonical suites 103/103, full Website 773/773, website tsc 0/lint 0/strict build green. The enhanced offline real-workbook suite executes the sibling portal engine for 25 families and proves exact charged/paid/adjusted/outstanding parity with Desktop, plus SQL comparison. Genuine -8000/+3000 adjustments preserve 335000; cancelled +/-5000 pairs preserve 340000. Production browser/packaged checks remain unrun; no live database traffic.
 
 ### BUG-073 — Inspector exports: complete paginated PDF and shared export engines
 

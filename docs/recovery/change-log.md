@@ -5235,3 +5235,8 @@ The Excel period label previously disagreed with every sheet population. Both re
 ## Session 58 / T-634 — cross-family student-code collision protection (2026-11-28)
 
 The existing primary code match could overwrite another family’s student and therefore its financial identity. A forced local collision proved it. New migration 0008 extends the SAME canonical upsert with foreign-parent collision resolution; no client allocator, signature change, new privilege or policy change. Forced collision RED 4 failed / 6 passed; GREEN 10/10 twice on fresh offline servers. scripts/verify_t-634.sql 4/4 under authenticated role, BEGIN/ROLLBACK. Full-chain census: 8 files, 99 tables / 162 functions / 242 policies / 513 indexes / 226 FKs, unchanged security helpers. Migration/layout suites 58/58. Real WB2 import/re-import suite 5/5; WB1 twice with identical counts and DB=projection=113,503,800 DZD. Backend equivalence 282 passed / 38 app-layer skips / 0 errors; sync round-trip 21/21. Status RESOLVED-TESTED. Live apply remains pending; no historical repair or causal certainty about the earlier 240,000 gap is claimed.
+
+
+## Session 58 / T-631 — portal reversal parity (2026-11-28)
+
+Website commit d0bbc69 (pushed). Four RED regressions; GREEN canonical suites 103/103, full Website 773/773, website tsc 0/lint 0/strict build green. The enhanced offline real-workbook suite executes the sibling portal engine for 25 families and proves exact charged/paid/adjusted/outstanding parity with Desktop, plus SQL comparison. Genuine -8000/+3000 adjustments preserve 335000; cancelled +/-5000 pairs preserve 340000. Status RESOLVED-TESTED. Production browser/packaged checks remain unrun; no live database traffic.
