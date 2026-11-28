@@ -34,6 +34,9 @@ import { startBackupScheduler } from "../infrastructure/backup/backup-scheduler"
 import { routeRedirectFor, ROUTE_GUARD_REDIRECT } from "../core/rbac/route-access";
 import { AICopilotDrawer } from "../features/ai/copilot-drawer";
 import { PersonNavigationProvider } from "../shared/navigation/person-navigation-context";
+// T-627 (C-25): the tenant custom-palette hydration — pushes the tenant's
+// branding list over the device cache once per session (null-rendering).
+import { TenantThemeHydrator } from "./tenant-theme-hydrator";
 
 export function AppShell() {
   const repos = useRepositories();
@@ -102,6 +105,9 @@ export function AppShell() {
               </Suspense>
             </main>
           </div>
+          {/* T-627 (C-25): the tenant custom-palette hydration — mounted once
+              per shell (per session); null-rendering, fail-open. */}
+          <TenantThemeHydrator />
           <AICopilotDrawer />
         </div>
       </DesktopWindowFrame>

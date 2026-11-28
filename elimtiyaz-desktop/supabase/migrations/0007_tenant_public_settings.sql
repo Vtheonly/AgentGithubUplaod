@@ -42,6 +42,25 @@
 -- by charter — the AI API keys stay device-local AES-256-GCM under the
 -- per-device keychain passphrase, settings-stores.md rule 3: keys can
 -- never sync).
+--
+-- IN-PLACE REPAIR (the §15.83b DOA exception, 2026-11-28, the t627
+-- script's FIRST execution): the original read_public_settings() body used
+-- `coalesce(max(case when s.key = … then s.value end), 'null'::jsonb)` —
+-- PostgreSQL has NO max() aggregate for jsonb (§15.68b's uuid twin of
+-- this class), so the reader raised 42883 on EVERY call while the
+-- migration itself applied clean (PL/pgSQL bodies are not validated at
+-- CREATE time). The repair (three scalar subqueries — no aggregate at
+-- all) was probed on the local offline Postgres BEFORE the edit (the
+-- t627-max-jsonb probe: null/true/null exact) and the full persona matrix
+-- re-run green after it. Legitimate under all three DOA conditions: the
+-- body has NEVER successfully executed anywhere (the live apply is
+-- owner-gated and NOT done — the live chain carries no 0007 row; the local
+-- offline harness is in-memory and re-applies from files on every --fresh
+-- boot, so no persistent database anywhere holds the broken body); a
+-- successor migration could not unblock anything (the chain applies fine
+-- — the defect is runtime-only); and the guard's worktree-vs-HEAD check is
+-- green once committed. The file is otherwise byte-identical to the
+-- original leg-1 commit (56135bb).
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -106,21 +125,22 @@ begin
 
     -- The whitelist is fixed IN SQL (category + key pairs); is_sensitive is
     -- asserted false so a future sensitive row with a colliding key can
-    -- never leak through this surface. The coalesce(max(case…)) form is the
-    -- §15.44-safe pattern (never greatest-wrapped).
+    -- never leak through this surface. THE SCALAR-SUBQUERY FORM (the
+    -- in-place-repair note above): one subquery per key, NULL when the row
+    -- is absent — NO aggregate (max() does not exist for jsonb — the
+    -- first-run defect this file was repaired for) and no greatest-wrapped
+    -- coalesce (§15.44).
     select
-        coalesce(max(case when s.key = 'ai.provider_config' then s.value end), 'null'::jsonb),
-        coalesce(max(case when s.key = 'backup.scheduler_enabled' then s.value end), 'null'::jsonb),
-        coalesce(max(case when s.key = 'theme.custom_palettes' then s.value end), 'null'::jsonb)
-    into v_ai, v_scheduler, v_themes
-    from public.system_settings s
-    where s.tenant_id = v_tenant
-      and s.is_sensitive = false
-      and (
-           (s.category = 'ai' and s.key = 'ai.provider_config')
-        or (s.category = 'backup' and s.key = 'backup.scheduler_enabled')
-        or (s.category = 'system' and s.key = 'theme.custom_palettes')
-      );
+        (select s.value from public.system_settings s
+          where s.tenant_id = v_tenant and s.is_sensitive = false
+            and s.category = 'ai' and s.key = 'ai.provider_config'),
+        (select s.value from public.system_settings s
+          where s.tenant_id = v_tenant and s.is_sensitive = false
+            and s.category = 'backup' and s.key = 'backup.scheduler_enabled'),
+        (select s.value from public.system_settings s
+          where s.tenant_id = v_tenant and s.is_sensitive = false
+            and s.category = 'system' and s.key = 'theme.custom_palettes')
+    into v_ai, v_scheduler, v_themes;
 
     return jsonb_build_object(
         'aiProviderConfig', v_ai,

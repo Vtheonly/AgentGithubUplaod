@@ -44,6 +44,11 @@ import {
 import { ThemeEditorModal } from "./theme-editor-modal";
 import { DangerZoneCard } from "./danger-zone-card";
 import { TooltipHint } from "../../shared/ui/tooltip";
+import { Role } from "../../core/rbac/roles";
+// T-627 (C-25): the tenant-settings seam — the custom-palette list is
+// TENANT BRANDING (every staff member reads/selects; super_admin edits).
+import { useRepositories } from "../../app/providers/repository-provider";
+import { isSupabaseConfigured } from "../../infrastructure/supabase/backend-access";
 
 const TIMEZONES = [
   { value: "Africa/Algiers", label: "Alger (Africa/Algiers)" },
@@ -75,6 +80,17 @@ export function GeneralTab() {
   } = useUserPreferences();
   const { session, signOut } = useAuth();
   const toast = useToast();
+  const repos = useRepositories();
+
+  // T-627 (C-25): the custom palettes are TENANT BRANDING. Every staff
+  // member READS and SELECTS them (the card list + clicks stay live for
+  // all); the EDITOR (create/modify/delete) gates to super_admin in
+  // Supabase mode (the tenant write path — save_public_setting — is
+  // super_admin-gated server-side; gating here makes the UI honest about
+  // it instead of failing at the save). In mock/offline mode the editor
+  // stays open to every operator exactly as before.
+  const isTenantMode = isSupabaseConfigured();
+  const canEditThemes = !isTenantMode || session?.role === Role.SuperAdmin;
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTheme, setEditingTheme] = useState<CustomThemePalette | null>(
@@ -83,21 +99,43 @@ export function GeneralTab() {
 
   const allThemes: CustomThemePalette[] = [...PRESET_THEMES, ...customThemes];
 
+  // T-627: mirror the FULL merged list to the tenant row after a local
+  // save/delete (the tenant write is the sync — the device change is
+  // already committed; a failed mirror surfaces an honest toast, never a
+  // silent divergence).
+  async function mirrorThemesToTenant(next: CustomThemePalette[], what: string) {
+    if (!isTenantMode) return;
+    const r = await repos.tenantSettings.saveCustomThemes(next);
+    if (!r.ok) {
+      toast.showError(
+        "Synchronisation de l'établissement échouée",
+        `Le thème est enregistré sur cet appareil, mais ${what} n'a pas été synchronisé — ${r.error.userMessage}`,
+      );
+    }
+  }
+
   const handleOpenCreate = () => {
+    if (!canEditThemes) return;
     setEditingTheme(null);
     setEditorOpen(true);
   };
 
   const handleOpenEdit = (palette: CustomThemePalette, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEditThemes) return;
     setEditingTheme(palette);
     setEditorOpen(true);
   };
 
-  const handleDelete = (paletteId: string, e: React.MouseEvent) => {
+  const handleDelete = async (paletteId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEditThemes) return;
     deleteCustomTheme(paletteId);
     toast.showSuccess("Thème supprimé", "Le thème personnalisé a été retiré.");
+    await mirrorThemesToTenant(
+      customThemes.filter((t) => t.id !== paletteId),
+      "la suppression",
+    );
   };
 
   return (
@@ -115,13 +153,20 @@ export function GeneralTab() {
               couleurs sur mesure.
             </CardDescription>
           </div>
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            className="h-8 gap-1 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" /> Créer un thème
-          </Button>
+          {canEditThemes ? (
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              className="h-8 gap-1 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" /> Créer un thème
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              La palette de l'établissement est gérée par le Super
+              Administrateur.
+            </span>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -153,7 +198,7 @@ export function GeneralTab() {
                       </span>
                     </div>
 
-                    {!pal.isBuiltIn && (
+                    {!pal.isBuiltIn && canEditThemes && (
                       <div className="flex items-center gap-1">
                         <Button
                           size="icon"
@@ -327,12 +372,19 @@ export function GeneralTab() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         initialPalette={editingTheme}
-        onSave={(palette) => {
+        onSave={async (palette) => {
           saveCustomTheme(palette);
           toast.showSuccess(
             "Thème appliqué",
             `Le thème « ${palette.name} » a été activé.`,
           );
+          // T-627: the tenant mirror — the full merged list through the seam.
+          const idx = customThemes.findIndex((t) => t.id === palette.id);
+          const next =
+            idx >= 0
+              ? customThemes.map((t, i) => (i === idx ? palette : t))
+              : [...customThemes, palette];
+          await mirrorThemesToTenant(next, "le nouveau thème");
         }}
       />
     </div>

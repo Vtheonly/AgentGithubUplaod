@@ -86,6 +86,10 @@ import { mockRepositories } from "../../infrastructure/mock/mock-composite";
 export { mockRepositories } from "../../infrastructure/mock/mock-composite";
 import type { TimetableRepository } from "../../domain/repository/timetable-repository";
 import type { RbacRepository } from "../../domain/repository/rbac-repository";
+// T-627 (C-25): the tenant-level settings seam (migration 0007 — the
+// ai-config non-secret half + the backup scheduler flag + the custom
+// themes onto system_settings rows).
+import type { TenantSettingsRepository } from "../../domain/repository/tenant-settings-repository";
 import type { IdentityResolutionRepository } from "../../domain/identity/repository";
 
 export interface Repositories {
@@ -93,6 +97,12 @@ export interface Repositories {
   /** T-588 (BUG-017): the RBAC matrix persistence (tenant_role_overrides
    * via the 0006 RPCs in Supabase mode; the device-local store in mock). */
   readonly rbac: RbacRepository;
+  /** T-627 (C-25 follow-up register): the tenant-level home of the three
+   * former device-only settings (ai-config non-secret half · backup
+   * scheduler flag · custom themes) — `system_settings` rows via the
+   * 0007 RPCs in Supabase mode; the existing device-local stores in mock
+   * mode (the mock mode IS the offline mode). */
+  readonly tenantSettings: TenantSettingsRepository;
   readonly userAccounts: UserAccountRepository;
   readonly parents: ParentRepository;
   readonly students: StudentRepository;

@@ -42,6 +42,9 @@ import { mockAuditRepository } from "./personnel-audit-repository";
 // of the singletons that makes up `Repositories`).
 import { mockAuthRepository } from "./auth-repository";
 import { mockRbacRepository } from "./mock-rbac-repository";
+// T-627 (C-25): the tenant-settings seam's device-local twin joins the
+// backup's lazy repository reference.
+import { mockTenantSettingsRepository } from "./mock-tenant-settings-repository";
 import { mockTimetableRepository } from "./timetable-repository";
 import { mockUserAccountRepository } from "./user-account-repository";
 import { mockParentRepository } from "./parent-repository";
@@ -274,6 +277,7 @@ export class MockBackupRepository implements BackupRepository {
     return {
       auth: mockAuthRepository,
       rbac: mockRbacRepository,
+      tenantSettings: mockTenantSettingsRepository,
       userAccounts: mockUserAccountRepository,
       parents: mockParentRepository,
       students: mockStudentRepository,

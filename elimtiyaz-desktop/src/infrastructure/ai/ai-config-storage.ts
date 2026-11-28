@@ -12,9 +12,20 @@
  * T-266 (41st session): the `readRawStored()` test seam (the at-rest
  * encryption assertions depend on it) was RESTORED after the
  * unregistered 6ce49b9 patch deleted it (REG-005).
+ *
+ * T-627 (C-25 follow-up register, migration 0007): `loadConfig()` gains
+ * the TENANT OVERLAY — the device store keeps the SECRETS (rule 3:
+ * AES-256-GCM under the per-device keychain passphrase — keys can never
+ * sync) and serves as the OFFLINE CACHE; the tenant row
+ * (`ai.provider_config`, read through `read_public_settings`) is the
+ * NON-SECRET truth (provider / models / sampling), merged at read under
+ * a per-session promise cache (the llm-adapter calls loadConfig per
+ * request — one RPC per app session, not per request). `saveConfig`
+ * stays device-only (the tenant mirror is the aiConfig repository's
+ * concern — `SupabaseAIConfigRepository.updateConfig`).
  */
-import type { AIProviderConfig } from "../../domain/model/ai";
-import { DEFAULT_AI_PROVIDER_CONFIG } from "../../domain/model/ai";
+import type { AIProviderConfig, TenantAIConfigShare } from "../../domain/model/ai";
+import { DEFAULT_AI_PROVIDER_CONFIG, parseTenantAIConfigShare, mergeTenantAIConfigShare } from "../../domain/model/ai";
 import {
   generateKey,
   encrypt,
@@ -22,6 +33,12 @@ import {
   encodeUtf8,
   decodeUtf8,
 } from "../backup/aes-256";
+// T-627: the tenant-overlay read (fail-open to the device-only config on
+// any error — the offline-cache semantics; the T-581
+// readBackupScheduleConfig precedent for backend-access use from a
+// storage module). Inside Vitest the T-472 seam makes the default test
+// environment UNCONFIGURED MOCK MODE — the overlay is never attempted.
+import { isSupabaseConfigured, getSupabaseClient } from "../supabase/backend-access";
 
 export const AI_CONFIG_STORAGE_KEY = "el-imtiyaz:ai-config";
 export const AI_PASSPHRASE_STORAGE_KEY = "el-imtiyaz:ai-passphrase";
@@ -154,47 +171,12 @@ async function decryptString(b64: string): Promise<string> {
 }
 
 export async function loadConfig(): Promise<AIProviderConfig> {
-  const raw = localStorage.getItem(AI_CONFIG_STORAGE_KEY);
-  if (!raw) return { ...DEFAULT_AI_PROVIDER_CONFIG };
-
-  try {
-    const stored = JSON.parse(raw) as StoredAIConfig;
-    const decryptSafe = async (val: string | null | undefined): Promise<string | null> => {
-      if (!val) return null;
-      try {
-        return await decryptString(val);
-      } catch {
-        return null;
-      }
-    };
-
-    const [groqApiKey, openRouterApiKey, customApiKey] = await Promise.all([
-      decryptSafe(stored.groqApiKeyEnc),
-      decryptSafe(stored.openRouterApiKeyEnc),
-      decryptSafe(stored.customApiKeyEnc),
-    ]);
-
-    return {
-      groqApiKey,
-      openRouterApiKey,
-      customApiKey,
-      customBaseUrl: stored.customBaseUrl ?? DEFAULT_AI_PROVIDER_CONFIG.customBaseUrl,
-      defaultProvider: stored.defaultProvider ?? DEFAULT_AI_PROVIDER_CONFIG.defaultProvider,
-      defaultModel: stored.defaultModel ?? DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
-      fastModel: stored.fastModel ?? DEFAULT_AI_PROVIDER_CONFIG.fastModel,
-      reasoningModel: stored.reasoningModel ?? DEFAULT_AI_PROVIDER_CONFIG.reasoningModel,
-      fallbackModel: stored.fallbackModel ?? DEFAULT_AI_PROVIDER_CONFIG.fallbackModel,
-      enableSmartRouting: stored.enableSmartRouting ?? DEFAULT_AI_PROVIDER_CONFIG.enableSmartRouting,
-      temperature: stored.temperature ?? DEFAULT_AI_PROVIDER_CONFIG.temperature,
-      topP: stored.topP ?? DEFAULT_AI_PROVIDER_CONFIG.topP,
-      maxTokens: stored.maxTokens ?? DEFAULT_AI_PROVIDER_CONFIG.maxTokens,
-      reasoningEffort: stored.reasoningEffort ?? DEFAULT_AI_PROVIDER_CONFIG.reasoningEffort,
-      updatedAt: stored.updatedAt ?? DEFAULT_AI_PROVIDER_CONFIG.updatedAt,
-      updatedBy: stored.updatedBy ?? DEFAULT_AI_PROVIDER_CONFIG.updatedBy,
-    };
-  } catch {
-    return { ...DEFAULT_AI_PROVIDER_CONFIG };
-  }
+  // T-627: the tenant overlay — the device store keeps the SECRETS and
+  // serves as the offline cache; the tenant row is the non-secret truth.
+  // The tenant share WINS on every non-secret field it carries.
+  const device = await loadDeviceConfig();
+  const share = await readTenantAiShare();
+  return share ? mergeTenantAIConfigShare(device, share) : device;
 }
 
 export async function saveConfig(config: AIProviderConfig): Promise<StoredAIConfig> {
@@ -245,5 +227,94 @@ export function readRawStored(): StoredAIConfig | null {
     return JSON.parse(raw) as StoredAIConfig;
   } catch {
     return null;
+  }
+}
+
+/* ====================================================================== */
+/* T-627 — the tenant overlay (the non-secret truth over the device cache) */
+/* ====================================================================== */
+
+/**
+ * The per-session promise cache of the tenant's non-secret AI share.
+ * `loadConfig()` is called per request (the llm-adapter) — the RPC is
+ * fetched ONCE per app session, not per call.
+ */
+let tenantAiSharePromise: Promise<TenantAIConfigShare | null> | null = null;
+
+/**
+ * Reset the overlay cache — called after a successful tenant mirror write
+ * (the aiConfig repository's `updateConfig`) so the next `loadConfig()`
+ * re-reads the fresh tenant row instead of serving the pre-save value.
+ */
+export function invalidateTenantAIOverlay(): void {
+  tenantAiSharePromise = null;
+}
+
+/**
+ * The tenant's non-secret AI share — null when Supabase is not configured
+ * (mock/offline/test mode: the device store is the whole world) or the
+ * read fails (fail-open: the device store is the offline cache — a
+ * refused/failed read degrades to device-only, never throws).
+ */
+function readTenantAiShare(): Promise<TenantAIConfigShare | null> {
+  if (!isSupabaseConfigured()) return Promise.resolve(null);
+  if (tenantAiSharePromise === null) {
+    tenantAiSharePromise = (async () => {
+      try {
+        const client = getSupabaseClient();
+        const { data, error } = await client.rpc("read_public_settings");
+        if (error || !data || typeof data !== "object") return null;
+        const raw = (data as { aiProviderConfig?: unknown }).aiProviderConfig;
+        return parseTenantAIConfigShare(raw);
+      } catch {
+        return null; // fail-open: the device store is the offline cache
+      }
+    })();
+  }
+  return tenantAiSharePromise;
+}
+
+/** The device-only load (the historical body of loadConfig, pre-overlay). */
+async function loadDeviceConfig(): Promise<AIProviderConfig> {
+  const raw = localStorage.getItem(AI_CONFIG_STORAGE_KEY);
+  if (!raw) return { ...DEFAULT_AI_PROVIDER_CONFIG };
+
+  try {
+    const stored = JSON.parse(raw) as StoredAIConfig;
+    const decryptSafe = async (val: string | null | undefined): Promise<string | null> => {
+      if (!val) return null;
+      try {
+        return await decryptString(val);
+      } catch {
+        return null;
+      }
+    };
+
+    const [groqApiKey, openRouterApiKey, customApiKey] = await Promise.all([
+      decryptSafe(stored.groqApiKeyEnc),
+      decryptSafe(stored.openRouterApiKeyEnc),
+      decryptSafe(stored.customApiKeyEnc),
+    ]);
+
+    return {
+      groqApiKey,
+      openRouterApiKey,
+      customApiKey,
+      customBaseUrl: stored.customBaseUrl ?? DEFAULT_AI_PROVIDER_CONFIG.customBaseUrl,
+      defaultProvider: stored.defaultProvider ?? DEFAULT_AI_PROVIDER_CONFIG.defaultProvider,
+      defaultModel: stored.defaultModel ?? DEFAULT_AI_PROVIDER_CONFIG.defaultModel,
+      fastModel: stored.fastModel ?? DEFAULT_AI_PROVIDER_CONFIG.fastModel,
+      reasoningModel: stored.reasoningModel ?? DEFAULT_AI_PROVIDER_CONFIG.reasoningModel,
+      fallbackModel: stored.fallbackModel ?? DEFAULT_AI_PROVIDER_CONFIG.fallbackModel,
+      enableSmartRouting: stored.enableSmartRouting ?? DEFAULT_AI_PROVIDER_CONFIG.enableSmartRouting,
+      temperature: stored.temperature ?? DEFAULT_AI_PROVIDER_CONFIG.temperature,
+      topP: stored.topP ?? DEFAULT_AI_PROVIDER_CONFIG.topP,
+      maxTokens: stored.maxTokens ?? DEFAULT_AI_PROVIDER_CONFIG.maxTokens,
+      reasoningEffort: stored.reasoningEffort ?? DEFAULT_AI_PROVIDER_CONFIG.reasoningEffort,
+      updatedAt: stored.updatedAt ?? DEFAULT_AI_PROVIDER_CONFIG.updatedAt,
+      updatedBy: stored.updatedBy ?? DEFAULT_AI_PROVIDER_CONFIG.updatedBy,
+    };
+  } catch {
+    return { ...DEFAULT_AI_PROVIDER_CONFIG };
   }
 }

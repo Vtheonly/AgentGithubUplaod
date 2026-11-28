@@ -112,6 +112,12 @@ import {
 } from "./repositories/supabase-personnel-repository";
 import { SupabaseBackupRepository } from "./repositories/supabase-backup-repository";
 import { SupabaseRbacRepository } from "./repositories/supabase-rbac-repository";
+// T-627 (C-25): the tenant-level settings seam (migration 0007) + the
+// aiConfig slot's Supabase twin (the ARCH-001 mock-slot retirement — the
+// device store keeps the SECRETS, the tenant row mirrors the non-secret
+// half through save_public_setting).
+import { SupabaseTenantSettingsRepository } from "./repositories/supabase-tenant-settings-repository";
+import { SupabaseAIConfigRepository } from "./repositories/supabase-ai-config-repository";
 
 /**
  * Build a Repositories object backed by Supabase for auth + approval workflow,
@@ -132,6 +138,13 @@ export function getSupabaseRepositories(): Repositories {
   // T-588 (BUG-017): the RBAC matrix persistence — the 0006 RPCs over
   // tenant_role_overrides (replaces the localStorage placebo).
   const rbac = new SupabaseRbacRepository(client);
+  // T-627 (C-25): the tenant-level settings seam — the 0007 RPCs over
+  // system_settings (read_public_settings + save_public_setting).
+  const tenantSettings = new SupabaseTenantSettingsRepository(client);
+  // T-627: the aiConfig slot's Supabase twin — writes the device SECRETS
+  // (AES-256-GCM store) AND mirrors the non-secret half to the tenant row
+  // (fail-loud); observe() reads through loadConfig()'s tenant overlay.
+  const aiConfig = new SupabaseAIConfigRepository(client, tenantSettings);
   const approvals = new SupabaseApprovalRepository(client);
   // T-079 — admin account provisioning goes through the create-user-account
   // EF (super_admin only). Explicitly overrides the mock spread below: in
@@ -434,6 +447,8 @@ export function getSupabaseRepositories(): Repositories {
     ...mockRepositories,
     auth,
     rbac, // T-588 — the 0006 RPC path (not the mock spread)
+    tenantSettings, // T-627 — the 0007 tenant-settings RPC path
+    aiConfig, // T-627 — the ARCH-001 mock-slot retirement (device secrets + tenant mirror)
     userAccounts,
     parents,
     students,

@@ -58,6 +58,10 @@ export {
   mockWorkflowRunRepository,
 } from "./repositories/workflow-repository";
 export { mockAIConfigRepository } from "./repositories/ai-config-repository";
+// T-627 (C-25): the tenant-settings seam's device-local twin (the mock mode
+// IS the offline mode — the existing localStorage keys presented through
+// the ONE domain contract).
+export { mockTenantSettingsRepository } from "./repositories/mock-tenant-settings-repository";
 export { mockBackupRepository } from "./repositories/backup-repository";
 export { mockCalendarRepository } from "./repositories/calendar-repository";
 

@@ -9,6 +9,12 @@
  * Run: node scripts/schema-test/t627-tenant-public-settings-rpc.mjs   (server on 5433)
  */
 import { Client } from "pg";
+// T-627 leg-2 repair (§15.83c — the script's own first full run): jsonb
+// normalizes key order + whitespace, so a JSON.stringify TEXT comparison of
+// a round-tripped value against the original literal is a false negative —
+// the value is identical, the serialization differs. Deep-equality on the
+// PARSED value is the honest form (the ai check below already used it).
+import { isDeepStrictEqual } from "node:util";
 
 const PORT = Number(process.env.LOCAL_PG_PORT || 5433);
 const CANONICAL_TENANT = "00000000-0000-0000-0000-000000000001";
@@ -92,7 +98,8 @@ await c.query("select save_public_setting($1, $2)", ["backup.scheduler_enabled",
 
 const read1 = await c.query("select read_public_settings() as s");
 const s1 = read1.rows[0].s;
-check("theme.custom_palettes round-trips", JSON.stringify(s1.customThemes) === JSON.stringify(themes));
+check("theme.custom_palettes round-trips (deep-equality — jsonb normalizes key order)",
+  isDeepStrictEqual(s1.customThemes, themes), JSON.stringify(s1.customThemes));
 check("ai.provider_config round-trips", s1.aiProviderConfig?.defaultModel === "openai/gpt-oss-20b");
 check("backup.scheduler_enabled round-trips (false)", s1.backupSchedulerEnabled === false);
 

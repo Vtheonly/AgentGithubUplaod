@@ -85,12 +85,17 @@ import {
 } from "./operations";
 import { mockTimetableRepository } from "./repositories/timetable-repository";
 import { mockRbacRepository } from "./repositories/mock-rbac-repository";
+import { mockTenantSettingsRepository } from "./repositories/mock-tenant-settings-repository";
 
 export const mockRepositories: Repositories = {
   auth: mockAuthRepository,
   // T-588 (BUG-017): the RBAC matrix persistence seam — device-local in
   // mock mode, tenant_role_overrides via the 0006 RPCs in Supabase mode.
   rbac: mockRbacRepository,
+  // T-627 (C-25): the tenant-settings seam — the EXISTING device-local
+  // stores (the encrypted ai-config store · the scheduler key · the
+  // custom-themes key) presented through the ONE domain contract.
+  tenantSettings: mockTenantSettingsRepository,
   userAccounts: mockUserAccountRepository,
   parents: mockParentRepository,
   students: mockStudentRepository,

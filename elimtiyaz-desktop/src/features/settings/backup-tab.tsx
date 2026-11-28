@@ -38,6 +38,7 @@ import { useAuth } from "../../app/providers/auth-provider";
 import { useToast } from "../../app/providers/toast-provider";
 import { useObservable } from "../../shared/hooks/use-observable";
 import { Permission } from "../../core/rbac/permissions";
+import { Role } from "../../core/rbac/roles";
 import { formatDateTime, formatDate, formatRelative } from "../../core/format/date";
 import {
   getSystemConfigService,
@@ -233,6 +234,11 @@ export function BackupTab() {
   }, []);
 
   const canManage = !!session && session.permissions.has(Permission.ManageBackups);
+  // T-627 (C-25): the scheduler toggle's mode-aware gate.
+  const isTenantSettingsMode = isSupabaseConfigured();
+  const canToggleScheduler = isTenantSettingsMode
+    ? session?.role === Role.SuperAdmin
+    : canManage;
   const actorId = session?.userId ?? "usr-current";
   const actorName = session?.displayName ?? "Session courante";
 
@@ -333,19 +339,36 @@ export function BackupTab() {
     );
   }
 
-  /** T-301: toggle the automatic scheduler (persisted; read at every tick). */
-  function handleToggleScheduler(enabled: boolean) {
+  /**
+   * T-301 + T-627 (C-25): toggle the automatic scheduler — the TENANT write
+   * with the device mirror (the seam's Supabase twin writes the tenant row
+   * through save_public_setting AND mirrors the device key; the mock twin
+   * writes the device key — the mock mode IS the offline mode). The toggle
+   * itself is gated below (super_admin in Supabase mode).
+   */
+  async function handleToggleScheduler(enabled: boolean) {
     setSchedulerEnabled(enabled);
     setSchedulerEnabledState(enabled);
-    if (enabled) {
-      toast.showSuccess(
-        "Planification activée",
-        `La sauvegarde automatique reprend — prochaine exécution ${formatDateTime(nextScheduledRunAt())}.`,
-      );
+    const r = await repos.tenantSettings.saveSchedulerEnabled(enabled);
+    if (r.ok) {
+      if (enabled) {
+        toast.showSuccess(
+          "Planification activée",
+          `La sauvegarde automatique reprend — prochaine exécution ${formatDateTime(nextScheduledRunAt())}.`,
+        );
+      } else {
+        toast.showWarning(
+          "Planification désactivée",
+          "Aucune sauvegarde automatique ne s'exécutera. Les sauvegardes manuelles restent disponibles.",
+        );
+      }
     } else {
-      toast.showWarning(
-        "Planification désactivée",
-        "Aucune sauvegarde automatique ne s'exécutera. Les sauvegardes manuelles restent disponibles.",
+      // The tenant write failed — surface it honestly (the local toggle
+      // state stays as the device mirror; the daemon reads tenant-first, so
+      // the EFFECTIVE state follows the tenant row at the next read).
+      toast.showError(
+        "Échec de l'enregistrement",
+        `Le réglage n'a pas été enregistré pour l'établissement — ${r.error.userMessage}`,
       );
     }
   }
@@ -659,14 +682,27 @@ export function BackupTab() {
                 Sauvegarde quotidienne à ~02:00 (coffre §13.01). Le réglage est persistant — la désactivation ne touche ni les sauvegardes manuelles ni les restaurations.
               </CardDescription>
             </div>
-            {canManage && (
+            {/* T-627 (C-25): the scheduler flag is TENANT-level — the write
+                (save_public_setting) is super_admin-gated server-side. The
+                render gate follows: super_admin in Supabase mode (with the
+                plain-French reason for the other roles — §15.90c); the
+                historical canManage gate stays in mock/offline mode. */}
+            {canToggleScheduler ? (
               <Switch
                 checked={schedulerEnabled}
                 onCheckedChange={handleToggleScheduler}
                 aria-label="Activer la planification automatique"
                 data-testid="backup-scheduler-toggle"
               />
-            )}
+            ) : isTenantSettingsMode ? (
+              <span
+                className="text-xs text-muted-foreground text-right"
+                data-testid="backup-scheduler-gate-reason"
+              >
+                Seul un Super Administrateur peut modifier ce réglage pour
+                l'établissement.
+              </span>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>

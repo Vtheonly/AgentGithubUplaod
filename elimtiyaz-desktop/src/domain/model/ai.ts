@@ -174,6 +174,123 @@ export interface AnomalyExplanation {
 }
 
 /* ------------------------------------------------------------------ */
+/*  T-627 (C-25): the tenant-level NON-SECRET AI config share           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The NON-SECRET subset of `AIProviderConfig` that syncs to the tenant
+ * row (`ai.provider_config`, migration 0007 — `save_public_setting`).
+ *
+ * The SECRETS (the three provider API keys) NEVER enter the tenant row
+ * (settings-stores.md rule 3: they stay device-local AES-256-GCM under the
+ * per-device keychain passphrase — keys can never sync). The tenant row is
+ * the NON-SECRET truth (provider / models / sampling): what another clerk
+ * on another machine must see. The device store serves as the offline
+ * cache; the tenant row wins at read (`loadConfig`'s tenant overlay).
+ */
+export interface TenantAIConfigShare {
+  readonly customBaseUrl: string | null;
+  readonly defaultProvider: AIProvider;
+  readonly defaultModel: string;
+  readonly fastModel: string;
+  readonly reasoningModel: string;
+  readonly fallbackModel: string | null;
+  readonly enableSmartRouting: boolean;
+  readonly temperature: number;
+  readonly topP: number;
+  readonly maxTokens: number;
+  readonly reasoningEffort?: "default" | "low" | "medium" | "high";
+}
+
+/** Extract the non-secret share of a full config (the mirror direction). */
+export function toTenantAIConfigShare(config: AIProviderConfig): TenantAIConfigShare {
+  return {
+    customBaseUrl: config.customBaseUrl,
+    defaultProvider: config.defaultProvider,
+    defaultModel: config.defaultModel,
+    fastModel: config.fastModel,
+    reasoningModel: config.reasoningModel,
+    fallbackModel: config.fallbackModel,
+    enableSmartRouting: config.enableSmartRouting,
+    temperature: config.temperature,
+    topP: config.topP,
+    maxTokens: config.maxTokens,
+    reasoningEffort: config.reasoningEffort,
+  };
+}
+
+/**
+ * Apply the tenant share OVER a (device-loaded) config — the overlay
+ * direction. The device values keep the SECRETS (which the share never
+ * carries); every non-secret field the share names comes from the tenant
+ * row (the tenant is the truth; the device store is the offline cache).
+ */
+export function mergeTenantAIConfigShare(
+  config: AIProviderConfig,
+  share: TenantAIConfigShare,
+): AIProviderConfig {
+  return {
+    ...config,
+    customBaseUrl: share.customBaseUrl,
+    defaultProvider: share.defaultProvider,
+    defaultModel: share.defaultModel,
+    fastModel: share.fastModel,
+    reasoningModel: share.reasoningModel,
+    fallbackModel: share.fallbackModel,
+    enableSmartRouting: share.enableSmartRouting,
+    temperature: share.temperature,
+    topP: share.topP,
+    maxTokens: share.maxTokens,
+    reasoningEffort: share.reasoningEffort,
+  };
+}
+
+/**
+ * Parse + validate a raw tenant-row value into a share — null when the
+ * row is absent/`null` ("never configured") or fails the shape check
+ * (fail-open: the caller degrades to the device/offline values, never
+ * throws — the read path must not crash on a malformed row).
+ */
+export function parseTenantAIConfigShare(raw: unknown): TenantAIConfigShare | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const providers: AIProvider[] = ["groq", "openrouter", "custom_openai"];
+  if (
+    typeof o.customBaseUrl !== "string" && o.customBaseUrl !== null
+  ) return null;
+  if (!providers.includes(o.defaultProvider as AIProvider)) return null;
+  if (typeof o.defaultModel !== "string" || o.defaultModel.length === 0) return null;
+  if (typeof o.fastModel !== "string") return null;
+  if (typeof o.reasoningModel !== "string") return null;
+  if (typeof o.fallbackModel !== "string" && o.fallbackModel !== null) return null;
+  if (typeof o.enableSmartRouting !== "boolean") return null;
+  if (typeof o.temperature !== "number") return null;
+  if (typeof o.topP !== "number") return null;
+  if (typeof o.maxTokens !== "number") return null;
+  const effort = o.reasoningEffort;
+  if (
+    effort !== undefined &&
+    !(["default", "low", "medium", "high"] as const).includes(
+      effort as "default" | "low" | "medium" | "high",
+    )
+  ) return null;
+  return {
+    customBaseUrl: (o.customBaseUrl as string | null) ?? null,
+    defaultProvider: o.defaultProvider as AIProvider,
+    defaultModel: o.defaultModel as string,
+    fastModel: o.fastModel as string,
+    reasoningModel: o.reasoningModel as string,
+    fallbackModel: (o.fallbackModel as string | null) ?? null,
+    enableSmartRouting: o.enableSmartRouting as boolean,
+    temperature: o.temperature as number,
+    topP: o.topP as number,
+    maxTokens: o.maxTokens as number,
+    reasoningEffort: effort as TenantAIConfigShare["reasoningEffort"],
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Labels & Defaults                                                 */
 /* ------------------------------------------------------------------ */
 

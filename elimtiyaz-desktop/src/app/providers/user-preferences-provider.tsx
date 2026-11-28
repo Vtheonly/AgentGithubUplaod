@@ -39,6 +39,17 @@ export interface UserPreferencesContextValue extends UserPreferences {
   customThemes: CustomThemePalette[];
   saveCustomTheme(palette: CustomThemePalette): void;
   deleteCustomTheme(id: string): void;
+  /**
+   * T-627 (C-25): merge the TENANT's custom-palette list over the device
+   * cache — the tenant list WINS on id collision (the tenant row is the
+   * branding truth; the device store is the offline cache) and the merged
+   * list MIRRORS BACK to the device store so offline boots render the
+   * last-known tenant palettes (the T-448 dashboard-layout offline-cache
+   * pattern). Called once per session by the TenantThemeHydrator (inside
+   * the repository tree — this provider sits above RepositoryProvider and
+   * cannot read the repository itself).
+   */
+  hydrateCustomThemes(tenantThemes: CustomThemePalette[]): void;
   reset(): void;
 }
 
@@ -146,6 +157,19 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
     setPrefs((prev) => (prev.theme === id ? { ...prev, theme: "light" } : prev));
   }, []);
 
+  // T-627 (C-25): the tenant-list hydration — tenant wins on id collision,
+  // merged list mirrors back to the device store (offline boots render the
+  // last-known tenant palettes).
+  const hydrateCustomThemes = useCallback((tenantThemes: CustomThemePalette[]) => {
+    setCustomThemes((prev) => {
+      const tenantById = new Map(tenantThemes.map((t) => [t.id, t]));
+      const kept = prev.filter((t) => !tenantById.has(t.id));
+      const merged = [...kept, ...tenantThemes];
+      saveStoredCustomThemes(merged);
+      return merged;
+    });
+  }, []);
+
   const reset = useCallback(() => {
     setPrefs(DEFAULTS);
   }, []);
@@ -160,9 +184,10 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
       customThemes,
       saveCustomTheme,
       deleteCustomTheme,
+      hydrateCustomThemes,
       reset,
     }),
-    [prefs, setTheme, setLocale, setTimezone, setCurrency, customThemes, saveCustomTheme, deleteCustomTheme, reset]
+    [prefs, setTheme, setLocale, setTimezone, setCurrency, customThemes, saveCustomTheme, deleteCustomTheme, hydrateCustomThemes, reset]
   );
 
   return (

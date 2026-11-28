@@ -80,6 +80,27 @@ export function setSchedulerEnabled(enabled: boolean): void {
   }
 }
 
+/**
+ * T-627 (C-25): the scheduler flag reads TENANT-FIRST — the tenant row
+ * (`backup.scheduler_enabled`, read through `read_public_settings`) → the
+ * device cache → the default-ON. FAIL-OPEN: any read failure degrades to
+ * the device/default value (the daemon must never refuse to arm because a
+ * settings read failed — the readBackupScheduleConfig pattern).
+ */
+export async function readSchedulerEnabledConfig(): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) return isSchedulerEnabled();
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc("read_public_settings");
+    if (error || !data || typeof data !== "object") return isSchedulerEnabled();
+    const v = (data as { backupSchedulerEnabled?: unknown }).backupSchedulerEnabled;
+    // A null row = "never configured" → the device cache → the default ON.
+    return typeof v === "boolean" ? v : isSchedulerEnabled();
+  } catch {
+    return isSchedulerEnabled(); // fail-open
+  }
+}
+
 /** T-301: the next scheduled run moment (the toggle card's "prochaine exécution
  * à ~02:00" display; dev mode ticks every 5 minutes instead). T-581: the
  * DEFAULT schedule (the daemon itself re-reads the DB config at every
@@ -248,11 +269,12 @@ export function startBackupScheduler(
   let stopped = false;
 
   async function runTick(trigger: "scheduled" | "manual") {
-    // T-301 (OFFLINE-400): the persisted preference gates every SCHEDULED
-    // tick (manual runs never pass through here). A disabled scheduler
-    // no-ops the tick and keeps idling — flipping the toggle back on
-    // resumes at the next tick without an app restart.
-    if (trigger === "scheduled" && !isSchedulerEnabled()) {
+    // T-301 (OFFLINE-400) + T-627 (C-25): every SCHEDULED tick reads the
+    // flag TENANT-FIRST (the tenant row → the device cache → default ON,
+    // fail-open). A disabled scheduler no-ops the tick and keeps idling —
+    // flipping the toggle back on resumes at the next tick without an
+    // app restart; manual runs never pass through here.
+    if (trigger === "scheduled" && !(await readSchedulerEnabledConfig())) {
       logger.info("backup.scheduler.skipped_disabled", { trigger });
       return;
     }

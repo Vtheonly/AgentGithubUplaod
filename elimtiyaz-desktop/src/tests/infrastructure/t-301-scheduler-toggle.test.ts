@@ -200,7 +200,17 @@ describe("T-301 — the backup-tab wiring", () => {
       join(ROOT, "src/infrastructure/backup/backup-scheduler.ts"),
       "utf8",
     );
-    expect(scheduler).toContain('trigger === "scheduled" && !isSchedulerEnabled()');
+    // T-627 (C-25) re-pin: the tick's gate now reads the flag TENANT-FIRST
+    // (readSchedulerEnabledConfig: the tenant row → the device cache → the
+    // default ON, fail-open) — the T-301 SEMANTIC is unchanged (every
+    // scheduled tick still gates on the flag; manual runs never pass
+    // through here); the source pin follows the renamed guard.
+    expect(scheduler).toContain(
+      'trigger === "scheduled" && !(await readSchedulerEnabledConfig())',
+    );
+    // The device-cache fallback the tenant read degrades to is still the
+    // T-301 device key (setSchedulerEnabled/isSchedulerEnabled pair).
+    expect(scheduler).toContain("function isSchedulerEnabled(): boolean");
   });
 
   it("appendRunLog still works (the run-log contract untouched)", () => {
