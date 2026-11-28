@@ -23,7 +23,7 @@
  *      double-invoke is a no-op).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 
 // Initialize i18n FIRST — the editor banner is French-labeled.
@@ -343,5 +343,38 @@ describe("T-448 editor — honest degradation when the server is unreachable", (
     );
     // The layout itself is untouched (locally kept).
     expect(screen.getByTestId("content-kpi")).toBeTruthy();
+  });
+});
+
+
+describe("T-629 — asynchronous layout lifecycle", () => {
+  it("a late server load cannot undo an explicit reset", async () => {
+    let finish!: (value: ReturnType<typeof Ok<StoredDashboardLayout>>) => void;
+    layoutStore.load.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    render(<DashboardLayoutEditor storageKey={VIEW_KEY} items={ITEMS} editing />);
+    fireEvent.click(screen.getByRole("button", { name: /Réinitialiser/ }));
+    await act(async () => { finish(Ok(SERVER_LAYOUT)); });
+    expect(rectOf("kpi").gridColumn).toBe("1 / span 6");
+    expect(localStorage.getItem(CACHE_KEY)).toBeNull();
+  });
+  it.each(["result", "rejection"])("a failed reset is visible (%s)", async (kind) => {
+    if (kind === "result") layoutStore.clear.mockResolvedValue(Err({ code: "SERVER_ERROR", message: "offline" }));
+    else layoutStore.clear.mockRejectedValue(new Error("offline"));
+    render(<DashboardLayoutEditor storageKey={VIEW_KEY} items={ITEMS} editing />);
+    await waitFor(() => expect(layoutStore.load).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /Réinitialiser/ }));
+    expect(await screen.findByText(/Réinitialisation sur cet appareil uniquement/)).toBeTruthy();
+  });
+  it("switching views uses that view's cache and ignores a previous view's late load", async () => {
+    let finish!: (value: ReturnType<typeof Ok<StoredDashboardLayout>>) => void;
+    layoutStore.load.mockImplementation((key: string) => key === VIEW_KEY
+      ? new Promise((resolve) => { finish = resolve; }) : Promise.resolve(Ok(null)));
+    const other = "t629-other";
+    localStorage.setItem(dashboardLayoutCacheKey(other), JSON.stringify(LOCAL_RESIDUE));
+    const view = render(<DashboardLayoutEditor storageKey={VIEW_KEY} items={ITEMS} />);
+    view.rerender(<DashboardLayoutEditor storageKey={other} items={ITEMS} />);
+    await waitFor(() => expect(layoutStore.load).toHaveBeenCalledWith(other));
+    await act(async () => { finish(Ok(SERVER_LAYOUT)); });
+    expect(rectOf("kpi").gridColumn).toBe("1 / span 12");
   });
 });

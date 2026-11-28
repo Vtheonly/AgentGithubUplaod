@@ -13,6 +13,9 @@
 // `dashboard_layouts` row (migration 0134). When a server row exists it
 // wins on load and refreshes this cache; when it does not, this cache is
 // the user's last known layout (and is promoted to the server once).
+// T-629: a failed server load retains the cache. Reset/save never claim
+// server persistence on failure: the editor reports the local-only outcome
+// and requires an explicit retry; there is no hidden queued synchronization.
 // ============================================================================
 
 export const DASHBOARD_LAYOUT_STORAGE_PREFIX = "el-imtiyaz:dashboard-layout:";

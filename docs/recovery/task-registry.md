@@ -7365,13 +7365,16 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-629 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 
-**Status:** IN_PROGRESS (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; registered before code).
 
 **Problem IDs:** BUG-079 / C-25.
 
 **Expected behavior / bounded contract:** A late load can resurrect a reset or update another view; reset ignores server failure and falsely appears durable. Keep server-authoritative explicit saves and local fallback, fence asynchronous results by context/revision, and show concise French failure wording.
 
 **Scope and required tests:** dashboard-layout-editor + settings-stores boundary; t-448 regressions. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+
+**Session-58 resolution:** Keyed view sessions isolate late loads; a persistence revision prevents an earlier read from undoing reset/save; clear/save promise rejections produce honest feedback. Failed reset says « Réinitialisation sur cet appareil uniquement — réessayez ». RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Packaged/manual UI remains pending.
 
 ## T-630 — Revenue Excel reports: selected period and human category labels
 

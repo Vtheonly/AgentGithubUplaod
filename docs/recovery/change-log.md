@@ -5220,3 +5220,8 @@ Registered T-621 through T-624 and linked the master decisions to the roadmap, s
 ## Session 58 / T-628 — placement draft recovery (2026-11-28)
 
 Malformed persisted nested arrays passed the old outer guard and could crash Map restoration or apply foreign-context work. The existing storage seam now validates the complete v1 draft before exposing it to the hook. RED: t-532 suite 10 failed / 8 passed on the pre-fix parser. GREEN: npx vitest run src/tests/features/academics/t-532-placement-draft-persistence.test.tsx src/tests/features/t-370-class-placement-studio.test.tsx — 2 files / 33 passed. npx tsc --noEmit + npx tsc -p electron/tsconfig.json --noEmit: 0 errors. Targeted eslint: 0 errors/warnings. npm run build: passed (Vite 25.20 s). Status RESOLVED-TESTED; packaged UI check pending. No financial rule, RPC, RLS or migration changed.
+
+
+## Session 58 / T-629 — dashboard layout lifecycle (2026-11-28)
+
+Late reads could undo reset or replace the next view; failed clear looked successful and rejected promises escaped. Keyed sessions + revision checks preserve the newest intent, with concise French local-only reset feedback. RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Status RESOLVED-TESTED; packaged UI remains pending.

@@ -8780,10 +8780,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-079 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 
-- **Status:** IN_PROGRESS (Session 58, T-629).
+- **Status:** RESOLVED-TESTED (Session 58, T-629).
 - **Evidence / root cause / expected behavior:** A late load can resurrect a reset or update another view; reset ignores server failure and falsely appears durable. Keep server-authoritative explicit saves and local fallback, fence asynchronous results by context/revision, and show concise French failure wording.
 - **Affected paths and verification:** dashboard-layout-editor + settings-stores boundary; t-448 regressions. Local-offline verification only; no live Supabase egress.
 
+
+
+**Session-58 resolution:** Keyed view sessions isolate late loads; a persistence revision prevents an earlier read from undoing reset/save; clear/save promise rejections produce honest feedback. Failed reset says « Réinitialisation sur cet appareil uniquement — réessayez ». RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Packaged/manual UI remains pending.
 
 ### BUG-080 — Revenue Excel reports: selected period and human category labels
 

@@ -85,8 +85,12 @@ here.
    verification) resolved in the same migration. RESOLVED-TESTED; the live
    apply is owner-gated (OPS-015).
 2. `placement-draft` → keyed draft row. **T-628 (Session 58) established the runtime-validated v1 shape at `placement-draft-storage.ts`** (tuples/sections/patches/timestamp/context/identity checks); malformed state never reaches restore. The cross-device write/concurrency contract and DB collapse remain follow-up work; this repair does not synchronize drafts.
-3. `dashboard-layout` offline-cache fallback rule documented at the
-   layout store (already DB-backed; only the fallback needs wording).
+3. **DONE (T-629, Session 58):** `dashboard-layout` fallback documented at
+   the layout store: server wins on successful load; explicit save only;
+   load failure retains the local cache. A reset changes this device
+   immediately but is shared/persistent only after server clear succeeds;
+   failure is visible and retryable. Context changes and newer explicit
+   writes invalidate older loads. No queued background sync is promised.
 4. **The legacy-vocabulary reconciliation** (discovered during T-588, see
    the problem registry): the DB `role_permissions` default matrix speaks
    legacy codes (`view_students`, `assign_tasks`, `settle_expense`,

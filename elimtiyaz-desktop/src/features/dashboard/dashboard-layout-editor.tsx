@@ -21,6 +21,7 @@ import { useRepositories } from "../../app/providers/repository-provider";
 import { logger } from "../../core/logger";
 import {
   parseStoredDashboardLayout,
+  type DashboardLayoutRepository,
   type StoredDashboardLayout,
 } from "../../domain/repository/dashboard-layout-repository";
 import {
@@ -386,19 +387,27 @@ const LayoutCell = memo(function LayoutCell({
   );
 });
 
-export function DashboardLayoutEditor({
-  storageKey,
-  items,
-  editing = false,
-  onSave,
-  onReset,
-}: {
+interface DashboardLayoutEditorProps {
   storageKey: string;
   items: DashboardLayoutItem[];
   editing?: boolean;
   onSave?: () => void;
   onReset?: () => void;
-}) {
+}
+
+export function DashboardLayoutEditor(props: DashboardLayoutEditorProps) {
+  // A different view owns a different editing session. Late promises from
+  // the old view must never apply its geometry or dirty state to this one.
+  return <DashboardLayoutSession key={props.storageKey} {...props} />;
+}
+
+function DashboardLayoutSession({
+  storageKey,
+  items,
+  editing = false,
+  onSave,
+  onReset,
+}: DashboardLayoutEditorProps) {
   const repos = useRepositories();
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
@@ -408,7 +417,7 @@ export function DashboardLayoutEditor({
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<"saved" | "save-failed" | null>(
+  const [saveState, setSaveState] = useState<"saved" | "save-failed" | "reset-failed" | null>(
     null,
   );
   const [layout, setLayout] = useState<StoredLayout>(() =>
@@ -422,15 +431,19 @@ export function DashboardLayoutEditor({
   itemsRef.current = items;
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
-  const serverLoadDoneFor = useRef<string | null>(null);
+  const serverLoadDoneFor = useRef<DashboardLayoutRepository | null>(null);
+  const persistenceRevision = useRef(0);
 
   useEffect(() => {
-    if (serverLoadDoneFor.current === storageKey) return;
-    serverLoadDoneFor.current = storageKey;
+    if (serverLoadDoneFor.current === repos.dashboardLayouts) return;
+    serverLoadDoneFor.current = repos.dashboardLayouts;
+    const loadRevision = ++persistenceRevision.current;
 
     void (async () => {
       const localAtMount = readStoredLayout(storageKey);
       const loaded = await repos.dashboardLayouts.load(storageKey);
+      // Reset/save is newer than this read, even if dirty is now false.
+      if (loadRevision !== persistenceRevision.current) return;
       if (!loaded.ok) {
         logger.warn("dashboard-layout: server load failed; using local cache", {
           viewKey: storageKey,
@@ -466,7 +479,9 @@ export function DashboardLayoutEditor({
           );
         }
       }
-    })();
+    })().catch((error: unknown) => {
+      logger.warn("dashboard-layout: load failed; using local cache", { error: String(error) });
+    });
   }, [repos.dashboardLayouts, storageKey]);
 
   useEffect(() => {
@@ -642,11 +657,13 @@ export function DashboardLayoutEditor({
   );
 
   function persistNow(next: StoredLayout = layout) {
+    const revision = ++persistenceRevision.current;
     writeStoredLayout(storageKey, next);
     setDirty(false);
     setSaveState(null);
     onSave?.();
     void repos.dashboardLayouts.save(storageKey, next).then((result) => {
+      if (revision !== persistenceRevision.current) return;
       setSaveState(result.ok ? "saved" : "save-failed");
       if (!result.ok) {
         logger.warn("dashboard-layout: server save failed", {
@@ -654,6 +671,9 @@ export function DashboardLayoutEditor({
           error: result.error.message,
         });
       }
+    }).catch((error: unknown) => {
+      if (revision === persistenceRevision.current) setSaveState("save-failed");
+      logger.warn("dashboard-layout: save failed", { error: String(error) });
     });
   }
 
@@ -692,18 +712,24 @@ export function DashboardLayoutEditor({
   }
 
   function reset() {
+    const revision = ++persistenceRevision.current;
     removeDashboardLayoutCache(storageKey);
     setLayout(buildInitialLayout(itemsRef.current, {}));
     setDirty(false);
     setSaveState(null);
     onReset?.();
     void repos.dashboardLayouts.clear(storageKey).then((result) => {
+      if (revision !== persistenceRevision.current) return;
       if (!result.ok) {
+        setSaveState("reset-failed");
         logger.warn("dashboard-layout: server clear failed", {
           viewKey: storageKey,
           error: result.error.message,
         });
       }
+    }).catch((error: unknown) => {
+      if (revision === persistenceRevision.current) setSaveState("reset-failed");
+      logger.warn("dashboard-layout: clear failed", { error: String(error) });
     });
   }
 
@@ -738,6 +764,11 @@ export function DashboardLayoutEditor({
             {saveState === "saved" && (
               <span className="ml-2 rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-600 dark:text-emerald-400">
                 Disposition enregistrée
+              </span>
+            )}
+            {saveState === "reset-failed" && (
+              <span className="ml-2 text-destructive" role="status">
+                Réinitialisation sur cet appareil uniquement — réessayez
               </span>
             )}
             {saveState === "save-failed" && (
