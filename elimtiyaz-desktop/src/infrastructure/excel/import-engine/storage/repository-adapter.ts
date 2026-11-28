@@ -43,6 +43,19 @@ import { mapNiveauCode, resolveGradeFromClasse, isAutisteTrack } from "../mapper
 import type { CanonicalEntityRef, EntityMatcher } from "../../import-config/extensions";
 import { erImportRowObservationId } from "../er-matcher";
 import { splitFullName } from "../mappers/name-splitter";
+// T-638 / FIN-115 (ADR-038): the ONE shared ETAT identity + payment-spec
+// derivations — the commit path here DELEGATES to them so the dry-run
+// conflict preview projects EXACTLY what this adapter will write.
+import {
+  buildEtatParentInput,
+  buildEtatPaymentSpecs,
+  buildEtatStudentInput,
+  etatAcademicPeriodAnchors,
+  etatRealScheduleFor,
+  extractEtatPhone,
+  findEtatStudentInFamily,
+  numOrZero as sharedNumOrZero,
+} from "../etat-identity";
 import {
   mapExcelDestinationToCanonical
 } from "../mappers/destination-mapper";
@@ -1100,21 +1113,13 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     parent: Parent,
     input: CreateStudentInput,
   ): Student | null {
-    const candidates: Student[] = [...family.createdStudents, ...family.snapshotStudents];
-    const byDisplayName = candidates.find(
-      (s) =>
-        s.parentId === parent.id &&
-        input.displayName != null &&
-        s.displayName === input.displayName,
-    );
-    if (byDisplayName) return byDisplayName;
-    return (
-      candidates.find(
-        (s) =>
-          s.parentId === parent.id &&
-          s.firstName === input.firstName &&
-          s.lastName === input.lastName,
-      ) ?? null
+    // T-638: the shared derivation (etat-identity.ts) — the conflict
+    // preview matches students through the SAME IMPORT-109 exact rule.
+    return findEtatStudentInFamily(
+      [...family.createdStudents, ...family.snapshotStudents].filter(
+        (st) => st.parentId === parent.id,
+      ),
+      input,
     );
   }
 
@@ -1278,134 +1283,22 @@ export class RepositoryStorageAdapter extends StorageAdapter {
 
 
   private buildParentInput(record: ImportRecord): CreateParentInput {
-    const phone = this.extractPhone(record);
-    const tuteurRaw = (record.tuteur as string | undefined)?.trim();
-    const email = (record.email as string | undefined)?.trim() || null;
-
-    // Per `Clients_Sheet_Merged.md` → "03 - ETAT Columns / 01 - Identity (B-K)",
-    // the TUTEUR column is *usually just the family name* (e.g. `ABDELAOUI`).
-    // However, in the REAL `Suivis clients 2026_2027.xlsx`, 325 of 390 rows
-    // have an EMPTY TUTEUR cell, and the 65 non-empty values are all "NV"
-    // (a status flag, not a name). So in practice, TUTEUR is unused.
-    //
-    // PARENT-DISPLAY-NAME FIX (migration 0027):
-    // The previous logic set `firstName = "Tuteur"` as a placeholder when
-    // TUTEUR was missing — this produced prefixed displays like
-    // "Tuteur BENALI" instead of the complete name.
-    //
-    // The new logic:
-    //   1. If TUTEUR is name-like → use TUTEUR as the COMPLETE parent name.
-    //      Split it for indexing (first/last) but ALSO store the full string
-    //      in `displayName` so the UI shows the complete name verbatim.
-    //   2. If TUTEUR is missing/non-name-like → derive the parent's family
-    //      name from the student's NOM column (NOM is LASTNAME FIRSTNAME
-    //      order, so the first token is the family name). Store the FULL
-    //      NOM (e.g. "BENALI Mohamed") as `displayName` — this preserves
-    //      the complete name through the pipeline.
-    //   3. NEVER use "Tuteur" as a placeholder for firstName — that was the
-    //      root cause of the prefix bug.
-    //   4. PARENT-AS-STUDENT FIX: the parent's displayName must NEVER be the
-    //      student's full name — that made the parent appear as a student in
-    //      the UI. The parent's displayName is now "Famille {lastName}" so
-    //      it's clearly a family/parent entity, distinct from the student.
-
-    let lastName = "Inconnu";
-    let firstName = "";
-    let displayName: string | null = null;
-
-    const isNameLikeTuteur =
-      !!tuteurRaw &&
-      !/^(nv|n\/?a|none|-|\?)$/i.test(tuteurRaw) &&
-      // A single token with no digits and length >= 2 is treated as a name.
-      // Anything else (numbers, "NV", short codes) is treated as missing.
-      /^[a-zA-ZÀ-ÿ\u0600-\u06FF][a-zA-ZÀ-ÿ\u0600-\u06FF\s'-]{1,}$/.test(tuteurRaw);
-
-    if (isNameLikeTuteur) {
-      // TUTEUR is a real name — use it as the parent's name.
-      const tuteurParts = splitFullName(tuteurRaw);
-      lastName = tuteurParts.lastName || "Inconnu";
-      firstName = tuteurParts.firstName || "";
-      // Parent display = "Famille {lastName}" to distinguish from students.
-      displayName = firstName
-        ? `Famille ${lastName} (${firstName})`
-        : `Famille ${lastName}`;
-    } else if (record.nom) {
-      // Derive parent family name from student NOM (LASTNAME FIRSTNAME order).
-      const nomParts = splitFullName(record.nom);
-      if (nomParts.lastName) {
-        lastName = nomParts.lastName;
-      }
-      firstName = "";
-      // PARENT-AS-STUDENT FIX: parent displayName = "Famille {lastName}",
-      // NOT the student's full name. This ensures the parent is clearly
-      // a family/parent entity and does NOT appear as a student in the UI.
-      displayName = `Famille ${lastName}`;
-    }
-
-    // If we have a phone number, append it to the displayName for extra
-    // disambiguation when multiple families share the same last name.
-    if (phone && phone !== "(inconnu)" && displayName) {
-      displayName = `${displayName} — ${phone}`;
-    }
-
-    return {
-      firstName,
-      lastName,
-      displayName,
-      gender: "unspecified",
-      phone: phone || "(inconnu)",
-      email,
-      preferredLanguage: "fr",
-    };
+    // T-638: the shared derivation (etat-identity.ts) — the conflict
+    // preview resolves families through the SAME logic.
+    return buildEtatParentInput(record);
   }
-
 
   private buildStudentInput(record: ImportRecord): CreateStudentInput {
-    const nameParts = splitFullName(record.nom);
-    // CALC-001: resolve the EXACT grade from the CLASSE column (H) first —
-    // the broad NIVEAU code (G: PRIM/COLG/LYC) would store every primary
-    // student as 1ap and price them at the CP rate. Falls back to the
-    // niveau mapping for unknown class codes (NV3/NV4 special tracks).
-    const mapping = resolveGradeFromClasse(record.classe, record.niveau);
-    // Store the DISTINATION town name as transportTier when present — this
-    // is more useful than the OPTION code (TRNSP/TENSP/TRNP) because it
-    // identifies the actual transport zone, which drives pricing per
-    // plan §07.03. When DISTINATION is empty but OPTION indicates
-    // transport, fall back to the OPTION code so the flag is preserved.
-    const distination = (record.distination as string | undefined)?.trim() || null;
-    const optionCode = (record.option as string | undefined)?.trim() || null;
-    // Preserve the FULL student NOM (e.g. "BENALI Mohamed") as the display
-    // name so the UI shows the complete name verbatim.
-    const nomRaw = (record.nom as string | undefined)?.trim() || null;
-    return {
-      firstName: nameParts.firstName,
-      lastName: nameParts.lastName || "Inconnu",
-      displayName: nomRaw,
-      gender: "unspecified",
-      // DATA-018: the shared pinned placeholder (see student.ts) — never a
-      // literal again; the demographics layer routes it to "Non renseigné".
-      birthDate: IMPORTED_BIRTH_DATE_PLACEHOLDER,
-      level: mapping.academicLevel,
-      gradeYear: mapping.gradeYear,
-      gradeLevel: mapping.gradeLevel,
-      classId: null,
-      medicalNotes: null,
-      transportTier: distination ?? optionCode,
-    };
+    // T-638: the shared derivation (etat-identity.ts).
+    return buildEtatStudentInput(record);
   }
-
 
   private extractPhone(record: ImportRecord): string {
-    const raw = record.nem;
-    if (Array.isArray(raw)) return String(raw[0] ?? "");
-    if (typeof raw === "string") {
-      const first = raw.split(/[/,;]/)[0]?.trim();
-      return first ?? "";
-    }
-    return "";
+    // T-638: the shared derivation (etat-identity.ts).
+    return extractEtatPhone(record);
   }
 
-  /**
+/**
    * IMPORT-107: collect the (sourceType|sourceId) identity keys of every
    * bulk-import ledger entry currently visible in the ledger stream.
    *
@@ -2170,19 +2063,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     transport: readonly [number, number, number, number];
     destination: TransportDestination;
   } {
-    // EXACT grade from the CLASSE column (CALC-001) — the broad NIVEAU
-    // code would price every primary student at the CP rate.
-    const mapping = resolveGradeFromClasse(record.classe, record.niveau);
-    const gradeLevel = mapping.gradeLevel;
-    const isAutiste = isAutisteTrack(record.classe, record.option);
-    const schedule = isAutiste ? REAL_TUITION_AUTISTE : REAL_TUITION_BY_GRADE[gradeLevel];
-    const fi = isAutiste ? REAL_FI_AUTISTE : REAL_FI_BY_GRADE[gradeLevel];
-    const tuitionTranches: [number, number, number] = schedule
-      ? [schedule.v2, schedule.tranche3, schedule.tranche4]
-      : [0, 0, 0];
-    const destination = mapExcelDestinationToCanonical(record.distination);
-    const transport = REAL_TRANSPORT_MATRIX[destination] ?? [0, 0, 0, 0];
-    return { fi, tuitionTranches, transport, destination };
+    // T-638: the shared derivation (etat-identity.ts) — the dry-run
+    // conflict preview prices rows through the SAME matrix.
+    return etatRealScheduleFor(record);
   }
 
   /**
@@ -2195,10 +2078,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
    * import can never disagree about the academic calendar.
    */
   private academicPeriodAnchors(): readonly [string, string, string] {
-    const now = new Date();
-    const academicYearStart = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-    const [t1, t2, t3] = getOfficialTuitionDueDates(academicYearStart);
-    return [t1.slice(0, 10), t2.slice(0, 10), t3.slice(0, 10)];
+    // T-638: the shared derivation (etat-identity.ts) — one schedule for
+    // the commit, the installments and the dry-run preview.
+    return etatAcademicPeriodAnchors();
   }
 
   private buildPaymentRows(
@@ -2213,13 +2095,9 @@ export class RepositoryStorageAdapter extends StorageAdapter {
     // workbook records payments as TRANCHE/MONTH buckets (FI/V2/2V/v3,
     // 1T/T2/t3, SEPTEMBRE/DECEMBRE/MARS) — it carries NO per-payment exact
     // dates (the deep-inspection census: Dates: 0 on the ETAT sheets; the
-    // only date-bearing sheet, Devis, holds QUOTE dates). The previous
-    // behavior stamped EVERY payment with the import run's wall-clock —
-    // live-proven 2,198 payments all inside ONE 42-second window
-    // (2026-09-27 23:14:03–45, a Sunday), which made the weekly-rhythm
-    // chart assign 100% of the collections to Sunday. The fix: each
-    // field's collectedAt anchors to the CANONICAL period of the bucket
-    // it was recorded under — the OFFICIAL tranche schedule
+    // only date-bearing sheet, Devis, holds QUOTE dates). Each field's
+    // collectedAt anchors to the CANONICAL period of the bucket it was
+    // recorded under — the OFFICIAL tranche schedule
     // (getOfficialTuitionDueDates: Sept 15 / Dec 15 / Mar 15) — the SAME
     // anchors the installment rows' due dates use (one schedule, both
     // sides of the import). Fields with NO recorded period (therapy
@@ -2235,25 +2113,6 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       `${anchors[1]}T00:00:00.000Z`,
       `${anchors[2]}T00:00:00.000Z`,
     ];
-    const anchorFor = (field: string): string | null => {
-      switch (field) {
-        case "FI":
-        case "V2":
-        case "T1":
-        case "SEPTEMBRE":
-          return anchorTs[0]; // September (T1 period — Sept 15)
-        case "V2_ALT":
-        case "T2":
-        case "DECEMBRE":
-          return anchorTs[1]; // December (T2 period — Dec 15)
-        case "V3":
-        case "T3":
-        case "MARS":
-          return anchorTs[2]; // March (T3 period — Mar 15, next calendar year)
-        default:
-          return null; // no recorded period → the run timestamp
-      }
-    };
 
     // CALC-001 REAL PRICING — expected amounts from the real matrix.
     const { fi: fiExpected, tuitionTranches, transport: transportSchedule, destination } =
@@ -2275,58 +2134,27 @@ export class RepositoryStorageAdapter extends StorageAdapter {
       transportSchedule[3],
     ];
 
-    // Each entry: [field, amount, category, description, expectedAmount]
-    // expectedAmount = the real expected amount for this tranche (CALC-001).
-    // T-425: the labels follow the OFFICIAL model — the registration fee
-    // (FI) + Tranches 1/2/3 (V1/2V/v3). There is no 4th tranche (the old
-    // BON receipt labels were the school's deleted template's error).
-    type PaymentSpec = [string, number, PaymentCategory, string, number];
-    const specs: PaymentSpec[] = [
-      ["REGLEMENTS_DETTES", numOrZero(record.reglementsDettes), "tuition", "Règlement dettes antérieures", 0],
-      ["FI", numOrZero(record.fi), "tuition", "Frais d'inscription (FI)", fiExpected],
-      ["V2", numOrZero(record.v2), "tuition", "Tranche 1 — Scolarité (V1)", expectedTuitionTranches[0]],
-      ["V2_ALT", numOrZero(record.v2Alt), "tuition", "Tranche 2 — Scolarité (2V)", expectedTuitionTranches[1]],
-      ["V3", numOrZero(record.v3), "tuition", "Tranche 3 — Scolarité (v3)", expectedTuitionTranches[2]],
-      ["T1", numOrZero(record.t1), "transport", `Tranche 1 transport (1T) — ${destination}`, expectedTransportTranches[0]],
-      ["T2", numOrZero(record.t2), "transport", `Tranche 2 transport (T2) — ${destination}`, expectedTransportTranches[1]],
-      ["T3", numOrZero(record.t3), "transport", `Tranche 3 transport (t3) — ${destination}`, expectedTransportTranches[2]],
-      ["PSY1", numOrZero(record.psy1), "therapy_psychology", "Séance psychologie 1 (PSY1)", 10_000],
-      ["PSY2", numOrZero(record.psy2), "therapy_psychology", "Séance psychologie 2 (PSY2)", 10_000],
-      ["ORTH1", numOrZero(record.orth1), "therapy_speech", "Séance orthophonie 1 (ORTH1)", 10_000],
-      ["ORTH2", numOrZero(record.orth2), "therapy_speech", "Séance orthophonie 2 (ORTH2)", 10_000],
-      ["EPLANT", numOrZero(record.eplant), "other", "E-PLANT (plan d'accompagnement)", 0],
-      ["RATRAPAGE", numOrZero(record.ratrapage), "tuition", "Rattrapage", 0],
-      ["SEPTEMBRE", numOrZero(record.septembre), "tuition", "Tranche septembre — Tranche 1", expectedTuitionTranches[0]],
-      ["DECEMBRE", numOrZero(record.decembre), "tuition", "Tranche décembre — Tranche 2", expectedTuitionTranches[1]],
-      ["MARS", numOrZero(record.mars), "tuition", "Tranche mars — Tranche 3", expectedTuitionTranches[2]],
-      // ── T-414 (IMPORT-111): the 2027-2026 format's expanded columns ──
-      // The expanded therapy grid (PSY3…PSY14) + the four ancillary
-      // services, through the SAME payment rows path (the payments tab
-      // reads `payments`, not the ledger).
-      ...Array.from({ length: 12 }, (_, i) => {
-        const n = i + 3;
-        return [
-          `PSY${n}`,
-          numOrZero(record[`psy${n}`]),
-          "therapy_psychology",
-          `Séance psychologie ${n} (PSY${n})`,
-          10_000,
-        ] as [string, number, PaymentCategory, string, number];
-      }),
-      ["COURS_SUP", numOrZero(record.coursSup), "tuition", "COURS SUP (cours de soutien)", 0],
-      ["LIVRES", numOrZero(record.livres), "books", "Livres scolaires", 0],
-      ["CLUB", numOrZero(record.club), "extracurricular", "Club (activité extrascolaire)", 0],
-      ["SORTIES", numOrZero(record.sorties), "extracurricular", "Sortie scolaire", 0],
-    ];
+    // T-638 (FIN-115): the payment-spec table now lives in ONE place
+    // (etat-identity.ts → buildEtatPaymentSpecs) — this commit path and
+    // the dry-run conflict preview consume the SAME table, so the preview
+    // projects exactly what this method will write. The per-field
+    // recorded-period anchor rides the spec (period index).
+    const specs = buildEtatPaymentSpecs(record, {
+      fiExpected,
+      expectedTuitionTranches,
+      expectedTransportTranches,
+      destination,
+    });
 
     const results: Payment[] = [];
-    for (const [field, amount, category, description, expectedAmount] of specs) {
+    for (const spec of specs) {
+      const { field, amount, category, description, expectedAmount } = spec;
       if (amount <= 0) continue;
       const receiptNumber = `IMP-${studentId}-${field}`;
       // T-502 (DATA-062): the recorded-period anchor (or the run
       // timestamp for fields with no recorded period) — see the comment
       // at the top of this method.
-      const collectedAt = anchorFor(field) ?? at;
+      const collectedAt = spec.period !== null ? anchorTs[spec.period] : at;
       // PAYMENT BREAKDOWN: detect overpayment — when the paid amount
       // exceeds the expected amount for this tranche.
       const excessAmount = expectedAmount > 0 ? Math.max(0, amount - expectedAmount) : 0;
@@ -2951,11 +2779,6 @@ export async function hashRecord(record: ImportRecord): Promise<string> {
 
 /** Coerce a possibly-null/undefined/NaN field value to a clean number. */
 function numOrZero(v: unknown): number {
-  if (v === null || v === undefined) return 0;
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  if (typeof v === "string") {
-    const n = Number(v.trim().replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
+  // T-638: the shared implementation (etat-identity.ts) — one home.
+  return sharedNumOrZero(v);
 }
