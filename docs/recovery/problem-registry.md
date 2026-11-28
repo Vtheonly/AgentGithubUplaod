@@ -8817,10 +8817,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### TEST-506 — Website baseline fails the mandatory TypeScript gate in five test files
 
-- **Status:** IN_PROGRESS (T-633, Session 58).
+- **Status:** RESOLVED-TESTED (T-633, Session 58).
 - **Evidence:** `npx tsc --noEmit`: 6 pre-existing diagnostics across t-107/t-516/t-519/t-520/t-531; those files are unmodified from website main f93d764. A seventh diagnostic in the new T-631 parameter table was corrected before delivery.
 - **Expected:** preserve assertion messages via expect(actual, message), use typed DOM fixtures, and achieve 0 errors without weakening checks.
 
+
+
+**Session-58 resolution:** Website commit e8cbefe (pushed). Six original diagnostics removed; no test or rule disabled. npx tsc --noEmit 0; npm run lint 0; five targeted suites 44/44; full working tree 773/773 including T-631; strict build green. No production behavior changed; browser checks remain a separate task gap.
 
 ### BUG-082 — Student short-code identity can overwrite a different family
 

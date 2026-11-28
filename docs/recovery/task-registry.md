@@ -7415,12 +7415,15 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-633 — Website baseline test-fixture TypeScript errors (verification blocker)
 
-**Status:** IN_PROGRESS (Session 58; before test edits).
+**Status:** RESOLVED-TESTED (Session 58; before test edits).
 
 **Problem IDs:** TEST-506.
 
 **Contract:** Fix only pre-existing fixture typing/API misuse exposed by `npx tsc --noEmit`: three invalid `toEqual(expected, message)` calls, Notification permission mock typing, and an untyped image query. Preserve all assertions and production security guards; no exclusions or suppression. Re-run website typecheck, lint, full tests and strict build.
 
+
+
+**Session-58 resolution:** Website commit e8cbefe (pushed). Six original diagnostics removed; no test or rule disabled. npx tsc --noEmit 0; npm run lint 0; five targeted suites 44/44; full working tree 773/773 including T-631; strict build green. No production behavior changed; browser checks remain a separate task gap.
 
 ## T-634 — Protect student identity from cross-family short-code collisions
 

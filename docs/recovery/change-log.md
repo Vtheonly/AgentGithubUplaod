@@ -5240,3 +5240,8 @@ The existing primary code match could overwrite another family’s student and t
 ## Session 58 / T-631 — portal reversal parity (2026-11-28)
 
 Website commit d0bbc69 (pushed). Four RED regressions; GREEN canonical suites 103/103, full Website 773/773, website tsc 0/lint 0/strict build green. The enhanced offline real-workbook suite executes the sibling portal engine for 25 families and proves exact charged/paid/adjusted/outstanding parity with Desktop, plus SQL comparison. Genuine -8000/+3000 adjustments preserve 335000; cancelled +/-5000 pairs preserve 340000. Status RESOLVED-TESTED. Production browser/packaged checks remain unrun; no live database traffic.
+
+
+## Session 58 / T-633 — website fixture typecheck gate (2026-11-28)
+
+Website commit e8cbefe (pushed). Six original diagnostics removed; no test or rule disabled. npx tsc --noEmit 0; npm run lint 0; five targeted suites 44/44; full working tree 773/773 including T-631; strict build green. Status RESOLVED-TESTED. No production behavior changed; browser checks remain a separate task gap.
