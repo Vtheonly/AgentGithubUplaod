@@ -25,7 +25,11 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.argv[2] ?? 5437);
-const XLSX = path.resolve(__dirname, "../../../Excel/2027-2026.xlsx");
+// argv[3] (optional): the workbook path — defaults to 2027-2026.xlsx; pass the
+// Suivis clients 2026_2027.xlsx path for the OLD-format run.
+const XLSX = process.argv[3]
+  ? path.resolve(process.argv[3])
+  : path.resolve(__dirname, "../../../Excel/2027-2026.xlsx");
 
 const client = new Client({ host: "127.0.0.1", port: PORT, user: "postgres", database: "postgres" });
 await client.connect();
@@ -68,6 +72,31 @@ const bytes = new Uint8Array(fs.readFileSync(XLSX));
 const t0 = Date.now();
 const ctx = await engine.importFile(bytes, XLSX, { dryRun: false });
 console.log(`import #1 done in ${((Date.now() - t0) / 1000).toFixed(0)}s:`, JSON.stringify(ctx.stats));
+// The re-import leg (PROBE_TWICE=1): the same workbook through the same
+// engine against the same database — must be a pure idempotent no-op.
+if (process.env.PROBE_TWICE === "1") {
+  const c1 = await client.query(
+    `select (select count(*) from parents where tenant_id = $1) p,
+            (select count(*) from students where tenant_id = $1) s,
+            (select count(*) from ledger_entries where tenant_id = $1) l,
+            (select count(*) from payments where tenant_id = $1) pay,
+            (select count(*) from installments where tenant_id = $1) ins`,
+    [tenantId],
+  );
+  const ctx2 = await engine.importFile(bytes, XLSX, { dryRun: false });
+  console.log("import #2 stats:", JSON.stringify(ctx2.stats));
+  const c2 = await client.query(
+    `select (select count(*) from parents where tenant_id = $1) p,
+            (select count(*) from students where tenant_id = $1) s,
+            (select count(*) from ledger_entries where tenant_id = $1) l,
+            (select count(*) from payments where tenant_id = $1) pay,
+            (select count(*) from installments where tenant_id = $1) ins`,
+    [tenantId],
+  );
+  const stable = JSON.stringify(c1.rows[0]) === JSON.stringify(c2.rows[0]);
+  console.log("re-import counts stable:", stable ? "YES" : "NO", JSON.stringify(c2.rows[0]));
+  if (!stable || ctx2.stats.rowsRejected > 0) process.exitCode = 1;
+}
 
 // DB per-student devis
 const { rows: dbRows } = await client.query(
