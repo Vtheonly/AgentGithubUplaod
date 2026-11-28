@@ -10,6 +10,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [ctsSourcePlugin()],
+  // T-631: permit execution of the actual sibling portal read engine in
+  // the real-workbook local-DB parity gate. Production Vite is untouched.
+  server: { fs: { allow: [__dirname, path.resolve(__dirname, "../../elimtiyaz-website/src")] } },
   // T-314 (hermetic suite): expose NO custom env vars to import.meta.env in
   // tests. A developer's .env.local (real Supabase credentials for the running
   // app) must NOT leak into the suite — the tests' documented contract is
@@ -46,6 +49,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@/lib": path.resolve(__dirname, "../../elimtiyaz-website/src/lib"),
       "@": path.resolve(__dirname, "./src"),
       "@app": path.resolve(__dirname, "./src/app"),
       "@core": path.resolve(__dirname, "./src/core"),

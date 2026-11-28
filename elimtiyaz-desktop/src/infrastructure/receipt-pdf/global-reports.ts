@@ -1,3 +1,4 @@
+import { selectRevenuePayments } from "../../domain/calc/payment/revenue-report";
 // ============================================================================
 // FILE: elimtiyaz-desktop/src/infrastructure/receipt-pdf/global-reports.ts
 // ============================================================================
@@ -54,11 +55,7 @@ export async function generateRevenueReportPdf(
   // label lied about every number under it. Rows shown = payments
   // collected INSIDE [from, to], inclusive, date-part compared (the
   // collectedAt ISO timestamp's calendar day).
-  const inPeriod = (p: Payment) => {
-    const day = p.collectedAt.slice(0, 10);
-    return day >= options.from && day <= options.to;
-  };
-  const paid = payments.filter((p) => p.status === "paid" && inPeriod(p));
+  const paid = selectRevenuePayments(payments, options);
   const total = paid.reduce((s, p) => s + p.amount, 0);
 
   const byMethod = new Map<string, { count: number; total: number }>();

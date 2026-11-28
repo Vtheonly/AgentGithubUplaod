@@ -33,6 +33,9 @@ import { splitFullName } from "../../infrastructure/excel/import-engine/mappers/
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { PaymentCategory } from "../../domain/model/payment";
+import { selectRevenuePayments } from "../../domain/calc/payment/revenue-report";
+import { mapPaymentRow } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
+
 import {
   PgParentRepo,
   PgStudentRepo,
@@ -371,6 +374,24 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
     }
   }, IMPORT_TIMEOUT);
 
+  it("T-630: revenue report population equals local SQL over the real re-imported workbook", async () => {
+    const { rows } = await client.query<{ row: Parameters<typeof mapPaymentRow>[0] }>(
+      "select row_to_json(p) as row from payments p where tenant_id = $1", [tenantId],
+    );
+    const payments = rows.map(({ row }) => mapPaymentRow(row));
+    expect(payments.length).toBeGreaterThan(1000);
+    for (const [from, to] of [["2026-07-01", "2026-09-30"], ["2026-12-01", "2026-12-31"], ["2027-03-01", "2027-03-31"]]) {
+      const selected = selectRevenuePayments(payments, { from, to });
+      const { rows: oracle } = await client.query(
+        `select count(*)::int n, coalesce(sum(amount),0)::float8 total from payments
+         where tenant_id = $1 and status = 'paid' and collected_at::date between $2::date and $3::date`,
+        [tenantId, from, to],
+      );
+      expect(selected.length).toBe(oracle[0].n);
+      expect(selected.reduce((sum, row) => sum + row.amount, 0)).toBe(oracle[0].total);
+    }
+  }, IMPORT_TIMEOUT);
+
   it("TOTALS PARITY: the canonical TS engine ↔ the SQL compute_parent_summary RPC (desktop = backend)", async () => {
     // Sample parents across the corpus.
     const { rows: sample } = await client.query(
@@ -381,6 +402,9 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
       [tenantId],
     );
     expect(sample.length).toBeGreaterThan(0);
+    const portalSource = path.resolve(REPO_ROOT, "../../elimtiyaz-website/src/lib/canonical/portal-derive.ts");
+    const portal = fs.existsSync(portalSource) ? await import(/* @vite-ignore */ portalSource) : null;
+    if (!portal) console.info("Portal parity NOT RUN: sibling elimtiyaz-website checkout is unavailable; TS/SQL checks still run.");
     for (const p of sample) {
       // The SQL canonical summary.
       const { rows } = await client.query(`select * from compute_parent_summary($1, now())`, [p.id]);
@@ -421,6 +445,15 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
       // numeric column and the canonical model carry the same unit — the
       // production mapLedgerRow does no conversion); the comparison is
       // direct, with a 1-DZD numeric-stringification tolerance.
+      // T-631: execute the actual sibling portal canonical engine over the
+      // SAME locally imported rows (JSON timestamps match PostgREST).
+      if (portal) {
+        const web = portal.portalFinancialSummary(JSON.parse(JSON.stringify(entries)), String(p.id));
+        expect(web.totalCharged).toBe(ts.totalCharged);
+        expect(web.totalPaid).toBe(ts.totalPaid);
+        expect(web.totalAdjusted).toBe(ts.totalAdjusted);
+        expect(web.outstanding).toBe(ts.totalOutstanding);
+      }
       const c = 1;
       expect(Math.abs((ts.totalCharged ?? 0) - Number(sql.total_charged))).toBeLessThanOrEqual(c);
       expect(Math.abs((ts.totalPaid ?? 0) - Number(sql.total_paid))).toBeLessThanOrEqual(c);

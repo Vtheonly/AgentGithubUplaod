@@ -5225,3 +5225,8 @@ Malformed persisted nested arrays passed the old outer guard and could crash Map
 ## Session 58 / T-629 — dashboard layout lifecycle (2026-11-28)
 
 Late reads could undo reset or replace the next view; failed clear looked successful and rejected promises escaped. Keyed sessions + revision checks preserve the newest intent, with concise French local-only reset feedback. RED: the four new t-448 regressions failed (11 existing passed), including an unhandled clear rejection. GREEN: npx vitest run src/tests/features/dashboard/t-448-layout-persistence.test.tsx src/tests/features/dashboard/t-503-layout-geometry.test.tsx src/tests/infrastructure/t-448-dashboard-layout-repository.test.ts — 3 files / 38 passed. Renderer + Electron tsc 0; targeted eslint 0; npm run build passed (27.84 s). Status RESOLVED-TESTED; packaged UI remains pending.
+
+
+## Session 58 / T-630 — revenue period correctness (2026-11-28)
+
+The Excel period label previously disagreed with every sheet population. Both report formats now use the extracted existing PDF predicate, with inclusive stored calendar days and paid-only status; the multi-service label is human-readable. RED: t-630 2/2 failed before the fix. GREEN: report/export neighborhood 14/14 (including real XLSX serialization and readback). The enhanced real-workbook/offline-DB suite passed 5/5: import twice, zero duplicate/RPC failures, three period populations exactly equal SQL count/sum, workbook identity-projection totals exact, and 25 real families match SQL ↔ Desktop ↔ the executed sibling Website engine. Renderer/Electron tsc 0; targeted eslint 0; build passed (23.87 s). Status RESOLVED-TESTED; manual exports remain pending. The separate BUG-082 identity finding is retained with its exact failed-run evidence.

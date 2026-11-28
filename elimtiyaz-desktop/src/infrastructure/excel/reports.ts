@@ -15,6 +15,7 @@
  */
 import { exportToXlsx, exportToCsv, type SheetSpec } from "./export-engine";
 import type { Payment } from "../../domain/model/payment";
+import { selectRevenuePayments } from "../../domain/calc/payment/revenue-report";
 import type { Student } from "../../domain/model/student";
 import { formatDzdPlain } from "../../core/format/currency";
 import { formatDate } from "../../core/format/date";
@@ -35,7 +36,7 @@ export async function exportRevenueReport(
   payments: readonly Payment[],
   options: { from: string; to: string },
 ): Promise<void> {
-  const paid = payments.filter((p) => p.status === "paid");
+  const paid = selectRevenuePayments(payments, options);
   const total = paid.reduce((s, p) => s + p.amount, 0);
 
   // Sheet 1 — Summary
@@ -90,7 +91,7 @@ export async function exportRevenueReport(
       { header: "Total (DZD)", key: "total", width: 22 },
     ],
     rows: Object.entries(byCategory).map(([k, v]) => ({
-      category: PAYMENT_CATEGORY_LABELS_FR[k as keyof typeof PAYMENT_CATEGORY_LABELS_FR] ?? k,
+      category: k === "__multi__" ? paymentCategoryLabelFr(null) : (PAYMENT_CATEGORY_LABELS_FR[k as keyof typeof PAYMENT_CATEGORY_LABELS_FR] ?? k),
       count: v.count,
       total: v.total,
     })),

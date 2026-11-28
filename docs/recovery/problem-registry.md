@@ -8790,10 +8790,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-080 — Revenue Excel reports: selected period and human category labels
 
-- **Status:** IN_PROGRESS (Session 58, T-630).
+- **Status:** RESOLVED-TESTED (Session 58, T-630).
 - **Evidence / root cause / expected behavior:** exportRevenueReport labels the selected period while summing all paid rows; multi-service summary buckets expose __multi__. Reuse the PDF period-selection rule for every Excel sheet, with inclusive dates and the canonical category label.
 - **Affected paths and verification:** excel/reports + receipt-pdf/global-reports; mixed-date and real-workbook export tests. Local-offline verification only; no live Supabase egress.
 
+
+
+**Session-58 resolution:** The existing PDF period predicate is extracted once to selectRevenuePayments, consumed by PDF and all four Excel sheets. Multi-service buckets render the canonical French label. RED: t-630 2/2 failed before the fix. GREEN: report/export neighborhood 14/14 (including real XLSX serialization and readback). The enhanced real-workbook/offline-DB suite passed 5/5: import twice, zero duplicate/RPC failures, three period populations exactly equal SQL count/sum, workbook identity-projection totals exact, and 25 real families match SQL ↔ Desktop ↔ the executed sibling Website engine. Renderer/Electron tsc 0; targeted eslint 0; build passed (23.87 s). The intermittent whole-workbook identity discrepancy is separately registered as BUG-082/T-634, not hidden by this report repair. Packaged/browser manual export checks remain pending.
 
 ### BUG-081 — Portal pricing reversal parity with the canonical desktop engine
 
