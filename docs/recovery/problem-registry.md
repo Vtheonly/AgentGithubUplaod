@@ -8830,3 +8830,10 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 - **Status:** IN_PROGRESS (T-635, Session 58).
 - **Evidence:** untouched baseline ai-311 test: expected 2026-10-10, got 2026-10-09. `buildPaymentPlan` constructs local midnight then calls toISOString().slice(0,10). Same previously documented date-only class as §15.103.
 - **Expected:** retain the local calendar day through the canonical toIsoDay formatter; money and monthly arithmetic unchanged.
+
+
+### TEST-507 — Baseline ESLint errors block the required verification ladder
+
+- **Status:** IN_PROGRESS (T-636, Session 58).
+- **Evidence:** `npm run lint`: 12 errors / 1,381 warnings. Error classes: two prefer-const, eight no-require-imports, two obsolete ts-ignore. All errors existed in baseline files; no rule changes or warning sweep is authorized by this repair.
+- **Expected:** same tests and behavior with 0 errors; warning count remains explicit.

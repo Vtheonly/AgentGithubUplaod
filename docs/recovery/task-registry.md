@@ -7434,3 +7434,12 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 **Problem IDs:** BUG-083.
 
 **Contract:** buildPaymentPlan creates LOCAL calendar dates, so serialize them with the existing toIsoDay formatter; never convert local midnight through UTC. Preserve monetary conservation and monthly date construction. Regression across Algeria/UTC-positive and UTC-negative timezones.
+
+
+## T-636 — Remove the existing ESLint error blockers without weakening rules
+
+**Status:** IN_PROGRESS (Session 58, registered before edits).
+
+**Problem IDs:** TEST-507.
+
+**Contract:** The required full Desktop lint reports 12 errors in unchanged baseline code/tests. Convert CommonJS test imports to static imports, remove obsolete ts-ignore comments when declarations already resolve, and use const for the two non-reassigned bindings. Preserve all assertions and rules; do not sweep the existing warning backlog. Run the affected suites, full lint, typecheck and build.

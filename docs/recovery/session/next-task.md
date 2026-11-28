@@ -1,3 +1,5 @@
+**Session-58 final gate repair:** T-636 IN_PROGRESS — remove the 12 baseline lint errors without changing rules or sweeping warnings.
+
 **Session-58 verification discoveries:** T-634 IN_PROGRESS — protect cross-family student-code collisions (forced proof before SQL); T-635 IN_PROGRESS — repair the baseline payment-plan date shift. Both are direct blockers found during required local verification.
 
 **Session-58 additional verification repair:** T-633 IN_PROGRESS — website test-fixture typing blockers; production behavior unchanged.
