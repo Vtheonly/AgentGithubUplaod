@@ -38,6 +38,33 @@ State (pid/port) lives in `.local-pg.json` next to the scripts. `--fresh`
 (the default) is a brand-new in-memory instance — data lives only for the
 server's lifetime, so every test run starts from the pristine chain.
 
+## The verification suites that ride the harness (T-626)
+
+```bash
+node scripts/schema-test/local-pg.mjs start --fresh --port 5433 &
+
+# 1. The real-Excel import + RE-IMPORT E2E (spawns its own server on 5435
+#    unless LOCAL_PG_PORT says otherwise — self-contained):
+npx vitest run src/tests/integration/real-excel-import-local-pg.test.ts
+
+# 2. The 320-scenario cross-platform backend equivalence runner:
+npx tsx financial-tests/equivalence/backend/backend_runner.ts \
+  --host 127.0.0.1 --port 5433 --user postgres --database postgres
+#    → 282 passed / 38 skipped (app-layer) / 0 errored
+
+# 3. The sync round-trip (Android-style push ↔ canonical state ↔ pull):
+EQ_SKIP_PROVISION=1 EQ_HOST=127.0.0.1 EQ_PORT=5433 \
+  npx tsx financial-tests/equivalence/integration/sync_round_trip.ts
+#    → 21/21
+
+# 4. The import-parity probe (one import + the name-by-name diff against
+#    the documented identity projection — the diagnostic that localizes
+#    any workbook↔DB mismatch):
+npx tsx scripts/schema-test/probe-import-parity.mjs 5433
+
+node scripts/schema-test/local-pg.mjs stop
+```
+
 ## The single-backend discipline (IMPORTANT for test authors)
 
 PGlite multiplexes every socket connection into ONE PostgreSQL session:

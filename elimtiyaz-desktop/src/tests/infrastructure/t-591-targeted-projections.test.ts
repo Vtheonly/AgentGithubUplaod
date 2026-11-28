@@ -369,7 +369,9 @@ describe("T-591 — B. reconcile(): the RPC-first + the keyset fallback + the pa
 describe("T-591 — C. collectDebtors → read_debt_summary_collection (BUG-060)", () => {
   it("the RPC path computes the delinquent census from the per-parent aggregates (the days arithmetic ≡ the old fold)", async () => {
     // The world: one family with two remaining rows (3 500 @ 2025-10-15 +
-    // 3 000 @ 2026-03-15) and one future-due row (4 000 @ 2026-08-15).
+    // 3 000 @ 2026-03-15) and one future-due row (4 000 @ 2099-08-15 —
+    // TEST-505: a far-future anchor; the original 2026-08-15 crossed the
+    // 100-day-overdue threshold on 2026-11-23 and flipped the census).
     // read_debt_summary_collection (the server aggregate): outstanding
     // 10 500, oldest_due_date 2025-10-15 → the delinquent-days arithmetic
     // is days-since-oldest ≡ max(days-over-rows) — the equivalence the
@@ -382,7 +384,7 @@ describe("T-591 — C. collectDebtors → read_debt_summary_collection (BUG-060)
         read_debt_summary_collection: {
           data: [
             { parent_id: PARENT_UUID, outstanding_amount: 10500, oldest_due_date: "2025-10-15" },
-            { parent_id: "22222222-2222-2222-2222-222222222222", outstanding_amount: 4000, oldest_due_date: "2026-08-15" },
+            { parent_id: "22222222-2222-2222-2222-222222222222", outstanding_amount: 4000, oldest_due_date: "2099-08-15" },
           ],
           error: null,
         },

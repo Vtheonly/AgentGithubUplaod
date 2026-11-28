@@ -18,9 +18,15 @@
  */
 import { Client } from "pg";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const DB = process.env.EQ_DB ?? "elimtiyaz_integration";
-const HOST = process.env.EQ_HOST ?? "/tmp";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const DB = process.env.EQ_DB ?? "postgres";
+const HOST = process.env.EQ_HOST ?? "127.0.0.1";
 const PORT = Number(process.env.EQ_PORT ?? 5433);
 const USER = process.env.EQ_USER ?? "postgres";
 
@@ -37,22 +43,71 @@ function check(name: string, cond: boolean, detail?: unknown): void {
 }
 
 async function main() {
-  console.log("-- Provisioning fresh database with migrations 0001-0037 --");
-  execSync(
-    `node /home/z/my-project/scripts/apply_migrations.js ` +
-    `/home/z/my-project/repos/AgentGithubUplaod/elimtiyaz-desktop/supabase/migrations ${DB}`,
-    { stdio: "pipe", env: { ...process.env, NODE_PATH: "/home/z/my-project/tools/pgclient/node_modules" } },
-  );
+  // T-626: the provisioning path is env-gated. Against the local offline
+  // harness (scripts/schema-test/local-pg.mjs) the chain 0001..0005 is
+  // ALREADY applied — set EQ_SKIP_PROVISION=1 and point EQ_HOST/EQ_PORT at
+  // the harness. The legacy self-provisioning (apply_migrations.js over the
+  // pre-consolidation archive chain) stays for stand-alone use, now with
+  // repo-relative paths instead of a previous sandbox's absolute ones.
+  if (process.env.EQ_SKIP_PROVISION !== "1") {
+    console.log("-- Provisioning fresh database with migrations (legacy path) --");
+    const migrationsDir = path.resolve(__dirname, "../../supabase/migrations");
+    const applyScript = path.resolve(__dirname, "../../../scripts/apply_migrations.js");
+    if (!fs.existsSync(applyScript)) {
+      throw new Error(
+        `apply_migrations.js not found at ${applyScript} — run against the local ` +
+        `offline harness instead: node scripts/schema-test/local-pg.mjs start, then ` +
+        `EQ_SKIP_PROVISION=1 EQ_HOST=127.0.0.1 EQ_PORT=5433 npx tsx ${path.relative(process.cwd(), __filename)}`,
+      );
+    }
+    execSync(`node ${applyScript} ${migrationsDir} ${DB}`, {
+      stdio: "pipe",
+      env: { ...process.env, NODE_PATH: path.resolve(__dirname, "../../../tools/pgclient/node_modules") },
+    });
+  }
 
   const client = new Client({ host: HOST, port: PORT, user: USER, database: DB });
   await client.connect();
 
+  // T-626: a unique slug per run — the fixed 'int-test' collided with the
+  // previous run's leftover row whenever an assertion failed mid-run (the
+  // crash path leaves the tenant behind; RLS blocks the cleanup delete).
   const tenant = await client.query<{ id: string }>(
     `INSERT INTO public.tenants (name, slug, country, default_locale, default_currency, timezone, is_active)
-     VALUES ('Integration Test', 'int-test', 'DZ', 'fr', 'DZD', 'Africa/Algiers', true) RETURNING id`,
+     VALUES ('Integration Test', $1, 'DZ', 'fr', 'DZD', 'Africa/Algiers', true) RETURNING id`,
+    [`int-test-${Date.now() % 1000000}`],
   );
   const tenantId = tenant.rows[0].id;
   const year = new Date().getFullYear();
+
+  // T-626: the SEC-111 tenant guard on upsert_payment_from_import (and the
+  // RLS policies) require an AUTHENTICATED caller scoped to the tenant —
+  // the harness discipline (seed as postgres, then become the staff caller,
+  // exactly like PostgREST carries the JWT per request).
+  const AUTH_UID = "00000000-0000-0000-0000-0000000000ee";
+  await client.query(
+    `INSERT INTO auth.users (id, email, email_confirmed_at) VALUES ($1, 'sync-rt@elimtiyaz.dz', now())
+     ON CONFLICT (id) DO NOTHING`,
+    [AUTH_UID],
+  );
+  await client.query(
+    `UPDATE user_profiles SET tenant_id = $1, display_name = 'Sync RT Staff', status = 'active'
+     WHERE auth_user_id = $2`,
+    [tenantId, AUTH_UID],
+  );
+  const rtProfile = await client.query<{ id: string }>(
+    `SELECT id FROM user_profiles WHERE auth_user_id = $1`,
+    [AUTH_UID],
+  );
+  await client.query(
+    `INSERT INTO role_assignments (tenant_id, user_profile_id, role_id)
+     SELECT $1, $2, r.id FROM roles r WHERE r.code = 'super_admin' LIMIT 1`,
+    [tenantId, rtProfile.rows[0].id],
+  );
+  await client.query("SET ROLE authenticated");
+  await client.query("SELECT set_config('request.jwt.claims', $1, false)", [
+    JSON.stringify({ sub: AUTH_UID, role: "authenticated", app_metadata: { tenant_id: tenantId } }),
+  ]);
 
   console.log("-- 1. Android-style push (local refs, centimes-to-DZD at the boundary) --");
 

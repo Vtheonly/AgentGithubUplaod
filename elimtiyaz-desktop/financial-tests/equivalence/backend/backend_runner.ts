@@ -433,6 +433,23 @@ async function runScenario(
           "App-layer canonical rule (client-side authority per migration 0036 / CANONICAL-FINANCIAL-LOGIC.md) — not implemented in SQL by design. Verified by the desktop + Android runners.",
       };
 
+    // ── T-626: the later-added scenario families with no SQL counterpart ──
+    // The subject-average recipe/resolver (T-345) and the executive/
+    // analytics statistics derivations (T-338) are DESKTOP calc-layer
+    // operations by design — the backend equivalent of their OUTPUTS is the
+    // aggregation RPC territory (T-590's lane), not a per-scenario SQL twin.
+    case "computeSubjectAverageFromRecipe":
+    case "resolveSubjectConfiguration":
+    case "deriveAnalyticsStats":
+    case "deriveAnalyticsVisuals":
+    case "deriveExecutiveStats":
+    case "deriveUiSurfaces":
+      return {
+        skipped: true,
+        reason:
+          "Desktop calc-layer operation (T-345 subject-average recipe/resolver · T-338 executive/analytics statistics) — no per-scenario SQL twin by design; the app-layer skip class per migration 0036. Verified by the desktop runner.",
+      };
+
     default:
       return { error: `Unknown operation type: ${when.type}` };
   }
@@ -443,7 +460,20 @@ async function runScenario(
 // ───────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  // T-626: proper flag parsing — the previous `.filter(!startsWith("--"))`
+  // treated every flag VALUE as a positional arg, so `--host 127.0.0.1`
+  // became scenariosDir and the run died on readdir. Values are now
+  // excluded from the positional list.
+  const FLAG_NAMES = new Set(["host", "port", "user", "database"]);
+  const argv = process.argv.slice(2);
+  const args: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i].startsWith("--")) {
+      if (FLAG_NAMES.has(argv[i].slice(2))) i += 1; // skip the value
+      continue;
+    }
+    args.push(argv[i]);
+  }
   const flag = (name: string, def: string) => {
     const i = process.argv.indexOf(`--${name}`);
     return i >= 0 ? process.argv[i + 1] : def;
@@ -483,16 +513,24 @@ async function main() {
     let result: Record<string, unknown>;
     let scenarioId = path.basename(file, ".json");
     let operationType = "unknown";
+    let expectedError: string | null = null;
     try {
       const scenario = JSON.parse(fs.readFileSync(path.join(scenariosDir, file), "utf-8")) as CanonicalScenario;
       scenarioId = scenario.id;
       operationType = scenario.when.type;
+      expectedError = (scenario.then?.error as string | undefined) ?? null;
       await client.query("BEGIN");
       result = await runScenario(client, scenario, tenantId);
       await client.query("ROLLBACK");
     } catch (e) {
       await client.query("ROLLBACK").catch(() => undefined);
       result = { error: (e as Error).message };
+    }
+    // T-626: the expected-rejection contract — a scenario carrying
+    // then.error PASSES when the engine under test raises exactly that
+    // error (e.g. 017_zero_payment: the canonical amount > 0 validation).
+    if (expectedError != null && result.error === expectedError) {
+      result = { expectedErrorMatched: true };
     }
     const durationMs = Date.now() - start;
 

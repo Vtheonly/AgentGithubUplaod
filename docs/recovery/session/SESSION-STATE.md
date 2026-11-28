@@ -1,3 +1,36 @@
+# SESSION STATE — Session 55 (2026-11-28)
+
+> Successor note: this file now tracks Session 55 (the local-offline-testing lane). The Session-54 record below is preserved verbatim.
+
+## Current agent identity (Session 55)
+
+- **Agent:** Z.ai autonomous engineering agent (GLM) — the owner's 2026-11-28 continuation directive ("Make Desktop + Website Work Accurately Now — Verify Old Problems & Test Against Local Offline Supabase").
+- **Base:** clean clone of `main` at `e6e8ebc4`; branch `main`; immediate push after each verified unit; never force-push.
+- **Scope honored:** the 6,450-group deduplication backlog NOT touched (T-621..T-624 untouched); the bounded batch = the owner's Step 2 (mandatory local offline Supabase testing + the real-Excel import/re-import verification).
+
+## Selected tasks (this session)
+
+| # | Task ID | Card | Status | Evidence |
+|---|---|---|---|---|
+| 1 | T-625 | the local offline Supabase harness (`scripts/schema-test`) | RESOLVED-TESTED | commit `855f0c55`; census = the audit of record on every axis; wire smoke green |
+| 2 | T-626 | the real-Excel import + re-import E2E against the local offline DB | RESOLVED-TESTED | suite 4/4; re-import = pure no-op; totals oracle to the dinar; backend_runner 282/38/0; sync_round_trip 21/21 |
+| 3 | TEST-505 | the t-591 time-bomb fixture (registered + fixed in-lane) | RESOLVED-TESTED | pristine-main attribution ×3; 18/18 after |
+
+## Verification discipline (this session's gates, all green)
+
+- `npx tsc --noEmit` 0 (renderer) · `npx tsc -p electron/tsconfig.json --noEmit` 0 · `npm run build` 24.03 s.
+- Full battery in chunks: 5,968 passed / 0 failed / 5 skipped.
+- OPS-015/G2: ZERO remote Supabase traffic (the harness is in-memory, 127.0.0.1 only).
+
+## Task status log
+
+- (2026-11-28) T-625 registered IN_PROGRESS → RESOLVED-TESTED (commit `855f0c55`, pushed, remote verified).
+- (2026-11-28) T-626 registered IN_PROGRESS → RESOLVED-TESTED (this session's closeout commit; the full evidence in the task-registry entry).
+- (2026-11-28) TEST-505 registered (problem-registry) + fixed test-side (the t-591 anchor).
+- (2026-11-28) The Session-55 closeout written to next-task.md + change-log; the queue head for Session 56: T-588 → T-590 → T-591.
+
+---
+
 # SESSION STATE — Session 54 (2026-11-24)
 
 > **Purpose of this folder:** the per-agent session-isolation record (created Session 54, 2026-11-24, per the owner's session-isolation directive). `docs/recovery/session/next-task.md` (relocated here from `docs/recovery/next-task.md` via `git mv` — history preserved) carries the v2.3 AUTONOMOUS HANDOFF & NEXT-TASK QUEUE; `SESSION-STATE.md` tracks the CURRENT agent's identity, scope, ownership, and task states. Historical session archives stay in `Investigation Archive/`.

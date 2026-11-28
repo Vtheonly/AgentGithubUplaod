@@ -7386,6 +7386,21 @@ Status may only advance with evidence (see `docs/recovery/definition-of-done.md`
 - **Evidence:** T-491's commit body (the before/after full-gate runs) + this session's verification records.
 - **Cross-references:** ARCH-012 · §15.86 (the same-commit rule) · T-460 (the 3rd recurrence + the codified rule) · T-463 · T-464 (the suites that landed without entries) · T-491 (the fix).
 
+### TEST-505 — The t-591 delinquent-census pin was a TIME BOMB: the "future-due" fixture row (2026-08-15) crossed the 100-day-overdue threshold on 2026-11-23 and flipped the expected census 1→2 (first observed 2026-11-28, Session 55's full-battery run)
+
+- **Category:** Test infrastructure / time-dependent fixture | **Severity:** LOW (test-only; no production defect — the PRODUCT logic is correct, the fixture's "future" date became the past)
+- **Status:** RESOLVED-TESTED (Session 55, 2026-11-28 — the T-626 lane's full-battery verification run; the fixture anchored to 2099-08-15, the far-future class; t-591 18/18 after the repair.)
+- **Repositories:** AgentGithubUplaod (`elimtiyaz-desktop/src/tests/infrastructure/t-591-targeted-projections.test.ts`)
+- **Platforms affected:** desktop test suite only
+- **Task:** T-626 (this session's lane — the failure surfaced during its full-battery gate)
+- **Registered:** 2026-11-28, BEFORE the fix per §13.
+- **Description:** The C-suite test ("the RPC path computes the delinquent census from the per-parent aggregates") asserted `lockDelinquentAccounts(minDaysOverdue=100)` updates exactly ONE family, with the second family's `oldest_due_date: "2026-08-15"` documented as "FUTURE — not delinquent". The repository's internal `new Date()` (not the test's own discarded `now` constant — computed then `void`ed) governs the arithmetic, so the pin was anchored to the REAL clock: on 2026-11-23 the 2026-08-15 date crossed 100 days overdue, the second family became delinquent, and the census flipped to 2. The Session-53 "baseline FULLY GREEN 5,853/0/5" (2026-11-24) was already 1 day past the flip — meaning either that run predated the boundary hour or the failure was introduced between sessions; either way the pin could not stay green.
+- **Root cause:** A real-world "today" baked into a fixture instead of a far-future anchor (or an injected as-of). The test even computes `expectedDays` against a fixed `now` (2026-11-21) and then `void`s it — the tell that the author intended a frozen clock but never wired it into the repository call.
+- **The fix (test-side only):** the second family's `oldest_due_date` anchored to `2099-08-15` (guaranteed future for the fixture's life) with the comment explaining the TEST-505 class. The `expectedDays` dead code is left untouched (scope control — it documents the arithmetic).
+- **Evidence:** reproduced 3× (twice with the session's changes stashed — pristine-main attribution); 18/18 after the anchor change; the neighboring t-590 uses the same 2026-08-15 date but controls its own as-of clock and stays green (verified, untouched).
+- **Cross-references:** T-620 (the five stale-pin repairs — the same test-side-only class) · T-591 (the suite's origin) · the §9 same-commit rule.
+
+
 ## 146th-session entries (2026-10-05) — the owner's post-T-489 APK test report (registered BEFORE the fixes per §13; evidence: the owner's message + the pasted screenshot — pixel-identical to the Oct-4 17:13 `Screenshot From App/` capture, i.e. the app state the T-489 APK carries — VLM-analyzed field-by-field + the ExpenseSubmitScreen Robolectric render probe + the pull-code read against the documented live census 1137/741/3342/2198/5963)
 
 ### UI-331 — The Android "Nouvelle dépense" submit button renders DISABLED with zero explanation while the only missing required field (Titre) can be scrolled out of the viewport — the owner filled every visible field, the button stayed grey, and the section read as "does not work" (the owner's words: "The expenses section does not work (button grayed out)")
