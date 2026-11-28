@@ -211,7 +211,7 @@ describe("AI-311 — insight builders", () => {
   });
 
   it("builds a payment plan that sums EXACTLY to the outstanding", () => {
-    const plan = buildPaymentPlan(100_001, 3, new Date("2026-09-10"), 20_000);
+    const plan = buildPaymentPlan(100_001, 3, new Date(2026, 8, 10), 20_000);
     expect(plan.outstandingAmount).toBe(100_001);
     expect(plan.downPayment).toBe(20_000);
     expect(plan.schedule).toHaveLength(3);

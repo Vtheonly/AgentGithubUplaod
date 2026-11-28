@@ -24,6 +24,7 @@ import type { Student } from "../../../domain/model/student";
 import { studentDisplayName } from "../../../domain/model/student";
 import { calculateAttendanceRate as attendanceRateOf } from "../../../domain/model/academic";
 import { formatDzdPlain } from "../../../core/format/currency";
+import { toIsoDay } from "../../format/date";
 import {
   computeDescriptiveStats,
   type DescriptiveStats,
@@ -551,7 +552,8 @@ export function buildPaymentPlan(
     const due = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate());
     schedule.push({
       installmentNumber: i,
-      dueDate: due.toISOString().slice(0, 10),
+      // T-635: due is a LOCAL calendar date, not a UTC instant.
+      dueDate: toIsoDay(due),
       amount,
       cumulative,
     });

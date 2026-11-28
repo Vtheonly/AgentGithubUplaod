@@ -8842,10 +8842,13 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-083 — AI payment-plan due dates shift one day on UTC-positive machines
 
-- **Status:** IN_PROGRESS (T-635, Session 58).
+- **Status:** RESOLVED-TESTED (T-635, Session 58).
 - **Evidence:** untouched baseline ai-311 test: expected 2026-10-10, got 2026-10-09. `buildPaymentPlan` constructs local midnight then calls toISOString().slice(0,10). Same previously documented date-only class as §15.103.
 - **Expected:** retain the local calendar day through the canonical toIsoDay formatter; money and monthly arithmetic unchanged.
 
+
+
+**Session-58 resolution:** Serialize the existing local due-date construction via the existing toIsoDay formatter. The baseline fixture now explicitly constructs a local calendar date; the subprocess matrix verifies the production function independently in all four zones. RED timezone matrix: 2 failed / 2 passed (Algiers/Kolkata shifted to the previous day). GREEN: four isolated timezone processes (UTC, Africa/Algiers, Asia/Kolkata, America/New_York) retain Oct/Nov/Dec 10 and exactly 100001 DZD; combined t-635 + ai-311 **55/55**. Renderer/Electron tsc 0; full lint 0 errors; build 26.71 s. Monthly construction and money conservation are unchanged; no server write or Website formula is affected.
 
 ### TEST-507 — Baseline ESLint errors block the required verification ladder
 

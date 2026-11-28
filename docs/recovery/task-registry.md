@@ -7447,12 +7447,15 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-635 — Payment-plan date-only serialization
 
-**Status:** IN_PROGRESS (Session 58; before application edits).
+**Status:** RESOLVED-TESTED (Session 58; before application edits).
 
 **Problem IDs:** BUG-083.
 
 **Contract:** buildPaymentPlan creates LOCAL calendar dates, so serialize them with the existing toIsoDay formatter; never convert local midnight through UTC. Preserve monetary conservation and monthly date construction. Regression across Algeria/UTC-positive and UTC-negative timezones.
 
+
+
+**Session-58 resolution:** Serialize the existing local due-date construction via the existing toIsoDay formatter. The baseline fixture now explicitly constructs a local calendar date; the subprocess matrix verifies the production function independently in all four zones. RED timezone matrix: 2 failed / 2 passed (Algiers/Kolkata shifted to the previous day). GREEN: four isolated timezone processes (UTC, Africa/Algiers, Asia/Kolkata, America/New_York) retain Oct/Nov/Dec 10 and exactly 100001 DZD; combined t-635 + ai-311 **55/55**. Renderer/Electron tsc 0; full lint 0 errors; build 26.71 s. Monthly construction and money conservation are unchanged; no server write or Website formula is affected.
 
 ## T-636 — Remove the existing ESLint error blockers without weakening rules
 

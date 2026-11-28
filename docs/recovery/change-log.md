@@ -5255,3 +5255,8 @@ The old PDF drew continuation rows onto the first page and silently dropped rows
 ### T-629 full-battery correction (Session 58)
 
 The first full battery caught two regressions from the repository-object sentinel introduced in 95b6b568: fresh wrappers restarted the loader and invalidated save feedback. Restored the original view-key sentinel inside the keyed session; retained reset/save revision fencing. All four layout suites **47/47**, including the unchanged t-504 controls; renderer tsc 0. This is a forward fix; the earlier commits and evidence remain.
+
+
+## Session 58 / T-635 — payment-plan date serialization (2026-11-28)
+
+The untouched baseline’s Oct 10→Oct 9 failure was a real local-midnight→UTC serialization defect. Reused toIsoDay; preserved money and monthly construction. RED timezone matrix: 2 failed / 2 passed (Algiers/Kolkata shifted to the previous day). GREEN: four isolated timezone processes (UTC, Africa/Algiers, Asia/Kolkata, America/New_York) retain Oct/Nov/Dec 10 and exactly 100001 DZD; combined t-635 + ai-311 **55/55**. Renderer/Electron tsc 0; full lint 0 errors; build 26.71 s. RESOLVED-TESTED; packaged manual plan generation remains pending.
