@@ -1,17 +1,17 @@
 {
-  "_comment": "T-419 (ADR-029): the DOCUMENTED vitest baseline. The unified runner compares every full run against this: the count AND the failing-file set. A run matching this baseline is 'red as documented'; ANY deviation (new failure or vanished failure) is flagged loudly. Update this file ONLY via a registered, verified change that intentionally moves the baseline (and cite the task ID in _comment). Last moved: T-627 (Session 57, 2026-11-28 — see _task). Previously moved: the Session-44 dashboard-overhaul lane. Superseded moves: the Session-42 T-615 lane; the Session-40 T-614 lane; the Session-39 dashboard-redesign lane; E2.5-remainder; T-590..T-593; T-574; T-575; T-552; T-550+T-573+ARCH-046; T-559+T-560+T-594; T-549.",
-  "_task": "T-627 (Session 57, 2026-11-28): the C-25 follow-up trio onto system_settings + SEC-121 (migration 0007 + the TenantSettingsRepository seam + the ARCH-001 aiConfig retirement + the three store rewires + the t-627 suite [1 NEW file / 21 NEW tests] + the t-550 census 55→56 + the t-575 chain pin 6→7 + the t-301 tick-gate re-pin). The measured ladder: the full battery POST-COMMIT-PUSH 376 test files (375 passed + 1 skipped) / 6,013 passed / 0 failed / 5 skipped · tsc 0 (renderer + electron) · vite build 22.73 s · the pre-commit run's only 4 failures were the append-only guards' documented detection of the 0007 DOA in-place repair (§15.83b), all four re-verified green post-push. THIS MOVE also absorbs the accumulated drift the Session-45..56 closeouts measured but never registered here (the API-push-era sessions ran the battery in chunks and recorded the counts in their closeouts — 5,722 → 5,992 — without moving this file; the T-627 closeout closes the bookkeeping gap honestly: the +291 non-T-627 tests belong to the S45..S56 lanes [the T-505 backup-file-workflow family, the T-575/T-581/T-619-era pins, the T-625/T-626 local-offline harness + the real-Excel suite, the T-588 settings lane's 24, the BUG-077 repair], each verified in its own session's closeout). The equivalence section is UNCHANGED (T-627 touched no financial engine; the corpus numbers stand).",
+  "_comment": "T-419 (ADR-029): documented full Vitest baseline; compare both counts and failing-file set. Move only with a registered, tested change. Last moved: T-628..T-636 (Session 58, 2026-11-28; see _task). Previous baseline: T-627 / Session 57 at 804180a2.",
+  "_task": "T-628..T-636 (Session 58): frozen-source full battery at fcc28d79: 379 files (378 passed, 1 skipped), 6040 passed / 0 failed / 5 skipped, 534.49 s. Previous 376 files / 6013 passed: +3 files (t630, t632, t635), +27 tests (draft 11 + layout 4 + revenue 2 + inspector 5 + real offline DB 1 + timezone 4). Renderer/Electron tsc 0, lint 0 errors / 1380 existing warnings, Vite build 25.98 s. Website separately 773/773, tsc/lint/build green. Real Excel double-import and exact SQL/Desktop/Website engine parity passed locally; no live Supabase calls. Equivalence section unchanged numerically and rerun: backend 282/38 explicit skips/0 errors, sync 21/21; corpus 820/820 sanity and 319/319 canonical, tier-4 784 plus 36 skips, 0 discrepancies. Unified CLI wrapper remains environment-blocked by tsx IPC; same tools executed via node --import tsx. See session-58-report.md for exact limits; TESTED, not VERIFIED.",
   "testFiles": {
     "failed": 0,
-    "passed": 375,
+    "passed": 378,
     "skipped": 1,
-    "total": 376
+    "total": 379
   },
   "tests": {
     "failed": 0,
-    "passed": 6013,
+    "passed": 6040,
     "skipped": 5,
-    "total": 6018
+    "total": 6045
   },
   "failingFiles": [],
   "equivalence": {

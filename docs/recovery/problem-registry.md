@@ -8861,3 +8861,8 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 
 **Session-58 resolution:** Static Node imports replace test require calls; obsolete ts-ignore directives are removed (the declarations already resolve); two unmodified bindings use const. Every assertion, lint rule and warning remains. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. No new behavioral test was added for mechanical import/binding edits; the existing relevant suites were executed.
+
+
+### Session-58 final verification record — T-628..T-636
+
+BUG-078/079/080/081/082/083 and TEST-506/507 remain **RESOLVED-TESTED**; BUG-073/ARCH-028's bounded export increment is tested under T-632 while the rest of T-613 remains open. Frozen source fcc28d79: Desktop **6040 passed / 0 failed / 5 skipped** (379 files; 378 passed, 1 skipped), Website **773 passed**; all typechecks/builds pass, Desktop lint 0 errors / 1380 warnings and Website lint 0 errors. Both real workbook double-imports have stable business counts and exact canonical projection/DB totals (356222800 and 113503800 DZD), 25-family SQL/Desktop/Website engine parity and all 2198 real payment receipts exported. See session-58-report.md for failed controls, precise raw/projection distinction and zero-tolerance evidence. No remote Supabase traffic; 0006–0008 live apply and packaged/rendered checks remain pending. Historical 240000-DZD observation is not conclusively attributed or repaired.

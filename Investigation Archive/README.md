@@ -1,5 +1,7 @@
 # Investigation Archive — README
 
+**Latest engineering delivery:** [Session 58 report](Session%20Reports/session-58-report.md) · [handoff 58 → 59](Handoffs/handoff-session-58.md). T-628..T-636 are locally TESTED; the authoritative next queue is `docs/recovery/session/next-task.md`.
+
 The permanent, complete research record behind the El-Imtiyaz unified refactoring blueprint.
 
 **Repository under investigation:** https://github.com/Vtheonly/AgentGithubUplaod (application at `elimtiyaz-desktop/`)

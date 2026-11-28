@@ -7352,7 +7352,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-628 — Placement draft recovery: validate the persisted shape and isolate context switches
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-078 / C-25.
 
@@ -7365,7 +7365,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-629 — Dashboard layout lifecycle: reject stale loads and expose reset failures
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-079 / C-25.
 
@@ -7384,7 +7384,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-630 — Revenue Excel reports: selected period and human category labels
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-080.
 
@@ -7397,7 +7397,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-631 — Portal pricing reversal parity with the canonical desktop engine
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-081 / BUG-020 follow-up.
 
@@ -7410,7 +7410,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-632 — Inspector exports: complete paginated PDF and shared export engines
 
-**Status:** RESOLVED-TESTED (Session 58; registered before code).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-073 / ARCH-028, bounded T-613 export increment.
 
@@ -7427,7 +7427,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-633 — Website baseline test-fixture TypeScript errors (verification blocker)
 
-**Status:** RESOLVED-TESTED (Session 58; before test edits).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** TEST-506.
 
@@ -7439,7 +7439,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-634 — Protect student identity from cross-family short-code collisions
 
-**Status:** RESOLVED-TESTED (Session 58; before application/SQL edits).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-082.
 
@@ -7450,7 +7450,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-635 — Payment-plan date-only serialization
 
-**Status:** RESOLVED-TESTED (Session 58; before application edits).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** BUG-083.
 
@@ -7462,7 +7462,7 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-636 — Remove the existing ESLint error blockers without weakening rules
 
-**Status:** RESOLVED-TESTED (Session 58, registered before edits).
+**Status:** RESOLVED-TESTED (Session 58; evidence below).
 
 **Problem IDs:** TEST-507.
 
@@ -7470,3 +7470,16 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 
 **Session-58 resolution:** Static Node imports replace test require calls; obsolete ts-ignore directives are removed (the declarations already resolve); two unmodified bindings use const. Every assertion, lint rule and warning remains. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. No new behavioral test was added for mechanical import/binding edits; the existing relevant suites were executed.
+
+
+## T-637 — C-25 placement draft shared-write and concurrency contract
+
+**Status:** OPEN (Session 58 handoff; no application implementation started).
+
+**Problem IDs:** C-25 remainder; T-628 establishes validated v1 shape only.
+
+**Contract / next bounded unit:** Inspect current device-local draft lifecycle and the tenant settings seam, then document one authoritative shared-draft identity, permissions, save/revision/conflict behavior, offline recovery and migration strategy before adding synchronization. Preserve tenant/year/grade boundaries and existing unsaved work. Decide explicitly whether drafts are user-private or staff-shared; derive the choice from repository requirements and escalate only a genuinely unresolved product decision. Do not silently last-write-win another clerk's draft.
+
+**Acceptance:** A reviewed architecture decision with exact read/write ownership, conflict examples, failure wording in French, canonical repository/API seams and a bounded implementation/test plan. Subsequent implementation requires local offline RPC/RLS persona and concurrent-write checks, stale response/device restore tests, typecheck/build, and packaged/rendered checks recorded honestly. No production apply, broad audit sweep or duplicate draft store.
+
+**Next:** ARCH-054 reconciliation ADR, then T-612/T-587 and T-613's remaining year/trigger/debt-basis work; T-632 export increment is complete.

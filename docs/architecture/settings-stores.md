@@ -90,7 +90,8 @@ here.
    load failure retains the local cache. A reset changes this device
    immediately but is shared/persistent only after server clear succeeds;
    failure is visible and retryable. Context changes and newer explicit
-   writes invalidate older loads. No queued background sync is promised.
+   writes invalidate older loads. The load sentinel keys by the view string,
+   never by a repository wrapper’s object identity. No queued background sync is promised.
 4. **The legacy-vocabulary reconciliation** (discovered during T-588, see
    the problem registry): the DB `role_permissions` default matrix speaks
    legacy codes (`view_students`, `assign_tasks`, `settle_expense`,

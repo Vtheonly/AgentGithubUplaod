@@ -1,14 +1,16 @@
-**T-629 reopened IN_PROGRESS:** full-suite t-504 caught the repository-wrapper identity regression; restore once-per-view loading before final closeout.
+# Session 58 closeout — 2026-11-28
 
-**Session-58 final gate repair:** T-636 IN_PROGRESS — remove the 12 baseline lint errors without changing rules or sweeping warnings.
+**Nine tasks delivered: T-628..T-636, all RESOLVED-TESTED.** Placement draft validation, layout race/failure handling, revenue period exports, portal reversal parity, complete inspector exports, Website fixture typing, student-code collision protection (migration 0008 / ADR-037), local payment-plan dates and lint blockers. Application source through hub `fcc28d79`; Website `d0bbc6991d86fbea061383d762690fe402d1adbd`. All incremental delivery commits pushed to main.
 
-**Session-58 verification discoveries:** T-634 IN_PROGRESS — protect cross-family student-code collisions (forced proof before SQL); T-635 IN_PROGRESS — repair the baseline payment-plan date shift. Both are direct blockers found during required local verification.
+**Final gates:** Desktop 379 files (378 passed / 1 skipped), **6,040 passed / 0 failed / 5 skipped** (534.49 s); Website 62 files / **773 passed**. Renderer/Electron and Website tsc 0; both builds green; Desktop lint 0 errors / 1,380 existing warnings, Website lint 0 errors. Baseline registered at measured counts.
 
-**Session-58 additional verification repair:** T-633 IN_PROGRESS — website test-fixture typing blockers; production behavior unchanged.
+**Exact offline proof:** both real workbooks imported/re-imported with stable business counts and zero rejected rows. WB2 canonical identity projection = DB **356,222,800 DZD** (raw 356,882,800; documented merges 660,000); WB1 raw = projection = DB **113,503,800 DZD**. Zero tolerance for all mapped payment sums; SQL/Desktop/actual Website engine parity for 25 real families. Actual PDF/XLSX inspector exports preserve all 2,198 WB2 payments. Local chain 0001–0008, collision matrix 10/10 twice + SQL 4/4, backend 282/38 explicit skips/0 errors, sync 21/21, corpus zero discrepancies. No remote Supabase traffic.
 
-## Session 58 selection — 2026-11-28
+**Next bounded task: T-637 OPEN** — C-25 placement draft shared-write/concurrency contract; validated v1 shape exists, cross-device synchronization does not. Read settings-stores.md and the task card before choosing ownership/conflict semantics. Then ARCH-054 docs-first reconciliation ADR, followed by T-612/T-587 and T-613 remainder. Do not repeat the completed export increment or broad audit queue.
 
-IN_PROGRESS: **T-628 → T-629 → T-630 → T-631 → T-632**, registered in task-registry before application edits. Five bounded fixes: placement recovery, layout lifecycle, revenue Excel period, portal reversal parity, inspector exports. C-25 tenant draft synchronization and ARCH-054 remain follow-ups; neither is claimed complete by these repairs. Test only against the local offline harness; no production Supabase calls.
+**Verification gaps:** migrations **0006 + 0007 + 0008** remain unapplied by us; inspect live chain/preflight in the authorized OPS-015 window. Packaged Electron and both rendered apps' parent/staff flows remain pending. Vercel commit status is success for d0bbc69; it is not browser verification. Unified runner wrapper hit tsx IPC EPERM; the same equivalence tools passed via node --import tsx. Status remains TESTED, not VERIFIED.
+
+[Session report](../../../Investigation%20Archive/Session%20Reports/session-58-report.md) · [Handoff 58 → 59](../../../Investigation%20Archive/Handoffs/handoff-session-58.md). Historical queue entries below are preserved; this header supersedes their stale priorities.
 
 ## AUTONOMOUS HANDOFF & NEXT-TASK QUEUE (the v2.3 protocol — maintained by every execution session)
 

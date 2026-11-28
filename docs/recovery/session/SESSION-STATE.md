@@ -1,6 +1,26 @@
-# SESSION STATE — Session 58 (2026-11-28)
+# SESSION STATE — Session 58 closeout (2026-11-28)
 
-Agent: Codex. Clean main base: `804180a2678ec74d88eda41e074910cb7077fb37`; website `f93d7642e43c5c17cef7e75022f327dd526eaaa9`. Five tasks registered IN_PROGRESS: T-628..T-632. Baseline batteries running locally; no remote database traffic. Scope: bounded operational/calculation defects, no broad audit or permission-matrix changes. Evidence will be recorded after execution; no inherited pass claims.
+Agent: Codex. Fresh clean main bases: hub `804180a2678ec74d88eda41e074910cb7077fb37`, Website `f93d7642e43c5c17cef7e75022f327dd526eaaa9`. Final application source: hub `fcc28d79`, Website `d0bbc6991d86fbea061383d762690fe402d1adbd`; all delivery commits pushed incrementally.
+
+| Task | Delivered result | Status |
+|---|---|---|
+| T-628 / BUG-078 | Validated placement draft shape/context | RESOLVED-TESTED |
+| T-629 / BUG-079 | Layout stale-read/reset/save lifecycle and fallback wording | RESOLVED-TESTED |
+| T-630 / BUG-080 | Exact selected-period revenue Excel/PDF population | RESOLVED-TESTED |
+| T-631 / BUG-081 | Portal cancellation/reversal parity | RESOLVED-TESTED |
+| T-632 / BUG-073 export increment | Complete shared inspector exports and concise clerk-facing details | RESOLVED-TESTED |
+| T-633 / TEST-506 | Website fixture typing gate | RESOLVED-TESTED |
+| T-634 / BUG-082 | Canonical SQL collision protection, new migration 0008 / ADR-037 | RESOLVED-TESTED |
+| T-635 / BUG-083 | Local calendar due dates across timezones | RESOLVED-TESTED |
+| T-636 / TEST-507 | Twelve baseline lint errors removed | RESOLVED-TESTED |
+
+**Final frozen-source execution:** Desktop 379 files (378 passed / 1 skipped), 6,040 passed / 0 failed / 5 skipped (534.49 s); Website 62 files / 773 passed. Renderer/Electron/Website tsc 0; both builds passed; Desktop lint 0 errors / 1,380 existing warnings, Website lint 0 errors. Measured baseline +27 tests / +3 files registered. No old migration edited.
+
+**Real-data verification:** WB2 projection = DB 356,222,800 DZD (raw 356,882,800; documented merge gap 660,000), WB1 raw = projection = DB 113,503,800 DZD. Both double-imported, stable counts/zero rejected; zero-tolerance mapped payment sums. SQL/Desktop/actual sibling Website engine exact for 25 real families; real 2,198-payment PDF/XLSX population complete. Offline chain census/security intact; collision 10/10 twice + SQL 4/4; backend 282 passed / 38 app-layer skips / 0 errors; sync 21/21; sanity 820/820 and canonical 319/319, tier-4 784 equivalent + 36 skips, zero discrepancies.
+
+**Candid limits:** No remote Supabase calls/apply. Full Docker/Supabase API stack unavailable; PGlite/real PostgreSQL migrations and authenticated SQL/RLS exercised. Production 0006–0008 and packaged/rendered live flows remain pending (OPS-015); TESTED, not VERIFIED. The earlier 240,000 workbook deficit is an unresolved historical observation, not conclusively attributed or remotely repaired. Unified tsx wrapper IPC failed; same tools ran via node --import tsx. Vercel status success is deployment metadata only.
+
+**Next:** T-637 OPEN (C-25 shared placement draft write/concurrency contract), ARCH-054 ADR, then T-612/T-587/T-613 remainder. See session-58-report.md, handoff-session-58.md and next-task.md for exact commands, failed controls, boundaries and priorities. Previous sessions preserved below.
 
 ---
 
