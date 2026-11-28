@@ -7402,3 +7402,12 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 **Expected behavior / bounded contract:** The PDF keeps drawing onto the first page after addPage and truncates at 80 records / 130 characters; export promises have no failure feedback. Route PDF/XLSX through existing export engines, preserve the filtered record set and useful human detail, and surface errors. The remainder of T-613 and T-612 stays OPEN.
 
 **Scope and required tests:** data-inspector-core + existing report-document/export-engine adapters; actual PDF text and export-failure tests. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+
+## T-633 — Website baseline test-fixture TypeScript errors (verification blocker)
+
+**Status:** IN_PROGRESS (Session 58; before test edits).
+
+**Problem IDs:** TEST-506.
+
+**Contract:** Fix only pre-existing fixture typing/API misuse exposed by `npx tsc --noEmit`: three invalid `toEqual(expected, message)` calls, Notification permission mock typing, and an untyped image query. Preserve all assertions and production security guards; no exclusions or suppression. Re-run website typecheck, lint, full tests and strict build.

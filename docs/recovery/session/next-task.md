@@ -1,3 +1,5 @@
+**Session-58 additional verification repair:** T-633 IN_PROGRESS — website test-fixture typing blockers; production behavior unchanged.
+
 ## Session 58 selection — 2026-11-28
 
 IN_PROGRESS: **T-628 → T-629 → T-630 → T-631 → T-632**, registered in task-registry before application edits. Five bounded fixes: placement recovery, layout lifecycle, revenue Excel period, portal reversal parity, inspector exports. C-25 tenant draft synchronization and ARCH-054 remain follow-ups; neither is claimed complete by these repairs. Test only against the local offline harness; no production Supabase calls.

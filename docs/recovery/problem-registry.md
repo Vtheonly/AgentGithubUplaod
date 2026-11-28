@@ -8804,3 +8804,10 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 - **Status:** IN_PROGRESS (Session 58, T-632).
 - **Evidence / root cause / expected behavior:** The PDF keeps drawing onto the first page after addPage and truncates at 80 records / 130 characters; export promises have no failure feedback. Route PDF/XLSX through existing export engines, preserve the filtered record set and useful human detail, and surface errors. The remainder of T-613 and T-612 stays OPEN.
 - **Affected paths and verification:** data-inspector-core + existing report-document/export-engine adapters; actual PDF text and export-failure tests. Local-offline verification only; no live Supabase egress.
+
+
+### TEST-506 — Website baseline fails the mandatory TypeScript gate in five test files
+
+- **Status:** IN_PROGRESS (T-633, Session 58).
+- **Evidence:** `npx tsc --noEmit`: 6 pre-existing diagnostics across t-107/t-516/t-519/t-520/t-531; those files are unmodified from website main f93d764. A seventh diagnostic in the new T-631 parameter table was corrected before delivery.
+- **Expected:** preserve assertion messages via expect(actual, message), use typed DOM fixtures, and achieve 0 errors without weakening checks.
