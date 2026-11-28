@@ -89,3 +89,6 @@ changes.patch.txt
 # The unified runner's per-run outputs (unified-report_<ts>.md/json).
 # Evidence that must persist goes into docs/recovery/, never here.
 elimtiyaz-desktop/test-reports/
+
+# T-625 local offline Supabase harness runtime state (pid/port; never commit)
+elimtiyaz-desktop/scripts/schema-test/.local-pg.json
