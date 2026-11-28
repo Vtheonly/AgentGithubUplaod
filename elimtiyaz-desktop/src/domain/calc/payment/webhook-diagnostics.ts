@@ -79,6 +79,18 @@ import {
   realFiForGrade,
   type RealTuitionSchedule,
 } from "../pricing/school-price-matrix";
+// T-638 / FIN-115 / ADR-038: the ONE canonical payment comparison engine —
+// the near-miss conflict lanes below CONSUME it (no second implementation
+// of the duplicate/conflict rules; the legacy exact-tuple lane (check 3)
+// keeps its own finding shape as the strict subset it is).
+import {
+  detectPaymentConflicts,
+  DEFAULT_PAYMENT_CONFLICT_THRESHOLDS,
+  normalizeStudentNameKey,
+  type PaymentConflictClass,
+  type PaymentConflictFinding,
+  type PaymentConflictSubject,
+} from "./payment-conflict";
 
 /* ================================================================== */
 /*  Findings taxonomy (issue #30's mandated categories)                */
@@ -1052,6 +1064,246 @@ function auditDuplicates(
         }),
       );
     }
+  }
+}
+
+/* ================================================================== */
+/*  Check 3b — Near-miss payment conflicts (T-638 / FIN-115, ADR-038)  */
+/*                                                                     */
+/*  The exact-tuple lane above (check 3) only sees payments with the   */
+/*  IDENTICAL (parent, amount, method, date, status) profile. The      */
+/*  historical workbooks' ambiguity lives in the NEAR-MISS shapes:     */
+/*  same student + amount a few days apart, missing dates, missing     */
+/*  purposes, split registrations toward one obligation, the           */
+/*  mis-keyed-then-completed correction pattern, and same-source-cell  */
+/*  records whose amounts disagree. This pass runs the CANONICAL       */
+/*  engine (`payment-conflict.ts`) over every registered payment —     */
+/*  manual entries included, per the all-origins charter — and skips   */
+/*  every pair the legacy lanes already own (shared receipt, or        */
+/*  identical tuple key), so no pair is ever reported twice.           */
+/* ================================================================== */
+
+/** The class → (finding category, severity) mapping. Deterministic. */
+const CONFLICT_CLASS_AUDIT_MAPPING: Readonly<
+  Record<Exclude<PaymentConflictClass, "distinct" | "tranche_balance_discrepancy">, {
+    category: WebhookFindingCategory;
+    severity: WebhookFindingSeverity;
+    title: string;
+  }>
+> = {
+  confirmed_duplicate: {
+    category: "duplicate_event",
+    severity: "critical",
+    title: "Doublon confirmé — identité de source partagée",
+  },
+  high_confidence_duplicate: {
+    category: "duplicate_event",
+    severity: "warning",
+    title: "Doublon très probable — profils concordants hors tuple exact",
+  },
+  possible_duplicate: {
+    category: "duplicate_event",
+    severity: "warning",
+    title: "Doublon possible — à examiner avant toute décision",
+  },
+  possible_partial_split: {
+    category: "outlier_review",
+    severity: "warning",
+    title: "Versements partiels probables d'une même obligation",
+  },
+  possible_correction: {
+    category: "outlier_review",
+    severity: "warning",
+    title: "Correction possible d'un montant saisi par erreur",
+  },
+  conflicting_information: {
+    category: "confirmed_mismatch",
+    severity: "critical",
+    title: "Informations contradictoires sur un même paiement source",
+  },
+  insufficient_information: {
+    category: "unverified",
+    severity: "warning",
+    title: "Informations insuffisantes pour comparer ces paiements",
+  },
+};
+
+/** The legacy exact-tuple lane's key (check 3b) — pairs sharing it stay there. */
+function legacyTupleKey(p: { parentId: string; amount: number; method: string; collectedAt: string; status: string }): string {
+  return `${p.parentId}|${p.amount}|${p.method}|${p.collectedAt}|${p.status}`;
+}
+
+function auditPaymentConflicts(
+  ctx: AuditContext,
+  findings: WebhookDiagnosticFinding[],
+): void {
+  // Project every registered payment into the engine's subject shape.
+  // origin is always "application" here — the audited books.
+  const subjects: PaymentConflictSubject[] = ctx.payments.map((p) => ({
+    key: p.id,
+    origin: "application" as const,
+    parentId: p.parentId,
+    studentId: p.studentId,
+    // The name identity when the student is known (evidence refinement —
+    // the id remains authoritative whenever both sides carry one).
+    studentNameKey: p.studentId
+      ? normalizeStudentNameKey(ctx.studentById.get(p.studentId)?.displayName ?? null)
+      : null,
+    amount: p.amount,
+    collectedAt: p.collectedAt,
+    category: p.category,
+    installmentId: p.installmentId,
+    academicYearId: p.academicYearId ?? null,
+    method: p.method,
+    status: p.status,
+    receiptNumber: p.receiptNumber,
+    // The import provenance identity: the IMP- receipts ARE the source cell.
+    sourceKey: /^IMP-/.test(p.receiptNumber) ? p.receiptNumber : null,
+    description: p.notes,
+    expectedAmount: p.expectedAmount ?? null,
+    label: p.receiptNumber,
+  }));
+
+  const conflictFindings = detectPaymentConflicts(subjects, {
+    pairScope: "all",
+    thresholds: {
+      ...DEFAULT_PAYMENT_CONFLICT_THRESHOLDS,
+      amountToleranceDzd: ctx.thresholds.amountToleranceDzd,
+    },
+  });
+
+  for (const cf of conflictFindings) {
+    if (cf.class === "distinct" || cf.class === "tranche_balance_discrepancy") continue;
+    const { a, b } = cf.comparison;
+    // Skip the pairs the legacy lanes already own. A shared receipt is
+    // always check 3a's. An identical exact-tuple profile is check 3b's —
+    // BUT ONLY when the pair carries DISTINCT receipts: the legacy lane
+    // skips groups whose receipts collide into one value (including the
+    // both-NULL case, which it reads as "already reported by 3a" even
+    // though 3a never reports null receipts) — those pairs belong HERE.
+    if (a.receiptNumber !== null && a.receiptNumber === b.receiptNumber) continue;
+    const tupleEqual =
+      a.parentId !== null &&
+      legacyTupleKey(a as Parameters<typeof legacyTupleKey>[0]) ===
+        legacyTupleKey(b as Parameters<typeof legacyTupleKey>[0]);
+    if (tupleEqual && a.receiptNumber !== b.receiptNumber) continue;
+    const mapping = CONFLICT_CLASS_AUDIT_MAPPING[cf.class];
+    const certaintyLabel =
+      cf.certainty === null
+        ? "aucune certitude calculable"
+        : `certitude ${cf.certainty.toFixed(2)} — un indicateur explicatif, PAS une preuve`;
+    findings.push(
+      finding(mapping.category, mapping.severity, cf.id, {
+        parentId: a.parentId,
+        parentName: ctx.displayName(a.parentId),
+        amount: Math.max(a.amount, b.amount),
+        recordIds: { payment: a.key, receiptNumber: a.receiptNumber ?? undefined },
+        sourceRefs: [a, b].map((s) => `payments:${s.key}`),
+        title: mapping.title,
+        explanation:
+          `${cf.reason} ${certaintyLabel}. ` +
+          `Paiements concernés : ${a.receiptNumber ?? a.key} (${dzd(a.amount)}, ${isoDate(a.collectedAt)}) et ` +
+          `${b.receiptNumber ?? b.key} (${dzd(b.amount)}, ${isoDate(b.collectedAt)}).`,
+        evidence: cf.comparison.attributes
+          .filter((x) => x.verdict !== "missing")
+          .map((x) => ({
+            label: x.attribute === "receipt" ? "Reçu" : x.attribute === "sourceKey" ? "Origine d'import" : x.attribute,
+            value: x.detail,
+            sourceRef: null,
+          }))
+          .concat(
+            cf.missingEvidence.map((m) => ({
+              label: "Information manquante",
+              value: m,
+              sourceRef: null,
+            })),
+          ),
+        calculation:
+          `Accord pondéré ${cf.comparison.agreementWeight.toFixed(2)} / 1.00 sur les dimensions de preuve ` +
+          `(comparables : ${cf.comparison.comparableWeight.toFixed(2)})`,
+        possibleCauses: conflictPossibleCauses(cf),
+        suggestedSteps: conflictSuggestedSteps(cf),
+      }),
+    );
+  }
+}
+
+function conflictPossibleCauses(cf: PaymentConflictFinding): readonly string[] {
+  switch (cf.class) {
+    case "confirmed_duplicate":
+      return [
+        "Un événement source livré/traité deux fois (rejeu, double clic, ré-import partiel).",
+        "Un double encaissement réel suivi d'un remboursement non enregistré.",
+      ];
+    case "high_confidence_duplicate":
+    case "possible_duplicate":
+      return [
+        "Le même règlement enregistré deux fois (à quelques jours d'écart ou sans date).",
+        "Deux versements légitimes distincts de même montant (deux tranches, deux services).",
+        "Une correction saisie comme un nouveau paiement au lieu de passer par le flux de correction.",
+      ];
+    case "possible_partial_split":
+      return [
+        "Des versements partiels successifs de la même tranche (légitime).",
+        "Un montant mal enregistré complété par un second règlement.",
+      ];
+    case "possible_correction":
+      return [
+        "Un montant saisi par erreur puis complété (ex. 5 000 saisis au lieu de 10 000, puis 5 000 à nouveau).",
+        "Deux versements prévus de même montant (la lecture légitime — les deux restent possibles).",
+      ];
+    case "conflicting_information":
+      return [
+        "Le même paiement source modifié ou ré-importé avec un montant différent.",
+        "Une erreur de saisie sur l'un des deux enregistrements.",
+      ];
+    case "insufficient_information":
+      return [
+        "Des champs essentiels absents (élève, date, objet) — à compléter avant tout jugement.",
+      ];
+    default:
+      return [];
+  }
+}
+
+function conflictSuggestedSteps(cf: PaymentConflictFinding): readonly string[] {
+  switch (cf.class) {
+    case "confirmed_duplicate":
+      return [
+        "Comparer les horodatages de création et le journal d'audit des deux paiements.",
+        "Vérifier le relevé de caisse/bancaire : un seul encaissement a-t-il eu lieu ?",
+        "Régulariser par le flux d'annulation existant — jamais une suppression de ligne.",
+      ];
+    case "high_confidence_duplicate":
+    case "possible_duplicate":
+      return [
+        "Ouvrir l'historique des paiements de la famille et comparer les reçus.",
+        "Vérifier si l'un des deux provient d'un import et l'autre d'une saisie manuelle.",
+        "Confirmer avec le relevé de caisse ; régulariser par le flux existant si doublon avéré.",
+      ];
+    case "possible_partial_split":
+      return [
+        "Vérifier le montant attendu de la tranche et l'historique des versements.",
+        "Confirmer que la somme des deux versements correspond bien à l'obligation.",
+      ];
+    case "possible_correction":
+      return [
+        "Vérifier auprès du comptoir si le premier montant était une erreur de saisie.",
+        "Comparer avec l'obligation attendue : la somme des deux la couvre-t-elle exactement ?",
+        "Ne rien fusionner automatiquement — les deux lectures restent possibles.",
+      ];
+    case "conflicting_information":
+      return [
+        "Identifier lequel des deux enregistrements porte le montant correct.",
+        "Corriger par le flux de correction autorisé (le tiroir de paiement existant).",
+      ];
+    case "insufficient_information":
+      return [
+        "Compléter les informations manquantes (élève, date, objet) depuis le classeur source.",
+        "Ré-examiner après complétion — la comparaison redeviendra possible.",
+      ];
+    default:
+      return [];
   }
 }
 
@@ -2506,6 +2758,11 @@ export function runWebhookDiagnostics(params: {
   auditPaymentLedgerConsistency(ctx, findings);
   auditDateSemantics(ctx, findings);
   auditDuplicates(ctx, findings);
+  // T-638 / FIN-115: the near-miss conflict lanes — AFTER the legacy
+  // duplicate lanes (it skips the pairs they already own) and BEFORE the
+  // reconciled pass (both payments of every conflict pair must be marked
+  // accounted, never silently omitted).
+  auditPaymentConflicts(ctx, findings);
   auditOrphanLedgerEntries(ctx, findings);
   auditChargeJustification(ctx, findings);
   auditAdjustmentsAndRefunds(ctx, findings);
@@ -2520,8 +2777,10 @@ export function runWebhookDiagnostics(params: {
   const flaggedPaymentIds = new Set<string>();
   for (const f of findings) {
     if (f.recordIds.payment) flaggedPaymentIds.add(f.recordIds.payment);
-    // duplicate-tuple findings flag the whole group via sourceRefs
-    if (f.category === "duplicate_event") {
+    // duplicate-tuple findings flag the whole group via sourceRefs; the
+    // T-638 conflict findings (every category) implicate BOTH payments of
+    // their pair the same way — no silent omission.
+    if (f.category === "duplicate_event" || f.id.includes(":conflict:")) {
       for (const ref of f.sourceRefs) {
         const m = /^payments:(.+)$/.exec(ref);
         if (m) flaggedPaymentIds.add(m[1]);

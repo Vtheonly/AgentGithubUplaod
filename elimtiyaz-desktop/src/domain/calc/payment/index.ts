@@ -25,6 +25,11 @@
  *                            every-detail coverage view model shared by the
  *                            card, the modal, the receipt PDF and the
  *                            account-statement PDF)
+ *   - `payment-conflict`   — T-638 / ADR-038: the ONE canonical payment
+ *                            comparison + conflict classification engine
+ *                            (multi-attribute, missing-info tolerant,
+ *                            explainable) shared by the workbook-import
+ *                            preview and the financial auditor
  */
 export * from "./sums";
 export * from "./queries";
@@ -34,3 +39,4 @@ export * from "./clearance";
 export * from "./revenue";
 export * from "./billing-breakdown";
 export * from "./payment-coverage";
+export * from "./payment-conflict";
