@@ -356,15 +356,16 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
       dbByField.set(r.field, entry);
     }
 
-    // PARITY: DB ≡ projection, to the dinar (1 DZD numeric tolerance).
+    // T-630/T-634: zero-tolerance parity over the real workbook projection.
     for (const field of FIELDS) {
       const db = dbByField.get(field);
       const dbSum = db ? (field === "DEVIS_ANNUEL" ? db.charge : db.payment) : 0;
       expect(
         Math.abs(projected[field] - dbSum),
         `field ${field}: projection ${projected[field]} vs DB ${dbSum}`,
-      ).toBeLessThanOrEqual(1);
+      ).toBe(0);
     }
+    console.info("Workbook/DB parity exact:", JSON.stringify({ projected, mergedRows }));
     // And the merge class accounts for the raw-vs-projected gap.
     for (const field of FIELDS) {
       expect(
@@ -444,7 +445,7 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
       // The live import path writes DZD amounts on BOTH sides (the DB
       // numeric column and the canonical model carry the same unit — the
       // production mapLedgerRow does no conversion); the comparison is
-      // direct, with a 1-DZD numeric-stringification tolerance.
+      // direct, with ZERO tolerance for financial drift.
       // T-631: execute the actual sibling portal canonical engine over the
       // SAME locally imported rows (JSON timestamps match PostgREST).
       if (portal) {
@@ -454,10 +455,11 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
         expect(web.totalAdjusted).toBe(ts.totalAdjusted);
         expect(web.outstanding).toBe(ts.totalOutstanding);
       }
-      const c = 1;
+      const c = 0;
       expect(Math.abs((ts.totalCharged ?? 0) - Number(sql.total_charged))).toBeLessThanOrEqual(c);
       expect(Math.abs((ts.totalPaid ?? 0) - Number(sql.total_paid))).toBeLessThanOrEqual(c);
       expect(Math.abs((ts.totalOutstanding ?? 0) - Number(sql.total_outstanding))).toBeLessThanOrEqual(c);
     }
+    console.info(`Exact financial parity: SQL/Desktop ${sample.length} families; Website ${portal ? sample.length : "NOT RUN"}.`);
   }, IMPORT_TIMEOUT);
 });

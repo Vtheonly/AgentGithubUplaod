@@ -5265,3 +5265,8 @@ The untouched baseline’s Oct 10→Oct 9 failure was a real local-midnight→UT
 ## Session 58 / T-636 — lint gate repair (2026-11-28)
 
 Mechanical import/binding repairs remove the 12 baseline ESLint errors without changing rules, suppressing checks or sweeping warnings. Initial full lint: 12 errors / 1381 warnings. After the bounded fixes: npm run lint 0 errors / 1381 warnings. Renderer tsc 0. Affected nine-suite run: 247/247 with one worker (the initial over-parallelized run had one lazy-import timeout; no timeout/assertion was relaxed). Build 26.71 s; append-only migration guard OK for 8 files. RESOLVED-TESTED.
+
+
+### Session-58 zero-tolerance financial confirmation (T-630/T-631/T-634)
+
+The real-workbook gate now permits **zero** numeric drift (the inherited 1-DZD tolerance is removed). Executed 5/5: WB2 projected DEVIS **356,222,800 DZD** (raw **356,882,800**, two documented first-wins identity merges = **660,000**); every mapped payment column matches DB exactly; 25 sampled families’ charged/paid/outstanding match SQL exactly, and the real Website engine also matches Desktop charged/paid/adjusted/outstanding exactly. WB1 double-import remains **113,503,800 DZD**, identical DB counts, zero gap. Renderer/Electron tsc 0; final build 26.29 s; full lint 0 errors / 1,381 unchanged warnings. The extra gate is stronger, not a normalized comparison or hidden exception.
