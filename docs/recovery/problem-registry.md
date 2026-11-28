@@ -8821,9 +8821,12 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 ### BUG-082 — Student short-code identity can overwrite a different family
 
-- **Status:** IN_PROGRESS (T-634, Session 58).
+- **Status:** RESOLVED-TESTED (T-634, Session 58).
 - **Evidence:** The second real-workbook local-DB run measured DEVIS 355,982,800 vs projection 356,222,800 (240,000 short); the first and third measured zero gap. Root-cause candidate: student codes hash random server parent UUIDs into six hex characters, while the canonical upsert's primary match checks `(tenant, code)` and then overwrites parent/name without checking the existing parent. A forced-collision probe will distinguish this from other causes; the 240,000 observation is not yet attributed conclusively.
 - **Expected:** different-family code collision never reassigns an existing child; the canonical RPC resolves it idempotently, with no lost financial row.
+
+
+**Session-58 resolution:** Migration 0008 preserves another family’s identity on a short-code collision and selects a deterministic available six-hex alternate, transactionally locked per tenant/base code. Same-parent updates/name fallback remain; old rows, grants, policies and the RPC signature are untouched. ADR-037 records the contract. Forced collision RED 4 failed / 6 passed; GREEN 10/10 twice on fresh offline servers. scripts/verify_t-634.sql 4/4 under authenticated role, BEGIN/ROLLBACK. Full-chain census: 8 files, 99 tables / 162 functions / 242 policies / 513 indexes / 226 FKs, unchanged security helpers. Migration/layout suites 58/58. Real WB2 import/re-import suite 5/5; WB1 twice with identical counts and DB=projection=113,503,800 DZD. Backend equivalence 282 passed / 38 app-layer skips / 0 errors; sync round-trip 21/21. The original 240,000 discrepancy is not conclusively attributed solely by the forced-collision proof; its failed-run observation is preserved. No live apply or historical data repair was performed.
 
 ### BUG-083 — AI payment-plan due dates shift one day on UTC-positive machines
 

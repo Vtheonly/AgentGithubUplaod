@@ -110,3 +110,8 @@ Green/Yellow/Orange/Red are presentation states of one documented financial-stat
 | **Payment behavior** | Non-reversed `entry_type='payment'` ledger entries (the `computeParentSummary` replay source) | Last payment, inactivity, subsequent-year activity |
 
 The staff query contract is the 0111 RPC `compute_debt_aging_summary` (gated: super_admin/financial_officer/support_staff + current tenant; anon revoked per §15.34). `mv_debt_aging` carries the extended payment-behavior columns for server-side analytics (its pre-existing ledger-basis columns are unchanged and documented as a distinct basis).
+
+
+### Student import identity collision guard (T-634 / ADR-037)
+
+`upsert_student_from_import` remains the one canonical writer for imports and batch registration. A six-hex code is a candidate: migration 0008 resolves a code owned by another parent into a stable available alternate inside the same transaction. Same-family updates/name fallback remain; existing rows are not rewritten. All clients keep the existing RPC contract. Local-offline TESTED; live apply pending.

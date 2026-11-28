@@ -7421,11 +7421,14 @@ The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88
 
 ## T-634 — Protect student identity from cross-family short-code collisions
 
-**Status:** IN_PROGRESS (Session 58; before application/SQL edits).
+**Status:** RESOLVED-TESTED (Session 58; before application/SQL edits).
 
 **Problem IDs:** BUG-082.
 
 **Contract:** A proposed deterministic short student code must never cause `upsert_student_from_import` to re-parent and rename another family's child. Preserve same-family code updates and name fallback. Resolve foreign-family collisions server-side into a stable available canonical-format code, serialize competing base-code writers, and re-import idempotently through the existing RPC signature. Add a new migration only; no old migration edits. First prove the overwrite with a forced collision on the offline chain, then prove both children and their financial identities survive, re-import is stable, and the real workbooks still balance. No live apply.
+
+
+**Session-58 resolution:** Migration 0008 preserves another family’s identity on a short-code collision and selects a deterministic available six-hex alternate, transactionally locked per tenant/base code. Same-parent updates/name fallback remain; old rows, grants, policies and the RPC signature are untouched. ADR-037 records the contract. Forced collision RED 4 failed / 6 passed; GREEN 10/10 twice on fresh offline servers. scripts/verify_t-634.sql 4/4 under authenticated role, BEGIN/ROLLBACK. Full-chain census: 8 files, 99 tables / 162 functions / 242 policies / 513 indexes / 226 FKs, unchanged security helpers. Migration/layout suites 58/58. Real WB2 import/re-import suite 5/5; WB1 twice with identical counts and DB=projection=113,503,800 DZD. Backend equivalence 282 passed / 38 app-layer skips / 0 errors; sync round-trip 21/21. The original 240,000 discrepancy is not conclusively attributed solely by the forced-collision proof; its failed-run observation is preserved. No live apply or historical data repair was performed.
 
 ## T-635 — Payment-plan date-only serialization
 

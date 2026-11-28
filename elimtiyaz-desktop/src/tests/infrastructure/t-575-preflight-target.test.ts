@@ -809,6 +809,7 @@ describe("T-575 M — the migrations layout lane + deriveTargetRef", () => {
       "0006_rbac_matrix_persistence.sql",
       // T-627 / Session 57: the tenant public-settings chain link.
       "0007_tenant_public_settings.sql",
+      "0008_student_import_code_collisions.sql",
     ]);
 
     expect(evaluateMigrationsLayout(["0002_next.sql"]).ok).toBe(false); // the baseline is missing
