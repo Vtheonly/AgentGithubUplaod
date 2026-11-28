@@ -221,9 +221,10 @@ function truncate(text: string, maxWidth: number, font: PDFFont, size: number): 
 }
 
 function wrapPdfText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const safe = sanitizePdfText(text);
   const lines: string[] = [];
-  for (const paragraph of safe.split(/\r?\n/)) {
+  // Preserve paragraph boundaries before the ASCII sanitizer (which
+  // intentionally replaces control characters, including newlines).
+  for (const paragraph of text.split(/\r?\n/).map(sanitizePdfText)) {
     let current = "";
     for (const word of paragraph.split(/\s+/).filter(Boolean)) {
       if (current && font.widthOfTextAtSize(`${current}${word}`, size) > maxWidth) {

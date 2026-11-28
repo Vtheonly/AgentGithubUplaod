@@ -26,13 +26,24 @@ export function inspectorExportSheets(resolved: ResolvedInspection, records: rea
     rows: records.map((row) => ({ family: row.contributorName, phone: row.contributorPhone, student: row.studentName,
       class: row.className, category: row.categoryLabel, kind: AMOUNT_KIND_LABELS_FR[row.amountKind], amount: row.amount,
       share: row.percentage, date: row.date, reference: humanReference(row.reference), status: row.status,
-      method: row.method, description: row.description, detail: row.detail })),
+      method: row.method, description: clerkDetail(row.description), detail: clerkDetail(row.detail) })),
   }, {
     name: "Détails techniques", columns: [
       { header: "Ligne", key: "line" }, { header: "Code", key: "code" }, { header: "Table", key: "table" },
       { header: "Identifiant", key: "id" }, { header: "Référence brute", key: "reference" },
-    ], rows: records.map((row, i) => ({ line: i + 1, code: row.contributorCode, table: row.sourceTable, id: row.sourceId, reference: row.reference })),
+      { header: "Description brute", key: "description", width: 50 }, { header: "Détail brut", key: "detail", width: 50 },
+    ], rows: records.map((row, i) => ({ line: i + 1, code: row.contributorCode, table: row.sourceTable, id: row.sourceId, reference: row.reference, description: row.description, detail: row.detail })),
   }];
+}
+
+function clerkDetail(value: string): string {
+  // Keep the full source text in the support sheet. Import-run/UUID tokens
+  // do not help a clerk understand a prestation or a tranche.
+  return value
+    .replace(/\bimport Excel run\s+run_[a-z0-9_-]+/gi, "Import Excel")
+    .replace(/\brun_[a-z0-9_-]+/gi, "")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "")
+    .replace(/[ \t]{2,}/g, " ").trim();
 }
 
 function humanReference(value: string): string {
@@ -46,7 +57,7 @@ export async function inspectorXlsx(resolved: ResolvedInspection, records: reado
 
 export async function inspectorPdf(resolved: ResolvedInspection, records: readonly LineageRecord[], search: string): Promise<Uint8Array> {
   const spec: ReportSpec = {
-    title: "Détail de l’indicateur", meta: [
+    title: "Détail de l'indicateur", meta: [
       ["Indicateur", resolved.request.title], ["Périmètre", resolved.scopeLabel],
       ["Période", resolved.windowLabel ?? "Toutes les dates"], ["Lignes exportées", String(records.length)],
     ], sections: [{ heading: "Calcul", note: [resolved.definition, resolved.formula, ...resolved.formulaSteps,
@@ -57,9 +68,9 @@ export async function inspectorPdf(resolved: ResolvedInspection, records: readon
       note: [row.contributorName, row.studentName, row.className,
         `${AMOUNT_KIND_LABELS_FR[row.amountKind]} : ${dzdPdf(row.amount)} ; part : ${Math.round(row.percentage * 10) / 10} %`,
         row.date ? `Date : ${row.date.slice(0, 10)}` : "", row.method, row.status,
-        humanReference(row.reference), row.description, row.detail,
+        humanReference(row.reference), clerkDetail(row.description), clerkDetail(row.detail),
       ].filter(Boolean).join("\n"),
-    }))], footnote: "Les références techniques sont disponibles dans l’export Excel.",
+    }))], footnote: "Les références techniques sont disponibles dans l'export Excel.",
   };
   return generateReportPdf(spec);
 }

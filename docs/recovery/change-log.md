@@ -5270,3 +5270,10 @@ Mechanical import/binding repairs remove the 12 baseline ESLint errors without c
 ### Session-58 zero-tolerance financial confirmation (T-630/T-631/T-634)
 
 The real-workbook gate now permits **zero** numeric drift (the inherited 1-DZD tolerance is removed). Executed 5/5: WB2 projected DEVIS **356,222,800 DZD** (raw **356,882,800**, two documented first-wins identity merges = **660,000**); every mapped payment column matches DB exactly; 25 sampled families’ charged/paid/outstanding match SQL exactly, and the real Website engine also matches Desktop charged/paid/adjusted/outstanding exactly. WB1 double-import remains **113,503,800 DZD**, identical DB counts, zero gap. Renderer/Electron tsc 0; final build 26.29 s; full lint 0 errors / 1,381 unchanged warnings. The extra gate is stronger, not a normalized comparison or hidden exception.
+
+
+### T-632 real-data export and clerk-detail confirmation (Session 58)
+
+The real offline WB2 gate now renders **all 2,198 imported payments** through the actual inspector adapters: every receipt is parsed from the generated PDF, and Excel row count/amount population is exact. A new clerk-detail regression proved that import-run tokens leaked through free-text fields; the primary PDF/Excel presentation now removes import-run/UUID support tokens while the secondary technical sheet preserves the complete raw description/detail. Paragraph boundaries are retained before PDF sanitization. The test harness drains the production download helper’s delayed URL cleanup before restoring jsdom globals.
+
+Final affected neighborhood: **5 files / 52 passed / 0 failed / 0 unhandled errors**, including the real workbook suite’s exact SQL/Desktop/Website comparisons. Renderer and Electron tsc 0; build **25.98 s**; full lint **0 errors / 1,380 warnings**. The earlier 1,381 working-tree warning count included the empty URL test stub, now replaced by measured cleanup; no lint rule was relaxed.

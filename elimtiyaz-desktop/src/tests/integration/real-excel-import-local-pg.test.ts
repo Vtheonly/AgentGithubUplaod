@@ -33,6 +33,9 @@ import { splitFullName } from "../../infrastructure/excel/import-engine/mappers/
 import { computeParentSummary } from "../../domain/calc/ledger/balance";
 import type { LedgerEntry } from "../../domain/model/ledger";
 import type { PaymentCategory } from "../../domain/model/payment";
+import { buildResolution } from "../../features/dashboard/components/analytics/data-inspector-lineage";
+import { inspectorPdf, inspectorExportSheets } from "../../features/dashboard/components/analytics/inspector-export";
+import { extractText } from "../_helpers/pdf-text";
 import { selectRevenuePayments } from "../../domain/calc/payment/revenue-report";
 import { mapPaymentRow } from "../../infrastructure/supabase/repositories/supabase-shared-repositories";
 
@@ -391,6 +394,23 @@ describeOrSkip("Real Excel import + re-import against the LOCAL OFFLINE PostgreS
       expect(selected.length).toBe(oracle[0].n);
       expect(selected.reduce((sum, row) => sum + row.amount, 0)).toBe(oracle[0].total);
     }
+    // T-632: execute the actual export adapters over ALL real imported
+    // payments, not just fixture rows. Names come from the same DB repos.
+    const parents = await new PgParentRepo(ctx).search("");
+    const students = await new PgStudentRepo(ctx).search("");
+    if (!parents.ok || !students.ok) throw new Error("Real export population could not be read");
+    const paid = payments.filter((row) => row.status === "paid");
+    const resolution = buildResolution({ domain: "revenue", title: "Encaissements", sourceValue: paid.reduce((sum, row) => sum + row.amount, 0) }, {
+      payments, parents: parents.value, students: students.value, classes: [], assessments: [], attendance: [],
+      installments: [], debts: [], ledger: [], academicYear: "2026-2027",
+    });
+    expect(resolution.records.length).toBe(paid.length);
+    const sheets = inspectorExportSheets(resolution, resolution.records, "");
+    expect(sheets[1].rows.length).toBe(paid.length);
+    expect(sheets[1].rows.reduce((sum, row) => sum + Number(row.amount), 0)).toBe(resolution.resolvedValue);
+    const pdfText = await extractText(await inspectorPdf(resolution, resolution.records, ""));
+    for (const row of paid) expect(pdfText).toContain(row.receiptNumber);
+    console.info(`Real inspector exports: ${paid.length} payments, complete PDF receipt census and exact Excel row/amount population.`);
   }, IMPORT_TIMEOUT);
 
   it("TOTALS PARITY: the canonical TS engine ↔ the SQL compute_parent_summary RPC (desktop = backend)", async () => {

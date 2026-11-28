@@ -6,11 +6,13 @@ import ExcelJS from "exceljs";
 import { PDFDocument } from "pdf-lib";
 import { generateReportPdf } from "../../../infrastructure/receipt-pdf/report-document";
 import { extractText } from "../../_helpers/pdf-text";
+import { inspectorExportSheets, inspectorPdf } from "../../../features/dashboard/components/analytics/inspector-export";
+import { buildResolution } from "../../../features/dashboard/components/analytics/data-inspector-lineage";
 import { DataInspectorProvider, useDataInspector } from "../../../features/dashboard/components/analytics/data-inspector-core";
 import type { Payment } from "../../../domain/model/payment";
 import "../../../i18n/i18n";
 
-const state = vi.hoisted(() => ({ payments: [] as Payment[], error: vi.fn(), blobs: [] as NodeBlob[] }));
+const state = vi.hoisted(() => ({ payments: [] as Payment[], error: vi.fn(), blobs: [] as NodeBlob[], revoked: 0 }));
 vi.mock("../../../app/providers/toast-provider", () => ({ useToast: () => ({ showError: state.error }) }));
 vi.mock("../../../app/providers/repository-provider", () => {
   const observable = (get: () => unknown[]) => ({ get, subscribe: () => () => {} });
@@ -36,7 +38,7 @@ function showInspector() {
   fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 }
 beforeEach(() => {
-  state.error.mockClear(); state.blobs = [];
+  state.error.mockClear(); state.blobs = []; state.revoked = 0;
   state.payments = Array.from({ length: 95 }, (_, i): Payment => ({
     id: `p-${i}`, tenantId: "t1", parentId: "parent-1", studentId: null,
     receiptNumber: `REC-2026-${String(i).padStart(6, "0")}`, amount: 1000,
@@ -50,11 +52,16 @@ beforeEach(() => {
       if (!(blob instanceof NodeBlob)) throw new Error("Expected a binary download");
       state.blobs.push(blob); return "blob:test";
     }
-    static revokeObjectURL() {}
+    static revokeObjectURL() { state.revoked++; }
   });
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(async () => {
+  // Drain the production download helper's delayed URL cleanup before
+  // restoring jsdom's URL (which has no revokeObjectURL implementation).
+  if (state.blobs.length) await waitFor(() => expect(state.revoked).toBe(state.blobs.length), { timeout: 2000 });
+  vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
 
 describe("T-632 — complete inspector exports", () => {
   it("the clicked PDF contains every filtered record beyond row 80 and real continuation content", async () => {
@@ -86,6 +93,23 @@ describe("T-632 — complete inspector exports", () => {
     expect(wb.getWorksheet("Détail")?.getRow(2).getCell(7).value).toBe(1000);
     expect(wb.getWorksheet("Détails techniques")?.rowCount).toBe(2);
     expect(wb.getWorksheet("Synthèse")?.getColumn(2).values).toContain("REC-2026-000094");
+  });
+  it("keeps import-run and UUID support details out of primary reports without losing them", async () => {
+    const resolved = buildResolution({ domain: "revenue", title: "Recettes", sourceValue: 95000 }, {
+      payments: state.payments, parents: [], students: [], classes: [], assessments: [], attendance: [],
+      installments: [], debts: [], ledger: [], academicYear: "2026-2027",
+    });
+    const record = { ...resolved.records[0], description: "Scolarité — import Excel run run_t632_support",
+      detail: "Tranche 1 11111111-2222-3333-4444-555555555555" };
+    const sheets = inspectorExportSheets(resolved, [record], "");
+    const primary = JSON.stringify(sheets.slice(0, 2));
+    expect(primary).not.toContain("run_t632_support");
+    expect(primary).not.toContain("11111111-2222-3333-4444-555555555555");
+    expect(JSON.stringify(sheets[2])).toContain(record.description);
+    expect(JSON.stringify(sheets[2])).toContain(record.detail);
+    const text = await extractText(await inspectorPdf(resolved, [record], ""));
+    expect(text).toContain("Scolarite");
+    expect(text).not.toContain("run_t632_support");
   });
   it("the shared report renderer preserves long notes instead of dropping their tail", async () => {
     const text = (await extractText(await generateReportPdf({ title: "Audit", meta: [], sections: [{

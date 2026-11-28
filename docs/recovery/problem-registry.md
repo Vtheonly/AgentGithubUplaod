@@ -8821,6 +8821,9 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 
 **Session-58 resolution:** Both inspector formats consume canonical shared export engines via one deferred adapter/failure boundary. The 80-row/130-character caps and discarded continuation page disappear; generic notes/footnotes paginate line-by-line without the old ten-line loss. French « Voir le détail » and « Export impossible » feedback; the icon export has an accessible name; support IDs are in a separate XLSX sheet and raw UUID receipt references are hidden from primary output. Corrected-harness RED control against the committed old component/renderer: 3 failed plus an unhandled download rejection. GREEN: actual clicked PDF exports all 95 records (every receipt parsed from PDF content), failed download toasts without leaking the raw error, searched XLSX subset reads back one numeric 1000-DZD row with separate technical provenance, and long report notes retain their tail beyond ten lines. Final four-suite neighborhood 46/46; renderer/Electron tsc 0; build 26.71 s; full lint 0 errors (1381 existing warnings). T-613’s year/trigger/debt-basis remainder remains OPEN; no whole-overhaul completion is claimed. Packaged/manual export checks remain pending.
 
+
+**Final real-data extension:** all 2,198 WB2 payments pass actual PDF receipt census and exact Excel population. Primary free-text support IDs are removed while the secondary sheet retains full raw text. New clerk-detail RED control → GREEN; final 52/52 across five suites, 0 unhandled errors; tsc ×2 0, build 25.98 s, lint 0 errors / 1,380 warnings.
+
 ### TEST-506 — Website baseline fails the mandatory TypeScript gate in five test files
 
 - **Status:** RESOLVED-TESTED (T-633, Session 58).
