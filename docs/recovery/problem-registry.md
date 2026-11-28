@@ -8766,3 +8766,38 @@ P3-006 and P3-007 describe portal and SQL materialized-view drift from T-429. Th
 - **BUG-031 + BUG-043 — CLOSED (TESTED):** the Settings `?tab=` deep-link is followed at runtime (the effect), mount-time selection preserved, param removal never yanks. `t-588-settings-deep-link.test.tsx` 5/5.
 - **DEAD-018 — PARTIALLY CLOSED (TESTED):** the dead `el-imtiyaz:rbac-matrix-overrides` key removed (the restore path writes the canonical `RBAC_OVERRIDES_STORAGE_KEY`); the full store inventory + boundaries documented in `docs/architecture/settings-stores.md` (the C-25 map). The physical collapse of the remaining tenant-level candidates is the documented follow-up register.
 - **C-25 — DOCUMENTED:** the 13+ store map with the boundary rule (tenant-level = DB; device-local = one canonical constant each; secrets never in the settings table).
+
+
+### BUG-078 — Placement draft recovery: validate the persisted shape and isolate context switches
+
+- **Status:** IN_PROGRESS (Session 58, T-628).
+- **Evidence / root cause / expected behavior:** The existing draft cache validates arrays only; malformed entries can throw in Map construction and context switches can save a stale closure under the next key. Keep one versioned parser; preserve each tenant/year/grade draft on navigation; reject malformed or mismatched contexts without losing other drafts. No new DB store in this bounded repair.
+- **Affected paths and verification:** placement storage + use-class-placement-studio; t-532 regression suite. Local-offline verification only; no live Supabase egress.
+
+
+### BUG-079 — Dashboard layout lifecycle: reject stale loads and expose reset failures
+
+- **Status:** IN_PROGRESS (Session 58, T-629).
+- **Evidence / root cause / expected behavior:** A late load can resurrect a reset or update another view; reset ignores server failure and falsely appears durable. Keep server-authoritative explicit saves and local fallback, fence asynchronous results by context/revision, and show concise French failure wording.
+- **Affected paths and verification:** dashboard-layout-editor + settings-stores boundary; t-448 regressions. Local-offline verification only; no live Supabase egress.
+
+
+### BUG-080 — Revenue Excel reports: selected period and human category labels
+
+- **Status:** IN_PROGRESS (Session 58, T-630).
+- **Evidence / root cause / expected behavior:** exportRevenueReport labels the selected period while summing all paid rows; multi-service summary buckets expose __multi__. Reuse the PDF period-selection rule for every Excel sheet, with inclusive dates and the canonical category label.
+- **Affected paths and verification:** excel/reports + receipt-pdf/global-reports; mixed-date and real-workbook export tests. Local-offline verification only; no live Supabase egress.
+
+
+### BUG-081 — Portal pricing reversal parity with the canonical desktop engine
+
+- **Status:** IN_PROGRESS (Session 58, T-631).
+- **Evidence / root cause / expected behavior:** The desktop excludes reversesId rows and their targets symmetrically from applied discounts/debits; the portal still lists cancelled reductions and majorations. Port the existing rule at the wire-model seam, handling nullable PK / entry-number identity, and pin matching desktop and portal vectors.
+- **Affected paths and verification:** website service-pricing-profile + paired financial regression/parity checks. Local-offline verification only; no live Supabase egress.
+
+
+### BUG-073 — Inspector exports: complete paginated PDF and shared export engines
+
+- **Status:** IN_PROGRESS (Session 58, T-632).
+- **Evidence / root cause / expected behavior:** The PDF keeps drawing onto the first page after addPage and truncates at 80 records / 130 characters; export promises have no failure feedback. Route PDF/XLSX through existing export engines, preserve the filtered record set and useful human detail, and surface errors. The remainder of T-613 and T-612 stays OPEN.
+- **Affected paths and verification:** data-inspector-core + existing report-document/export-engine adapters; actual PDF text and export-failure tests. Local-offline verification only; no live Supabase egress.

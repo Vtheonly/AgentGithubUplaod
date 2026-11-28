@@ -1,3 +1,9 @@
+# SESSION STATE — Session 58 (2026-11-28)
+
+Agent: Codex. Clean main base: `804180a2678ec74d88eda41e074910cb7077fb37`; website `f93d7642e43c5c17cef7e75022f327dd526eaaa9`. Five tasks registered IN_PROGRESS: T-628..T-632. Baseline batteries running locally; no remote database traffic. Scope: bounded operational/calculation defects, no broad audit or permission-matrix changes. Evidence will be recorded after execution; no inherited pass claims.
+
+---
+
 # SESSION STATE — Session 57 (2026-11-28)
 
 > Successor note: this file now tracks Session 57 (the C-25 follow-up trio — T-627). The Session-56 record below is preserved verbatim.

@@ -7344,3 +7344,58 @@ Load `elimtiyaz-desktop/docs/codebase-audit/MASTER-CONSOLIDATION-CANDIDATE-REGIS
 | T-622 · Waves 2–3 | P3-003 through P3-005. Unify the wire-role mapper; then share the switch-route and condition parsers between desktop preview and Edge execution. | Keep both role callers, both bundling entry points, and both public parser contracts. Compare the 11 known roles, unknown codes and malformed workflow trees. Rewire callers and retire the old definitions in the same card. Keep Edge authorization and effects in Edge. |
 | T-623 · Wave 3, follows T-429 | P3-006 through P3-008. Reconcile the parent portal and the materialized view with tenant-configured staff debt aging. Retain the offline Kotlin implementation. | Reproduce the 730-day case, then cover settled amounts, nondefault tenant settings, date boundaries and recent payments in each client. Verify view consumers, grants and outputs on isolated data before planning migration. |
 | T-624 · Remaining evidence | Preserve P2-0177, P2-0188, P2-0189, P2-0289. Review unresolved candidates by active operation using the Pass 2 crosswalk, modeled groups, lint spans and operational-script references. | Each new decision needs a pinned declaration, all consumers, canonical owner and behavior check. Measure actual diff LOC and runtime calls after each retirement. |
+
+
+## Session 58 selection (2026-11-28) — five bounded working-delivery tasks
+
+The owner explicitly requests at least five tasks. Base main `804180a2678ec74d88eda41e074910cb7077fb37`; website main `f93d7642e43c5c17cef7e75022f327dd526eaaa9`. C-25 integrity work is selected first; the active financial/report defects follow. No broad dedup queue, live DB traffic or permission-matrix change. Registering before application edits.
+
+## T-628 — Placement draft recovery: validate the persisted shape and isolate context switches
+
+**Status:** IN_PROGRESS (Session 58; registered before code).
+
+**Problem IDs:** BUG-078 / C-25.
+
+**Expected behavior / bounded contract:** The existing draft cache validates arrays only; malformed entries can throw in Map construction and context switches can save a stale closure under the next key. Keep one versioned parser; preserve each tenant/year/grade draft on navigation; reject malformed or mismatched contexts without losing other drafts. No new DB store in this bounded repair.
+
+**Scope and required tests:** placement storage + use-class-placement-studio; t-532 regression suite. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+## T-629 — Dashboard layout lifecycle: reject stale loads and expose reset failures
+
+**Status:** IN_PROGRESS (Session 58; registered before code).
+
+**Problem IDs:** BUG-079 / C-25.
+
+**Expected behavior / bounded contract:** A late load can resurrect a reset or update another view; reset ignores server failure and falsely appears durable. Keep server-authoritative explicit saves and local fallback, fence asynchronous results by context/revision, and show concise French failure wording.
+
+**Scope and required tests:** dashboard-layout-editor + settings-stores boundary; t-448 regressions. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+## T-630 — Revenue Excel reports: selected period and human category labels
+
+**Status:** IN_PROGRESS (Session 58; registered before code).
+
+**Problem IDs:** BUG-080.
+
+**Expected behavior / bounded contract:** exportRevenueReport labels the selected period while summing all paid rows; multi-service summary buckets expose __multi__. Reuse the PDF period-selection rule for every Excel sheet, with inclusive dates and the canonical category label.
+
+**Scope and required tests:** excel/reports + receipt-pdf/global-reports; mixed-date and real-workbook export tests. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+## T-631 — Portal pricing reversal parity with the canonical desktop engine
+
+**Status:** IN_PROGRESS (Session 58; registered before code).
+
+**Problem IDs:** BUG-081 / BUG-020 follow-up.
+
+**Expected behavior / bounded contract:** The desktop excludes reversesId rows and their targets symmetrically from applied discounts/debits; the portal still lists cancelled reductions and majorations. Port the existing rule at the wire-model seam, handling nullable PK / entry-number identity, and pin matching desktop and portal vectors.
+
+**Scope and required tests:** website service-pricing-profile + paired financial regression/parity checks. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
+
+## T-632 — Inspector exports: complete paginated PDF and shared export engines
+
+**Status:** IN_PROGRESS (Session 58; registered before code).
+
+**Problem IDs:** BUG-073 / ARCH-028, bounded T-613 export increment.
+
+**Expected behavior / bounded contract:** The PDF keeps drawing onto the first page after addPage and truncates at 80 records / 130 characters; export promises have no failure feedback. Route PDF/XLSX through existing export engines, preserve the filtered record set and useful human detail, and surface errors. The remainder of T-613 and T-612 stays OPEN.
+
+**Scope and required tests:** data-inspector-core + existing report-document/export-engine adapters; actual PDF text and export-failure tests. Regression RED before fix, targeted suites, renderer/Electron typecheck, lint, builds, real Excel import/re-import on the offline chain, and Desktop/Website financial parity. Packaged Electron / production UI checks remain explicit TESTED gaps.
